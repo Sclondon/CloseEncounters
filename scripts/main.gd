@@ -1473,10 +1473,15 @@ func _layout_touch() -> void:
 	beam_button.position = Vector2(size.x * 0.75 - r, size.y * 0.74 - r)
 
 
-func _unhandled_input(event: InputEvent) -> void:
+## Touches are read here, before the interface sees them (as Liquid Metal does), so nothing on the
+## screen can swallow them; only a finger that comes down on the pause button is left to it
+func _input(event: InputEvent) -> void:
 	if mode != "play" or autopilot:
 		return
 	if get_tree().paused:
+		return
+	if event is InputEventScreenTouch and event.pressed and _pause_button.visible \
+			and _pause_button.get_global_rect().grow(8).has_point(event.position):
 		return
 	if event is InputEventScreenTouch:
 		touched = true
