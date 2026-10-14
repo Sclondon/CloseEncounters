@@ -14,9 +14,10 @@ like Animal Crossing (`shaders/bend.gdshaderinc`).
 
 - **Move**: WASD / arrows / left stick, or a thumb on the left half of a touch screen: a stick comes up under it,
   and the ship goes the way the thumb is then pushed.
-- **Beam**: hold Space (or J, Z), gamepad A / right trigger, or a finger on the right half of a touch screen; or tap
-  the beam's mark (lower right) to switch it on, and again to switch it off.
-- **Tap to fly**: tap (or click) the ground and the ship flies there. The ship slows
+- **Beam**: hold Space (or J, Z), gamepad A / right trigger, or a finger held on the right half of a touch screen
+  (the beam's mark, which rests in the bottom right corner, comes up under it); a tap on the right half switches it
+  on, and another off.
+- **Tap to fly**: tap the left half of the screen (or click the ground) and the ship flies there. The ship slows
   while the beam is on. Things rise slowly (the heavier, the slower) and are taken when they reach the ship.
   Let go early and they fall. Drop something from high enough onto the police or the army and it crushes them.
 - **Dodge**: Shift (or X, K), gamepad B / left shoulder, or a quick swipe: a dash that spins the ship like a
@@ -25,8 +26,8 @@ like Animal Crossing (`shaders/bend.gdshaderinc`).
 - **Pause**: Esc / P / Start, or the II button in the top right; from there, RESUME or QUIT TO MENU (the run is given up).
 
 The HUD: the score in alien money top left, and under it a log of everything taken, typed out in glowing green.
-Bottom left, the shield as a glass orb of blue energy, and beside it three pistons that pop up as the dodge
-recharges (three lamps on the front of the ship light with them). The touch stick shows only while a thumb is on
+Top right, beside the pause button, the shield as a glass orb of blue energy, and three pistons that pop up as
+the dodge recharges (three lamps on the front of the ship light with them). The touch stick shows only while a thumb is on
 it.
 
 The pilot works a stick and a panel of buttons in front of it, mashes the buttons while the beam is on, and is

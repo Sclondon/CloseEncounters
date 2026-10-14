@@ -63,6 +63,9 @@ func _process(_delta: float) -> bool:
 			_touch(1, Vector2(size.x * 0.8, size.y * 0.6), true)
 		110:
 			_check(main.ufo.beaming, "a finger held on the right half turns the beam on")
+			_check(main.beam_button.get_global_rect().get_center().distance_to(Vector2(size.x * 0.8, size.y * 0.6)) < 2.0, "and the beam's mark comes up under it")
+			# (held for a good while, not a tap: the test runs faster than real time)
+			main._touch_from[1][1] -= 1.0
 			_touch(1, Vector2(size.x * 0.8, size.y * 0.6), false)
 		120:
 			_check(not main.ufo.beaming and main.stick_finger == -1 and main.stick == Vector2.ZERO, "letting go stops the beam and lets go of the stick")

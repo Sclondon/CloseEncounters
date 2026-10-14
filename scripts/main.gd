@@ -159,6 +159,8 @@ const TAP_TIME := 0.3
 const TAP_SLOP := 24.0
 ## The beam left on by a tap on its mark (off with another)
 var beam_latched := false
+## Where the finger beaming is (the mark follows it)
+var _beam_at := Vector2.INF
 ## Where a tap on the ground sent the ship, and the mark on the ground there
 var _move_target := Vector3.INF
 var _target_mark: MeshInstance3D
@@ -1287,9 +1289,9 @@ func _build_hud() -> void:
 
 	shield_bar = Shield.new()
 	shield_bar.main = self
-	shield_bar.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	shield_bar.position = Vector2(18, -176)
-	shield_bar.size = Vector2(240, 160)
+	shield_bar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	shield_bar.position = Vector2(-292, 8)
+	shield_bar.size = Vector2(200, 112)
 	shield_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(shield_bar)
 
@@ -1507,6 +1509,9 @@ func _hud(delta: float) -> void:
 	stick_ring.queue_redraw()
 	# (on a touch screen the stick and the beam show from the start, so it is plain how to fly)
 	beam_button.visible = (touched or _touch_screen) and playing
+	# (under the finger that is beaming, and back in its corner after)
+	var mark_at := _beam_at if beam_finger != NO_FINGER and _beam_at != Vector2.INF else _beam_home()
+	beam_button.position = mark_at - beam_button.size * 0.5
 	stick_ring.visible = playing and stick_finger != NO_FINGER
 	beam_button.queue_redraw()
 	_pause_button.visible = playing and not autopilot
@@ -1565,13 +1570,20 @@ func _debug_show() -> void:
 	_debug_label.text = _debug_state + "\n" + "\n".join(_debug_lines)
 
 
+## Where the beam's mark rests: the bottom right corner
+func _beam_home() -> Vector2:
+	var view := get_viewport().get_visible_rect().size
+	var r := minf(view.x, view.y) * 0.13
+	return Vector2(view.x - r * 1.35, view.y - r * 1.35)
+
+
 func _layout_touch() -> void:
 	if beam_button == null:
 		return
 	var size := get_viewport().get_visible_rect().size
 	var r := minf(size.x, size.y) * 0.13
 	beam_button.size = Vector2(r * 2, r * 2)
-	beam_button.position = Vector2(size.x * 0.75 - r, size.y * 0.74 - r)
+	beam_button.position = _beam_home() - Vector2(r, r)
 
 
 ## Touches are read here, before the interface sees them (as Liquid Metal does), so nothing on the
@@ -1620,6 +1632,7 @@ func _finger_down(index: int, at: Vector2) -> void:
 	if at.x > get_viewport().get_visible_rect().size.x * 0.5:
 		if beam_finger == NO_FINGER:
 			beam_finger = index
+			_beam_at = at
 	elif stick_finger == NO_FINGER:
 		_take_stick(index, at)
 
@@ -1629,7 +1642,9 @@ func _finger_moved(index: int, at: Vector2) -> void:
 	touched = true
 	if index == stick_finger:
 		stick = _stick_toward(at)
-	elif index != beam_finger:
+	elif index == beam_finger:
+		_beam_at = at
+	else:
 		if not _touch_from.has(index):
 			# (where it came down, if the mouse Godot made of it says, or else here)
 			var start: Array = _mouse_down if not _mouse_down.is_empty() and Time.get_ticks_msec() / 1000.0 - float(_mouse_down[1]) < 1.0 else [at, Time.get_ticks_msec() / 1000.0]
@@ -1639,6 +1654,7 @@ func _finger_moved(index: int, at: Vector2) -> void:
 			stick = _stick_toward(at)
 		elif at.x > get_viewport().get_visible_rect().size.x * 0.5 and beam_finger == NO_FINGER:
 			beam_finger = index
+			_beam_at = at
 
 
 ## A finger lifted: a flick dodges; a tap on the beam's mark turns the beam on or off, and a tap
@@ -1656,8 +1672,7 @@ func _finger_up(index: int, at: Vector2) -> void:
 		if held < SWIPE_TIME and moved.length() > SWIPE_LENGTH:
 			_dodge(moved)
 		elif held < TAP_TIME and moved.length() < TAP_SLOP:
-			var mark := beam_button.get_global_rect()
-			if beam_button.visible and at.distance_to(mark.get_center()) < mark.size.x * 0.5 + 16.0:
+			if at.x > get_viewport().get_visible_rect().size.x * 0.5:
 				beam_latched = not beam_latched
 			else:
 				_fly_to(at)
@@ -1771,8 +1786,8 @@ class Shield extends Control:
 
 	func _draw() -> void:
 		var t := Time.get_ticks_msec() / 1000.0
-		var r := 62.0
-		var c := Vector2(r + 6, size.y - r - 10)
+		var r := 46.0
+		var c := Vector2(r + 6, r + 8)
 		var left: float = clampf(main.ufo.hull / float(main.ufo.hull_max), 0.0, 1.0)
 		var bare := left <= 0.0
 		# the glass, dark inside
@@ -1802,8 +1817,8 @@ class Shield extends Control:
 		# three pistons: each pops up when its third of the recharge is done
 		var ready: float = main.ufo.dodge_ready()
 		for i in 3:
-			var px := c.x + r + 22.0 + i * 26.0
-			var base_y := c.y + r * 0.7
+			var px := c.x + r + 20.0 + i * 24.0
+			var base_y := c.y + r * 0.75
 			var fill := clampf(ready * 3.0 - i, 0.0, 1.0)
 			var up := 34.0 * ease(fill, 0.3) if fill >= 1.0 else 34.0 * fill * 0.4
 			draw_rect(Rect2(px - 10, base_y - 6, 20, 12), Color(0.3, 0.33, 0.38))
@@ -1843,18 +1858,18 @@ class BeamButton extends Control:
 		var on: bool = main.beam_finger != main.NO_FINGER or main.beam_latched
 		var t := Time.get_ticks_msec() / 1000.0
 		for i in 6:
-			draw_circle(c, r * (1.0 - i * 0.12), Color(0.3, 1.0, 0.45, (0.05 if on else 0.025) * (i + 1)))
+			draw_circle(c, r * (1.0 - i * 0.12), Color(0.3, 1.0, 0.45, (0.05 if on else 0.012) * (i + 1)))
 		if on:
 			for i in 3:
 				var k := fmod(t * 1.5 + i / 3.0, 1.0)
 				draw_arc(c, r * (0.5 + k * 0.5), 0, TAU, 40, Color(0.7, 1.0, 0.75, (1.0 - k) * 0.6), 3.0)
-		var glow := Color(0.7, 1.0, 0.75, 0.95 if on else 0.6)
+		var glow := Color(0.7, 1.0, 0.75, 0.95 if on else 0.3)
 		draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.12, -r * 0.12), c + Vector2(r * 0.12, -r * 0.12),
-			c + Vector2(r * 0.34, r * 0.5), c + Vector2(-r * 0.34, r * 0.5)]), Color(0.5, 1.0, 0.6, 0.45 if on else 0.22))
+			c + Vector2(r * 0.34, r * 0.5), c + Vector2(-r * 0.34, r * 0.5)]), Color(0.5, 1.0, 0.6, 0.45 if on else 0.1))
 		var hull := PackedVector2Array()
 		for k in 24:
 			var a := TAU * k / 24.0
 			hull.append(c + Vector2(cos(a) * r * 0.42, sin(a) * r * 0.11 - r * 0.18))
 		draw_colored_polygon(hull, glow)
 		draw_circle(c + Vector2(0, -r * 0.3), r * 0.15, glow)
-		draw_arc(c, r * 0.98, 0, TAU, 48, Color(0.7, 1.0, 0.75, 0.5 if on else 0.3), 2.0)
+		draw_arc(c, r * 0.98, 0, TAU, 48, Color(0.7, 1.0, 0.75, 0.5 if on else 0.15), 2.0)
