@@ -19,7 +19,12 @@ like Animal Crossing (`shaders/bend.gdshaderinc`).
 - **Dodge**: Shift (or X, K), gamepad B / left shoulder, or a quick swipe: a dash that spins the ship like a
   top and leaves afterimages, untouchable while it lasts, then 2.5 s before the next (the DODGE bar). It drops
   whatever is in the beam, and throws the pilot about.
-- **Pause**: Esc / P / Start, or the II button; from there, RESUME or QUIT TO MENU (the run is given up).
+- **Pause**: Esc / P / Start, or the II button in the top left; from there, RESUME or QUIT TO MENU (the run is given up).
+
+The HUD: the score in alien money top left, and under it a log of everything taken, typed out in glowing green.
+Bottom left, the shield as a glass orb of blue energy, and beside it three pistons that pop up as the dodge
+recharges (three lamps on the front of the ship light with them). The touch stick shows only while a thumb is on
+it.
 
 The pilot works a stick and a panel of buttons in front of it, mashes the buttons while the beam is on, and is
 thrown about the cockpit in a dodge: a little **cockpit camera** at the bottom of the screen shows it. The ship's

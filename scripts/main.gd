@@ -102,6 +102,13 @@ var _pilot_wander := Vector3.ZERO
 var hud: CanvasLayer
 var score_label: Label
 var mult_label: Label
+var coin: Control
+## The log under the score: each thing taken typed out, in glowing green, then fading
+var log_box: VBoxContainer
+const LOG_LINES := 6
+const LOG_SPEED := 45.0
+const LOG_FOR := 5.0
+var _typing := 0.0
 var stars: Control
 var shield_bar: Control
 var banner: Label
@@ -486,7 +493,7 @@ func _drain(t: Thing, delta: float) -> void:
 		sfx.play("static", 2.0, -12.0)
 	if t.power <= 0.0:
 		Ps1.flash(t.model, Color(-0.5, -0.5, -0.5))
-		_popup("DRAINED", t.position + Vector3(0, 4, 0), Color(0.6, 0.85, 1.0))
+		log_line("POWER SIPHONED: SUBSTATION DARK", 0)
 		sfx.play("cool", 0.7)
 
 
@@ -528,7 +535,7 @@ func _crop_circles(delta: float) -> void:
 		var points := 60 * multiplier()
 		score += points
 		heat = minf(heat + 0.02, MAX_HEAT)
-		_popup("CROP CIRCLE +%d" % points, ufo.position + Vector3(0, 1.5, 0), Color(0.9, 0.85, 0.5))
+		log_line("CROP CIRCLE PRESSED", points)
 		sfx.play("fanfare", 1.3, -4.0)
 
 
@@ -679,6 +686,7 @@ func buy(what: String) -> bool:
 	score -= price
 	upgrades[what] += 1
 	_apply_upgrades()
+	log_line("%s UPGRADED TO %d" % [UPGRADES[what]["title"], upgrades[what]], -price)
 	if what == "shield":
 		ufo.hull = minf(ufo.hull + 25.0, ufo.hull_max)
 	sfx.play("bloop", 1.4)
@@ -856,7 +864,8 @@ func abducted(t: Thing) -> void:
 		unlocked.append(found)
 		_save_best()
 	if mode == "play":
-		_popup("+%d" % points, ufo.position + Vector3(0, 1.5, 0), Color(0.6, 1.0, 0.6))
+		var title: String = t.info.get("title", t.kind.replace("_", " ").to_upper())
+		log_line("SPECIMEN %03d  %s" % [taken, title], points)
 	t.state = "gone"
 	t.queue_free()
 
@@ -876,7 +885,7 @@ func landed(t: Thing, height: float) -> void:
 			heat = minf(heat + 0.25, MAX_HEAT)
 			calm = 0.0
 			boom(other.position + Vector3(0, 1, 0), 2.0)
-			_popup("CRUSHED +%d" % points, other.position + Vector3(0, 3, 0), Color(1.0, 0.8, 0.3))
+			log_line("%s CRUSHED" % other.kind.replace("_", " ").to_upper(), points)
 			_remove(other)
 			break
 
@@ -942,6 +951,49 @@ func _crash(delta: float) -> void:
 	over_label.text = "THE SAUCER IS DOWN\n\nSCORE  %d\nTAKEN  %d\nBEST  %d%s" % [score, taken, best, "  (NEW!)" if is_best and score > 0 else ""]
 	over_box.visible = true
 	_banner("", 0.0)
+
+
+## A line for the log under the score: typed out a letter at a time (`points` after it, if any)
+func log_line(text: String, points: int) -> void:
+	var line := _label(20, Color(0.55, 1.0, 0.62))
+	var tail := ""
+	if points > 0:
+		tail = "  +%d" % points + (" x%d" % multiplier() if multiplier() > 1 else "")
+	elif points < 0:
+		tail = "  %d" % points
+	line.text = "> " + text + tail
+	line.visible_characters = 0
+	line.set_meta("born", Time.get_ticks_msec() / 1000.0)
+	_glow(line, Color(0.25, 1.0, 0.4, 0.5))
+	log_box.add_child(line)
+	while log_box.get_child_count() > LOG_LINES:
+		log_box.get_child(0).free()
+
+
+## Types the newest lines out a letter at a time, with a ticking key, and fades the old ones
+func _type_log(delta: float) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	for line: Label in log_box.get_children():
+		if line.visible_characters >= 0 and line.visible_characters < line.text.length():
+			_typing += delta * LOG_SPEED
+			var more := int(_typing)
+			_typing -= more
+			line.visible_characters = mini(line.visible_characters + more, line.text.length())
+			if more > 0 and line.visible_characters % 3 == 0:
+				sfx.play("click", 1.6, -18.0)
+			break
+		var age := now - float(line.get_meta("born"))
+		line.modulate.a = clampf((LOG_FOR - age) / 1.0, 0.0, 1.0)
+		if age > LOG_FOR + 1.0:
+			line.queue_free()
+
+
+## A soft glow round the words, as on an old green screen
+func _glow(l: Label, c: Color) -> void:
+	l.add_theme_color_override("font_shadow_color", c)
+	l.add_theme_constant_override("shadow_offset_x", 0)
+	l.add_theme_constant_override("shadow_offset_y", 0)
+	l.add_theme_constant_override("shadow_outline_size", 10)
 
 
 ## A finished game's score, told to the arcade page the game is in (it saves it to the board)
@@ -1102,12 +1154,24 @@ func _build_hud() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(root)
 
-	score_label = _label(40)
-	score_label.position = Vector2(24, 14)
+	coin = Coin.new()
+	coin.position = Vector2(92, 22)
+	coin.size = Vector2(38, 38)
+	coin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(coin)
+	score_label = _label(40, Color(0.75, 1.0, 0.78))
+	score_label.position = Vector2(138, 12)
+	_glow(score_label, Color(0.3, 1.0, 0.45, 0.55))
 	root.add_child(score_label)
-	mult_label = _label(26, Color(0.6, 1.0, 0.6))
-	mult_label.position = Vector2(26, 62)
+	mult_label = _label(24, Color(0.6, 1.0, 0.6))
+	mult_label.position = Vector2(140, 58)
 	root.add_child(mult_label)
+	log_box = VBoxContainer.new()
+	log_box.position = Vector2(22, 100)
+	log_box.custom_minimum_size = Vector2(560, 0)
+	log_box.add_theme_constant_override("separation", 2)
+	log_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(log_box)
 
 	stars = Stars.new()
 	stars.main = self
@@ -1119,9 +1183,9 @@ func _build_hud() -> void:
 
 	shield_bar = Shield.new()
 	shield_bar.main = self
-	shield_bar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	shield_bar.position = Vector2(-264, 20)
-	shield_bar.size = Vector2(240, 66)
+	shield_bar.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	shield_bar.position = Vector2(18, -176)
+	shield_bar.size = Vector2(240, 160)
 	shield_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(shield_bar)
 
@@ -1233,8 +1297,7 @@ func _build_hud() -> void:
 
 	_pause_button = _button("II", func() -> void: set_paused(true))
 	_pause_button.custom_minimum_size = Vector2(64, 56)
-	_pause_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_pause_button.position = Vector2(-88, 92)
+	_pause_button.position = Vector2(16, 14)
 	_pause_button.focus_mode = Control.FOCUS_NONE
 	root.add_child(_pause_button)
 	_pause_box = _panel(root)
@@ -1379,6 +1442,9 @@ func _hud(delta: float) -> void:
 	if intro > 0.0:
 		score_label.visible = false
 	mult_label.visible = playing
+	coin.visible = playing or mode == "over"
+	log_box.visible = playing
+	_type_log(delta)
 	stars.visible = playing
 	shield_bar.visible = playing
 	score_label.text = "%d" % score
@@ -1388,7 +1454,7 @@ func _hud(delta: float) -> void:
 	stick_ring.queue_redraw()
 	# (on a touch screen the stick and the beam show from the start, so it is plain how to fly)
 	beam_button.visible = (touched or _touch_screen) and playing
-	stick_ring.visible = (touched or _touch_screen) and playing
+	stick_ring.visible = playing and stick_finger >= 0
 	beam_button.queue_redraw()
 	_pause_button.visible = playing and not autopilot
 	cockpit_frame.visible = playing and not ufo.crashed
@@ -1520,28 +1586,76 @@ class Stars extends Control:
 			draw_polyline(pts, colour, 2.0)
 
 
-## The saucer's shield, as a bar
+## The alien money the score is counted in: a green coin stamped with an alien's head
+class Coin extends Control:
+	func _draw() -> void:
+		var r := size.x * 0.5
+		var c := Vector2(r, r)
+		draw_circle(c, r, Color(0.2, 0.6, 0.3))
+		draw_circle(c, r * 0.86, Color(0.45, 0.95, 0.55))
+		draw_arc(c, r * 0.72, 0, TAU, 32, Color(0.2, 0.6, 0.3), 1.5)
+		var head := PackedVector2Array()
+		for k in 20:
+			var a := TAU * k / 20.0
+			var squeeze := 0.62 if sin(a) > 0.0 else 1.0
+			head.append(c + Vector2(cos(a) * r * 0.42 * squeeze, sin(a) * r * 0.5 - r * 0.05))
+		draw_colored_polygon(head, Color(0.12, 0.35, 0.18))
+		for side: float in [-1.0, 1.0]:
+			var eye := PackedVector2Array()
+			for k in 10:
+				var a := TAU * k / 10.0
+				var p := Vector2(cos(a) * r * 0.15, sin(a) * r * 0.07).rotated(0.45 * side)
+				eye.append(c + Vector2(side * r * 0.17, -r * 0.08) + p)
+			draw_colored_polygon(eye, Color(0.75, 1.0, 0.8))
+
+
+## The shield: a glass orb of blue energy, its level the shield left, sloshing; beside it three
+## pistons that pop up one by one as the dodge recharges
 class Shield extends Control:
 	var main: Node
 
 	func _draw() -> void:
-		var hull: float = main.ufo.hull
-		var bare: bool = main.ufo.hull <= 0.0
-		var flashing := fmod(Time.get_ticks_msec() / 200.0, 2.0) < 1.0
-		draw_string(main.font, Vector2(0, 18), "NO SHIELD" if bare else "SHIELD", HORIZONTAL_ALIGNMENT_LEFT, -1, 20,
-			Color(1.0, 0.3, 0.2) if bare and flashing else Color(0.8, 0.9, 1.0))
-		var r := Rect2(0, 26, size.x, 20)
-		draw_rect(r, Color(0, 0, 0, 0.6))
-		var c := Color(0.4, 0.9, 1.0) if hull > 35.0 else Color(1.0, 0.3, 0.2)
-		if hull <= 35.0 and fmod(Time.get_ticks_msec() / 250.0, 2.0) < 1.0:
-			c = c.lightened(0.4)
-		draw_rect(Rect2(r.position, Vector2(r.size.x * hull / float(main.ufo.hull_max), r.size.y)), c)
-		draw_rect(r, Color(1, 1, 1, 0.5), false, 2.0)
+		var t := Time.get_ticks_msec() / 1000.0
+		var r := 62.0
+		var c := Vector2(r + 6, size.y - r - 10)
+		var left: float = clampf(main.ufo.hull / float(main.ufo.hull_max), 0.0, 1.0)
+		var bare := left <= 0.0
+		# the glass, dark inside
+		draw_circle(c, r + 6, Color(0.6, 0.85, 1.0, 0.18))
+		draw_circle(c, r, Color(0.02, 0.05, 0.1, 0.75))
+		# the fluid: the part of the orb below its level, with a wave on top
+		if left > 0.0:
+			var level := c.y + r - left * 2.0 * r
+			var fluid := PackedVector2Array()
+			for k in 25:
+				var x := c.x - r + 2.0 * r * k / 24.0
+				var y := level + sin(t * 3.0 + k * 0.6) * 3.0 * (0.4 + left)
+				var half := sqrt(maxf(r * r - pow(x - c.x, 2.0), 0.0))
+				fluid.append(Vector2(x, clampf(y, c.y - half, c.y + half)))
+			for k in 33:
+				var a := PI * k / 32.0
+				fluid.append(c + Vector2(cos(a), sin(a)) * r)
+			var hot := Color(0.15, 0.55, 1.0) if left > 0.3 else Color(1.0, 0.3, 0.2)
+			draw_colored_polygon(fluid, hot * Color(1, 1, 1, 0.85))
+			for k in 4:
+				var bx := c.x + sin(k * 2.3 + t * 0.7) * r * 0.5
+				var by := c.y + r - fmod(t * 25.0 + k * 31.0, left * 2.0 * r)
+				draw_circle(Vector2(bx, by), 3.0, Color(0.7, 0.9, 1.0, 0.5))
+		draw_arc(c, r, 0, TAU, 48, Color(0.6, 0.9, 1.0, 0.9), 3.0)
+		draw_arc(c + Vector2(-r * 0.3, -r * 0.35), r * 0.45, PI * 1.05, PI * 1.45, 12, Color(1, 1, 1, 0.5), 3.0)
+		if bare and fmod(t * 2.5, 2.0) < 1.0:
+			draw_string(main.font, c + Vector2(-r, 6), "NO SHIELD", HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, 18, Color(1.0, 0.35, 0.25))
+		# three pistons: each pops up when its third of the recharge is done
 		var ready: float = main.ufo.dodge_ready()
-		var d := Rect2(size.x * 0.45, 52, size.x * 0.55, 8)
-		draw_string(main.font, Vector2(0, 62), "DODGE", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.8, 0.9, 1.0, 0.8))
-		draw_rect(d, Color(0, 0, 0, 0.6))
-		draw_rect(Rect2(d.position, Vector2(d.size.x * ready, d.size.y)), Color(0.7, 1.0, 0.75) if ready >= 1.0 else Color(0.5, 0.6, 0.6))
+		for i in 3:
+			var px := c.x + r + 22.0 + i * 26.0
+			var base_y := c.y + r * 0.7
+			var fill := clampf(ready * 3.0 - i, 0.0, 1.0)
+			var up := 34.0 * ease(fill, 0.3) if fill >= 1.0 else 34.0 * fill * 0.4
+			draw_rect(Rect2(px - 10, base_y - 6, 20, 12), Color(0.3, 0.33, 0.38))
+			draw_rect(Rect2(px - 4, base_y - 6 - up, 8, up), Color(0.7, 0.72, 0.76))
+			var cap := Color(0.45, 1.0, 0.55) if fill >= 1.0 else Color(0.45, 0.2, 0.18)
+			draw_rect(Rect2(px - 9, base_y - 14 - up, 18, 8), cap)
 
 
 ## Where the thumb is on the touch stick

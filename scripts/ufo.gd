@@ -69,6 +69,8 @@ var descent := 0.0
 var seat := Vector3.ZERO
 var pilot_size := 1.0
 var _toss := 0.0
+## Three lamps on the front of the hull, lit one by one as the dodge recharges
+var _lamps: Array[ShaderMaterial] = []
 var _spin := 0.0
 var _ghost_wait := 0.0
 var _model_name := "ufo"
@@ -127,6 +129,10 @@ func _ready() -> void:
 	pilot_size = float(spec["alien_size"])
 	body.add_child(alien)
 	_build_panel(float(spec["alien_size"]), Vector3(0, spec["alien_y"], 0))
+	for i in 3:
+		var m := Ps1.own(Color(0.4, 1.0, 0.5), 1.5)
+		_lamps.append(m)
+		Ps1.part(body, Ps1.ball(), m, Vector3((i - 1) * 0.42, 0.22, radius * 0.78), Vector3.ONE * 0.13)
 	bubble = MeshInstance3D.new()
 	var ball := SphereMesh.new()
 	ball.radius = 1.0
@@ -233,6 +239,11 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	if since_hit > 3.0 and hull < hull_max:
 		hull = minf(hull + delta * mend_rate * hull_max / 100.0, hull_max)
 	_flash_lights()
+	var ready := dodge_ready()
+	for i in _lamps.size():
+		var lit := ready >= (i + 1) / 3.0
+		_lamps[i].set_shader_parameter("tint", Color(0.4, 1.0, 0.5) if lit else Color(0.35, 0.08, 0.06))
+		_lamps[i].set_shader_parameter("glow", 1.5 if lit else 0.3)
 	var left := hull / hull_max
 	bubble.visible = hull > 0.0
 	_bubble_mat.set_shader_parameter("strength", 0.25 + 0.75 * left)
