@@ -5,8 +5,12 @@ extends Node3D
 ## behind. It sits at SITE (far above the world, out of reach of the camera from down there).
 
 const SITE := Vector3(0, 900, 0)
-## Where the ship parks, and where Earth hangs (from SITE)
-const SHIP_AT := Vector3(4.2, 1.7, -3.2)
+## Where the ship parks (its feet, 1.58 below it, on the flat patch of ground made for it: see
+## moon_surface in tools/build_models.py), the cooler and the radio in front of it, and where Earth
+## hangs (from SITE)
+const SHIP_AT := Vector3(4.2, 1.58, -3.2)
+const COOLER_AT := Vector3(1.99, 0.0, -2.11)
+const RADIO_AT := Vector3(3.6, 0.0, -0.76)
 const EARTH_AT := Vector3(150.0, 70.0, -150.0)
 const EARTH_SIZE := 24.0
 ## The parked ship turned to face the camera
@@ -17,7 +21,21 @@ var earth: MeshInstance3D
 
 func _ready() -> void:
 	position = SITE
-	add_child(Ps1.model("moon_surface"))
+	var ground := Ps1.model("moon_surface")
+	add_child(ground)
+	var regolith := ShaderMaterial.new()
+	regolith.shader = load("res://shaders/moon.gdshader")
+	var meshes := ground.find_children("*", "MeshInstance3D", true, false)
+	if ground is MeshInstance3D:
+		meshes.append(ground)
+	for m in meshes:
+		(m as MeshInstance3D).material_override = regolith
+	# The cooler of beers and the radio, on the ground in front of the ship
+	for prop: Array in [["cooler", COOLER_AT, 0.5], ["boombox", RADIO_AT, -0.3]]:
+		var thing := Ps1.model(prop[0])
+		thing.position = prop[1]
+		thing.rotation.y = SHIP_TURN + float(prop[2])
+		add_child(thing)
 	earth = MeshInstance3D.new()
 	var ball := SphereMesh.new()
 	ball.radius = EARTH_SIZE

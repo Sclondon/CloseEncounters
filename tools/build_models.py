@@ -51,6 +51,8 @@ COLOURS = {
     "transformer": (0.5, 0.55, 0.5), "hazard": (0.95, 0.75, 0.1),
     "regolith": (0.58, 0.57, 0.55), "regolith_dark": (0.4, 0.4, 0.4), "canvas_a": (0.95, 0.4, 0.3), "canvas_b": (0.95, 0.9, 0.8),
     "chrome_leg": (0.75, 0.77, 0.8), "drink": (0.35, 0.95, 0.5), "umbrella": (1.0, 0.5, 0.75), "black_hull": (0.09, 0.09, 0.11), "hull_edge": (0.2, 0.2, 0.24),
+    "cooler_red": (0.8, 0.12, 0.1), "cooler_white": (0.93, 0.93, 0.9), "beer": (0.35, 0.18, 0.06), "beer_cap": (0.9, 0.75, 0.25),
+    "ice": (0.8, 0.92, 1.0), "radio_body": (0.12, 0.12, 0.14), "radio_trim": (0.7, 0.72, 0.75), "speaker": (0.05, 0.05, 0.05),
 }
 GLOWS = {
     "window": ((1.0, 0.85, 0.45), 2.0), "siren_red": ((1.0, 0.1, 0.1), 3.0),
@@ -966,6 +968,8 @@ def moon_surface():
     rnd = random.Random(21)
     craters = [(rnd.uniform(-28, 28), rnd.uniform(-28, 28), rnd.uniform(2.0, 6.5)) for _ in range(14)]
     craters = [c for c in craters if math.hypot(c[0], c[1]) > 9.0]
+    # (and some big ones off behind the ship, toward Earth, where the title looks)
+    craters += [(18.0, 16.0, 7.0), (27.0, 6.0, 4.5), (9.0, 26.0, 5.0), (25.0, 25.0, 3.5), (14.0, 31.0, 3.0), (31.0, 15.0, 3.0)]
     bpy.ops.mesh.primitive_grid_add(x_subdivisions=56, y_subdivisions=56, size=70.0, location=(0, 0, 0))
     o = bpy.context.object
     bm = bmesh.new()
@@ -979,6 +983,10 @@ def moon_surface():
                 h -= 0.55 * cr * 0.25 * (1.0 - d * d)
             elif d < 1.5:
                 h += 0.35 * cr * 0.15 * math.cos((d - 1.0) / 0.5 * math.pi * 0.5)
+        # (flat where the ship stands, so its feet rest on the ground and the cooler and the radio
+        # stand level in front of it: MoonSet.SHIP_AT, 4.2 across and 3.2 back)
+        pad = math.hypot(x - 4.2, y - 3.2)
+        h *= min(1.0, max(0.0, (pad - 4.5) / 2.5))
         # (the edge drops away, so the piece has no lip)
         edge = max(0.0, math.hypot(x, y) - 30.0)
         v.co.z = h - edge * 0.4
@@ -1015,6 +1023,35 @@ def cocktail():
          cone(0.08, 0.04, (0.055, 0, 0.37), "umbrella", 8)]
     return join("cocktail", p)
 
+
+def cooler():
+    """A cooler with its lid open, full of ice and brown bottles of beer, facing -Y"""
+    p = [box((0.7, 0.42, 0.36), (0, 0, 0.2), "cooler_red"), box((0.72, 0.44, 0.04), (0, 0, 0.02), "cooler_white"),
+         box((0.62, 0.34, 0.04), (0, 0, 0.34), "ice"),
+         # (the lid, swung up and back, and the handles)
+         box((0.72, 0.06, 0.44), (0, 0.24, 0.6), "cooler_white", (-0.25, 0, 0)),
+         box((0.04, 0.08, 0.04), (-0.37, 0, 0.3), "cooler_white"), box((0.04, 0.08, 0.04), (0.37, 0, 0.3), "cooler_white")]
+    for i in range(8):
+        x, y = -0.24 + (i % 4) * 0.16, -0.07 + (i // 4) * 0.14
+        tilt = (0.15 * ((i * 7) % 3 - 1), 0.12 * ((i * 5) % 3 - 1), 0)
+        p.append(drum(0.035, 0.2, (x, y, 0.4), "beer", 6, tilt))
+        p.append(drum(0.018, 0.08, (x, y, 0.53), "beer", 6, tilt))
+        p.append(drum(0.02, 0.015, (x, y, 0.575), "beer_cap", 6, tilt))
+    return join("cooler", p)
+
+
+def boombox():
+    """A boombox: two big speakers, a tape deck between them, a chrome handle and an aerial, facing -Y"""
+    p = [box((0.7, 0.18, 0.36), (0, 0, 0.2), "radio_body"), box((0.72, 0.2, 0.03), (0, 0, 0.385), "radio_trim"),
+         box((0.18, 0.02, 0.1), (0, -0.095, 0.24), "radio_trim"), box((0.14, 0.02, 0.04), (0, -0.095, 0.33), "lights"),
+         box((0.04, 0.04, 0.14), (-0.22, 0, 0.46), "radio_trim"), box((0.04, 0.04, 0.14), (0.22, 0, 0.46), "radio_trim"),
+         box((0.48, 0.04, 0.04), (0, 0, 0.53), "radio_trim"), drum(0.008, 0.6, (0.3, 0.02, 0.62), "radio_trim", 4, (0, 0.45, 0))]
+    for s in (-1, 1):
+        p.append(drum(0.12, 0.03, (s * 0.21, -0.09, 0.19), "radio_trim", 12, (math.pi / 2, 0, 0)))
+        p.append(drum(0.1, 0.04, (s * 0.21, -0.09, 0.19), "speaker", 12, (math.pi / 2, 0, 0)))
+        p.append(drum(0.035, 0.05, (s * 0.21, -0.1, 0.19), "radio_trim", 8, (math.pi / 2, 0, 0)))
+    return join("boombox", p)
+
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
@@ -1022,7 +1059,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, sasquatch, meteorite, satellite,
-            police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail]
+            police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox]
 
 
 def main():

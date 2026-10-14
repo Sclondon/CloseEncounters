@@ -314,12 +314,14 @@ func _fit() -> void:
 	view.size = Vector2i((size * Ps1.LINES / minf(size.x, size.y)).round())
 	# (an upright phone sees more of the world above and below, not less to the sides)
 	camera.keep_aspect = Camera3D.KEEP_WIDTH if size.x < size.y else Camera3D.KEEP_HEIGHT
-	if size.x < size.y:
-		camera.fov = 50.0
-	else:
-		camera.fov = 42.0
+	camera.fov = _fov()
 	_layout_touch()
 	_layout_title(size)
+
+
+## How wide the camera sees in a run: across an upright phone, or up and down a wide screen
+func _fov() -> float:
+	return 50.0 if _upright() else 42.0
 
 
 # ------------------------------------------------------------------ the run
@@ -1239,6 +1241,7 @@ func _sounds() -> void:
 ## The descent: first close behind the ship looking up past it into the stars, then swinging up and
 ## back as it comes down until the curve of the planet fills the picture, and the game's camera
 func _intro_camera() -> void:
+	camera.fov = _fov()
 	var k := 1.0 - intro / INTRO
 	var settle := smoothstep(0.45, 1.0, k)
 	var normal_from := _camera_offset() - Vector3(0, ufo.altitude, 0)
@@ -1258,11 +1261,11 @@ func _moon_camera(delta: float) -> void:
 	var site := MoonSet.SITE
 	# (close on the pilot up on the ship, Earth over its shoulder; on a wide screen the pilot to the
 	# right of the title, on an upright phone in the middle between the title and the buttons)
-	var at := site + Vector3(-0.86, 3.6, 2.5)
-	var look := site + Vector3(3.21, 4.12, -6.64)
+	var at := site + Vector3(-1.4, 2.4, 2.25)
+	var look := site + Vector3(2.65, 1.7, -6.85)
 	if _upright():
-		at = site + Vector3(0.13, 3.04, 2.31)
-		look = site + Vector3(6.15, 3.04, -5.68)
+		at = site + Vector3(0.13, 2.0, 2.31)
+		look = site + Vector3(6.15, 2.0, -5.68)
 	if mode == "launch" and _launch_t > 0.9:
 		var k := smoothstep(0.9, 2.6, _launch_t)
 		var earth := moon_set.earth_position()
@@ -1271,6 +1274,8 @@ func _moon_camera(delta: float) -> void:
 		look = look.lerp(earth, k)
 	camera.position = at
 	camera.look_at(look, Vector3.UP)
+	# (wider on a wide screen, for the ground and its cooler and Earth high above both to be seen)
+	camera.fov = _fov() if _upright() else 52.0
 	RenderingServer.global_shader_parameter_set("bend_focus", Vector3(site.x + 1.0, 0.0, site.z))
 	RenderingServer.global_shader_parameter_set("saucer_pos", Vector3(0, -9999, 0))
 	_sky_mat.set_shader_parameter("space", 1.0)
@@ -1474,6 +1479,7 @@ func _camera(delta: float) -> void:
 		return
 	_sky_mat.set_shader_parameter("space", 0.0)
 	camera.environment.fog_density = 0.006
+	camera.fov = _fov()
 	var goal := focus + _camera_offset()
 	if mode == "title":
 		goal = focus + Vector3(0, 11.0, 15.0)
