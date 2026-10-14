@@ -26,8 +26,6 @@ const FORCES: Array[Dictionary] = [
 	{"police_car": 1, "jeep": 2, "tank": 2},
 ]
 ## How many of each thing the farm keeps about (taken ones are replaced, somewhere else)
-const STOCK := {"cow": 22, "sheep": 16, "pig": 14, "chicken": 26, "farmer": 10, "person": 14, "hay_bale": 14,
-	"scarecrow": 8, "outhouse": 6, "tractor": 6, "car": 8, "pickup": 5}
 const CAMERA_OFFSET := Vector3(0, 17.0, 13.0)
 
 @export var start_mode := "title"
@@ -55,7 +53,28 @@ var taken := 0
 var best := 0
 var time_alive := 0.0
 var _spawn_wait := 0.0
-var _stock_wait := 0.0
+var _cull_wait := 0.0
+var _patrol_wait := 1.0
+var _pull_wait := 0.0
+## The traders parked about the country, and what has been bought from them this run
+var shops: Array[Shop] = []
+var upgrades := {"engine": 0, "beam": 0, "shield": 0}
+var shop_open: Shop
+var _shop_left: Shop
+var _shop_box: PanelContainer
+var _shop_list: VBoxContainer
+var _shop_title: Label
+var _hot_wait := 0.0
+const UPGRADES := {
+	"engine": {"title": "ENGINE", "about": "+12% speed", "price": 300},
+	"beam": {"title": "BEAM", "about": "lifts faster, and stronger: one more kind of thing it can take", "price": 400},
+	"shield": {"title": "SHIELD", "about": "+25 shield, and patched up", "price": 300},
+}
+const MAX_UPGRADE := 4
+var _heavy_wait := 0.0
+var _spotted_for := 0.0
+## Things further than this from the saucer are let go (their chunk has gone, or soon will)
+const CULL := 216.0
 var _jet_wait := 8.0
 var _shake := 0.0
 var _hurt := 0.0
@@ -76,6 +95,11 @@ var title_box: Control
 var over_box: Control
 var over_label: Label
 var hint_label: Label
+var ship_label: Label
+## Which ship is flown (see Ufo.SHIPS), chosen on the title screen and remembered
+var ship := "saucer"
+## The pilot of this run: a new alien every time
+var alien_seed := randi()
 var font: Font
 var _popups: Array[Label3D] = []
 
@@ -103,15 +127,12 @@ func _ready() -> void:
 	add_child(sfx)
 	_build_view()
 	world = World.new()
+	world.game = self
 	view.add_child(world)
-	world.build()
-	ufo = Ufo.new()
-	view.add_child(ufo)
-	_build_hud()
 	_load_best()
-	for kind: String in STOCK:
-		for i in STOCK[kind]:
-			_spawn(kind, true)
+	_make_ufo(Vector3.ZERO)
+	world.update(ufo.position, 0.0, true)
+	_build_hud()
 	if start_mode == "play":
 		start()
 	else:
@@ -220,8 +241,9 @@ func start() -> void:
 		j.queue_free()
 	jets.clear()
 	ufo.queue_free()
-	ufo = Ufo.new()
-	view.add_child(ufo)
+	alien_seed = randi()
+	upgrades = {"engine": 0, "beam": 0, "shield": 0}
+	_make_ufo(Vector3.ZERO)
 	heat = 0.0
 	calm = 0.0
 	score = 0
@@ -245,6 +267,10 @@ func multiplier() -> int:
 
 
 func _process(delta: float) -> void:
+	if shop_open != null:
+		if Input.is_action_just_pressed("pause"):
+			close_shop()
+		return
 	if Input.is_action_just_pressed("pause") and mode == "play" and not autopilot:
 		get_tree().paused = not get_tree().paused
 		_banner("PAUSED" if get_tree().paused else "", 999.0 if get_tree().paused else 0.0)
@@ -264,23 +290,34 @@ func _process(delta: float) -> void:
 		steer = pilot[0]
 		beam = pilot[1]
 	ufo.tick(delta, steer, beam)
+	if not ufo.dead:
+		var held := ufo.position
+		ufo.position = world.push_out(ufo.position, 2.6)
+		ufo.position.y = held.y
 	ufo.mend_rate = 6.0 if heat_level() == 0 else 0.0
 	if mode == "title":
 		heat = 0.0
-		ufo.hull = 100.0
+		ufo.hull = ufo.hull_max
 	# The beam takes hold of whatever is under it
 	for t in things:
 		if t.state == "gone":
 			continue
-		if ufo.in_beam(t.position, t.size() * 0.4):
+		if ufo.in_beam(t.position, t.reach):
+			if t.tier() > ufo.tier:
+				if t.state == "walk":
+					_too_heavy(t)
+				t.tick(delta, ufo)
+				continue
 			if t.state == "walk" or t.state == "falling":
 				if t.state == "walk" and t.info.has("voice") and randf() < 0.6:
 					sfx.play(t.info["voice"], randf_range(0.9, 1.1), -4.0)
 				t.state = "lifted"
-				t.lift = clampf(t.position.y / (Ufo.ALTITUDE - 0.9), 0.0, 1.0)
+				t.lift = clampf(t.position.y / (ufo.altitude - 0.9), 0.0, 1.0)
 			t.held = true
 		t.tick(delta, ufo)
 	things = things.filter(func(t: Thing) -> bool: return t.state != "gone")
+	_pull_scenery(delta)
+	_shops(delta)
 	for s in shots:
 		s.tick(delta, ufo, self)
 	for s in shots:
@@ -292,7 +329,9 @@ func _process(delta: float) -> void:
 		time_alive += delta
 		_heat(delta)
 		_forces(delta)
-	_restock(delta)
+	_patrols(delta)
+	world.update(ufo.position, delta)
+	_cull(delta)
 	_sounds()
 	_camera(delta)
 	_hud(delta)
@@ -302,6 +341,10 @@ func _process(delta: float) -> void:
 		start()
 	if mode == "title" and Input.is_action_just_pressed("start"):
 		start()
+	elif mode == "title" and Input.is_action_just_pressed("left"):
+		_pick_ship(-1)
+	elif mode == "title" and Input.is_action_just_pressed("right"):
+		_pick_ship(1)
 	if _over_wait > 0.0:
 		_over_wait -= delta
 
@@ -337,10 +380,43 @@ func _heat(delta: float) -> void:
 		var wanted: Dictionary = FORCES[level]
 		var have := {}
 		for t in things:
-			if t.is_enemy() and not t.leaving:
+			if t.is_enemy() and not t.leaving and not t.info.get("searchlight", false):
 				have[t.kind] = int(have.get(t.kind, 0)) + 1
 				if int(have[t.kind]) > int(wanted.get(t.kind, 0)):
 					t.leaving = true
+
+
+## Keeps a few patrols with searchlights roving round the ship, more the longer it has been out
+func _patrols(delta: float) -> void:
+	_patrol_wait -= delta
+	_spotted_for = maxf(_spotted_for - delta, 0.0)
+	_heavy_wait -= delta
+	if _patrol_wait > 0.0 or ufo.dead:
+		return
+	_patrol_wait = 3.0
+	var have := 0
+	for t in things:
+		if t.info.get("searchlight", false) and t.ground().distance_to(ufo.ground()) < 120.0:
+			have += 1
+	if have >= mini(2 + int(time_alive / 90.0), 5):
+		return
+	var a := randf() * TAU
+	var at := world.push_out(ufo.ground() + Vector3(sin(a), 0, cos(a)) * randf_range(45.0, 60.0), 3.0)
+	var b := world.biome_at(at)
+	spawn("patrol_jeep" if b in [World.Biome.DESERT, World.Biome.PLAINS, World.Biome.MOUNTAIN] else "patrol_car", at)
+
+
+## A patrol's searchlight has the ship in it: the heat goes up fast, and does not cool while it does
+func spotted(_by: Thing, delta: float) -> void:
+	if mode != "play":
+		return
+	if _spotted_for <= 0.0:
+		_banner("SPOTTED!", 1.2)
+		sfx.play("star", 1.3)
+		heat = maxf(heat, minf(heat + 0.35, MAX_HEAT))
+	_spotted_for = 0.6
+	heat = minf(heat + 0.5 * delta, MAX_HEAT)
+	calm = 0.0
 
 
 ## Keeps the police and army up to strength for the heat, bringing them in from out of sight
@@ -359,10 +435,10 @@ func _forces(delta: float) -> void:
 				have += 1
 		if have < int(wanted[kind]):
 			var angle := randf_range(-PI * 0.8, PI * 0.8) + PI
-			var at := ufo.ground() + Vector3(sin(angle), 0, cos(angle)) * 48.0
-			at.x = clampf(at.x, -World.SIZE, World.SIZE)
-			at.z = clampf(at.z, -World.SIZE, World.SIZE)
-			var t := _spawn(kind, false, at)
+			# (just out of sight: past the bend ahead, or off the edge of the screen behind)
+			var at := ufo.ground() + Vector3(sin(angle), 0, cos(angle)) * 32.0
+			at = world.push_out(at, 3.0)
+			var t := spawn(kind, at)
 			t.heading = atan2(ufo.position.x - at.x, ufo.position.z - at.z)
 			_spawn_wait = 2.5
 			if kind == "police_car" and have == 0:
@@ -394,39 +470,203 @@ func _jets(delta: float) -> void:
 			jet.queue_free()
 
 
-func _restock(delta: float) -> void:
-	_stock_wait -= delta
-	if _stock_wait > 0.0:
+## Lets go of what is far behind the saucer (the world makes more as it goes)
+func _cull(delta: float) -> void:
+	_cull_wait -= delta
+	if _cull_wait > 0.0:
 		return
-	_stock_wait = 1.5
-	var have := {}
-	for t in things:
-		have[t.kind] = int(have.get(t.kind, 0)) + 1
-	for kind: String in STOCK:
-		if int(have.get(kind, 0)) < int(STOCK[kind]):
-			_spawn(kind, false)
+	_cull_wait = 0.5
+	for t in things.duplicate():
+		if t.state == "walk" and not t.fixed() and t.ground().distance_to(ufo.ground()) > CULL:
+			_remove(t)
+
+
+## A chunk of the world has gone: so do its buildings, scenery and trader
+func forget_chunk(c: Vector2i) -> void:
+	for s in shops.duplicate():
+		if s.chunk == c and s.state == "parked":
+			shops.erase(s)
+			s.queue_free()
+	for t in things.duplicate():
+		if t.chunk == c and t.state == "walk":
+			_remove(t)
+
+
+## A trader parked at `at` (the world puts them down)
+func spawn_shop(at: Vector3, c: Vector2i) -> void:
+	var s := Shop.new()
+	view.add_child(s)
+	s.setup(self, at, c, randi())
+	shops.append(s)
+
+
+func _shops(delta: float) -> void:
+	_hot_wait -= delta
+	for s in shops.duplicate():
+		s.tick(delta, ufo, heat_level() if mode == "play" else 0)
+		if s.gone:
+			shops.erase(s)
+			s.queue_free()
+	if mode != "play" or autopilot or ufo.dead or shop_open != null:
+		return
+	for s in shops:
+		if s.under(ufo):
+			if s == _shop_left:
+				return
+			if heat_level() >= 1:
+				if _hot_wait <= 0.0:
+					_hot_wait = 3.0
+					_banner("%s WON'T TRADE WHILE THEY'RE LOOKING FOR YOU" % s.keeper_name.to_upper(), 2.0)
+				return
+			_open_shop(s)
 			return
+	_shop_left = null
 
 
-func _spawn(kind: String, anywhere: bool, at := Vector3.INF) -> Thing:
-	var t := Thing.new()
-	var road := []
-	if at == Vector3.INF:
-		if Thing.KINDS[kind]["move"] == "road":
-			road = world.road_spot(Vector3(9999, 0, 9999) if anywhere else ufo.ground())
-			at = road[0]
+func trader_fled(s: Shop) -> void:
+	if mode == "play" and ufo.ground().distance_to(Vector3(s.position.x, 0, s.position.z)) < 60.0:
+		_banner("%s FLED THE HEAT" % s.keeper_name.to_upper(), 1.8)
+
+
+func upgrade_price(what: String) -> int:
+	return int(round(float(UPGRADES[what]["price"]) * pow(1.8, upgrades[what]) / 10.0)) * 10
+
+
+## What has been bought, on the ship: faster, a stronger beam, a bigger shield
+func _apply_upgrades() -> void:
+	var spec: Dictionary = Ufo.SHIPS[ship]
+	ufo.speed = float(spec["speed"]) * (1.0 + 0.12 * upgrades["engine"])
+	ufo.lift_rate = float(spec["lift"]) * (1.0 + 0.2 * upgrades["beam"])
+	ufo.tier = mini(int(spec["tier"]) + int(upgrades["beam"]), 4)
+	ufo.hull_max = float(spec["hull"]) + 25.0 * upgrades["shield"]
+
+
+func buy(what: String) -> bool:
+	var price := upgrade_price(what)
+	if score < price or upgrades[what] >= MAX_UPGRADE:
+		return false
+	score -= price
+	upgrades[what] += 1
+	_apply_upgrades()
+	if what == "shield":
+		ufo.hull = minf(ufo.hull + 25.0, ufo.hull_max)
+	sfx.play("bloop", 1.4)
+	if shop_open != null:
+		shop_open.keeper.feel("cheer", 1.0)
+		_fill_shop()
+	return true
+
+
+## Patching the shield back up: a point of score for each point of shield
+func repair_price() -> int:
+	return int(ceil(ufo.hull_max - ufo.hull))
+
+
+func repair() -> void:
+	var price := mini(repair_price(), score)
+	if price <= 0:
+		return
+	score -= price
+	ufo.hull = minf(ufo.hull + price, ufo.hull_max)
+	sfx.play("bloop", 1.2)
+	_fill_shop()
+
+
+func _open_shop(s: Shop) -> void:
+	shop_open = s
+	get_tree().paused = true
+	_shop_box.visible = true
+	_fill_shop()
+	sfx.play("star", 0.8)
+
+
+func close_shop() -> void:
+	if shop_open == null:
+		return
+	_shop_left = shop_open
+	shop_open = null
+	_shop_box.visible = false
+	get_tree().paused = false
+
+
+func _fill_shop() -> void:
+	_shop_title.text = "%s'S TRADING SAUCER\nYOUR SCORE: %d" % [shop_open.keeper_name.to_upper(), score]
+	for c in _shop_list.get_children():
+		c.queue_free()
+	var first: Button
+	for what: String in UPGRADES:
+		var level: int = upgrades[what]
+		var b: Button
+		if level >= MAX_UPGRADE:
+			b = _button("%s  (BEST THERE IS)" % UPGRADES[what]["title"], func() -> void: pass)
+			b.disabled = true
 		else:
-			at = world.spot_for(kind, Vector3(9999, 0, 9999) if anywhere else ufo.ground())
+			var price := upgrade_price(what)
+			b = _button("%s %d  -  %d" % [UPGRADES[what]["title"], level + 1, price], func() -> void: buy(what))
+			b.disabled = score < price
+		b.add_theme_font_size_override("font_size", 30)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_shop_list.add_child(b)
+		var about := _label(18, Color(0.75, 0.85, 0.8))
+		about.text = UPGRADES[what]["about"]
+		about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_shop_list.add_child(about)
+		if first == null and not b.disabled:
+			first = b
+	var fix := _button("PATCH SHIELD  -  %d" % repair_price(), repair)
+	fix.add_theme_font_size_override("font_size", 30)
+	fix.disabled = repair_price() <= 0 or score <= 0
+	fix.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_shop_list.add_child(fix)
+	var leave := _button("LEAVE", close_shop)
+	leave.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_shop_list.add_child(leave)
+	(first if first != null else leave).call_deferred("grab_focus")
+
+
+## The beam pulls up the scenery under it that it is strong enough for, a piece at a time
+func _pull_scenery(delta: float) -> void:
+	_pull_wait -= delta
+	if not ufo.beaming or ufo.dead or _pull_wait > 0.0:
+		return
+	_pull_wait = 0.15
+	var found := world.pull(ufo.ground(), ufo.beam_foot, ufo.tier)
+	if found.is_empty():
+		if world.too_heavy_under(ufo.ground(), ufo.beam_foot, ufo.tier) and _heavy_wait <= 0.0:
+			_heavy_wait = 2.0
+			_popup("TOO HEAVY", ufo.position + Vector3(0, -2, 0), Color(1.0, 0.6, 0.4))
+		return
+	var xf: Transform3D = found[1]
+	var t := spawn(found[0], xf.origin, {"turn": xf.basis.get_euler().y, "size": xf.basis.get_scale().x, "tints": found[2]})
+	t.state = "lifted"
+
+
+## Something the beam is over is beyond it: says so now and then
+func _too_heavy(t: Thing) -> void:
+	if _heavy_wait > 0.0:
+		return
+	_heavy_wait = 2.0
+	_popup("TOO HEAVY", t.position + Vector3(0, 3, 0), Color(1.0, 0.6, 0.4))
+	_banner("A STRONGER BEAM COULD TAKE THAT", 1.5)
+
+
+## A new thing of a kind, standing at `at` (the world calls this as it makes each chunk)
+func spawn(kind: String, at: Vector3, extra := {}) -> Thing:
+	var t := Thing.new()
 	view.add_child(t)
-	t.setup(self, kind, at)
-	if not road.is_empty():
-		t.road_axis = road[1]
-		t.road_dir = road[2]
-		t.heading = (0.0 if road[2] > 0.0 else PI) if road[1] == "z" else (PI / 2 if road[2] > 0.0 else -PI / 2)
-		t.rotation.y = t.heading
+	t.setup(self, kind, at, extra)
 	things.append(t)
 	return t
 
+
+## A car on the road, going `dir` (+1 or -1) along `axis` ("x" or "z")
+func spawn_car(kind: String, at: Vector3, axis: String, dir: float) -> Thing:
+	var t := spawn(kind, at)
+	t.road_axis = axis
+	t.road_dir = dir
+	t.heading = (0.0 if dir > 0.0 else PI) if axis == "z" else (PI / 2 if dir > 0.0 else -PI / 2)
+	t.rotation.y = t.heading
+	return t
 
 func _remove(t: Thing) -> void:
 	t.state = "gone"
@@ -550,7 +790,7 @@ func _pilot(delta: float) -> Array:
 		var best_score := -INF
 		for t in things:
 			# (it never catches up with a car)
-			if t.state == "gone" or (t.is_enemy() and mode == "title") or t.info["move"] == "road":
+			if t.state == "gone" or (t.is_enemy() and mode == "title") or t.info["move"] == "road" or t.tier() > 1 or t.fixed():
 				continue
 			var d := t.ground().distance_to(ufo.ground())
 			var worth := float(t.points()) / (1.0 + float(t.info["weight"])) - d * 2.0
@@ -616,18 +856,23 @@ func _sounds() -> void:
 
 # ------------------------------------------------------------------ the camera
 
+## Further up and back for a ship that flies higher
+func _camera_offset() -> Vector3:
+	return CAMERA_OFFSET + Vector3(0, 1.3, 0.5) * (ufo.altitude - 8.0)
+
+
 func _camera(delta: float) -> void:
 	if hold_camera:
 		return
 	var focus := Vector3(ufo.position.x, 0.0, ufo.position.z)
 	if ufo.crashed or ufo.dead:
 		focus = Vector3(ufo.position.x, 0.0, ufo.position.z)
-	var goal := focus + CAMERA_OFFSET
+	var goal := focus + _camera_offset()
 	if mode == "title":
 		goal = focus + Vector3(0, 11.0, 15.0)
 	camera.position = camera.position.lerp(goal, minf(delta * 4.0, 1.0)) if camera.position != Vector3.ZERO else goal
 	# (the saucer sits a little above the middle of the picture, with more to see ahead of it)
-	var look_at_point := camera.position - CAMERA_OFFSET + Vector3(0, 4.0, -1.5)
+	var look_at_point := camera.position - _camera_offset() + Vector3(0, ufo.altitude * 0.5, -1.5)
 	if mode == "title":
 		look_at_point = camera.position - Vector3(0, 11.0, 15.0) + Vector3(0, 4.0, -6.0)
 	camera.look_at(look_at_point)
@@ -635,8 +880,9 @@ func _camera(delta: float) -> void:
 	if _shake > 0.0:
 		camera.position += Vector3(randf_range(-1, 1), randf_range(-1, 1), 0) * _shake
 	# The world bends away from the ground under the camera's middle
-	var under := camera.position - CAMERA_OFFSET if mode != "title" else camera.position - Vector3(0, 11.0, 15.0)
+	var under := camera.position - _camera_offset() if mode != "title" else camera.position - Vector3(0, 11.0, 15.0)
 	RenderingServer.global_shader_parameter_set("bend_focus", Vector3(under.x, 0.0, under.z - 1.0))
+	RenderingServer.global_shader_parameter_set("saucer_pos", ufo.position)
 	_hurt = maxf(_hurt - delta * 3.0, 0.0)
 	screen_mat.set_shader_parameter("hurt", _hurt)
 
@@ -717,7 +963,44 @@ func _build_hud() -> void:
 	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title_box.add_child(hint_label)
+	var picker := HBoxContainer.new()
+	picker.alignment = BoxContainer.ALIGNMENT_CENTER
+	picker.add_theme_constant_override("separation", 16)
+	var left := _button("<", func() -> void: _pick_ship(-1))
+	left.custom_minimum_size = Vector2(70, 70)
+	picker.add_child(left)
+	ship_label = _label(28, Color(0.75, 1.0, 0.78))
+	ship_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ship_label.custom_minimum_size = Vector2(500, 0)
+	picker.add_child(ship_label)
+	var right := _button(">", func() -> void: _pick_ship(1))
+	right.custom_minimum_size = Vector2(70, 70)
+	picker.add_child(right)
+	title_box.add_child(picker)
 	title_box.add_child(_button("PLAY", start))
+
+	_shop_box = PanelContainer.new()
+	var frame := StyleBoxFlat.new()
+	frame.bg_color = Color(0.03, 0.08, 0.05, 0.92)
+	frame.border_color = Color(0.55, 1.0, 0.6)
+	frame.set_border_width_all(3)
+	frame.set_corner_radius_all(12)
+	frame.set_content_margin_all(22)
+	_shop_box.add_theme_stylebox_override("panel", frame)
+	_shop_box.set_anchors_preset(Control.PRESET_CENTER)
+	_shop_box.custom_minimum_size = Vector2(640, 0)
+	_shop_box.position = Vector2(-320, -300)
+	_shop_box.visible = false
+	root.add_child(_shop_box)
+	var inside := VBoxContainer.new()
+	inside.add_theme_constant_override("separation", 8)
+	_shop_box.add_child(inside)
+	_shop_title = _label(30, Color(0.7, 1.0, 0.72))
+	_shop_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	inside.add_child(_shop_title)
+	_shop_list = VBoxContainer.new()
+	_shop_list.add_theme_constant_override("separation", 6)
+	inside.add_child(_shop_list)
 
 	over_box = _panel(root)
 	over_label = _label(38)
@@ -766,8 +1049,34 @@ func _button(text: String, pressed: Callable) -> Button:
 	return b
 
 
+## A ship of this kind where `at` is (on the ground; it flies at its own height)
+func _make_ufo(at: Vector3) -> void:
+	ufo = Ufo.new()
+	ufo.ship = ship
+	ufo.alien_seed = alien_seed
+	ufo.position = at
+	view.add_child(ufo)
+
+
+## The next ship along (or the one before), on the title screen
+func _pick_ship(step: int) -> void:
+	var i := Ufo.ORDER.find(ship)
+	ship = Ufo.ORDER[posmod(i + step, Ufo.ORDER.size())]
+	var at := ufo.ground()
+	ufo.queue_free()
+	_make_ufo(at)
+	_show_ship()
+	_save_best()
+
+
+func _show_ship() -> void:
+	var spec: Dictionary = Ufo.SHIPS[ship]
+	ship_label.text = "%s\n%s" % [spec["title"], spec["about"]]
+
+
 func _show_title() -> void:
 	mode = "title"
+	_show_ship()
 	title_box.visible = true
 	over_box.visible = false
 	hint_label.text = "Move: WASD, arrows, stick or drag on the left    Beam: hold Space, A, or the button    Dodge: Shift, B, or swipe"
@@ -859,6 +1168,9 @@ func _load_best() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load("user://best.cfg") == OK:
 		best = int(cfg.get_value("best", "score", 0))
+		var kept: String = cfg.get_value("best", "ship", "saucer")
+		if Ufo.SHIPS.has(kept):
+			ship = kept
 
 
 func _save_best() -> void:
@@ -866,6 +1178,7 @@ func _save_best() -> void:
 		return
 	var cfg := ConfigFile.new()
 	cfg.set_value("best", "score", best)
+	cfg.set_value("best", "ship", ship)
 	cfg.save("user://best.cfg")
 
 
@@ -916,7 +1229,7 @@ class Shield extends Control:
 		var c := Color(0.4, 0.9, 1.0) if hull > 35.0 else Color(1.0, 0.3, 0.2)
 		if hull <= 35.0 and fmod(Time.get_ticks_msec() / 250.0, 2.0) < 1.0:
 			c = c.lightened(0.4)
-		draw_rect(Rect2(r.position, Vector2(r.size.x * hull / 100.0, r.size.y)), c)
+		draw_rect(Rect2(r.position, Vector2(r.size.x * hull / float(main.ufo.hull_max), r.size.y)), c)
 		draw_rect(r, Color(1, 1, 1, 0.5), false, 2.0)
 
 

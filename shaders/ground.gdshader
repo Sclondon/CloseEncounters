@@ -1,32 +1,34 @@
 shader_type spatial;
-// The farm country, painted from where each point is (before the bend): a patchwork of fields
-// (pasture, wheat, ploughed earth, corn) with hedges between them, the roads (see world.gd ROADS),
-// the lawns of the town and the trampled ground of the army camp.
+// The ground, painted from where each point is (before the bend), by region (see world.gd Biome):
+// `biomes` holds one texel per chunk round the saucer, and the regions blend across the edges of
+// their chunks. The highways run every `road_every` both ways.
 
 #include "res://shaders/bend.gdshaderinc"
 
-uniform vec4 roads_x = vec4(0.0, 70.0, 9999.0, 9999.0);
-uniform vec4 roads_z = vec4(0.0, -70.0, 9999.0, 9999.0);
-uniform vec4 town = vec4(40.0, -110.0, 110.0, -40.0);
-uniform vec4 camp = vec4(-110.0, -110.0, -50.0, -60.0);
-uniform float field = 22.0;
-uniform float edge = 118.0;
+uniform sampler2D biomes : filter_nearest;
+uniform vec2 biome_corner = vec2(0.0);
+uniform float chunk = 48.0;
+uniform float road_every = 240.0;
 
 float hash(vec2 p) {
-	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
 }
 
-bool inside(vec2 p, vec4 r) {
-	return p.x > r.x && p.x < r.z && p.y > r.y && p.y < r.w;
+float vnoise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
 }
 
-void fragment() {
-	vec2 p = world.xz;
+vec3 farm(vec2 p, float speck) {
+	float field = 22.0;
 	vec2 cell = floor(p / field);
 	vec2 in_cell = p / field - cell;
-	float h = hash(cell);
-	float speck = hash(floor(p * 3.0));
-	bool across = hash(cell + 7.0) > 0.5;
+	float h = hash(cell + 0.5);
+	bool across = hash(cell + 7.5) > 0.5;
 	float row = fract((across ? p.x : p.y) * 0.8);
 	vec3 grass = mix(vec3(0.2, 0.36, 0.14), vec3(0.26, 0.42, 0.16), speck);
 	vec3 c = grass;
@@ -41,33 +43,75 @@ void fragment() {
 	} else {
 		c = mix(vec3(0.3, 0.42, 0.18), vec3(0.36, 0.46, 0.2), speck);
 	}
-	// Hedges between the fields
 	float border = min(min(in_cell.x, 1.0 - in_cell.x), min(in_cell.y, 1.0 - in_cell.y)) * field;
 	if (border < 0.7) {
 		c = vec3(0.1, 0.2, 0.08) * (0.8 + 0.4 * speck);
 	}
-	if (inside(p, town)) {
-		c = mix(vec3(0.24, 0.4, 0.16), vec3(0.28, 0.44, 0.18), speck);
+	return c;
+}
+
+vec3 paint(int b, vec2 p, float speck) {
+	float big = vnoise(p * 0.04);
+	float mid = vnoise(p * 0.15);
+	if (b == 1) {
+		// The high plains: golden grass, sage-green in patches
+		vec3 c = mix(vec3(0.5, 0.44, 0.22), vec3(0.58, 0.52, 0.28), big);
+		c = mix(c, vec3(0.38, 0.42, 0.28), smoothstep(0.55, 0.75, mid) * 0.7);
+		return c * (0.9 + 0.2 * speck);
+	} else if (b == 2) {
+		// Red desert sand, with wind streaks
+		vec3 c = mix(vec3(0.6, 0.3, 0.17), vec3(0.74, 0.42, 0.24), big);
+		c *= 0.94 + 0.08 * sin(p.x * 0.9 + p.y * 0.3 + mid * 6.0);
+		return c * (0.92 + 0.14 * speck);
+	} else if (b == 3) {
+		// New Mexico: ochre earth and dark scrub
+		vec3 c = mix(vec3(0.58, 0.44, 0.28), vec3(0.66, 0.52, 0.34), big);
+		c = mix(c, vec3(0.26, 0.3, 0.18), step(0.93, hash(floor(p * 2.5))) * 0.8);
+		return c * (0.92 + 0.14 * speck);
+	} else if (b == 4) {
+		// The mountains: forest floor, bare rock, and snow in the hollows
+		vec3 c = mix(vec3(0.1, 0.2, 0.1), vec3(0.16, 0.26, 0.13), mid);
+		c = mix(c, vec3(0.4, 0.39, 0.38), smoothstep(0.55, 0.7, big));
+		c = mix(c, vec3(0.86, 0.88, 0.92), smoothstep(0.78, 0.84, vnoise(p * 0.07 + 20.0)));
+		return c * (0.9 + 0.2 * speck);
 	}
-	if (inside(p, camp)) {
-		c = mix(vec3(0.32, 0.27, 0.18), vec3(0.38, 0.32, 0.2), speck);
+	return farm(p, speck);
+}
+
+int biome_of(vec2 cell) {
+	ivec2 size = textureSize(biomes, 0);
+	ivec2 i = clamp(ivec2(cell), ivec2(0), size - 1);
+	return int(texelFetch(biomes, i, 0).r * 255.0 / 40.0 + 0.5);
+}
+
+void fragment() {
+	vec2 p = world.xz;
+	float speck = hash(floor(p * 3.0));
+	vec2 q = (p - biome_corner) / chunk;
+	vec2 i = floor(q);
+	vec2 f = smoothstep(0.3, 0.7, fract(q));
+	int b00 = biome_of(i);
+	int b10 = biome_of(i + vec2(1, 0));
+	int b01 = biome_of(i + vec2(0, 1));
+	int b11 = biome_of(i + vec2(1, 1));
+	vec3 c;
+	if (b00 == b10 && b00 == b01 && b00 == b11) {
+		c = paint(b00, p, speck);
+	} else {
+		// (a ragged edge between regions, not a straight one)
+		f = clamp(f + (vnoise(p * 0.2) - 0.5) * 0.5, 0.0, 1.0);
+		c = mix(mix(paint(b00, p, speck), paint(b10, p, speck), f.x), mix(paint(b01, p, speck), paint(b11, p, speck), f.x), f.y);
 	}
-	// The roads, with a dashed line down the middle
-	for (int i = 0; i < 4; i++) {
-		float dx = abs(p.x - roads_x[i]);
-		float dz = abs(p.y - roads_z[i]);
-		if (dx < 3.0) {
-			c = vec3(0.16, 0.16, 0.17) * (0.9 + 0.2 * speck);
-			if (dx < 0.12 && fract(p.y * 0.25) < 0.5) c = vec3(0.85, 0.7, 0.2);
-		}
-		if (dz < 3.0) {
-			c = vec3(0.16, 0.16, 0.17) * (0.9 + 0.2 * speck);
-			if (dz < 0.12 && fract(p.x * 0.25) < 0.5) c = vec3(0.85, 0.7, 0.2);
-		}
+	// The highways, with a dashed line down the middle
+	float dx = abs(mod(p.x + road_every * 0.5, road_every) - road_every * 0.5);
+	float dz = abs(mod(p.y + road_every * 0.5, road_every) - road_every * 0.5);
+	if (dx < 3.0) {
+		c = vec3(0.16, 0.16, 0.17) * (0.9 + 0.2 * speck);
+		if (dx < 0.12 && fract(p.y * 0.25) < 0.5) c = vec3(0.85, 0.7, 0.2);
 	}
-	// Beyond the edge of the map, only the woods
-	if (abs(p.x) > edge || abs(p.y) > edge) {
-		c = vec3(0.08, 0.16, 0.08) * (0.8 + 0.4 * speck);
+	if (dz < 3.0) {
+		c = vec3(0.16, 0.16, 0.17) * (0.9 + 0.2 * speck);
+		if (dz < 0.12 && fract(p.x * 0.25) < 0.5) c = vec3(0.85, 0.7, 0.2);
 	}
 	ALBEDO = c;
 	ROUGHNESS = 1.0;

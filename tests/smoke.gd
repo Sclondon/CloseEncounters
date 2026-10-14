@@ -11,6 +11,8 @@ var seen := {}
 var hit := false
 var phase := 0
 var dodge_from := 0.0
+var patrols := 0
+var spotted := false
 
 
 func _initialize() -> void:
@@ -35,6 +37,11 @@ func _process(_delta: float) -> bool:
 			seen[t.kind] = true
 	if main.ufo.since_hit < 0.05:
 		hit = true
+	if main._spotted_for > 0.0:
+		spotted = true
+	for t in main.things:
+		if t.info.get("searchlight", false):
+			patrols = maxi(patrols, 1)
 	# (kept alive while the levels are gone through)
 	if frame < 3000:
 		main.ufo.hull = 100.0
@@ -51,6 +58,8 @@ func _process(_delta: float) -> bool:
 			_check(main.ufo.position.x > dodge_from + 4.0, "a dodge dashes the saucer sideways (%.1f m)" % (main.ufo.position.x - dodge_from))
 		1500:
 			_check(seen.has("police_car"), "police came at two stars")
+			_check(patrols > 0, "patrols with searchlights rove about")
+			_check(spotted, "a patrol's searchlight found the ship")
 			main.heat = 4.5
 		2600:
 			_check(seen.has("jeep") and seen.has("tank"), "jeeps and a tank came at four stars")

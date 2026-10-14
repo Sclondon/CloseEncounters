@@ -11,6 +11,7 @@
 import bpy
 import math
 import os
+import random
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -31,12 +32,24 @@ COLOURS = {
     "metal_dark": (0.32, 0.34, 0.38), "leaf": (0.2, 0.42, 0.18), "leaf_dark": (0.12, 0.3, 0.14),
     "bark": (0.35, 0.24, 0.15), "hay": (0.85, 0.72, 0.35), "sack": (0.72, 0.6, 0.4),
     "jet": (0.5, 0.55, 0.58), "door": (0.4, 0.25, 0.15),
+    # The West
+    "cactus": (0.3, 0.5, 0.25), "cactus_light": (0.42, 0.58, 0.3), "fruit": (0.85, 0.3, 0.45), "sage": (0.3, 0.38, 0.24),
+    "rock": (0.45, 0.42, 0.38), "talus": (0.7, 0.36, 0.2), "strata1": (0.8, 0.28, 0.1), "strata2": (0.9, 0.44, 0.18),
+    "strata3": (0.68, 0.22, 0.08), "mesa_top": (0.5, 0.4, 0.22), "tower": (0.4, 0.36, 0.3), "tower_talus": (0.38, 0.36, 0.33),
+    "mountain": (0.42, 0.4, 0.4), "snow": (0.95, 0.96, 1.0), "aspen_bark": (0.9, 0.88, 0.82), "aspen_leaf": (0.95, 0.72, 0.18),
+    "pinyon": (0.18, 0.32, 0.18), "adobe": (0.78, 0.58, 0.4), "door_blue": (0.2, 0.45, 0.65), "chili": (0.8, 0.12, 0.08),
+    "chrome": (0.78, 0.8, 0.84), "horse": (0.48, 0.3, 0.18), "mane": (0.15, 0.1, 0.08), "bison": (0.3, 0.2, 0.12),
+    "bison_dark": (0.18, 0.12, 0.08), "longhorn": (0.8, 0.62, 0.42), "coyote": (0.6, 0.52, 0.4), "logs": (0.48, 0.32, 0.18),
+    "stone": (0.5, 0.48, 0.46), "camp": (0.95, 0.5, 0.1), "rv_stripe": (0.55, 0.3, 0.15), "felt": (0.4, 0.28, 0.16),
+    "orb_shell": (0.62, 0.6, 0.58), "black_hull": (0.09, 0.09, 0.11), "hull_edge": (0.2, 0.2, 0.24),
 }
 GLOWS = {
     "window": ((1.0, 0.85, 0.45), 2.0), "siren_red": ((1.0, 0.1, 0.1), 3.0),
     "siren_blue": ((0.15, 0.35, 1.0), 3.0), "lights": ((1.0, 0.9, 0.4), 3.0),
     "lights_under": ((0.5, 1.0, 0.6), 3.0), "headlight": ((1.0, 0.95, 0.8), 2.0),
-    "flame": ((1.0, 0.55, 0.15), 3.0),
+    "flame": ((1.0, 0.55, 0.15), 3.0), "neon": ((1.0, 0.35, 0.6), 3.0),
+    "light_red": ((1.0, 0.2, 0.15), 3.0), "light_blue": ((0.3, 0.5, 1.0), 3.0), "light_white": ((1.0, 1.0, 0.95), 3.0),
+    "light_amber": ((1.0, 0.65, 0.2), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0),
 }
 
 _mats = {}
@@ -190,7 +203,7 @@ def chicken():
 
 # ---------------------------------------------------------------- people
 
-def figure(name, hat):
+def figure(name, hat, cowboy=False):
     p = []
     for s in (-1, 1):
         p.append(box((0.16, 0.18, 0.8), (0.11 * s, 0, 0.42), "denim"))
@@ -200,7 +213,10 @@ def figure(name, hat):
     p += [box((0.44, 0.24, 0.5), (0, 0, 1.08), "shirt"), box((0.3, 0.3, 0.32), (0, 0, 1.52), "skin")]
     for s in (-1, 1):
         p.append(box((0.04, 0.02, 0.05), (0.07 * s, -0.16, 1.55), "black"))
-    if hat:
+    if cowboy:
+        p += [drum(0.38, 0.04, (0, 0, 1.69), "felt", 10), drum(0.16, 0.22, (0, 0, 1.8), "felt", 8, top=0.13),
+              box((0.34, 0.06, 0.14), (0, -0.12, 1.33), "chili")]
+    elif hat:
         p += [drum(0.32, 0.04, (0, 0, 1.68), "straw", 10), drum(0.17, 0.18, (0, 0, 1.77), "straw", 8)]
         p += [box((0.3, 0.25, 0.3), (0, 0.01, 1.0), "denim")]
     else:
@@ -408,9 +424,320 @@ def ufo():
     return body
 
 
+# ---------------------------------------------------------------- the West
+
+def lathe(name, profile, mats, sides=10, wobble=0.0, flute=0.0, flute_from=0, seed=1):
+    """A shape turned on a lathe: `profile` is (radius, height) from the bottom up, the last a point
+    or a small cap. `mats[i]` paints the band between ring i and ring i+1 (and the last the cap).
+    `wobble` roughs up every corner; `flute` notches every other one from ring `flute_from` up,
+    for columns of rock."""
+    rnd = random.Random(seed)
+    verts, faces, face_mats = [], [], []
+    for i, (r, z) in enumerate(profile):
+        for j in range(sides):
+            a = j / sides * math.tau
+            rr = r * (1.0 - flute if (j % 2 and i >= flute_from) else 1.0)
+            rr += rnd.uniform(-wobble, wobble) if r > 0.5 else 0.0
+            zz = z + (rnd.uniform(-wobble, wobble) * 0.5 if 0 < i < len(profile) - 1 else 0.0)
+            verts.append((rr * math.cos(a), rr * math.sin(a), zz))
+    for i in range(len(profile) - 1):
+        for j in range(sides):
+            a, b = i * sides + j, i * sides + (j + 1) % sides
+            faces.append((a, b, b + sides, a + sides))
+            face_mats.append(min(i, len(mats) - 1))
+    top = len(profile) - 1
+    faces.append(tuple(top * sides + j for j in range(sides)))
+    face_mats.append(len(mats) - 1)
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+    o = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(o)
+    names = []
+    for m in mats:
+        if m not in names:
+            names.append(m)
+            o.data.materials.append(mat(m))
+    for poly, m in zip(o.data.polygons, face_mats):
+        poly.material_index = names.index(mats[m])
+    return o
+
+
+def roughen(o, amount, seed):
+    rnd = random.Random(seed)
+    bpy.context.view_layer.objects.active = o
+    for v in o.data.vertices:
+        v.co.x += rnd.uniform(-amount, amount)
+        v.co.y += rnd.uniform(-amount, amount)
+        v.co.z += rnd.uniform(-amount, amount) * 0.6
+    return o
+
+
+def mesa():
+    return join("mesa", [lathe("mesa", [(19, 0), (14.5, 3), (14, 4.5), (13.8, 7), (13.6, 9.5), (13.4, 12), (0, 12.2)],
+                               ["talus", "strata1", "strata2", "strata3", "strata2", "mesa_top", "mesa_top"], 11, 0.7, seed=3)])
+
+
+def butte():
+    return join("butte", [lathe("butte", [(10, 0), (6.5, 3.5), (6.1, 6.5), (5.8, 11), (5.6, 16), (0, 16.2)],
+                                ["talus", "strata1", "strata2", "strata3", "mesa_top", "mesa_top"], 9, 0.4, seed=5)])
+
+
+def devils_tower():
+    # Fluted columns of grey rock standing out of a skirt of fallen ones
+    skirt = lathe("skirt", [(19, 0), (14, 2.5), (10, 5.5), (0, 5.6)], ["tower_talus", "tower_talus", "tower_talus"], 14, 0.9, seed=7)
+    column = lathe("column", [(9.2, 4.5), (8.4, 12), (7.4, 20), (6.6, 25), (6.2, 25.6), (0, 26)], ["tower", "tower", "tower", "tower", "talus"],
+                   28, 0.15, flute=0.1, seed=8)
+    p = [skirt, column]
+    rnd = random.Random(9)
+    for i in range(9):
+        a = rnd.uniform(0, math.tau)
+        d = rnd.uniform(11, 17)
+        p.append(roughen(ball((2.2, 1.6, 1.2), (d * math.cos(a), d * math.sin(a), 1.2), "tower_talus", 6, 4), 0.2, i))
+    return join("devils_tower", p)
+
+
+def peak():
+    return join("peak", [lathe("peak", [(24, 0), (18, 8), (12, 18), (7.5, 26), (3.5, 33), (0.3, 37)],
+                               ["mountain", "mountain", "mountain", "snow", "snow", "snow"], 10, 1.6, seed=11)])
+
+
+def saguaro():
+    p = [drum(0.35, 5.0, (0, 0, 2.5), "cactus", 8), ball((0.7, 0.7, 0.5), (0, 0, 5.0), "cactus", 8, 4)]
+    for s, h, reach in ((1, 2.2, 0.9), (-1, 2.9, 0.7)):
+        p.append(drum(0.24, reach, (s * (0.3 + reach / 2), 0, h), "cactus", 6, (0, math.pi / 2, 0)))
+        p.append(drum(0.24, 1.6, (s * (0.3 + reach), 0, h + 0.8), "cactus", 6))
+        p.append(ball((0.48, 0.48, 0.36), (s * (0.3 + reach), 0, h + 1.6), "cactus", 6, 3))
+    return join("saguaro", p)
+
+
+def prickly_pear():
+    p = []
+    for i, (x, z, ry) in enumerate([(0, 0.4, 0), (0.35, 0.8, 0.5), (-0.3, 0.75, -0.4), (0.1, 1.15, 0.2)]):
+        p.append(ball((0.6, 0.18, 0.7), (x, 0, z), "cactus_light", 8, 4, (0, ry, 0)))
+        p.append(ball((0.1, 0.1, 0.12), (x + 0.1, 0, z + 0.38), "fruit", 4, 3))
+    return join("prickly_pear", p)
+
+
+def sagebrush():
+    p = [roughen(ball((1.4, 1.2, 0.8), (0, 0, 0.35), "sage", 7, 4), 0.1, 1),
+         roughen(ball((0.9, 0.9, 0.7), (0.5, 0.3, 0.45), "sage", 6, 4), 0.1, 2),
+         roughen(ball((0.9, 0.8, 0.6), (-0.4, -0.3, 0.35), "sage", 6, 4), 0.1, 3)]
+    return join("sagebrush", p)
+
+
+def rock():
+    return join("rock", [roughen(ball((2.0, 1.6, 1.3), (0, 0, 0.45), "rock", 7, 4), 0.25, 4),
+                         roughen(ball((1.1, 1.0, 0.9), (1.1, 0.4, 0.3), "rock", 6, 4), 0.15, 5)])
+
+
+def aspen():
+    return join("aspen", [drum(0.16, 4.0, (0, 0, 2.0), "aspen_bark", 6),
+                          roughen(ball((1.8, 1.8, 2.6), (0, 0, 4.3), "aspen_leaf", 7, 4), 0.2, 6),
+                          roughen(ball((1.3, 1.3, 1.6), (0.3, 0.2, 5.6), "aspen_leaf", 6, 4), 0.15, 7)])
+
+
+def pinyon():
+    return join("pinyon", [drum(0.18, 0.8, (0, 0, 0.4), "bark", 6), roughen(ball((2.4, 2.2, 1.7), (0, 0, 1.6), "pinyon", 7, 4), 0.2, 8),
+                           roughen(ball((1.4, 1.4, 1.2), (0.3, -0.2, 2.4), "pinyon", 6, 4), 0.15, 9)])
+
+
+def adobe():
+    p = [box((7.0, 6.0, 3.0), (0, 0, 1.5), "adobe"), box((7.3, 6.3, 0.4), (0, 0, 3.15), "adobe"),
+         box((1.0, 0.12, 2.0), (-1.5, -3.02, 1.0), "door_blue"), box((0.9, 0.12, 0.8), (1.6, -3.02, 1.7), "window"),
+         box((0.7, 0.12, 0.7), (1.6, -3.05, 1.7), "door_blue")]
+    for x in (-3.0, -1.8, -0.6, 0.6, 1.8, 3.0):
+        p.append(drum(0.1, 0.7, (x, -3.2, 2.7), "wood", 6, (math.pi / 2, 0, 0)))
+    p.append(box((0.14, 0.14, 0.9), (-0.6, -3.2, 2.05), "chili"))
+    p.append(box((3.0, 3.0, 1.8), (1.5, 1.2, 4.2), "adobe"))
+    return join("adobe", p)
+
+
+def windmill():
+    legs = []
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            legs.append(box((0.12, 0.12, 8.2), (sx * 0.7, sy * 0.7, 4.0), "metal_dark", (sy * 0.09, -sx * 0.09, 0)))
+    legs += [box((1.0, 1.0, 0.12), (0, 0, 8.0), "metal_dark"), box((0.2, 2.0, 0.6), (0, 1.3, 8.4), "metal")]
+    body = join("windmill", legs)
+    blades = [drum(0.3, 0.3, (0, 0, 0), "metal_dark", 8, (math.pi / 2, 0, 0))]
+    for i in range(12):
+        a = i / 12 * math.tau
+        blades.append(box((0.32, 0.04, 1.5), (math.cos(a) * 1.0, 0, math.sin(a) * 1.0), "metal", (0, -a + math.pi / 2, 0)))
+    fan = join("fan", blades)
+    fan.location = (0, -0.4, 8.5)
+    fan.parent = body
+    return body
+
+
+def pumpjack():
+    base = [box((1.6, 5.0, 0.4), (0, 0.4, 0.2), "metal_dark"), box((1.2, 1.2, 0.8), (0, 2.2, 0.8), "metal_dark"),
+            box((0.12, 0.12, 3.4), (0.45, 0, 1.8), "tractor", (0.25, 0, 0)), box((0.12, 0.12, 3.4), (-0.45, 0, 1.8), "tractor", (0.25, 0, 0)),
+            box((0.12, 0.12, 3.4), (0.45, 0.5, 1.8), "tractor", (-0.25, 0, 0)), box((0.12, 0.12, 3.4), (-0.45, 0.5, 1.8), "tractor", (-0.25, 0, 0)),
+            drum(0.08, 2.2, (0, -2.6, 1.1), "metal", 6)]
+    body = join("pumpjack", base)
+    arm = [box((0.4, 5.4, 0.4), (0, 0, 0), "tractor"), box((0.5, 0.8, 1.4), (0, -2.9, -0.3), "tractor"),
+           box((1.0, 0.8, 1.0), (0, 2.6, -0.4), "metal_dark")]
+    beam = join("beam", arm)
+    beam.location = (0, 0.25, 3.5)
+    beam.parent = body
+    return body
+
+
+def diner():
+    p = [box((12.0, 6.0, 3.4), (0, 0, 1.7), "chrome"), box((12.1, 6.1, 0.5), (0, 0, 1.0), "chili"),
+         box((11.0, 0.1, 1.0), (0, -3.02, 2.2), "window"), box((1.2, 0.12, 2.2), (-4.0, -3.03, 1.1), "door"),
+         box((12.4, 6.4, 0.3), (0, 0, 3.5), "chrome"), drum(0.12, 4.0, (5.0, -3.6, 2.0), "metal_dark", 6),
+         box((3.0, 0.3, 1.2), (5.0, -3.6, 4.6), "neon"), box((3.2, 0.2, 1.4), (5.0, -3.5, 4.6), "black")]
+    return join("diner", p)
+
+
+def water_tower():
+    p = [drum(2.6, 3.2, (0, 0, 9.0), "metal", 12), cone(2.8, 1.4, (0, 0, 11.3), "metal_dark", 12)]
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.append(box((0.18, 0.18, 7.6), (sx * 1.7, sy * 1.7, 3.8), "metal_dark", (sy * 0.06, -sx * 0.06, 0)))
+    p.append(box((5.4, 0.1, 0.8), (0, -2.55, 9.2), "white"))
+    return join("water_tower", p)
+
+
+def horse():
+    p = [box((0.7, 1.8, 0.75), (0, 0, 1.35), "horse"), box((0.36, 0.5, 0.9), (0, -1.0, 1.85), "horse", (-0.6, 0, 0)),
+         box((0.34, 0.75, 0.36), (0, -1.45, 2.25), "horse", (0.2, 0, 0)), box((0.12, 0.9, 0.3), (0, -0.85, 2.2), "mane", (-0.6, 0, 0)),
+         box((0.12, 0.12, 0.8), (0, 1.0, 1.25), "mane", (0.4, 0, 0))]
+    for s in (-1, 1):
+        p.append(box((0.08, 0.06, 0.2), (0.12 * s, -1.25, 2.55), "horse"))
+        p.append(box((0.04, 0.04, 0.05), (0.18 * s, -1.6, 2.35), "black"))
+        for y in (-0.7, 0.7):
+            p.append(box((0.16, 0.16, 1.0), (0.24 * s, y, 0.5), "horse"))
+            p.append(box((0.17, 0.17, 0.1), (0.24 * s, y, 0.05), "black"))
+    return join("horse", p)
+
+
+def bison():
+    p = [box((1.0, 2.0, 1.0), (0, 0.2, 1.2), "bison"), roughen(ball((1.5, 1.4, 1.6), (0, -0.6, 1.5), "bison_dark", 8, 5), 0.06, 1),
+         box((0.6, 0.6, 0.6), (0, -1.3, 0.95), "bison_dark"), box((0.4, 0.2, 0.3), (0, -1.6, 0.85), "black")]
+    for s in (-1, 1):
+        p.append(cone(0.07, 0.3, (0.34 * s, -1.2, 1.3), "horn", rot=(0, -0.8 * s, 0)))
+        for y in (-0.6, 0.8):
+            p.append(box((0.22, 0.22, 0.75), (0.32 * s, y, 0.38), "bison_dark"))
+    p.append(box((0.06, 0.06, 0.6), (0, 1.25, 1.2), "bison_dark", (0.3, 0, 0)))
+    return join("bison", p)
+
+
+def longhorn():
+    p = [box((0.85, 1.7, 0.8), (0, 0, 1.05), "longhorn"), box((0.48, 0.55, 0.5), (0, -1.0, 1.3), "longhorn"),
+         box((0.4, 0.2, 0.3), (0, -1.33, 1.15), "white"), box((0.6, 0.5, 0.45), (0.12, 0.3, 1.15), "horse")]
+    for s in (-1, 1):
+        p.append(drum(0.06, 1.1, (0.75 * s, -0.95, 1.55), "horn", 6, (0, math.pi / 2, 0)))
+        p.append(cone(0.06, 0.3, (1.38 * s, -0.95, 1.68), "horn", 6, (0, 0, 0)))
+        for y in (-0.6, 0.6):
+            p.append(box((0.2, 0.2, 0.65), (0.3 * s, y, 0.33), "longhorn"))
+    return join("longhorn", p)
+
+
+def coyote():
+    p = [box((0.36, 1.0, 0.4), (0, 0, 0.62), "coyote"), box((0.3, 0.4, 0.32), (0, -0.62, 0.82), "coyote"),
+         box((0.16, 0.3, 0.16), (0, -0.92, 0.75), "coyote"), box((0.05, 0.05, 0.05), (0, -1.08, 0.79), "black"),
+         box((0.14, 0.6, 0.14), (0, 0.72, 0.55), "coyote", (-0.6, 0, 0))]
+    for s in (-1, 1):
+        p.append(cone(0.07, 0.22, (0.1 * s, -0.6, 1.08), "coyote", 4))
+        p.append(box((0.04, 0.02, 0.04), (0.08 * s, -0.83, 0.88), "black"))
+        for y in (-0.35, 0.35):
+            p.append(box((0.09, 0.09, 0.45), (0.12 * s, y, 0.22), "coyote"))
+    return join("coyote", p)
+
+
+def rv():
+    p = [box((2.3, 7.0, 2.6), (0, 0.2, 1.75), "white"), box((2.32, 7.02, 0.4), (0, 0.2, 1.6), "rv_stripe"),
+         box((2.2, 1.2, 1.3), (0, -3.6, 1.15), "white"), box((2.0, 0.1, 0.7), (0, -4.2, 1.5), "glass"),
+         box((2.34, 1.6, 0.6), (0, 0.5, 2.3), "glass"), box((2.34, 1.0, 0.6), (0, 2.6, 2.3), "glass")]
+    for s in (-1, 1):
+        for y in (-2.8, 1.0, 2.6):
+            p += wheel(0.45, 0.3, (1.05 * s, y, 0.45))
+        p.append(box((0.3, 0.05, 0.14), (0.7 * s, -4.22, 1.0), "headlight"))
+    return join("rv", p)
+
+
+def cabin():
+    p = [box((6.0, 5.0, 2.8), (0, 0, 1.4), "logs"), gable(6.8, 5.8, 2.4, (0, 0, 2.8), "roof"),
+         box((1.0, 0.1, 2.0), (0.8, -2.52, 1.0), "door"), box((0.9, 0.1, 0.8), (-1.6, -2.52, 1.6), "window"),
+         box((1.0, 1.0, 5.6), (2.6, 1.6, 2.8), "stone")]
+    for z in (0.4, 1.0, 1.6, 2.2):
+        p.append(box((6.2, 5.2, 0.12), (0, 0, z), "wood_dark"))
+    return join("cabin", p)
+
+
+def camp_tent():
+    return join("camp_tent", [ball((2.6, 2.2, 2.4), (0, 0, 0), "camp", 8, 4), box((0.8, 0.1, 0.9), (0, -1.08, 0.45), "black")])
+
+def _dome(radius, z, squash=1.1):
+    """The glass the alien sits under: the top half of a ball, named "dome" (the game makes it glass)"""
+    import bmesh
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=6, radius=radius, location=(0, 0, z))
+    dome = bpy.context.object
+    bm = bmesh.new()
+    bm.from_mesh(dome.data)
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z < -0.01], context="VERTS")
+    bm.to_mesh(dome.data)
+    bm.free()
+    dome.scale = (1.0, 1.0, squash)
+    _done(dome, "glass")
+    dome.name = "dome"
+    bpy.ops.object.select_all(action="DESELECT")
+    dome.select_set(True)
+    bpy.context.view_layer.objects.active = dome
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+    return dome
+
+
+def orb():
+    """After the little scout ships of Close Encounters of the Third Kind: a ball ringed with lights
+    of every colour, glowing from underneath, with the pilot under glass on top"""
+    p = [ball((3.2, 3.2, 2.7), (0, 0, 0), "orb_shell", 16, 8), drum(1.7, 0.3, (0, 0, 0), "hull_edge", 16),
+         drum(0.8, 0.7, (0, 0, -1.25), "orb_glow", 12, top=0.3), drum(1.35, 0.14, (0, 0, -0.7), "light_amber", 12),
+         drum(1.05, 0.2, (0, 0, 1.15), "hull_edge", 12)]
+    colours = ["light_red", "light_blue", "light_white", "light_amber"]
+    for i in range(16):
+        a = i / 16 * math.tau
+        p.append(ball((0.46, 0.46, 0.4), (1.72 * math.cos(a), 1.72 * math.sin(a), 0), colours[i % 4], 6, 3))
+    for i in range(10):
+        a = i / 10 * math.tau + 0.3
+        p.append(ball((0.2, 0.2, 0.18), (1.35 * math.cos(a), 1.35 * math.sin(a), -0.85), colours[(i + 1) % 4], 5, 3))
+    body = join("orb", p)
+    dome = _dome(0.95, 1.2, 1.05)
+    dome.parent = body
+    return body
+
+
+def triangle():
+    """The black triangle: flat, dark, a white light at each corner and a red one in the middle"""
+    front, back, half = 3.6, 2.0, 3.1
+    mesh = bpy.data.meshes.new("triangle")
+    verts = [(0, -front, 0), (half, back, 0), (-half, back, 0), (0, -front, -0.3), (half, back, -0.3), (-half, back, -0.3), (0, 0, 0.45)]
+    faces = [(0, 6, 1), (1, 6, 2), (2, 6, 0), (3, 4, 5), (0, 1, 4, 3), (1, 2, 5, 4), (2, 0, 3, 5)]
+    mesh.from_pydata(verts, [], faces)
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(mesh)
+    bm.free()
+    hull = bpy.data.objects.new("triangle", mesh)
+    bpy.context.collection.objects.link(hull)
+    _done(hull, "black_hull")
+    p = [hull, box((0.5, 5.6, 0.12), (0, 0.1, -0.33), "hull_edge"), drum(0.55, 0.12, (0, 0.2, -0.38), "light_red", 10)]
+    for x, y in ((0, -front + 0.45), (half - 0.55, back - 0.3), (-half + 0.55, back - 0.3)):
+        p.append(ball((0.6, 0.6, 0.3), (x, y, -0.33), "light_white", 8, 4))
+    body = join("triangle", p)
+    dome = _dome(0.75, 0.2, 1.0)
+    dome.parent = body
+    return body
+
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
-            tree, pine, fence, tent, floodlight, ufo]
+            tree, pine, fence, tent, floodlight, ufo,
+            mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
+            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle]
 
 
 def main():

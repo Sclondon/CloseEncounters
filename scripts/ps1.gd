@@ -76,8 +76,8 @@ static func model(name: String, tints := {}, own_mats := false) -> Node3D:
 
 
 ## The mesh of a model alone (its first mesh), dressed, for a MultiMesh of scenery
-static func model_mesh(name: String) -> Mesh:
-	var n := model(name)
+static func model_mesh(name: String, tints := {}) -> Mesh:
+	var n := model(name, tints)
 	var mi := _first_mesh(n)
 	var mesh: Mesh = mi.mesh.duplicate()
 	for i in mesh.get_surface_count():

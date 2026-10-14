@@ -4,13 +4,23 @@ extends Node3D
 ## proportions and colours: a head too big for its body, long thin hands, and two great slanted
 ## black eyes with a light far down in each). Here it sits in the saucer's dome and looks where it
 ## is going, raises its arms while the beam is on, cheers each catch and flinches when hit.
+##
+## Each one is its own (`look_seed`, a new one every run): its coat and the light in its eyes are from
+## the alien's colours in Cryptlins, drifted a little, and its build, the size of its head and eyes,
+## and the odd extra (a tuft, a tooth, one eye smaller, eyes of two colours) are its own.
 
 const REST_ARM := Vector3(0.0, 0.0, 0.35)
 const UP_ARM := Vector3(-0.3, 0.0, 2.5)
 const STEER_ARM := Vector3(-1.1, 0.0, 0.3)
-# Its coat and eyes: the grey-green one of the alien's coats in Cryptlins, and the green light
-const COAT := Color(0.4, 0.6, 0.36)
-const LIGHT := Color(0.6, 1.0, 0.6)
+# The alien's coats and eye lights in Cryptlins (cryptlin.gd FURS, FURS_MORE, EYES)
+const COATS: Array[Color] = [Color(0.5, 0.52, 0.5), Color(0.4, 0.6, 0.36), Color(0.45, 0.55, 0.66), Color(0.56, 0.46, 0.62),
+	Color(0.6, 0.56, 0.44), Color(0.4, 0.5, 0.5)]
+const LIGHTS: Array[Color] = [Color(0.6, 1.0, 0.6), Color(0.7, 0.9, 1.0), Color(1.0, 1.0, 1.0), Color(1.0, 0.5, 0.9), Color(1.0, 0.85, 0.3)]
+
+var look_seed := 1
+var coat := COATS[1]
+var eye_size := 1.0
+var extras: Array[String] = []
 
 var fur: ShaderMaterial
 var pale: ShaderMaterial
@@ -38,16 +48,31 @@ var _pitch := 0.0
 
 
 func _ready() -> void:
-	fur = Ps1.mat(COAT * 0.76, 0.0, 0.35)
-	pale = Ps1.mat(COAT.lightened(0.2) * 0.9, 0.0, 0.35)
-	dark = Ps1.mat(COAT.darkened(0.5), 0.0, 0.35)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = look_seed
+	coat = COATS[rng.randi() % COATS.size()]
+	coat = Color.from_hsv(fposmod(coat.h + rng.randf_range(-0.035, 0.035), 1.0), clampf(coat.s * rng.randf_range(0.78, 1.28), 0.0, 1.0),
+		clampf(coat.v * rng.randf_range(0.88, 1.14), 0.0, 1.0))
+	var light: Color = LIGHTS[rng.randi() % LIGHTS.size()]
+	fur = Ps1.mat(coat * 0.76, 0.0, 0.35)
+	pale = Ps1.mat(coat.lightened(0.2) * 0.9, 0.0, 0.35)
+	dark = Ps1.mat(coat.darkened(0.5), 0.0, 0.35)
 	black = Ps1.flat(Color(0.02, 0.01, 0.02))
-	eye_mat = Ps1.mat(LIGHT, 0.85)
-	_build(1.0)
+	eye_mat = Ps1.mat(light, 0.85)
+	for extra: String in ["tuft", "tooth", "odd", "split"]:
+		if rng.randf() < 0.22:
+			extras.append(extra)
+	if "split" in extras:
+		_other_eye = Ps1.mat(Color.from_hsv(fposmod(light.h + 0.38, 1.0), maxf(light.s, 0.5), light.v), 0.85)
+	eye_size = rng.randf_range(0.8, 1.3)
+	_build(rng.randf_range(0.9, 1.18), rng.randf_range(0.85, 1.25))
 
 
 ## As cryptlin.gd builds it, part for part
-func _build(chub: float) -> void:
+var _other_eye: ShaderMaterial
+
+
+func _build(chub: float, crest: float) -> void:
 	for side: float in [-1.0, 1.0]:
 		var leg := _pivot(self, Vector3(0.07 * side, 0.24, 0))
 		_part(leg, _capsule(0.03, 0.24), fur, Vector3(0, -0.1, 0))
@@ -68,16 +93,29 @@ func _build(chub: float) -> void:
 	neck = _pivot(torso, Vector3(0, neck_y, 0.01))
 	_part(neck, _capsule(0.035, 0.12), fur, Vector3(0, 0.03, 0))
 	_part(neck, Ps1.ball(), fur, Vector3(0, 0.3, -0.02), Vector3(0.3, 0.26, 0.3))
+	# (a bigger or smaller cranium, as cryptlin.gd swells it)
+	var dome := neck.get_child(1) as Node3D
+	dome.transform = Transform3D(Basis.from_scale(Vector3.ONE * crest) * dome.basis, Vector3(0, 0.2, 0.05) + (dome.position - Vector3(0, 0.2, 0.05)) * crest)
 	_part(neck, Ps1.ball(), fur, Vector3(0, 0.15, 0.05), Vector3(0.19, 0.17, 0.2))
+	if "tuft" in extras:
+		for i in 3:
+			var tip := Ps1.part(neck, CylinderMesh.new(), dark, Vector3((i - 1) * 0.04, 0.2 + 0.28 * crest + 0.05, -0.02), Vector3(0.012, 0.09, 0.012), Vector3(0.3 - i * 0.3, 0, (i - 1) * 0.4))
+			(tip.mesh as CylinderMesh).top_radius = 0.0
 	# Great slanted eyes, all dark but for the light in them
 	for side: float in [-1.0, 1.0]:
 		var eye := _pivot(neck, Vector3(0.115 * side, 0.2, 0.225))
 		eye.rotation = Vector3(-0.1, 0.45 * side, 0.45 * side)
 		_part(eye, Ps1.ball(), black, Vector3.ZERO, Vector3(0.1, 0.062, 0.03))
-		_part(eye, Ps1.ball(), eye_mat, Vector3(0, 0, 0.03), Vector3(0.026, 0.026, 0.02))
+		_part(eye, Ps1.ball(), _other_eye if side > 0.0 and _other_eye != null else eye_mat, Vector3(0, 0, 0.03), Vector3(0.026, 0.026, 0.02))
+		var size := eye_size * (0.7 if "odd" in extras and side > 0.0 else 1.0)
+		eye.scale = Vector3(size, size, 1.0)
+		eye.set_meta("size", size)
 		eyes.append(eye)
 	mouth_node = _pivot(neck, Vector3(0, 0.05, 0.215))
 	_part(mouth_node, Ps1.ball(), black, Vector3.ZERO, Vector3(0.04, 0.025, 0.02))
+	if "tooth" in extras:
+		var fang := Ps1.part(mouth_node, CylinderMesh.new(), Ps1.mat(Color(0.92, 0.89, 0.78)), Vector3(0.018, -0.02, 0.012), Vector3(0.01, 0.03, 0.01), Vector3(PI, 0, 0))
+		(fang.mesh as CylinderMesh).top_radius = 0.0
 
 
 func feel(how: String, seconds := 0.0) -> void:
@@ -134,7 +172,7 @@ func _process(delta: float) -> void:
 		if _blink < -0.12:
 			_blink = randf_range(1.5, 4.5)
 	for e in eyes:
-		e.scale.y = lerpf(e.scale.y, open, minf(delta * 25.0, 1.0))
+		e.scale.y = lerpf(e.scale.y, open * float(e.get_meta("size", 1.0)), minf(delta * 25.0, 1.0))
 	mouth_node.scale = Vector3.ONE * (1.6 if mood in ["cheer", "dead"] else 1.0)
 
 

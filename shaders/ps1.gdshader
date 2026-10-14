@@ -9,8 +9,18 @@ uniform float glow = 0.0;
 uniform float rim = 0.0;
 // A flash when something is hit or lit up by the beam
 uniform vec3 flash : source_color = vec3(0.0);
+// Anything standing between the camera and the saucer is drawn in a see-through checker, so the
+// saucer is never lost behind a mesa, a peak or a barn
+global uniform vec3 saucer_pos;
 
 void fragment() {
+	vec3 eye = CAMERA_POSITION_WORLD;
+	vec3 line = saucer_pos - eye;
+	float along = dot(world - eye, line) / dot(line, line);
+	float off = length(world - eye - line * clamp(along, 0.0, 1.0));
+	if (along > 0.0 && along * length(line) < length(line) - 3.5 && off < 4.5) {
+		if ((int(FRAGCOORD.x) + int(FRAGCOORD.y)) % 2 == 0) discard;
+	}
 	vec3 c = tint * texture(tex, affine.xy / affine.z).rgb;
 	ALBEDO = c;
 	EMISSION = c * glow + flash;
