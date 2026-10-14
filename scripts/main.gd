@@ -1469,22 +1469,29 @@ func _hud(delta: float) -> void:
 		banner.text = ""
 
 
-## Where the touch stick sits, and how far its knob goes
-func _stick_home() -> Vector2:
-	var view := get_viewport().get_visible_rect().size
-	return Vector2(view.x * 0.16, view.y * 0.74)
+## The stick comes up under the thumb, centred there: nothing moves until the thumb does
+func _take_stick(index: int, at: Vector2) -> void:
+	stick_finger = index
+	stick_from = at
+	stick = Vector2.ZERO
+	_move_target = Vector3.INF
 
 
 func _stick_reach() -> float:
 	return minf(get_viewport().get_visible_rect().size.y * 0.12, 90.0)
 
 
-## The stick pushed toward a thumb at `p`: full over the rim, nothing in a small dead middle
+## The stick pushed toward a thumb at `p`: full over the rim (its middle then follows the thumb),
+## nothing in a small dead middle
 func _stick_toward(p: Vector2) -> Vector2:
-	var off := (p - _stick_home()) / _stick_reach()
-	if off.length() < 0.15:
+	var reach := _stick_reach()
+	var off := p - stick_from
+	if off.length() > reach:
+		stick_from = p - off.normalized() * reach
+		off = off.normalized() * reach
+	if off.length() < reach * 0.15:
 		return Vector2.ZERO
-	return off.limit_length(1.0)
+	return off / reach
 
 
 ## The touch readout (with ?touchdebug): the last few touches the game was given, and what it made of them
@@ -1566,10 +1573,7 @@ func _finger_down(index: int, at: Vector2) -> void:
 		if beam_finger == NO_FINGER:
 			beam_finger = index
 	elif stick_finger == NO_FINGER:
-		stick_finger = index
-		stick_from = _stick_home()
-		stick = _stick_toward(at)
-		_move_target = Vector3.INF
+		_take_stick(index, at)
 
 
 ## A finger moving: if its coming down was never heard of (some phones lose it), it is taken up now
@@ -1579,12 +1583,12 @@ func _finger_moved(index: int, at: Vector2) -> void:
 		stick = _stick_toward(at)
 	elif index != beam_finger:
 		if not _touch_from.has(index):
-			_touch_from[index] = [at, Time.get_ticks_msec() / 1000.0]
+			# (where it came down, if the mouse Godot made of it says, or else here)
+			var start: Array = _mouse_down if not _mouse_down.is_empty() and Time.get_ticks_msec() / 1000.0 - float(_mouse_down[1]) < 1.0 else [at, Time.get_ticks_msec() / 1000.0]
+			_touch_from[index] = start
 		if at.x <= get_viewport().get_visible_rect().size.x * 0.5 and stick_finger == NO_FINGER:
-			stick_finger = index
-			stick_from = _stick_home()
+			_take_stick(index, _touch_from[index][0])
 			stick = _stick_toward(at)
-			_move_target = Vector3.INF
 		elif at.x > get_viewport().get_visible_rect().size.x * 0.5 and beam_finger == NO_FINGER:
 			beam_finger = index
 

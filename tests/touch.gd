@@ -53,12 +53,13 @@ func _process(_delta: float) -> bool:
 		60:
 			_check(main.ufo.velocity.x > 3.0, "a thumb dragged right on the left half steers the ship right (speed %.1f)" % main.ufo.velocity.x)
 			_touch(0, Vector2(size.x * 0.32, size.y * 0.6), false)
-			# (with no drag at all, as a phone's browser may send none: a thumb held up and to the left
-			# of the stick's home flies the ship that way)
-			_touch(4, Vector2(size.x * 0.04, size.y * 0.45), true)
+			# A thumb that comes down and stays still: the stick appears under it, and nothing moves
+			main.ufo.velocity = Vector3.ZERO
+			_touch(4, Vector2(size.x * 0.1, size.y * 0.45), true)
 		100:
-			_check(main.ufo.velocity.x < -3.0 and main.ufo.velocity.z < -1.0, "a thumb held, without dragging, steers the ship toward it (%.1f, %.1f)" % [main.ufo.velocity.x, main.ufo.velocity.z])
-			_touch(4, Vector2(size.x * 0.04, size.y * 0.45), false)
+			_check(main.stick_finger == 4 and main.stick_from.distance_to(Vector2(size.x * 0.1, size.y * 0.45)) < 1.0 and main.stick == Vector2.ZERO and main.ufo.velocity.length() < 1.0,
+				"a thumb held still: the stick comes up under it, and the ship does not move (speed %.1f)" % main.ufo.velocity.length())
+			_touch(4, Vector2(size.x * 0.1, size.y * 0.45), false)
 			_touch(1, Vector2(size.x * 0.8, size.y * 0.6), true)
 		110:
 			_check(main.ufo.beaming, "a finger held on the right half turns the beam on")
