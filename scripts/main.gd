@@ -289,8 +289,6 @@ func start() -> void:
 	title_box.visible = false
 	over_box.visible = false
 	intro = INTRO if (not testing or intro_in_tests) else 0.0
-	if intro <= 0.0:
-		_banner("BEAM THEM UP", 2.5)
 	sfx.play("whoosh", 0.6, 2.0)
 
 
@@ -314,8 +312,6 @@ func _process(delta: float) -> void:
 		intro = maxf(intro - delta, 0.0)
 		var k := 1.0 - intro / INTRO
 		ufo.descent = INTRO_HEIGHT * pow(1.0 - k, 2.2)
-		if intro <= 0.0:
-			_banner("BEAM THEM UP", 2.5)
 	elif mode == "play" and not autopilot:
 		steer = _read_steer()
 		beam = Input.is_action_pressed("beam") or beam_finger >= 0

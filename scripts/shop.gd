@@ -21,7 +21,6 @@ var gone := false
 var _t := 0.0
 var _rise := 0.0
 var _cheer := 2.0
-var sign_label: Label3D
 ## Its goods on the ground, until one is bought
 var pods: Array = []
 
@@ -58,23 +57,11 @@ func setup(g: Node, at: Vector3, c: Vector2i, look_seed: int) -> void:
 	keeper.scale = Vector3.ONE * 1.3
 	keeper.position = Vector3(2.6, 0.3, 2.2)
 	add_child(keeper)
-	sign_label = Label3D.new()
-	sign_label.text = "TRADE"
-	sign_label.font = game.font
-	sign_label.font_size = 64
-	sign_label.pixel_size = 0.018
-	sign_label.modulate = Color(0.6, 1.0, 0.65)
-	sign_label.outline_size = 10
-	sign_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	sign_label.position = Vector3(0, 4.2, 0)
-	add_child(sign_label)
 
 
 func tick(delta: float, ufo: Ufo, heat_level: int) -> void:
 	_t += delta
 	if state == "parked":
-		sign_label.position.y = 4.2 + sin(_t * 2.0) * 0.15
-		sign_label.modulate.a = 0.4 if heat_level >= 1 else 1.0
 		var to := ufo.position - keeper.global_position
 		keeper.look = Vector2(clampf(to.x / 10.0, -1, 1), 0)
 		# Waves the ship over now and then
@@ -99,7 +86,6 @@ func leave(sold: bool) -> void:
 		return
 	state = "leaving"
 	keeper.visible = false
-	sign_label.visible = false
 	game.sfx.play("whoosh", 1.3)
 	if not sold:
 		game.trader_fled(self)
