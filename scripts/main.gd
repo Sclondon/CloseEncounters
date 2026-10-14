@@ -72,6 +72,9 @@ var _circle_done := false
 var shops: Array[Shop] = []
 var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0}
 var _hot_wait := 0.0
+## Things the world has asked for, waiting to be put down: [kind, where, extra]
+var _to_spawn: Array = []
+const SPAWN_A_FRAME := 6
 ## What traders sell, one pod each: three of these are set out in front of each trader
 const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch"]
 const UPGRADES := {
@@ -180,6 +183,8 @@ func _ready() -> void:
 	_load_best()
 	_make_ufo(Vector3.ZERO)
 	world.update(ufo.position, 0.0, true)
+	_spawn_some(true)
+	_warm_models()
 	_build_hud()
 	_target_mark = MeshInstance3D.new()
 	var ring := TorusMesh.new()
@@ -374,9 +379,23 @@ func _process(delta: float) -> void:
 		heat = 0.0
 		ufo.hull = ufo.hull_max
 	# The beam takes hold of whatever is under it
+	var here := ufo.ground()
+	var frame := Engine.get_process_frames()
 	for t in things:
 		if t.state == "gone":
 			continue
+		# Far things are left alone: still ones until the ship comes near, moving ones looked at a
+		# frame in four (with four frames' time), searchlights out to where they can be seen
+		if t.state == "walk" and t.calling <= 0.0:
+			var far := Vector2(t.position.x - here.x, t.position.z - here.z).length()
+			var reach := 150.0 if t.light != null else (50.0 if t.info["move"] == "still" else 80.0)
+			if far > reach:
+				if t.info["move"] == "still" and t.light == null:
+					continue
+				if (frame + t.get_instance_id()) % 4 != 0:
+					continue
+				t.tick(delta * 4.0, ufo)
+				continue
 		if ufo.in_beam(t.position, t.reach):
 			if t.kind == "pod" and t.state == "walk" and why_not(t) != "":
 				t.tick(delta, ufo)
@@ -423,6 +442,7 @@ func _process(delta: float) -> void:
 	if intro <= 0.0:
 		_patrols(delta)
 	world.update(ufo.position, delta)
+	_spawn_some()
 	_cull(delta)
 	_sounds()
 	_camera(delta)
@@ -878,6 +898,34 @@ func spawn(kind: String, at: Vector3, extra := {}) -> Thing:
 	t.setup(self, kind, at, extra)
 	things.append(t)
 	return t
+
+
+## A thing the world wants put down as it makes a chunk: put down a few a frame (see _spawn_some),
+## so a new chunk never stalls a frame
+## Every model made ready once (merged and dressed) at the start, not the first time one is met
+func _warm_models() -> void:
+	for kind: String in Thing.KINDS:
+		var info: Dictionary = Thing.KINDS[kind]
+		var name: String = info.get("model", kind)
+		if ResourceLoader.exists("res://models/%s.glb" % name):
+			Ps1.model(name, info.get("tints", {})).free()
+
+
+func spawn_later(kind: String, at: Vector3, extra: Dictionary) -> void:
+	_to_spawn.append([kind, at, extra])
+
+
+## Puts down what is waiting, so many a frame; and once at the start of a run, everything at once
+func _spawn_some(all := false) -> void:
+	var count := 0
+	while not _to_spawn.is_empty() and (all or count < SPAWN_A_FRAME):
+		var next: Array = _to_spawn.pop_front()
+		var extra: Dictionary = next[2]
+		# (a chunk dropped before its things were put down takes them with it)
+		if extra.has("chunk") and not world.chunks.has(extra["chunk"]):
+			continue
+		spawn(next[0], next[1], extra)
+		count += 1
 
 
 ## A car on the road, going `dir` (+1 or -1) along `axis` ("x" or "z")

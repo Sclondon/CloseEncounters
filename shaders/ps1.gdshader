@@ -21,9 +21,11 @@ void fragment() {
 	if (along > 0.0 && along * length(line) < length(line) - 3.5 && off < 4.5) {
 		if ((int(FRAGCOORD.x) + int(FRAGCOORD.y)) % 2 == 0) discard;
 	}
-	vec3 c = tint * texture(tex, affine.xy / affine.z).rgb;
+	// (a merged model carries each part's colour on its corners, and how much it glows in their alpha:
+	// see ps1.gd _merged; anything else has white corners)
+	vec3 c = tint * COLOR.rgb * texture(tex, affine.xy / affine.z).rgb;
 	ALBEDO = c;
-	EMISSION = c * glow + flash;
+	EMISSION = c * (glow + (1.0 - COLOR.a) * 3.2) + flash;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.1;
 	RIM = rim;

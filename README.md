@@ -151,6 +151,12 @@ objects the game moves: the tank's `turret`, the windmill's `fan`, the pumpjack'
     godot --headless --path . --fixed-fps 60 -s res://tests/unlock.gd     # a secret facility unlocks a ship
     godot --path . --fixed-fps 60 --resolution 1280x720 -s res://tests/<shots|regions|look|look_more>.gd -- <out dir>
     godot --path . --resolution 1280x720 -s res://tests/aliens.gd -- <out.png>
+    godot --path . --resolution 1280x720 -s res://tests/perf.gd           # frame time, draw calls, things
+
+Performance: each model is merged into one surface at load (colours on its corners, see `Ps1._merged`), so a
+thing is one draw call; nothing is drawn past 115 m (`Ps1.DRAW_TO`); far still things are not ticked and far
+movers only every fourth frame; a new chunk's things are put down six a frame (`spawn_later`). About 320 draw
+calls a frame, down from 1,100.
     godot --path . --fixed-fps 30 --resolution 1280x720 --write-movie <out.avi> -s res://tests/preview.gd
     godot --headless --path . --export-release "Web" build/index.html
 

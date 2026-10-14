@@ -179,6 +179,9 @@ func update(focus: Vector3, delta: float, now := false) -> void:
 	for s in spinners:
 		if is_instance_valid(s):
 			s.rotation.z += delta * 3.0
+	# (made all at once: what is in them is put down at once too)
+	if now and game != null:
+		game._spawn_some(true)
 
 
 func _ring(d: Vector2i) -> int:
@@ -526,7 +529,7 @@ func _prop(name: String, at: Vector3, turn := 0.0, size := 1.0, tints := {}, blo
 	if game == null:
 		_put(name, at, turn, size, tints)
 		return
-	game.spawn(name, at, {"turn": turn, "size": size, "tints": tints, "chunk": _chunk, "obstacle": block})
+	game.spawn_later(name, at, {"turn": turn, "size": size, "tints": tints, "chunk": _chunk, "obstacle": block})
 
 
 func _put(name: String, at: Vector3, turn := 0.0, size := 1.0, tints := {}) -> Node3D:
@@ -569,8 +572,8 @@ func _multimesh(name: String, where: Array) -> void:
 		mm.set_instance_transform(i, where[i])
 	var mmi := MultiMeshInstance3D.new()
 	mmi.multimesh = mm
-	mmi.extra_cull_margin = 70.0
-	mmi.visibility_range_end = 170.0
+	mmi.extra_cull_margin = Ps1.CULL_MARGIN
+	mmi.visibility_range_end = Ps1.DRAW_TO + 20.0
 	_node.add_child(mmi)
 	if not loose.has(_chunk):
 		loose[_chunk] = []
@@ -580,7 +583,7 @@ func _multimesh(name: String, where: Array) -> void:
 
 func _spawn(kind: String, at: Vector3) -> void:
 	if game != null and at != Vector3.INF:
-		game.spawn(kind, at if kind in STREET_KINDS else off_road(at, float(Thing.KINDS[kind]["size"])))
+		game.spawn_later(kind, at if kind in STREET_KINDS else off_road(at, float(Thing.KINDS[kind]["size"])), {})
 
 
 func _herd(kind: String, at: Vector3, count: int, spread: float) -> void:
@@ -813,7 +816,7 @@ func _facility(ship: String) -> void:
 ## A thing put down in this chunk (and gone with it), facing `turn`
 func _spawn_at(kind: String, at: Vector3, turn: float) -> void:
 	if game != null:
-		game.spawn(kind, off_road(at, float(Thing.KINDS[kind]["size"])), {"turn": turn, "chunk": _chunk})
+		game.spawn_later(kind, off_road(at, float(Thing.KINDS[kind]["size"])), {"turn": turn, "chunk": _chunk})
 
 
 ## Those who watch the sky: an observatory up high or in the desert, a row of radio dishes on the
@@ -921,7 +924,7 @@ func _phone_line(c: Vector2i, axis: String) -> void:
 		# (none standing in the other road where two cross)
 		if has_road(c.x) and has_road(c.y) and (absf(at.x - base.x) < 5.0 and absf(at.z - base.z) < 5.0):
 			continue
-		game.spawn("phone_pole", at, {"turn": 0.0, "chunk": c, "wire_to": next})
+		game.spawn_later("phone_pole", at, {"turn": 0.0, "chunk": c, "wire_to": next})
 
 
 func _car(b: int, axis: String) -> void:

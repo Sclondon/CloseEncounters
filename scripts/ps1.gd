@@ -66,14 +66,28 @@ static func part(parent: Node, mesh: Mesh, material: Material, at: Vector3, size
 
 
 ## One of the Blender models, its materials swapped for these. `tints` recolours materials by name
-## (the "shirt" of a person, the "walls" of a house). `own` gives it materials nobody else shares,
+## (the "shirt" of a person, the "walls" of a house). `own` gives it a material nobody else shares,
 ## so that it can be flashed (see `flash`).
+##
+## Each mesh of it is merged into ONE surface, its materials' colours written on its corners (and
+## how much each glows in their alpha), so it is drawn in one go rather than one go a colour: on a
+## phone the number of things drawn is what counts. The ships keep their surfaces apart (their
+## lights flash on their own), and so does glass.
 static func model(name: String, tints := {}, own_mats := false) -> Node3D:
 	if not _scenes.has(name):
 		_scenes[name] = load("res://models/%s.glb" % name)
 	var n: Node3D = (_scenes[name] as PackedScene).instantiate()
-	_dress(n, tints, own_mats)
+	_dress(n, tints, own_mats, not name in KEEP_SURFACES)
 	return n
+
+
+## Models whose surfaces stay apart
+const KEEP_SURFACES: Array[String] = ["ufo", "orb", "triangle"]
+## How far off anything is drawn, and how far past the edge of the view (the bend drops far things
+## into view after Godot has decided what is on screen)
+const DRAW_TO := 115.0
+const CULL_MARGIN := 32.0
+static var _merges := {}
 
 
 ## The mesh of a model alone (its first mesh), dressed, for a MultiMesh of scenery
@@ -82,7 +96,7 @@ static func model_mesh(name: String, tints := {}) -> Mesh:
 	var mi := _first_mesh(n)
 	var mesh: Mesh = mi.mesh.duplicate()
 	for i in mesh.get_surface_count():
-		mesh.surface_set_material(i, mi.get_surface_override_material(i))
+		mesh.surface_set_material(i, mi.material_override if mi.material_override != null else mi.get_surface_override_material(i))
 	n.free()
 	return mesh
 
@@ -97,42 +111,102 @@ static func _first_mesh(n: Node) -> MeshInstance3D:
 	return null
 
 
-static func _dress(n: Node, tints: Dictionary, own_mats: bool) -> void:
+## What each surface of a mesh is painted: [colour, glow, the material's name]
+static func _paints(mesh: Mesh, tints: Dictionary) -> Array:
+	var paints := []
+	for i in mesh.get_surface_count():
+		var was := mesh.surface_get_material(i)
+		var c := Color.WHITE
+		var glow := 0.0
+		var label := ""
+		if was is BaseMaterial3D:
+			var sm: BaseMaterial3D = was
+			c = sm.albedo_color
+			label = sm.resource_name
+			if sm.emission_enabled:
+				c = sm.emission
+				glow = 1.6
+		elif was != null:
+			label = was.resource_name
+		if tints.has(label):
+			c = tints[label]
+		paints.append([c, glow, label])
+	return paints
+
+
+static func _dress(n: Node, tints: Dictionary, own_mats: bool, merge: bool) -> void:
 	if n is MeshInstance3D:
 		var mi: MeshInstance3D = n
-		# Godot decides what is on screen before the world is bent: far things, which the bend
-		# drops into view, would otherwise only pop in once they were close
-		mi.extra_cull_margin = 70.0
-		mi.visibility_range_end = 170.0
-		for i in mi.mesh.get_surface_count():
-			var was := mi.mesh.surface_get_material(i)
-			var c := Color.WHITE
-			var glow := 0.0
-			var label := ""
-			if was is BaseMaterial3D:
-				var sm: BaseMaterial3D = was
-				c = sm.albedo_color
-				label = sm.resource_name
-				if sm.emission_enabled:
-					c = sm.emission
-					glow = 1.6
-			else:
-				label = was.resource_name if was != null else ""
-			if tints.has(label):
-				c = tints[label]
-			var m: Material
-			# (Blender numbers names that repeat across its scene: "dome", "dome_001", ...)
-			if label == "glass" and String(mi.name).begins_with("dome"):
-				m = ShaderMaterial.new()
-				m.shader = GLASS
-			elif own_mats:
-				m = own(c, glow, 0.3)
-			else:
-				m = mat(c, glow, 0.3)
-			mi.set_surface_override_material(i, m)
+		mi.extra_cull_margin = CULL_MARGIN
+		mi.visibility_range_end = DRAW_TO
+		var paints := _paints(mi.mesh, tints)
+		var glass := false
+		for paint: Array in paints:
+			glass = glass or paint[2] == "glass"
+		if merge and not glass:
+			mi.mesh = _merged(mi.mesh, paints)
+			mi.material_override = own(Color.WHITE, 0.0, 0.3) if own_mats else mat(Color.WHITE, 0.0, 0.3)
+		else:
+			for i in paints.size():
+				var c: Color = paints[i][0]
+				var glow: float = paints[i][1]
+				var m: Material
+				# (Blender numbers names that repeat across its scene: "dome", "dome_001", ...)
+				if paints[i][2] == "glass" and String(mi.name).begins_with("dome"):
+					m = ShaderMaterial.new()
+					m.shader = GLASS
+				elif own_mats:
+					m = own(c, glow, 0.3)
+				else:
+					m = mat(c, glow, 0.3)
+				mi.set_surface_override_material(i, m)
 	for c in n.get_children():
-		_dress(c, tints, own_mats)
+		_dress(c, tints, own_mats, merge)
 
+
+## A mesh's surfaces as one, each corner carrying its surface's colour (linear) and, in alpha, how
+## much it glows (1 none, 0.5 a light): see ps1.gdshader. Made once for each mesh and paint.
+static func _merged(mesh: Mesh, paints: Array) -> ArrayMesh:
+	var key := "%d/%s" % [mesh.get_instance_id(), str(paints)]
+	if _merges.has(key):
+		return _merges[key]
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colours := PackedColorArray()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	for i in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(i)
+		var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var nrm: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uv = arrays[Mesh.ARRAY_TEX_UV]
+		var idx = arrays[Mesh.ARRAY_INDEX]
+		var base := verts.size()
+		var c: Color = paints[i][0]
+		var lin := c.srgb_to_linear()
+		lin.a = 0.5 if float(paints[i][1]) > 0.0 else 1.0
+		verts.append_array(v)
+		normals.append_array(nrm)
+		for k in v.size():
+			colours.append(lin)
+			uvs.append(uv[k] if uv is PackedVector2Array and k < uv.size() else Vector2.ZERO)
+		if idx is PackedInt32Array and idx.size() > 0:
+			for k in idx:
+				indices.append(base + k)
+		else:
+			for k in v.size():
+				indices.append(base + k)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_COLOR] = colours
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var out := ArrayMesh.new()
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_merges[key] = out
+	return out
 
 ## A see-through copy of a model in one colour, fading from `alpha` (for afterimages)
 static func ghost_of(name: String, c: Color, alpha: float) -> Node3D:
@@ -149,6 +223,8 @@ static func ghost_of(name: String, c: Color, alpha: float) -> Node3D:
 static func _ghost(n: Node, m: Material) -> void:
 	if n is MeshInstance3D:
 		var mi: MeshInstance3D = n
+		if mi.material_override != null:
+			mi.material_override = m
 		for i in mi.get_surface_override_material_count():
 			mi.set_surface_override_material(i, m)
 	for c in n.get_children():
@@ -159,6 +235,9 @@ static func _ghost(n: Node, m: Material) -> void:
 static func flash(n: Node, c: Color) -> void:
 	if n is MeshInstance3D:
 		var mi: MeshInstance3D = n
+		var whole := mi.material_override as ShaderMaterial
+		if whole != null and whole.shader == LIT:
+			whole.set_shader_parameter("flash", c)
 		for i in mi.get_surface_override_material_count():
 			var m := mi.get_surface_override_material(i) as ShaderMaterial
 			if m != null and m.shader == LIT:
