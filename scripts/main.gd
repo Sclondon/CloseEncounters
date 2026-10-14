@@ -138,6 +138,11 @@ var _resume_button: Button
 var stick_ring: Control
 var touched := false
 var _touch_screen := DisplayServer.is_touchscreen_available()
+## With ?touchdebug in the web page's address, every touch is written to the browser's console
+var _touch_debug := false
+var _debug_label: Label
+var _debug_lines: Array[String] = []
+var _debug_state := ""
 ## Where and when each finger came down, to tell a swipe (a quick flick: a dodge) from a hold
 var _touch_from := {}
 const SWIPE_TIME := 0.3
@@ -146,6 +151,8 @@ const SWIPE_LENGTH := 70.0
 
 func _ready() -> void:
 	randomize()
+	if OS.has_feature("web"):
+		_touch_debug = str(JavaScriptBridge.eval("window.location.search")).contains("touchdebug")
 	# (the game pauses the tree itself, and has to go on listening for the key that unpauses it)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	font = load("res://fonts/SpecialElite-Regular.ttf")
@@ -323,6 +330,10 @@ func _process(delta: float) -> void:
 		var pilot := _pilot(delta)
 		steer = pilot[0]
 		beam = pilot[1]
+	if _touch_debug and Engine.get_process_frames() % 30 == 0:
+		_debug_state = "stick finger %d %s | beam finger %d | steer %s beam %s | view %s" % [stick_finger, stick.snapped(Vector2(0.01, 0.01)), beam_finger, steer.snapped(Vector2(0.01, 0.01)), beam, get_viewport().get_visible_rect().size]
+		print("[CE] " + _debug_state)
+		_debug_show()
 	ufo.tick(delta, steer, beam)
 	if not ufo.dead:
 		var held := ufo.position
@@ -1435,6 +1446,28 @@ func _stick_toward(p: Vector2) -> Vector2:
 	return off.limit_length(1.0)
 
 
+## The touch readout (with ?touchdebug): the last few touches the game was given, and what it made of them
+func _debug_line(text: String) -> void:
+	print("[CE] " + text)
+	_debug_lines.append(text)
+	if _debug_lines.size() > 8:
+		_debug_lines.pop_front()
+	_debug_show()
+
+
+func _debug_show() -> void:
+	if _debug_label == null:
+		_debug_label = Label.new()
+		_debug_label.add_theme_font_size_override("font_size", 22)
+		_debug_label.add_theme_color_override("font_color", Color(1, 1, 0.6))
+		_debug_label.add_theme_color_override("font_outline_color", Color.BLACK)
+		_debug_label.add_theme_constant_override("outline_size", 6)
+		_debug_label.position = Vector2(20, 180)
+		_debug_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		hud.add_child(_debug_label)
+	_debug_label.text = _debug_state + "\n" + "\n".join(_debug_lines)
+
+
 func _layout_touch() -> void:
 	if beam_button == null:
 		return
@@ -1447,6 +1480,8 @@ func _layout_touch() -> void:
 ## Touches are read here, before the interface sees them (as Liquid Metal does), so nothing on the
 ## screen can swallow them; only a finger that comes down on the pause button is left to it
 func _input(event: InputEvent) -> void:
+	if _touch_debug and (event is InputEventScreenTouch or event is InputEventScreenDrag or event is InputEventMouseButton):
+		_debug_line("%s | %s%s" % [event.as_text(), mode, " PAUSED" if get_tree().paused else ""])
 	if mode != "play" or autopilot:
 		return
 	if get_tree().paused:
