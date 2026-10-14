@@ -98,6 +98,8 @@ const KINDS := {
 	"captured_orb": {"title": "YOU FOUND THE ORB: IT'S YOURS", "model": "orb", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "orb", "rest_y": 1.5},
 	"captured_triangle": {"title": "YOU FOUND THE BLACK TRIANGLE: IT'S YOURS", "model": "triangle", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "triangle", "rest_y": 0.6},
 	"floodlight": {"points": 150, "weight": 2.5, "heat": 0.3, "move": "still", "size": 1.2, "tier": 3},
+	# A trader's goods (see main.gd spawn_shop): beam one up to buy it
+	"pod": {"points": 0, "weight": 0.9, "heat": 0.0, "move": "still", "size": 1.0},
 	"police_car": {"points": 300, "weight": 3.0, "heat": 0.6, "move": "chase", "speed": 7.5, "size": 2.2, "gun": "pistol", "keep": 10.0, "enemy": true},
 	"jeep": {"points": 400, "weight": 3.4, "heat": 0.7, "move": "chase", "speed": 7.0, "size": 2.2, "gun": "mg", "keep": 12.0, "enemy": true},
 	"tank": {"points": 800, "weight": 5.0, "heat": 1.0, "move": "chase", "speed": 4.0, "size": 3.0, "gun": "cannon", "keep": 16.0, "enemy": true},

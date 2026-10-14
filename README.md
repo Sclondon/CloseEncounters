@@ -89,12 +89,12 @@ it holds you. Once there is heat, the patrols lock their lights on and join in.
 
 ### Traders
 
-Saucers parked out in the country, each with its owner standing by (another alien, with a name). Bring the ship
-over the glowing pad with **no heat** and the game pauses to trade upgrades **for score**: ENGINE (+12% speed),
-BEAM (lifts faster, and one tier stronger), SHIELD (+25), DASH (recharges 0.35 s faster, two more
-afterimages), each up to four times, dearer each time, and a patch
-for the shield at a point a point. At one star they won't deal; at two they take off. Upgrades last the run.
-
+Saucers parked out in the country, each with its owner standing by (another alien, with a name). In front of
+each stand **three pods** of goods, each tagged with what it is and what it costs (green if it can be had):
+ENGINE (+12% speed), BEAM (lifts faster, and one tier stronger), SHIELD (+25), DASH (recharges 0.35 s
+faster, two more afterimages), PATCH (the shield filled, a point of score a point). **Beam one up to buy it
+with score**; the trader packs up the other two and leaves. With any heat, or too little score, a pod only
+rattles. At two stars the traders take off. Upgrades last the run, each up to four times, dearer each time.
 When the shield is gone the ship comes down and the game is over. The score goes to the arcade page
 (`PLAYER_DIED`); the best score and the ship are kept in `user://best.cfg`.
 

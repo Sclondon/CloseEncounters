@@ -56,7 +56,7 @@ GLOWS = {
     "lights_under": ((0.5, 1.0, 0.6), 3.0), "headlight": ((1.0, 0.95, 0.8), 2.0),
     "flame": ((1.0, 0.55, 0.15), 3.0), "neon": ((1.0, 0.35, 0.6), 3.0),
     "light_red": ((1.0, 0.2, 0.15), 3.0), "light_blue": ((0.3, 0.5, 1.0), 3.0), "light_white": ((1.0, 1.0, 0.95), 3.0),
-    "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0),
+    "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "pod_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0),
 }
 
 _mats = {}
@@ -959,6 +959,15 @@ def seti_dish():
     dish.parent = body
     return body
 
+def pod():
+    """A trader's goods: a canister on little feet with a glowing band (recoloured per upgrade) and a cap"""
+    p = [drum(0.45, 1.0, (0, 0, 0.65), "metal_dark", 10), drum(0.47, 0.22, (0, 0, 0.75), "pod_glow", 10),
+         ball((0.9, 0.9, 0.5), (0, 0, 1.15), "metal", 10, 4), drum(0.12, 0.25, (0, 0, 1.45), "pod_glow", 6)]
+    for i in range(3):
+        a = i * math.tau / 3
+        p.append(box((0.12, 0.12, 0.3), (math.cos(a) * 0.35, math.sin(a) * 0.35, 0.12), "metal_dark", (0, 0, a)))
+    return join("pod", p)
+
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
@@ -966,7 +975,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, sasquatch, meteorite, satellite,
-            police_station, hangar, watchtower, substation, observatory, seti_dish]
+            police_station, hangar, watchtower, substation, observatory, seti_dish, pod]
 
 
 def main():

@@ -1,7 +1,7 @@
 extends SceneTree
-## Trading and the strength of the beam: the ship flies to the trader near the start and trades
-## (the game pauses for it), buys the beam up to the top, pulls a tree out of the ground and then a
-## whole mesa, and finally the heat goes up and the trader takes off.
+## Trading and the strength of the beam: the ship beams up one of the pods the trader near the start
+## has set out (bought, and the trader packs up and goes), pulls a tree out of the ground with a
+## strong beam and then a whole mesa, and finally the heat goes up and another trader takes off.
 ##   godot --headless --path . --fixed-fps 60 -s res://tests/upgrades.gd
 ## Ends with PASSED or FAILED.
 
@@ -14,6 +14,7 @@ var wait := 0
 var mesa_at := Vector3.ZERO
 var taken_before := 0
 var mesa: Thing
+var pod: Thing
 
 
 func _initialize() -> void:
@@ -43,21 +44,34 @@ func _process(_delta: float) -> bool:
 		"shop":
 			if frame == 5:
 				_check(not main.shops.is_empty(), "a trader is parked near the start (%d about)" % main.shops.size())
+				main.ufo.tier = 2
 				if main.shops.is_empty():
 					return _end()
 				shop = main.shops[0]
 				_over(shop.position)
 				wait = 0
-			elif frame > 5 and wait == 30:
-				_check(main.shop_open == shop and root.get_tree().paused, "over the pad with no heat, the trader trades (and the game waits)")
+			elif frame > 5 and wait == 2:
+				_check(shop.pods.size() == 3, "the trader has three pods of goods set out")
+				main.score = 0
+				pod = shop.pods[0]
+				_over(pod.position)
+				Input.action_press("beam")
+			elif frame > 5 and wait == 60:
+				_check(pod.state == "walk", "with no score, a pod cannot be had: it stays where it is")
 				main.score = 20000
+			elif frame > 5 and wait > 60 and wait < 600 and (not is_instance_valid(pod) or pod.state == "gone"):
+				Input.action_release("beam")
+				_check(main.score < 20000, "beaming a pod up buys it (score left %d)" % main.score)
+				_check(shop.state == "leaving" and shop.pods.is_empty(), "the trader packs up the rest and leaves")
 				var tier: int = main.ufo.tier
+				main.score = 20000
 				main.buy("beam")
-				main.buy("beam")
-				main.buy("engine")
-				_check(main.ufo.tier == mini(tier + 2, 4) and main.score < 20000, "buying the beam makes it stronger (tier %d to %d, score left %d)" % [tier, main.ufo.tier, main.score])
-				main.close_shop()
-				_check(not root.get_tree().paused, "leaving the trader goes back to the game")
+				_check(main.ufo.tier == mini(tier + 1, 4), "a BEAM upgrade makes the beam stronger (tier %d to %d)" % [tier, main.ufo.tier])
+				step = "tree"
+				wait = 0
+			elif frame > 5 and wait >= 600:
+				_check(false, "beaming a pod up buys it")
+				Input.action_release("beam")
 				step = "tree"
 				wait = 0
 		"tree":
@@ -107,6 +121,9 @@ func _process(_delta: float) -> bool:
 		"flee":
 			if wait == 1:
 				main.ufo.tier = 2
+				for s: Shop in main.shops:
+					if s.state == "parked":
+						shop = s
 				_over(shop.position + Vector3(20, 0, 0))
 				main.heat = 2.5
 				main.calm = 0.0

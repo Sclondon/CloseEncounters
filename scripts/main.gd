@@ -71,17 +71,15 @@ var _circle_done := false
 ## The traders parked about the country, and what has been bought from them this run
 var shops: Array[Shop] = []
 var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0}
-var shop_open: Shop
-var _shop_left: Shop
-var _shop_box: PanelContainer
-var _shop_list: VBoxContainer
-var _shop_title: Label
 var _hot_wait := 0.0
+## What traders sell, one pod each: three of these are set out in front of each trader
+const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch"]
 const UPGRADES := {
-	"engine": {"title": "ENGINE", "about": "+12% speed", "price": 300},
-	"beam": {"title": "BEAM", "about": "lifts faster, and stronger: one more kind of thing it can take", "price": 400},
-	"shield": {"title": "SHIELD", "about": "+25 shield, and patched up", "price": 300},
-	"dash": {"title": "DASH", "about": "recharges faster, and leaves two more afterimages", "price": 250},
+	"engine": {"title": "ENGINE", "about": "+12% speed", "price": 300, "colour": Color(1.0, 0.55, 0.15)},
+	"beam": {"title": "BEAM", "about": "lifts faster, and stronger: one more kind of thing it can take", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
+	"shield": {"title": "SHIELD", "about": "+25 shield, and patched up", "price": 300, "colour": Color(0.3, 0.6, 1.0)},
+	"patch": {"title": "PATCH", "about": "the shield filled up again", "price": 0, "colour": Color(0.4, 1.0, 1.0)},
+	"dash": {"title": "DASH", "about": "recharges faster, and leaves two more afterimages", "price": 250, "colour": Color(0.75, 0.4, 1.0)},
 }
 const MAX_UPGRADE := 4
 ## Where phone lines have been cut this run (a call near one cannot get through)
@@ -309,10 +307,6 @@ func multiplier() -> int:
 
 
 func _process(delta: float) -> void:
-	if shop_open != null:
-		if Input.is_action_just_pressed("pause"):
-			close_shop()
-		return
 	if Input.is_action_just_pressed("pause") and mode == "play" and not autopilot:
 		set_paused(not get_tree().paused)
 	if get_tree().paused:
@@ -355,6 +349,13 @@ func _process(delta: float) -> void:
 		if t.state == "gone":
 			continue
 		if ufo.in_beam(t.position, t.reach):
+			if t.kind == "pod" and t.state == "walk" and why_not(t) != "":
+				t.tick(delta, ufo)
+				t.rattle()
+				if _hot_wait <= 0.0:
+					_hot_wait = 2.5
+					log_line(why_not(t), 0)
+				continue
 			if t.power > 0.0 and t.state == "walk":
 				_drain(t, delta)
 				t.tick(delta, ufo)
@@ -629,12 +630,30 @@ func forget_chunk(c: Vector2i) -> void:
 			_remove(t)
 
 
-## A trader parked at `at` (the world puts them down)
+## A trader parked at `at` (the world puts them down), with three of its goods set out in front
 func spawn_shop(at: Vector3, c: Vector2i) -> void:
 	var s := Shop.new()
 	view.add_child(s)
 	s.setup(self, at, c, randi())
 	shops.append(s)
+	var stock: Array = GOODS.duplicate()
+	stock.shuffle()
+	for i in 3:
+		var what: String = stock[i]
+		var pod := spawn("pod", world.off_road(at + Vector3((i - 1) * 4.5, 0, 6.5 - absf(i - 1) * 1.5), 1.0),
+			{"chunk": c, "turn": 0.0, "tints": {"pod_glow": UPGRADES[what]["colour"]}})
+		pod.set_meta("shop", s)
+		pod.set_meta("goods", what)
+		var tag := Label3D.new()
+		tag.font = font
+		tag.font_size = 48
+		tag.pixel_size = 0.016
+		tag.outline_size = 10
+		tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		tag.position = Vector3(0, 2.4, 0)
+		pod.add_child(tag)
+		pod.set_meta("tag", tag)
+		s.pods.append(pod)
 
 
 func _shops(delta: float) -> void:
@@ -644,23 +663,67 @@ func _shops(delta: float) -> void:
 		if s.gone:
 			shops.erase(s)
 			s.queue_free()
-	if mode != "play" or autopilot or ufo.dead or shop_open != null:
-		return
+	# Each pod's tag: what it is, what it costs, green if it can be had and red if not
 	for s in shops:
-		if s.under(ufo):
-			if s == _shop_left:
-				return
-			if heat_level() >= 1:
-				if _hot_wait <= 0.0:
-					_hot_wait = 3.0
-					_banner("%s WON'T TRADE WHILE THEY'RE LOOKING FOR YOU" % s.keeper_name.to_upper(), 2.0)
-				return
-			_open_shop(s)
-			return
-	_shop_left = null
+		for pod: Thing in s.pods:
+			if not is_instance_valid(pod) or pod.state == "gone":
+				continue
+			var what: String = pod.get_meta("goods")
+			var tag: Label3D = pod.get_meta("tag")
+			var price := goods_price(what)
+			if price < 0:
+				tag.text = "%s\n%s" % [UPGRADES[what]["title"], "SHIELD FULL" if what == "patch" else "THE BEST THERE IS"]
+			else:
+				var level := "" if what == "patch" else " %d" % (upgrades[what] + 1)
+				tag.text = "%s%s\n%d" % [UPGRADES[what]["title"], level, price]
+			tag.modulate = Color(0.6, 1.0, 0.65) if why_not(pod) == "" else Color(1.0, 0.45, 0.35)
+
+
+## What a pod of these goods costs now (-1: nothing more to be had)
+func goods_price(what: String) -> int:
+	if what == "patch":
+		return repair_price() if repair_price() > 0 else -1
+	return upgrade_price(what) if upgrades[what] < MAX_UPGRADE else -1
+
+
+## Why a pod cannot be taken just now ("" if it can)
+func why_not(pod: Thing) -> String:
+	var shop: Shop = pod.get_meta("shop")
+	if heat_level() >= 1:
+		return "%s WON'T TRADE WHILE THEY'RE LOOKING FOR YOU" % shop.keeper_name.to_upper()
+	var price := goods_price(pod.get_meta("goods"))
+	if price < 0:
+		return "THE SHIELD IS ALREADY FULL" if pod.get_meta("goods") == "patch" else "NOTHING MORE TO BE HAD THERE"
+	if score < price:
+		return "NOT ENOUGH ALIEN MONEY"
+	return ""
+
+
+## A pod has come up the beam: it is paid for, and the trader packs the rest away and is off
+func _bought(pod: Thing) -> void:
+	var what: String = pod.get_meta("goods")
+	var shop: Shop = pod.get_meta("shop")
+	if what == "patch":
+		repair()
+	else:
+		buy(what)
+	if is_instance_valid(shop):
+		log_line("TRADED WITH %s" % shop.keeper_name.to_upper(), 0)
+		_pack_up(shop)
+		shop.leave(true)
+
+
+## The pods still on the ground go back into the trader's saucer
+func _pack_up(shop: Shop) -> void:
+	for pod: Thing in shop.pods:
+		if is_instance_valid(pod) and pod.state == "walk":
+			puff(pod.position + Vector3(0, 0.8, 0), Color(0.6, 1.0, 0.65), 1.0)
+			_remove(pod)
+	shop.pods.clear()
 
 
 func trader_fled(s: Shop) -> void:
+	_pack_up(s)
 	if mode == "play" and ufo.ground().distance_to(Vector3(s.position.x, 0, s.position.z)) < 60.0:
 		_banner("%s FLED THE HEAT" % s.keeper_name.to_upper(), 1.8)
 
@@ -669,7 +732,7 @@ func upgrade_price(what: String) -> int:
 	return int(round(float(UPGRADES[what]["price"]) * pow(1.8, upgrades[what]) / 10.0)) * 10
 
 
-## What has been bought, on the ship: faster, a stronger beam, a bigger shield
+## What has been bought, on the ship: faster, a stronger beam, a bigger shield, a quicker dodge
 func _apply_upgrades() -> void:
 	var spec: Dictionary = Ufo.SHIPS[ship]
 	ufo.speed = float(spec["speed"]) * (1.0 + 0.12 * upgrades["engine"])
@@ -690,9 +753,6 @@ func buy(what: String) -> bool:
 	if what == "shield":
 		ufo.hull = minf(ufo.hull + 25.0, ufo.hull_max)
 	sfx.play("bloop", 1.4)
-	if shop_open != null:
-		shop_open.keeper.feel("cheer", 1.0)
-		_fill_shop()
 	return true
 
 
@@ -707,61 +767,8 @@ func repair() -> void:
 		return
 	score -= price
 	ufo.hull = minf(ufo.hull + price, ufo.hull_max)
+	log_line("SHIELD PATCHED", -price)
 	sfx.play("bloop", 1.2)
-	_fill_shop()
-
-
-func _open_shop(s: Shop) -> void:
-	shop_open = s
-	get_tree().paused = true
-	_shop_box.visible = true
-	_fill_shop()
-	sfx.play("star", 0.8)
-
-
-func close_shop() -> void:
-	if shop_open == null:
-		return
-	_shop_left = shop_open
-	shop_open = null
-	_shop_box.visible = false
-	get_tree().paused = false
-
-
-func _fill_shop() -> void:
-	_shop_title.text = "%s'S TRADING SAUCER\nYOUR SCORE: %d" % [shop_open.keeper_name.to_upper(), score]
-	for c in _shop_list.get_children():
-		c.queue_free()
-	var first: Button
-	for what: String in UPGRADES:
-		var level: int = upgrades[what]
-		var b: Button
-		if level >= MAX_UPGRADE:
-			b = _button("%s  (BEST THERE IS)" % UPGRADES[what]["title"], func() -> void: pass)
-			b.disabled = true
-		else:
-			var price := upgrade_price(what)
-			b = _button("%s %d  -  %d" % [UPGRADES[what]["title"], level + 1, price], func() -> void: buy(what))
-			b.disabled = score < price
-		b.add_theme_font_size_override("font_size", 30)
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_shop_list.add_child(b)
-		var about := _label(18, Color(0.75, 0.85, 0.8))
-		about.text = UPGRADES[what]["about"]
-		about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_shop_list.add_child(about)
-		if first == null and not b.disabled:
-			first = b
-	var fix := _button("PATCH SHIELD  -  %d" % repair_price(), repair)
-	fix.add_theme_font_size_override("font_size", 30)
-	fix.disabled = repair_price() <= 0 or score <= 0
-	fix.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_shop_list.add_child(fix)
-	var leave := _button("LEAVE", close_shop)
-	leave.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_shop_list.add_child(leave)
-	(first if first != null else leave).call_deferred("grab_focus")
-
 
 ## The beam pulls up the scenery under it that it is strong enough for, a piece at a time
 func _pull_scenery(delta: float) -> void:
@@ -848,6 +855,13 @@ func _remove(t: Thing) -> void:
 
 ## Something reached the saucer
 func abducted(t: Thing) -> void:
+	if t.kind == "pod":
+		_bought(t)
+		sfx.play("bloop", 1.3)
+		ufo.alien.feel("cheer", 0.9)
+		t.state = "gone"
+		t.queue_free()
+		return
 	var points := t.points() * multiplier()
 	if mode == "play":
 		score += points
@@ -1238,28 +1252,6 @@ func _build_hud() -> void:
 	_play_button = _button("PLAY", start)
 	title_box.add_child(_play_button)
 
-	_shop_box = PanelContainer.new()
-	var frame := StyleBoxFlat.new()
-	frame.bg_color = Color(0.03, 0.08, 0.05, 0.92)
-	frame.border_color = Color(0.55, 1.0, 0.6)
-	frame.set_border_width_all(3)
-	frame.set_corner_radius_all(12)
-	frame.set_content_margin_all(22)
-	_shop_box.add_theme_stylebox_override("panel", frame)
-	_shop_box.set_anchors_preset(Control.PRESET_CENTER)
-	_shop_box.custom_minimum_size = Vector2(640, 0)
-	_shop_box.position = Vector2(-320, -300)
-	_shop_box.visible = false
-	root.add_child(_shop_box)
-	var inside := VBoxContainer.new()
-	inside.add_theme_constant_override("separation", 8)
-	_shop_box.add_child(inside)
-	_shop_title = _label(30, Color(0.7, 1.0, 0.72))
-	_shop_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	inside.add_child(_shop_title)
-	_shop_list = VBoxContainer.new()
-	_shop_list.add_theme_constant_override("separation", 6)
-	inside.add_child(_shop_list)
 
 	# A pause button in the corner, and what pausing shows
 	cockpit_view = SubViewport.new()
@@ -1419,7 +1411,7 @@ func quit_to_menu() -> void:
 
 
 func set_paused(on: bool) -> void:
-	if mode != "play" or shop_open != null:
+	if mode != "play":
 		return
 	get_tree().paused = on
 	_pause_box.visible = on
@@ -1553,7 +1545,7 @@ func _save_best() -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and mode == "play" and not autopilot and not testing and shop_open == null:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and mode == "play" and not autopilot and not testing:
 		set_paused(true)
 
 

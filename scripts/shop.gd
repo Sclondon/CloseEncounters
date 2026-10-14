@@ -1,9 +1,10 @@
 class_name Shop
 extends Node3D
 ## A saucer parked out in the country, its owner standing by it: a trader, a different alien every
-## time (see Alien), with a name of its own. Bring the ship down over the pad while there is no
-## heat and it will trade: upgrades for score (see main.gd `_open_shop`). It will not deal with a
-## ship that is being looked for, and once the heat reaches FLEE_AT it takes off and is gone.
+## time (see Alien), with a name of its own. Three of its goods stand in front of it, in pods
+## (see main.gd `spawn_shop`): beam one up to buy it with score, and the trader packs up the rest
+## and leaves. It will not deal with a ship that is being looked for, and once the heat reaches
+## FLEE_AT it takes off and is gone.
 
 const FLEE_AT := 2
 const PAD := 4.0
@@ -21,6 +22,8 @@ var _t := 0.0
 var _rise := 0.0
 var _cheer := 2.0
 var sign_label: Label3D
+## Its goods on the ground, until one is bought
+var pods: Array = []
 
 
 func setup(g: Node, at: Vector3, c: Vector2i, look_seed: int) -> void:
@@ -67,11 +70,6 @@ func setup(g: Node, at: Vector3, c: Vector2i, look_seed: int) -> void:
 	add_child(sign_label)
 
 
-## Whether the ship is over the pad
-func under(ufo: Ufo) -> bool:
-	return state == "parked" and Vector2(ufo.position.x - position.x, ufo.position.z - position.z).length() < PAD
-
-
 func tick(delta: float, ufo: Ufo, heat_level: int) -> void:
 	_t += delta
 	if state == "parked":
@@ -85,7 +83,7 @@ func tick(delta: float, ufo: Ufo, heat_level: int) -> void:
 			_cheer = randf_range(3.0, 6.0)
 			keeper.feel("cheer", 1.2)
 		if heat_level >= FLEE_AT and ufo.ground().distance_to(Vector3(position.x, 0, position.z)) < 90.0:
-			_flee()
+			leave(false)
 	else:
 		_rise += delta * 7.0
 		saucer.position.y += _rise * delta
@@ -95,9 +93,13 @@ func tick(delta: float, ufo: Ufo, heat_level: int) -> void:
 			gone = true
 
 
-func _flee() -> void:
+## Takes off: after a sale (`sold`), or fleeing the heat
+func leave(sold: bool) -> void:
+	if state != "parked":
+		return
 	state = "leaving"
 	keeper.visible = false
 	sign_label.visible = false
 	game.sfx.play("whoosh", 1.3)
-	game.trader_fled(self)
+	if not sold:
+		game.trader_fled(self)

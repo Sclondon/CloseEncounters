@@ -2,7 +2,7 @@ extends SceneTree
 ## Pictures of the newer things to look over (needs a window):
 ##   godot --path . --fixed-fps 60 --resolution 1280x720 -s res://tests/look.gd -- <out dir>
 ## ship_saucer/orb/triangle (the title with each), aliens (four pilots close up), trader,
-## trade (the trader's panel), patrol (a searchlight sweeping)
+## patrol (a searchlight sweeping)
 
 var main: Node
 var frame := 0
@@ -38,14 +38,10 @@ func _initialize() -> void:
 		main._pick_ship(1)
 		main.start()
 		var s: Shop = main.shops[0]
-		main.ufo.position = Vector3(s.position.x - 14.0, main.ufo.position.y, s.position.z + 4.0)
+		main.score = 450
+		main.ufo.position = Vector3(s.position.x - 4.0, main.ufo.position.y, s.position.z + 10.0)
 		return "trader")
 	plan.append(func() -> String:
-		main.score = 2400
-		main._open_shop(main.shops[0])
-		return "trade")
-	plan.append(func() -> String:
-		main.close_shop()
 		var patrol: Thing
 		for t in main.things:
 			if t.info.get("searchlight", false):
