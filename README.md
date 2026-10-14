@@ -12,9 +12,18 @@ like Animal Crossing (`shaders/bend.gdshaderinc`).
 
 ## Playing
 
-The title is on the moon: the pilot lounges in a deck chair by its parked ship with a cocktail, Earth hanging in
-the black (`scripts/moon.gd`, `shaders/earth.gdshader`). PLAY and it hops in, the ship lifts off and makes for
-Earth, and the run starts with it coming down from space.
+The title is on the moon: the ship stands parked with its canopy open, and the pilot lounges in a deck chair
+floating over the hull beside the cockpit, sipping a cocktail, Earth hanging in the black (`scripts/moon.gd`,
+`Ufo.lounge`, `shaders/earth.gdshader`). PLAY and it hops down into the cockpit, the canopy shuts, the ship
+lifts off and makes for Earth, and the run starts with it coming down from space. The title has only the
+name, the ship, PLAY, and a row of LOG, SCORES and QUIT. On an upright phone the name sits in the sky and
+the buttons on the moon. **LOG** is a field guide: every ship, every kind of thing there is to take (with how
+many have been taken, ever) and every hunter met, ??? until found (kept in `user://best.cfg`). **SCORES**
+and **QUIT** ask the arcade page to show this game's leaderboard or close the game (`OPEN_LEADERBOARD`,
+`QUIT_GAME`), so they show only inside it.
+
+The first few frames draw the farm under a black cover, so its shaders are made before the ship arrives,
+and while on the moon the world stays loaded round where the run starts (no stutter on the way down).
 
 - **Move**: WASD / arrows / left stick, or a thumb on the left half of a touch screen: a stick comes up under it,
   and the ship goes the way the thumb is then pushed.
@@ -169,6 +178,8 @@ objects the game moves: the tank's `turret`, the windmill's `fan`, the pumpjack'
     godot --path . --fixed-fps 60 --resolution 1280x720 -s res://tests/touch.gd   # touch controls, pause, quit
     godot --headless --path . --fixed-fps 60 -s res://tests/unlock.gd     # a secret facility unlocks a ship
     godot --path . --fixed-fps 60 --resolution 1280x720 -s res://tests/<shots|regions|look|look_more>.gd -- <out dir>
+    godot --path . --fixed-fps 60 --resolution <390x844|1280x720> -s res://tests/moon_look.gd -- <out dir>   # the title
+    godot --path . --resolution 390x844 -s res://tests/log_look.gd -- <out dir>    # the title's buttons and the log
     godot --path . --resolution 1280x720 -s res://tests/aliens.gd -- <out.png>
     godot --path . --resolution 1280x720 -s res://tests/perf.gd           # frame time, draw calls, things
 
@@ -177,6 +188,6 @@ thing is one draw call; nothing is drawn past 115 m (`Ps1.DRAW_TO`); far still t
 movers only every fourth frame; a new chunk's things are put down six a frame (`spawn_later`). About 320 draw
 calls a frame, down from 1,100.
     godot --path . --fixed-fps 30 --resolution 1280x720 --write-movie <out.avi> -s res://tests/preview.gd
-    godot --headless --path . --export-release "Web" build/index.html
+    sh tools/export_web.sh      # the web build, its .pck named by its contents (phones never keep an old one)
 
 (`godot` is `C:/Program Files (x86)/Steam/steamapps/common/Godot Engine/godot.windows.opt.tools.64.exe`.)

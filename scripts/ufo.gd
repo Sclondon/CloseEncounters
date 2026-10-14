@@ -78,6 +78,23 @@ var parked := false:
 		if _legs != null:
 			_legs.visible = value
 var _legs: Node3D
+## Parked on the moon with the canopy swung open and the pilot out on top of the hull in a deck
+## chair, drink in hand (`lounge`); off it, the pilot hops down into the cockpit (HOP seconds) and
+## the canopy shuts after it
+var lounging := false
+var _canopy := 0.0
+var _canopy_hinge: Node3D
+var _drink: Node3D
+var chair: Node3D
+var _hop := 0.0
+const HOP := 0.6
+## Where the chair floats over the hull, for a ship of the saucer's size (to the left of the cockpit
+## as the camera sees it), how high above it, how far it bobs, and how high the pilot sits in it
+const CHAIR_AT := Vector3(-1.5, 0.0, 0.3)
+const CHAIR_FLOAT := 0.45
+const CHAIR_BOB := 0.1
+const CHAIR_SEAT := Vector3(0, 0.36, 0.02)
+var _chair_y := 0.0
 ## Where the pilot sits, and how long it is still being thrown about after a dodge
 var seat := Vector3.ZERO
 var pilot_size := 1.0
@@ -170,6 +187,12 @@ func _ready() -> void:
 	var dome := hull_model.find_child("dome*", true, false) as MeshInstance3D
 	if dome != null:
 		dome.sorting_offset = 1.0
+		# (hinged at its back edge, to swing open backwards like a lid)
+		var box := dome.get_aabb()
+		_canopy_hinge = Node3D.new()
+		dome.get_parent().add_child(_canopy_hinge)
+		_canopy_hinge.position = dome.transform * Vector3(box.get_center().x, box.position.y, box.position.z)
+		dome.reparent(_canopy_hinge)
 
 	beam = MeshInstance3D.new()
 	var cone := CylinderMesh.new()
@@ -212,6 +235,54 @@ func ground() -> Vector3:
 	return Vector3(position.x, 0.0, position.z)
 
 
+## On the moon: the canopy open, the pilot up on top lounging with a cocktail (`on`), or the
+## drink gone and the pilot back down at the controls with the canopy shutting (not `on`)
+func lounge(on: bool) -> void:
+	if not on and lounging:
+		_hop = HOP
+		alien.feel("tossed", HOP)
+	lounging = on
+	if on:
+		alien.feel("lounge")
+		if chair == null:
+			chair = Ps1.model("lounge_chair")
+			chair.scale = Vector3.ONE * pilot_size
+			_chair_y = _hull_top() + CHAIR_FLOAT * pilot_size
+			chair.position = Vector3(CHAIR_AT.x * radius / 2.8, _chair_y, CHAIR_AT.z * radius / 2.8)
+			body.add_child(chair)
+		if _drink == null:
+			_drink = Ps1.model("cocktail")
+			_drink.scale = Vector3.ONE * 1.4
+			alien.arms[1].add_child(_drink)
+			_drink.position = Vector3(0.02, -0.42, 0.03)
+			_drink.rotation = Vector3(PI, 0, 0)
+	else:
+		alien.feel("steer")
+		if _drink != null:
+			_drink.queue_free()
+			_drink = null
+
+
+## The chair, left behind as the ship lifts off, still floating and bobbing where it was
+func leave_chair() -> void:
+	if chair == null:
+		return
+	var left := chair
+	chair = null
+	left.reparent(get_parent())
+	var y := left.position.y
+	var tw := left.create_tween().set_loops()
+	tw.tween_property(left, "position:y", y + CHAIR_BOB, 1.1).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(left, "position:y", y - CHAIR_BOB, 1.1).set_trans(Tween.TRANS_SINE)
+
+
+## How high the top of the hull is just in front of the cockpit (where the chair stands)
+func _hull_top() -> float:
+	if _canopy_hinge != null:
+		return _canopy_hinge.position.y - 0.08
+	return seat.y
+
+
 ## Flies by `steer` (a stick, at most 1 long); `beam_on` holds the beam down
 func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	_t += delta
@@ -220,12 +291,30 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 		_falling(delta)
 		return
 	if parked:
-		# (on its legs: the hull turning slowly, its lights going, nothing more)
+		# (on its legs: its lights going, the canopy open with the pilot up on top or shut with it
+		# inside, nothing more)
 		beaming = false
 		beam.visible = false
 		bubble.visible = false
-		if _spins:
-			hull_model.rotation.y += delta * 0.3
+		_hop = maxf(_hop - delta, 0.0)
+		_canopy = move_toward(_canopy, 1.0 if lounging or _hop > 0.0 else 0.0, delta * 2.2)
+		if _canopy_hinge != null:
+			_canopy_hinge.rotation.x = -1.75 * smoothstep(0.0, 1.0, _canopy)
+		if chair != null:
+			# (floating over the hull, bobbing gently, rocking a little)
+			chair.position.y = _chair_y + sin(_t * 1.4) * CHAIR_BOB * pilot_size
+			chair.rotation.z = sin(_t * 0.9) * 0.06
+			var in_chair := chair.position + CHAIR_SEAT * pilot_size
+			if lounging:
+				alien.position = in_chair
+				alien.rotation.z = chair.rotation.z
+			elif _hop > 0.0:
+				# (up out of the chair and down into the cockpit)
+				var k := 1.0 - _hop / HOP
+				alien.position = in_chair.lerp(seat, k) + Vector3(0, sin(k * PI) * 1.1, 0)
+				alien.rotation.z = 0.0
+			else:
+				alien.position = seat
 		_flash_lights()
 		return
 	charge = minf(charge + delta * CHARGES / dash_wait_max(), CHARGES)

@@ -413,22 +413,7 @@ def ufo():
         a = i / 12 * math.tau
         p.append(ball((0.28, 0.28, 0.2), (2.62 * math.cos(a), 2.62 * math.sin(a), 0), "lights", 6, 3))
     body = join("ufo", p)
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=6, radius=1.0, location=(0, 0, 0.5))
-    dome = bpy.context.object
-    # (only the top half: the alien sits in it)
-    import bmesh
-    bm = bmesh.new()
-    bm.from_mesh(dome.data)
-    bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z < -0.01], context="VERTS")
-    bm.to_mesh(dome.data)
-    bm.free()
-    dome.scale = (1.0, 1.0, 1.1)
-    _done(dome, "glass")
-    dome.name = "dome"
-    bpy.ops.object.select_all(action="DESELECT")
-    dome.select_set(True)
-    bpy.context.view_layer.objects.active = dome
-    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+    dome = _dome(1.0, 0.5)
     dome.parent = body
     return body
 
@@ -680,9 +665,11 @@ def camp_tent():
     return join("camp_tent", [ball((2.6, 2.2, 2.4), (0, 0, 0), "camp", 8, 4), box((0.8, 0.1, 0.9), (0, -1.08, 0.45), "black")])
 
 def _dome(radius, z, squash=1.1):
-    """The glass the alien sits under: the top half of a ball, named "dome" (the game makes it glass)"""
+    """The glass the alien sits under: the top half of a ball, named "dome" (the game makes it glass).
+    Smooth, unlike everything else: glass shows every facet"""
     import bmesh
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=6, radius=radius, location=(0, 0, z))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=48, ring_count=24, radius=radius, location=(0, 0, z))
+    bpy.ops.object.shade_smooth()
     dome = bpy.context.object
     bm = bmesh.new()
     bm.from_mesh(dome.data)

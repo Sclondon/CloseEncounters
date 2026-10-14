@@ -129,7 +129,28 @@ var banner_time := 0.0
 var title_box: Control
 var over_box: Control
 var over_label: Label
-var hint_label: Label
+## The title screen's parts, laid out for the screen's shape (`_layout_title`)
+var _title_label: Label
+var _title_gap: Control
+var _arrows: Array[Button] = []
+var _title_row: HBoxContainer
+## The log (a field guide): every ship, every kind of thing there is to take (with how many of each
+## have been taken, ever), and every kind of hunter met; filled in as they are, and kept with the best
+var _log_box: Control
+var _log_list: VBoxContainer
+var _log_head: Label
+var _log_back: Button
+var _log_taken := {}
+var _log_met: Array[String] = []
+## The hunters, as the log names them (the jets are not things: they are only flown over)
+const HUNTERS := {
+	"police_car": "POLICE CAR", "patrol_car": "POLICE PATROL", "jeep": "ARMY JEEP",
+	"patrol_jeep": "ARMY PATROL", "tank": "TANK", "jet": "FIGHTER JET",
+}
+## The first few frames draw the farm under a black cover, so its shaders are ready before the
+## ship comes down to it (else the arrival stutters while they are made)
+var _warm_frames := 4
+var _cover: ColorRect
 var _play_button: Button
 var ship_label: Label
 ## Which ship is flown (see Ufo.SHIPS), chosen on the title screen and remembered
@@ -298,6 +319,7 @@ func _fit() -> void:
 	else:
 		camera.fov = 42.0
 	_layout_touch()
+	_layout_title(size)
 
 
 # ------------------------------------------------------------------ the run
@@ -460,7 +482,9 @@ func _process(delta: float) -> void:
 		_forces(delta)
 	if intro <= 0.0:
 		_patrols(delta)
-	world.update(ufo.position, delta)
+	# (on the moon and on the way to Earth, the world stays ready round where the run starts,
+	# rather than loading chunks under a ship flying off across the sky)
+	world.update(Vector3.ZERO if mode == "title" or mode == "launch" else ufo.position, delta)
 	_spawn_some()
 	if mode == "play" and not autopilot and not get_tree().paused:
 		_pending_fingers()
@@ -674,6 +698,8 @@ func _jets(delta: float) -> void:
 			jet.set_meta("fired", 0)
 			view.add_child(jet)
 			jets.append(jet)
+			if not "jet" in _log_met:
+				_log_met.append("jet")
 			sfx.play("whoosh", 0.7, 3.0)
 	for jet in jets:
 		jet.position.z += delta * 45.0
@@ -918,6 +944,8 @@ func spawn(kind: String, at: Vector3, extra := {}) -> Thing:
 	view.add_child(t)
 	t.setup(self, kind, at, extra)
 	things.append(t)
+	if mode == "play" and HUNTERS.has(kind) and not kind in _log_met:
+		_log_met.append(kind)
 	return t
 
 
@@ -991,6 +1019,7 @@ func abducted(t: Thing) -> void:
 	if mode == "play":
 		var title: String = t.info.get("title", t.kind.replace("_", " ").to_upper())
 		log_line("SPECIMEN %03d  %s" % [taken, title], points)
+		_log_taken[t.kind] = int(_log_taken.get(t.kind, 0)) + 1
 	t.state = "gone"
 	t.queue_free()
 
@@ -1227,8 +1256,13 @@ func _intro_camera() -> void:
 ## with the ship and then follows it out toward Earth
 func _moon_camera(delta: float) -> void:
 	var site := MoonSet.SITE
-	var at := site + Vector3(-6.5, 2.4, 9.5)
-	var look := site + Vector3(4.0, 5.5, -10.0)
+	# (close on the pilot up on the ship, Earth over its shoulder; on a wide screen the pilot to the
+	# right of the title, on an upright phone in the middle between the title and the buttons)
+	var at := site + Vector3(-0.86, 3.6, 2.5)
+	var look := site + Vector3(3.21, 4.12, -6.64)
+	if _upright():
+		at = site + Vector3(0.13, 3.04, 2.31)
+		look = site + Vector3(6.15, 3.04, -5.68)
 	if mode == "launch" and _launch_t > 0.9:
 		var k := smoothstep(0.9, 2.6, _launch_t)
 		var earth := moon_set.earth_position()
@@ -1243,6 +1277,181 @@ func _moon_camera(delta: float) -> void:
 	camera.environment.fog_density = 0.0
 
 
+## The first frames: the farm where the run starts, under the cover, then the cover fades
+func _warm_camera() -> void:
+	_warm_frames -= 1
+	camera.position = Vector3(0, 10.0, 14.0)
+	camera.look_at(Vector3(0, 0, -4.0))
+	RenderingServer.global_shader_parameter_set("bend_focus", Vector3(0, 0, -1.0))
+	_sky_mat.set_shader_parameter("space", 0.0)
+	camera.environment.fog_density = 0.006
+	if _warm_frames == 0 and _cover != null:
+		var tw := create_tween()
+		tw.tween_property(_cover, "modulate:a", 0.0, 0.4)
+		tw.tween_callback(_cover.hide)
+
+
+func _upright() -> bool:
+	var size := get_viewport().get_visible_rect().size
+	return size.x < size.y
+
+
+## The title: on an upright phone, the name in the sky at the top and the ship and PLAY on the moon
+## at the bottom, big enough for a thumb; on a wide screen, all of it in a column on the left
+func _layout_title(size: Vector2) -> void:
+	if title_box == null:
+		return
+	var upright := size.x < size.y
+	if upright:
+		title_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		title_box.offset_left = 40.0
+		title_box.offset_right = -40.0
+		title_box.offset_top = 150.0
+		title_box.offset_bottom = -170.0
+		title_box.custom_minimum_size = Vector2.ZERO
+	else:
+		title_box.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
+		title_box.offset_left = 30.0
+		title_box.offset_right = 650.0
+		title_box.custom_minimum_size = Vector2(620, 0)
+	_title_gap.visible = upright
+	_title_label.add_theme_font_size_override("font_size", 150 if upright else 84)
+	ship_label.add_theme_font_size_override("font_size", 56 if upright else 34)
+	ship_label.custom_minimum_size = Vector2(620 if upright else 420, 0)
+	for b in _arrows:
+		b.custom_minimum_size = Vector2(130, 130) if upright else Vector2(70, 70)
+		b.add_theme_font_size_override("font_size", 64 if upright else 40)
+	_play_button.custom_minimum_size = Vector2(520, 150) if upright else Vector2(260, 70)
+	_play_button.add_theme_font_size_override("font_size", 76 if upright else 40)
+	for b in _title_row.get_children():
+		(b as Button).custom_minimum_size = Vector2(250, 110) if upright else Vector2(170, 60)
+		(b as Button).add_theme_font_size_override("font_size", 52 if upright else 32)
+
+
+## The log: a list to scroll by thumb, and BACK
+func _build_log(root: Control) -> void:
+	var dim := ColorRect.new()
+	dim.color = Color(0.01, 0.04, 0.02, 0.88)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.visible = false
+	root.add_child(dim)
+	_log_box = dim
+	var box := VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = 40.0
+	box.offset_right = -40.0
+	box.offset_top = 40.0
+	box.offset_bottom = -40.0
+	box.add_theme_constant_override("separation", 16)
+	dim.add_child(box)
+	var head := _label(56, Color(0.7, 1.0, 0.72))
+	head.text = "LOG"
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(head)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	_log_list = VBoxContainer.new()
+	_log_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_log_list.add_theme_constant_override("separation", 6)
+	scroll.add_child(_log_list)
+	_log_back = _button("BACK", close_log)
+	box.add_child(_log_back)
+	_log_head = head
+
+
+func open_log() -> void:
+	if mode != "title":
+		return
+	_fill_log()
+	title_box.visible = false
+	_log_box.visible = true
+
+
+func close_log() -> void:
+	_log_box.visible = false
+	title_box.visible = mode == "title"
+
+
+## The log written out afresh: the ships, then everything there is to take, then the hunters; what
+## has not been come across yet is ???
+func _fill_log() -> void:
+	for old in _log_list.get_children():
+		old.queue_free()
+	var big := _upright()
+	_log_head.add_theme_font_size_override("font_size", 110 if big else 56)
+	_log_back.custom_minimum_size = Vector2(420, 140) if big else Vector2(260, 70)
+	_log_back.add_theme_font_size_override("font_size", 72 if big else 40)
+	var ships: Array = []
+	for s: String in Ufo.ORDER:
+		ships.append([Ufo.SHIPS[s]["title"], "" if s in unlocked else "LOCKED", s in unlocked])
+	_log_section("SHIPS  %d/%d" % [unlocked.size(), Ufo.ORDER.size()], ships, big)
+	var specimens: Array = []
+	var have := 0
+	for kind: String in Thing.KINDS:
+		var info: Dictionary = Thing.KINDS[kind]
+		if kind == "pod" or info.get("enemy", false) or info.has("unlock") or HUNTERS.has(kind):
+			continue
+		var count := int(_log_taken.get(kind, 0))
+		have += 1 if count > 0 else 0
+		specimens.append([info.get("title", kind.replace("_", " ").to_upper()), "x%d" % count, count > 0])
+	_log_section("SPECIMENS  %d/%d" % [have, specimens.size()], specimens, big)
+	var hunters: Array = []
+	for h: String in HUNTERS:
+		hunters.append([HUNTERS[h], "", h in _log_met])
+	_log_section("HUNTERS  %d/%d" % [_log_met.size(), HUNTERS.size()], hunters, big)
+
+
+## A heading, and under it a grid of tiles: [name, note, known] each (an unknown one only "?")
+func _log_section(text: String, tiles: Array, big: bool) -> void:
+	var head := _label(72 if big else 34, Color(0.7, 1.0, 0.72))
+	head.text = text
+	_log_list.add_child(head)
+	var grid := GridContainer.new()
+	grid.columns = 3 if big else 5
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 12)
+	_log_list.add_child(grid)
+	for tile: Array in tiles:
+		var known: bool = tile[2]
+		var cell := PanelContainer.new()
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.custom_minimum_size = Vector2(0, 150 if big else 76)
+		var frame := StyleBoxFlat.new()
+		frame.bg_color = Color(0.1, 0.25, 0.14, 0.85) if known else Color(0.06, 0.09, 0.08, 0.7)
+		frame.border_color = Color(0.55, 1.0, 0.6) if known else Color(0.25, 0.35, 0.3)
+		frame.set_border_width_all(2)
+		frame.set_corner_radius_all(8)
+		frame.set_content_margin_all(8)
+		cell.add_theme_stylebox_override("panel", frame)
+		var l := _label((46 if big else 20) if known else (70 if big else 30), Color(0.9, 0.95, 0.88) if known else Color(0.35, 0.45, 0.4))
+		l.text = ("%s\n%s" % [tile[0], tile[1]]).strip_edges() if known else "?"
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		cell.add_child(l)
+		grid.add_child(cell)
+
+
+## Whether this is the web build playing inside the arcade's frame
+func _in_arcade() -> bool:
+	return OS.has_feature("web") and bool(JavaScriptBridge.eval("window.parent !== window", true))
+
+
+## The arcade's leaderboard for this game (it opens it when it hears OPEN_LEADERBOARD)
+func open_scores() -> void:
+	JavaScriptBridge.eval("window.parent.postMessage({type: 'OPEN_LEADERBOARD'}, '*')", true)
+
+
+## Back to the arcade (it closes the game when it hears QUIT_GAME), or off the web, out
+func quit_game() -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.parent.postMessage({type: 'QUIT_GAME'}, '*')", true)
+	elif not testing:
+		get_tree().quit()
+
+
 ## Further up and back for a ship that flies higher
 func _camera_offset() -> Vector3:
 	return CAMERA_OFFSET + Vector3(0, 1.3, 0.5) * (ufo.altitude - 8.0)
@@ -1250,6 +1459,9 @@ func _camera_offset() -> Vector3:
 
 func _camera(delta: float) -> void:
 	if hold_camera:
+		return
+	if _warm_frames > 0:
+		_warm_camera()
 		return
 	if mode == "title" or mode == "launch":
 		_moon_camera(delta)
@@ -1364,41 +1576,42 @@ func _build_hud() -> void:
 	beam_button.visible = false
 	root.add_child(beam_button)
 
+	# The title: only the name, the ship (with arrows) and PLAY; laid out for the screen's shape by
+	# `_layout_title`
 	title_box = _panel(root)
-	# (on the left, so the moon, the pilot and Earth are to be seen on the right)
-	title_box.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
-	title_box.offset_left = 30.0
-	title_box.offset_right = 650.0
-	title_box.custom_minimum_size = Vector2(620, 0)
-	var title := _label(84, Color(0.7, 1.0, 0.72))
-	title.text = "CLOSE ENCOUNTERS"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_box.add_child(title)
-	var sub := _label(26)
-	sub.text = "Beam up whatever you can. The more you take, the hotter it gets."
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	title_box.add_child(sub)
-	hint_label = _label(22, Color(0.75, 0.8, 0.85))
-	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	title_box.add_child(hint_label)
+	_title_label = _label(84, Color(0.7, 1.0, 0.72))
+	_title_label.text = "CLOSE ENCOUNTERS"
+	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title_box.add_child(_title_label)
+	_title_gap = Control.new()
+	_title_gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_title_gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_box.add_child(_title_gap)
 	var picker := HBoxContainer.new()
 	picker.alignment = BoxContainer.ALIGNMENT_CENTER
 	picker.add_theme_constant_override("separation", 16)
-	var left := _button("<", func() -> void: _pick_ship(-1))
-	left.custom_minimum_size = Vector2(70, 70)
-	picker.add_child(left)
-	ship_label = _label(28, Color(0.75, 1.0, 0.78))
+	_arrows = [_button("<", func() -> void: _pick_ship(-1)), _button(">", func() -> void: _pick_ship(1))]
+	picker.add_child(_arrows[0])
+	ship_label = _label(34, Color(0.75, 1.0, 0.78))
 	ship_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ship_label.custom_minimum_size = Vector2(500, 0)
+	ship_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	picker.add_child(ship_label)
-	var right := _button(">", func() -> void: _pick_ship(1))
-	right.custom_minimum_size = Vector2(70, 70)
-	picker.add_child(right)
+	picker.add_child(_arrows[1])
 	title_box.add_child(picker)
 	_play_button = _button("PLAY", begin_launch)
 	title_box.add_child(_play_button)
+	_title_row = HBoxContainer.new()
+	_title_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_title_row.add_theme_constant_override("separation", 20)
+	_title_row.add_child(_button("LOG", open_log))
+	# (the scores and QUIT are the arcade's: only inside it, or for QUIT, off the web)
+	if _in_arcade():
+		_title_row.add_child(_button("SCORES", open_scores))
+	if _in_arcade() or not OS.has_feature("web"):
+		_title_row.add_child(_button("QUIT", quit_game))
+	title_box.add_child(_title_row)
+	_build_log(root)
 
 
 	# A pause button in the corner, and what pausing shows
@@ -1427,6 +1640,12 @@ func _build_hud() -> void:
 		if _over_wait <= 0.0:
 			start()))
 	over_box.visible = false
+
+	_cover = ColorRect.new()
+	_cover.color = Color.BLACK
+	_cover.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_cover)
 
 
 func _panel(root: Control) -> VBoxContainer:
@@ -1475,15 +1694,16 @@ func _make_ufo(at: Vector3) -> void:
 	view.add_child(ufo)
 
 
-## On the moon, beside the pilot's deck chair, on its legs (the pilot is out, in the chair)
+## On the moon, on its legs, turned to the camera, the canopy open and the pilot lounging on top
 func _park_ufo() -> void:
 	ufo.parked = true
 	ufo.position = MoonSet.SITE + MoonSet.SHIP_AT
-	ufo.alien.visible = false
-	moon_set.seat(alien_seed)
+	ufo.rotation.y = MoonSet.SHIP_TURN
+	ufo.lounge(true)
 
 
-## Play pressed on the title: the pilot hops in, the ship lifts off and makes for Earth, and the run
+## Play pressed on the title: the pilot drops in, the canopy shuts, the ship lifts off and makes for
+## Earth, and the run
 ## starts with it coming down from space (see `_launch`)
 func begin_launch() -> void:
 	if mode != "title" or not ship in unlocked:
@@ -1491,16 +1711,16 @@ func begin_launch() -> void:
 	mode = "launch"
 	_launch_t = 0.0
 	title_box.visible = false
-	moon_set.hop_aboard(0.9)
+	ufo.lounge(false)
 	sfx.play("whoosh", 1.4)
 
 
 func _launch(delta: float) -> void:
 	_launch_t += delta
 	var site := MoonSet.SITE + MoonSet.SHIP_AT
-	if _launch_t >= 0.9 and not ufo.alien.visible:
-		ufo.alien.visible = true
+	if _launch_t >= 0.9 and ufo.alien.mood != "cheer" and _launch_t - delta < 0.9:
 		ufo.alien.feel("cheer", 1.0)
+		ufo.leave_chair()
 		sfx.play("bloop", 1.2)
 	if _launch_t < 0.9:
 		return
@@ -1535,11 +1755,11 @@ func _pick_ship(step: int) -> void:
 func _show_ship() -> void:
 	var spec: Dictionary = Ufo.SHIPS[ship]
 	if ship in unlocked:
-		ship_label.text = "%s\n%s" % [spec["title"], spec["about"]]
+		ship_label.text = spec["title"]
 		_play_button.text = "PLAY"
 		_play_button.disabled = false
 	else:
-		ship_label.text = "%s (LOCKED)\nFind it in a secret government facility." % spec["title"]
+		ship_label.text = spec["title"]
 		_play_button.text = "LOCKED"
 		_play_button.disabled = true
 
@@ -1553,7 +1773,8 @@ func _show_title() -> void:
 	_show_ship()
 	title_box.visible = true
 	over_box.visible = false
-	hint_label.text = "Move: WASD, arrows, stick or drag on the left    Beam: hold Space, A, or the right side    Dodge: Shift, B, or swipe"
+	# (what the last run added to the log, kept)
+	_save_best()
 
 
 ## The lounge on the title, in the pause and after a crash; Tanks! once the heat is up; else Night Visitors
@@ -1864,6 +2085,10 @@ func _load_best() -> void:
 		var kept: String = cfg.get_value("best", "ship", "saucer")
 		if Ufo.SHIPS.has(kept) and kept in unlocked:
 			ship = kept
+		_log_taken = cfg.get_value("log", "taken", {})
+		for met: String in cfg.get_value("log", "met", []):
+			if HUNTERS.has(met) and not met in _log_met:
+				_log_met.append(met)
 
 func _save_best() -> void:
 	if testing:
@@ -1872,6 +2097,8 @@ func _save_best() -> void:
 	cfg.set_value("best", "score", best)
 	cfg.set_value("best", "ship", ship)
 	cfg.set_value("best", "unlocked", unlocked)
+	cfg.set_value("log", "taken", _log_taken)
+	cfg.set_value("log", "met", _log_met)
 	cfg.save("user://best.cfg")
 
 
