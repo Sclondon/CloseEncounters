@@ -45,8 +45,8 @@ vec3 farm(vec2 p, float speck) {
 	} else {
 		c = mix(vec3(0.3, 0.42, 0.18), vec3(0.36, 0.46, 0.2), speck);
 	}
-	// A crop circle: the crop laid flat in rings, pale under the moon
-	if (h >= 0.3 && h < 0.85) {
+	// A crop circle: the crop (or the grass) laid flat in rings, pale under the moon
+	{
 		for (int i = 0; i < 24; i++) {
 			vec4 cc = circles[i];
 			if (cc.z <= 0.0) continue;

@@ -7,6 +7,9 @@ render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabl
 
 uniform vec3 tint : source_color = vec3(0.55, 1.0, 0.65);
 uniform float power = 1.0;
+// 1 = a searchlight: brightest down its middle, fading away to its edges and its far end, with no
+// rim to show where the cone ends
+uniform float soft = 0.0;
 
 void fragment() {
 	float edge = 1.0 - abs(dot(NORMAL, VIEW));
@@ -14,4 +17,9 @@ void fragment() {
 	float rings = 0.5 + 0.5 * sin(up * 40.0 + TIME * 9.0);
 	float a = (0.12 + 0.55 * pow(edge, 3.0) + 0.12 * rings) * power;
 	ALBEDO = tint * a * mix(1.0, 0.5, up);
+	if (soft > 0.5) {
+		float middle = pow(clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0), 2.5);
+		float far = smoothstep(0.0, 0.65, up);
+		ALBEDO = tint * power * middle * far * 0.6;
+	}
 }

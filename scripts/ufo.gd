@@ -34,6 +34,9 @@ const DASH_SPEED := 34.0
 const DASH_TIME := 0.22
 const DASH_SAFE := 0.35
 const DASH_WAIT := 2.5
+## The dodge has three charges (the pistons), each refilling in a third of DASH_WAIT; a dodge
+## spends every charge that is full, and goes further, and leaves more afterimages, the more it spends
+const CHARGES := 3
 ## Afterimages a dodge leaves, before upgrades (the DASH upgrade adds two a level)
 const GHOSTS := 3
 ## The beam's radius up under the ship
@@ -59,12 +62,22 @@ var dead := false
 var crashed := false
 var since_hit := 10.0
 var dash_left := 0.0
-var dash_wait := 0.0
+## Charges of the dodge, 0 to CHARGES (the pistons)
+var charge := 3.0
+var _safe := 0.0
+var _ghosts_left := 0
 var _dash_dir := Vector3.ZERO
 ## Bought from traders: each level a quicker recharge and two more afterimages
 var dash_level := 0
 ## How far above its flying height it still is, coming down from space at the start of a run
 var descent := 0.0
+## Landed (on the moon, on the title): it stands on its legs and goes nowhere
+var parked := false:
+	set(value):
+		parked = value
+		if _legs != null:
+			_legs.visible = value
+var _legs: Node3D
 ## Where the pilot sits, and how long it is still being thrown about after a dodge
 var seat := Vector3.ZERO
 var pilot_size := 1.0
@@ -133,6 +146,13 @@ func _ready() -> void:
 		var m := Ps1.own(Color(0.4, 1.0, 0.5), 1.5)
 		_lamps.append(m)
 		Ps1.part(body, Ps1.ball(), m, Vector3((i - 1) * 0.42, 0.22, radius * 0.78), Vector3.ONE * 0.13)
+	_legs = Node3D.new()
+	body.add_child(_legs)
+	for i in 3:
+		var a := i * TAU / 3.0
+		Ps1.part(_legs, CylinderMesh.new(), Ps1.mat(Color(0.32, 0.34, 0.38)), Vector3(sin(a) * radius * 0.6, -0.9, cos(a) * radius * 0.6), Vector3(0.08, 0.6, 0.08), Vector3(cos(a) * 0.3, 0, -sin(a) * 0.3))
+		Ps1.part(_legs, Ps1.ball(), Ps1.mat(Color(0.32, 0.34, 0.38)), Vector3(sin(a) * radius * 0.75, -1.5, cos(a) * radius * 0.75), Vector3(0.25, 0.08, 0.25))
+	_legs.visible = parked
 	bubble = MeshInstance3D.new()
 	var ball := SphereMesh.new()
 	ball.radius = 1.0
@@ -175,6 +195,9 @@ func _ready() -> void:
 	spot.spot_angle = rad_to_deg(atan(beam_foot * 1.3 / altitude))
 	spot.light_energy = 1.5
 	spot.light_color = Color(0.75, 0.85, 1.0)
+	# (a soft edge to the circle it throws on the ground)
+	spot.spot_angle_attenuation = 2.5
+	spot.spot_angle *= 1.25
 	spot.position.y = -0.6
 	add_child(spot)
 	glow = OmniLight3D.new()
@@ -196,7 +219,17 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	if dead:
 		_falling(delta)
 		return
-	dash_wait -= delta
+	if parked:
+		# (on its legs: the hull turning slowly, its lights going, nothing more)
+		beaming = false
+		beam.visible = false
+		bubble.visible = false
+		if _spins:
+			hull_model.rotation.y += delta * 0.3
+		_flash_lights()
+		return
+	charge = minf(charge + delta * CHARGES / dash_wait_max(), CHARGES)
+	_safe -= delta
 	dash_left -= delta
 	# (no beam while dashing: whatever was in it drops)
 	beaming = beam_on and dash_left <= 0.0
@@ -217,8 +250,9 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 		_spin -= delta
 		hull_model.rotation.y += delta * 30.0
 		_ghost_wait -= delta
-		if _ghost_wait <= 0.0:
-			_ghost_wait = DASH_SAFE / float(GHOSTS + 2 * dash_level)
+		if _ghost_wait <= 0.0 and _ghosts_left > 0:
+			_ghosts_left -= 1
+			_ghost_wait = _spin / float(maxi(_ghosts_left, 1))
 			_afterimage()
 	elif _spins:
 		# The saucer and the orb turn slowly, faster with the beam on
@@ -261,12 +295,17 @@ var mend_rate := 0.0
 
 ## A quick dash `dir` (on the ground plane, x across and y toward the camera), if one is ready
 func dodge(dir: Vector2) -> bool:
-	if dead or dash_wait > 0.0 or dir.length() < 0.01:
+	if dead or charge < 1.0 or dir.length() < 0.01:
 		return false
 	_dash_dir = Vector3(dir.x, 0, dir.y).normalized()
-	dash_left = DASH_TIME
-	dash_wait = dash_wait_max()
-	_spin = DASH_SAFE
+	# Every full charge goes into it: one is a short hop with one afterimage, three the whole dash
+	var used := floori(charge)
+	charge -= used
+	var share := (used + 1) / float(CHARGES + 1)
+	dash_left = DASH_TIME * share
+	_safe = DASH_SAFE * share
+	_spin = DASH_SAFE * share
+	_ghosts_left = used if used < CHARGES else GHOSTS + 2 * dash_level
 	_ghost_wait = 0.0
 	alien.feel("tossed", DASH_SAFE + 0.35)
 	_toss = DASH_SAFE + 0.35
@@ -289,7 +328,7 @@ func _throw_pilot(delta: float) -> void:
 
 ## How ready the next dodge is, 0 (just used) to 1
 func dodge_ready() -> float:
-	return clampf(1.0 - dash_wait / dash_wait_max(), 0.0, 1.0)
+	return clampf(charge / CHARGES, 0.0, 1.0)
 
 
 ## The wait between dodges, shorter with each DASH upgrade
@@ -363,7 +402,7 @@ func _build_panel(size: float, at: Vector3) -> void:
 
 ## Untouchable for a moment at the start of a dodge
 func dodging() -> bool:
-	return dash_wait > dash_wait_max() - DASH_SAFE
+	return _safe > 0.0
 
 
 ## Whether a point is inside the beam: wide at the ground, narrow under the ship

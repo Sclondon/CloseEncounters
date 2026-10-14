@@ -12,12 +12,15 @@ like Animal Crossing (`shaders/bend.gdshaderinc`).
 
 ## Playing
 
+The title is on the moon: the pilot lounges in a deck chair by its parked ship with a cocktail, Earth hanging in
+the black (`scripts/moon.gd`, `shaders/earth.gdshader`). PLAY and it hops in, the ship lifts off and makes for
+Earth, and the run starts with it coming down from space.
+
 - **Move**: WASD / arrows / left stick, or a thumb on the left half of a touch screen: a stick comes up under it,
   and the ship goes the way the thumb is then pushed.
 - **Beam**: hold Space (or J, Z), gamepad A / right trigger, or a finger held on the right half of a touch screen
   (the beam's mark, which rests in the bottom right corner, comes up under it).
-- **Tap to fly**: tap the left half of the screen (or click the ground) and the ship flies there. The ship slows
-  while the beam is on. Things rise slowly (the heavier, the slower) and are taken when they reach the ship.
+  The beam is on only while held. The ship slows while the beam is on. Things rise slowly (the heavier, the slower) and are taken when they reach the ship.
   Let go early and they fall. Drop something from high enough onto the police or the army and it crushes them.
 - **Dodge**: Shift (or X, K), gamepad B / left shoulder, or a quick swipe: a dash that spins the ship like a
   top and leaves afterimages, untouchable while it lasts, then 2.5 s before the next (the DODGE bar). It drops
@@ -26,8 +29,9 @@ like Animal Crossing (`shaders/bend.gdshaderinc`).
 
 The HUD: the score in alien money top left, and under it a log of everything taken, typed out in glowing green.
 Top right, beside the pause button, the shield as a glass orb of blue energy, and three pistons that pop up as
-the dodge recharges (three lamps on the front of the ship light with them). The touch stick shows only while a thumb is on
-it.
+the dodge recharges (three lamps on the front of the ship light with them). Below them, a round **radar**: the nearest trader, secret facility, substation and rare
+find (on the rim, pointing the way, when out of range), and the police and army about in red. The touch stick
+shows only while a thumb is on it.
 
 The pilot works a stick and a panel of buttons in front of it, mashes the buttons while the beam is on, and is
 thrown about the cockpit in a dodge. The ship's
@@ -68,6 +72,11 @@ satellite (900 to 3000 points).
 
 Points are multiplied by the heat: x1 with no stars, up to x6 at five. Heat cools after 5 seconds without taking
 anything; the shield mends only with no stars.
+
+**It gets harder as the score climbs** (`danger()`, full at 12,000): heat cools later and slower, witnesses
+phone sooner, more patrols and more police and army come, they shoot faster, and their shots hit harder.
+
+Searchlights are soft cones, brightest down the middle and fading to their edges (`beam.gdshader`, `soft`).
 
 | Heat | Who comes |
 | --- | --- |
@@ -123,12 +132,22 @@ Anything between the camera and the ship is drawn see-through (`shaders/ps1.gdsh
 ## Layout
 
 - `scripts/main.gd`: the game: modes, heat, forces, patrols and spotting, traders and upgrades, ship choice,
-  scenery pulled up by the beam, the autopilot (behind the title and in tests), effects, camera, HUD, touch.
+  scenery pulled up by the beam, the moon title and launch, radar, the autopilot (in tests), effects, camera, HUD, touch.
 - `scripts/ufo.gd` (the ships, `SHIPS`), `alien.gd` (the pilot), `thing.gd` (everything that can be taken:
   `KINDS` holds points, weight, heat, tier, how it moves, its gun, its searchlight), `shop.gd` (a trader),
   `shot.gd`, `world.gd`, `sfx.gd` (synthesised sounds), `ps1.gd` (materials, and the Blender models in them).
 - `shaders/`: `bend.gdshaderinc` (the bend and PS1 snap), `ps1` (with the see-through), `ps1_flat`, `glass`,
   `beam` (the tractor beam and the searchlights), `ground` (each region, the roads), `sky`, `screen`.
+
+## Music
+
+Three songs made in One Man Band (`C:\Projects\FrontRangeInstituteGames\OneManBand`): Moon Lounge (title, pause),
+Night Visitors (flying about) and Tanks! (with heat), crossfaded by `scripts/music.gd`. Their One Man Band songs
+are `music/*.omb.json`, written by `tools/songs.gd` (or opened and changed in One Man Band); each is played
+into `music/<name>.wav` by One Man Band's renderer:
+
+    godot --headless --path . -s tools/songs.gd
+    godot --headless --path <OneManBand> -s res://tools/render_song.gd -- <song.omb.json> <out.wav>
 
 ## Models
 

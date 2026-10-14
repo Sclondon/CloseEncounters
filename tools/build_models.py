@@ -48,7 +48,9 @@ COLOURS = {
     "insulator": (0.4, 0.7, 0.6), "sasquatch": (0.3, 0.2, 0.13), "sasquatch_face": (0.18, 0.13, 0.1),
     "satellite": (0.75, 0.75, 0.7), "panel": (0.12, 0.18, 0.4), "gold": (1.0, 0.78, 0.2),
     "brick": (0.55, 0.3, 0.22), "police_blue": (0.15, 0.25, 0.55), "concrete": (0.6, 0.6, 0.58), "hangar": (0.45, 0.48, 0.42),
-    "transformer": (0.5, 0.55, 0.5), "hazard": (0.95, 0.75, 0.1), "black_hull": (0.09, 0.09, 0.11), "hull_edge": (0.2, 0.2, 0.24),
+    "transformer": (0.5, 0.55, 0.5), "hazard": (0.95, 0.75, 0.1),
+    "regolith": (0.58, 0.57, 0.55), "regolith_dark": (0.4, 0.4, 0.4), "canvas_a": (0.95, 0.4, 0.3), "canvas_b": (0.95, 0.9, 0.8),
+    "chrome_leg": (0.75, 0.77, 0.8), "drink": (0.35, 0.95, 0.5), "umbrella": (1.0, 0.5, 0.75), "black_hull": (0.09, 0.09, 0.11), "hull_edge": (0.2, 0.2, 0.24),
 }
 GLOWS = {
     "window": ((1.0, 0.85, 0.45), 2.0), "siren_red": ((1.0, 0.1, 0.1), 3.0),
@@ -968,6 +970,64 @@ def pod():
         p.append(box((0.12, 0.12, 0.3), (math.cos(a) * 0.35, math.sin(a) * 0.35, 0.12), "metal_dark", (0, 0, a)))
     return join("pod", p)
 
+# ---------------------------------------------------------------- the moon
+
+def moon_surface():
+    """A round piece of the moon, 70 m across: rolling grey ground pocked with craters, each a bowl
+    with a raised rim (the game bends it away at the edges, so it reads as a small world)"""
+    import bmesh
+    rnd = random.Random(21)
+    craters = [(rnd.uniform(-28, 28), rnd.uniform(-28, 28), rnd.uniform(2.0, 6.5)) for _ in range(14)]
+    craters = [c for c in craters if math.hypot(c[0], c[1]) > 9.0]
+    bpy.ops.mesh.primitive_grid_add(x_subdivisions=56, y_subdivisions=56, size=70.0, location=(0, 0, 0))
+    o = bpy.context.object
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    for v in bm.verts:
+        x, y = v.co.x, v.co.y
+        h = 0.35 * math.sin(x * 0.21) * math.cos(y * 0.17) + 0.2 * math.sin(x * 0.53 + y * 0.31)
+        for cx, cy, cr in craters:
+            d = math.hypot(x - cx, y - cy) / cr
+            if d < 1.0:
+                h -= 0.55 * cr * 0.25 * (1.0 - d * d)
+            elif d < 1.5:
+                h += 0.35 * cr * 0.15 * math.cos((d - 1.0) / 0.5 * math.pi * 0.5)
+        # (the edge drops away, so the piece has no lip)
+        edge = max(0.0, math.hypot(x, y) - 30.0)
+        v.co.z = h - edge * 0.4
+    bm.to_mesh(o.data)
+    bm.free()
+    _done(o, "regolith")
+    p = [o]
+    for i in range(10):
+        a = rnd.uniform(0, math.tau)
+        d = rnd.uniform(7, 26)
+        p.append(roughen(ball((rnd.uniform(0.6, 1.6),) * 2 + (rnd.uniform(0.4, 0.9),), (d * math.cos(a), d * math.sin(a), 0.1), "regolith_dark", 6, 4), 0.12, i))
+    return join("moon_surface", p)
+
+
+def lounge_chair():
+    """A deck chair: a frame of chrome tube and a striped canvas seat, facing -Y"""
+    p = []
+    for s in (-1, 1):
+        p.append(box((0.05, 1.3, 0.05), (s * 0.3, 0.0, 0.32), "chrome_leg", (-0.45, 0, 0)))
+        p.append(box((0.05, 1.0, 0.05), (s * 0.3, 0.05, 0.3), "chrome_leg", (0.55, 0, 0)))
+        p.append(box((0.05, 0.6, 0.05), (s * 0.32, -0.05, 0.5), "chrome_leg"))
+    for i in range(5):
+        stripe = "canvas_a" if i % 2 == 0 else "canvas_b"
+        p.append(box((0.12, 0.62, 0.03), (-0.24 + i * 0.12, 0.05, 0.44), stripe, (-0.0, 0, 0)))
+        p.append(box((0.12, 0.03, 0.55), (-0.24 + i * 0.12, 0.38, 0.72), stripe, (-0.35, 0, 0)))
+    return join("lounge_chair", p)
+
+
+def cocktail():
+    """A cocktail: a stemmed glass of something green, an olive, and a little paper umbrella"""
+    p = [drum(0.06, 0.012, (0, 0, 0.006), "glass", 8), drum(0.008, 0.12, (0, 0, 0.07), "glass", 6),
+         drum(0.09, 0.09, (0, 0, 0.17), "glass", 10, top=None), drum(0.075, 0.06, (0, 0, 0.165), "drink", 10),
+         ball((0.025, 0.025, 0.025), (0.02, 0.01, 0.2), "leaf", 5, 3), drum(0.004, 0.2, (0.03, 0, 0.28), "wood", 4, (0.25, 0, 0)),
+         cone(0.08, 0.04, (0.055, 0, 0.37), "umbrella", 8)]
+    return join("cocktail", p)
+
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
@@ -975,7 +1035,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, sasquatch, meteorite, satellite,
-            police_station, hangar, watchtower, substation, observatory, seti_dish, pod]
+            police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail]
 
 
 def main():

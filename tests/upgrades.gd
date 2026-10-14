@@ -111,11 +111,24 @@ func _process(_delta: float) -> bool:
 				if not is_instance_valid(mesa) or mesa.state == "gone":
 					_check(main.taken > taken_before, "a beam strong enough takes a whole mesa (in %.1f s)" % (wait / 60.0))
 					Input.action_release("beam")
-					step = "flee"
+					step = "crop"
 					wait = 0
 			else:
 				_check(false, "a beam strong enough takes a whole mesa")
 				Input.action_release("beam")
+				step = "flee"
+				wait = 0
+		"crop":
+			if wait == 1:
+				# Over the farm country near the start, the beam held still
+				main.ufo.tier = 1
+				_over(Vector3(-30, 0, 30))
+				main.world.update(main.ufo.position, 0.0, true)
+				taken_before = main.score
+				Input.action_press("beam")
+			elif wait == 300:
+				Input.action_release("beam")
+				_check(main.score > taken_before and main._circle_done, "the beam held still over a field presses a crop circle (score %d to %d)" % [taken_before, main.score])
 				step = "flee"
 				wait = 0
 		"flee":

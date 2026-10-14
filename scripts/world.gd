@@ -269,21 +269,9 @@ func grow_circle(radius: float) -> void:
 	_ground_mat.set_shader_parameter("circles", _circles)
 
 
-## Whether the ground at `p` is a field of crops (as ground.gdshader paints the farm country)
+## Whether a crop circle can be pressed at `p`: anywhere in the farm country off the roads
 func crops_at(p: Vector3) -> bool:
-	if biome_at(p) != Biome.FARM or on_road(p, 1.0):
-		return false
-	var cell := Vector2(floorf(p.x / 22.0), floorf(p.z / 22.0)) + Vector2(0.5, 0.5)
-	var h := _shader_hash(cell)
-	return h >= 0.3 and h < 0.85
-
-
-## The same hash the ground shader uses (hash12, without sines)
-static func _shader_hash(v: Vector2) -> float:
-	var p3 := Vector3(fposmod(v.x * 0.1031, 1.0), fposmod(v.y * 0.1031, 1.0), fposmod(v.x * 0.1031, 1.0))
-	var d := p3.dot(Vector3(p3.y, p3.z, p3.x) + Vector3.ONE * 33.33)
-	p3 += Vector3.ONE * d
-	return fposmod((p3.x + p3.y) * p3.z, 1.0)
+	return biome_at(p) == Biome.FARM and not on_road(p, 2.0)
 
 
 ## Only people and cars are ever put down in a road
@@ -301,7 +289,6 @@ func off_road(p: Vector3, margin: float) -> Vector3:
 	if absf(dz) < clear:
 		p.z += (clear - absf(dz)) * (1.0 if dz >= 0.0 else -1.0)
 	return p
-
 
 ## Whether a point is on (or within `margin` of) a road
 func on_road(p: Vector3, margin := 0.0) -> bool:

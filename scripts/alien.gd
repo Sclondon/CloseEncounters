@@ -153,6 +153,11 @@ func _process(delta: float) -> void:
 			arm_goal = UP_ARM
 			wave = 0.9
 			open = 1.3
+		"lounge":
+			# In the deck chair: the drink arm comes up to sip now and then, eyes half shut
+			var sip := fmod(_t, 4.5) > 3.3
+			arm_goal = Vector3(-2.5, 0.0, 0.75) if sip else Vector3(-1.0, 0.0, 0.45)
+			open = 0.55 if sip else 0.75
 	_arm = _arm.lerp(arm_goal, minf(delta * (20.0 if mood == "tossed" else 8.0), 1.0))
 	var w := sin(_t * (20.0 if mood == "tossed" else 9.0)) * wave
 	# At the controls: the right hand on the stick, leaning it the way the ship goes, and the left
@@ -168,6 +173,12 @@ func _process(delta: float) -> void:
 		hop = absf(sin(_t * 15.0)) * 0.03
 	arms[1].rotation = Vector3(_arm.x + w + right.x, _arm.y, _arm.z + right.z)
 	arms[0].rotation = Vector3(_arm.x - w + left.x, -_arm.y, -_arm.z + left.z)
+	var lounging := mood == "lounge"
+	if lounging:
+		# (the other arm along the arm of the chair)
+		arms[0].rotation = Vector3(-0.5, 0.0, -0.7)
+	for leg in legs:
+		leg.rotation.x = lerpf(leg.rotation.x, -1.35 if lounging else 0.0, minf(delta * 6.0, 1.0))
 	torso.position.y = hop + sin(_t * 2.0) * 0.008
 	if mood == "hurt":
 		torso.rotation.z = sin(_t * 40.0) * 0.12
@@ -177,12 +188,15 @@ func _process(delta: float) -> void:
 		torso.rotation = Vector3(sin(_t * 31.0) * 0.45, 0.0, sin(_t * 23.0) * 0.6)
 		torso.position = Vector3(sin(_t * 17.0) * 0.07, hop + absf(sin(_t * 13.0)) * 0.08, cos(_t * 19.0) * 0.05)
 	else:
-		torso.rotation.x = lerpf(torso.rotation.x, 0.1 if mood == "beam" else 0.0, minf(delta * 8.0, 1.0))
+		torso.rotation.x = lerpf(torso.rotation.x, 0.1 if mood == "beam" else (-0.4 if lounging else 0.0), minf(delta * 8.0, 1.0))
 		torso.rotation.z = lerpf(torso.rotation.z, -look.x * 0.15, minf(delta * 4.0, 1.0))
 		torso.position.x = lerpf(torso.position.x, 0.0, minf(delta * 8.0, 1.0))
 		torso.position.z = lerpf(torso.position.z, 0.0, minf(delta * 8.0, 1.0))
 	_yaw =lerpf(_yaw, clampf(look.x * 0.9, -0.9, 0.9), minf(delta * 5.0, 1.0))
 	_pitch = lerpf(_pitch, 0.35 if mood == "beam" else clampf(-look.y * 0.2, -0.3, 0.3), minf(delta * 5.0, 1.0))
+	if lounging:
+		_pitch = lerpf(_pitch, -0.25 if fmod(_t, 4.5) > 3.3 else 0.15, minf(delta * 4.0, 1.0))
+		_yaw = sin(_t * 0.4) * 0.3
 	if mood == "tossed":
 		_yaw = sin(_t * 15.0) * 0.8
 		_pitch = cos(_t * 12.0) * 0.4

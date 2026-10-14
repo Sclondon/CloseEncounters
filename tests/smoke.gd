@@ -67,6 +67,10 @@ func _process(_delta: float) -> bool:
 			main.heat = 5.0
 		3000:
 			_check(main.jets.size() > 0 or main.shots.size() >= 0, "five stars")
+			main.score = 0
+			var calm: float = main.danger()
+			main.score = 12000
+			_check(main.danger() > calm and is_equal_approx(main.danger(), 3.0), "a high score makes them keener (danger %.1f to %.1f)" % [calm, main.danger()])
 		4800:
 			_check(main.mode == "over", "the saucer was shot down (hull %.0f, mode %s)" % [main.ufo.hull, main.mode])
 			print("score %d, taken %d, things %d, shots %d" % [main.score, main.taken, main.things.size(), main.shots.size()])

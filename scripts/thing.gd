@@ -479,7 +479,8 @@ func _build_searchlight() -> void:
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/beam.gdshader")
 	m.set_shader_parameter("tint", Color(1.0, 0.95, 0.75))
-	m.set_shader_parameter("power", 0.5)
+	m.set_shader_parameter("power", 0.7)
+	m.set_shader_parameter("soft", 1.0)
 	var mi := MeshInstance3D.new()
 	mi.mesh = cone
 	mi.material_override = m
@@ -536,7 +537,7 @@ func _aim(delta: float, ufo: Ufo) -> void:
 func witness() -> void:
 	if not info.get("caller", false) or calling > 0.0 or state != "walk":
 		return
-	calling = 4.0
+	calling = 4.0 / sqrt(game.danger())
 	if _call_label == null:
 		_call_label = Label3D.new()
 		_call_label.text = "!"
@@ -588,7 +589,8 @@ func _beacon() -> void:
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/beam.gdshader")
 	m.set_shader_parameter("tint", Color(1.0, 0.8, 0.3))
-	m.set_shader_parameter("power", 0.6)
+	m.set_shader_parameter("power", 0.8)
+	m.set_shader_parameter("soft", 1.0)
 	beacon.material_override = m
 	beacon.position.y = 20.0
 	beacon.extra_cull_margin = 60.0
@@ -616,7 +618,7 @@ func _shoot(delta: float, ufo: Ufo, near: float) -> void:
 	reload -= delta
 	if reload > 0.0 or near > float(spec["range"]):
 		return
-	reload = float(spec["reload"]) * randf_range(0.85, 1.2)
+	reload = float(spec["reload"]) * randf_range(0.85, 1.2) / pow(game.danger(), 0.6)
 	if gun == "mg":
 		burst = 6
 		burst_time = 0.0
