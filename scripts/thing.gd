@@ -96,7 +96,10 @@ const KINDS := {
 	"seti_dish": {"points": 600, "weight": 5.0, "heat": 0.5, "move": "still", "size": 3.0, "tier": 3, "watch": 55.0, "why": "SIGNAL DETECTED"},
 	# Ships held in secret government facilities: take one and it is yours to fly
 	"captured_orb": {"title": "YOU FOUND THE ORB: IT'S YOURS", "model": "orb", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "orb", "rest_y": 1.5},
-	"captured_triangle": {"title": "YOU FOUND THE BLACK TRIANGLE: IT'S YOURS", "model": "triangle", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "triangle", "rest_y": 0.6},
+	"captured_triangle": {"title": "YOU FOUND THE TRIANGLE: IT'S YOURS", "model": "triangle", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "triangle", "rest_y": 0.6},
+	"captured_foo": {"title": "YOU FOUND THE FOO: IT'S YOURS", "model": "foo", "points": 3000, "weight": 2.0, "heat": 1.5, "move": "still", "size": 1.5, "rare": true, "unlock": "foo", "rest_y": 0.9},
+	"captured_cigar": {"title": "YOU FOUND THE CIGAR: IT'S YOURS", "model": "cigar", "points": 3000, "weight": 3.5, "heat": 1.5, "move": "still", "size": 3.5, "rare": true, "unlock": "cigar", "rest_y": 1.05},
+	"captured_bell": {"title": "YOU FOUND THE BELL: IT'S YOURS", "model": "bell", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.8, "rare": true, "unlock": "bell", "rest_y": 0.72},
 	"floodlight": {"points": 150, "weight": 2.5, "heat": 0.3, "move": "still", "size": 1.2, "tier": 3},
 	# A trader's goods (see main.gd spawn_shop): beam one up to buy it
 	"pod": {"points": 0, "weight": 0.9, "heat": 0.0, "move": "still", "size": 1.0},
@@ -119,7 +122,7 @@ var kind := ""
 var info := {}
 var model: Node3D
 var turret: Node3D
-## "walk", "lifted", "falling", "gone"
+## "walk", "lifted", "falling", "gone"; or "drone", in the beam of one of the mini fleet (see Drone)
 var state := "walk"
 var lift := 0.0
 var held := false

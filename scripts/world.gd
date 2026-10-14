@@ -146,7 +146,9 @@ static func facility(c: Vector2i) -> String:
 		return ""
 	if hash3(c.x, c.y, 101) >= 0.022:
 		return ""
-	return "orb" if hash3(c.x, c.y, 102) < 0.5 else "triangle"
+	# (any ship but the saucer, which is flown from the start)
+	var held := Ufo.ORDER.slice(1)
+	return held[mini(int(hash3(c.x, c.y, 102) * held.size()), held.size() - 1)]
 
 
 ## Whether an army base takes up this chunk
@@ -779,9 +781,12 @@ func _base() -> void:
 
 
 ## A secret government facility: a captured ship on a pad in the middle, under searchlights from four
-## towers, behind a double fence, with a hangar and jeeps. Take the ship and it is yours.
+## towers, behind a double fence, with a hangar and jeeps. Take the ship and it is yours. (One already
+## found is swapped for one not yet found: see main.gd `captive`.)
 func _facility(ship: String) -> void:
 	var base := centre_of(_chunk)
+	if game != null:
+		ship = game.captive(ship, _chunk)
 	_take(base, 22.0)
 	_spawn_at("captured_" + ship, base, _rng.randf() * TAU)
 	_prop("hangar", base + Vector3(0, 0, -15), 0.0, 0.7)

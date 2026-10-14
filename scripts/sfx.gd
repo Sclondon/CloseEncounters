@@ -1,7 +1,8 @@
 class_name Sfx
 extends Node
 ## Every sound is made at start-up, as in Cryptlins (no audio files): the beam's warbling hum,
-## the bloop of a catch, the animals' voices, guns, booms, and a siren for the police.
+## the bloop of a catch, the animals' voices, guns, booms, the defence laser's zap, and a siren for
+## the police.
 
 const RATE := 22050
 
@@ -42,6 +43,8 @@ func _ready() -> void:
 	sounds["star"] = _voice(0.5, PackedFloat32Array([880.0, 660.0, 880.0, 660.0]), 0.45, 0.0, 0.0)
 	sounds["cool"] = _voice(0.5, PackedFloat32Array([660.0, 520.0, 440.0]), 0.35, 0.0, 0.0)
 	sounds["click"] = _voice(0.04, PackedFloat32Array([1700.0, 700.0]), 0.45, 0.0, 0.5)
+	# The defence laser: a ray-gun's falling whine, as in the pictures
+	sounds["zap"] = _voice(0.22, PackedFloat32Array([2600.0, 1500.0, 700.0, 350.0]), 0.4, 0.08, 0.1)
 	for i in 10:
 		var p := AudioStreamPlayer.new()
 		add_child(p)

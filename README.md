@@ -46,9 +46,10 @@ The pilot works a stick and a panel of buttons in front of it, mashes the button
 thrown about the cockpit in a dodge. The ship's
 lights flash with the beam, a dodge and a hit.
 
-**Only the saucer can be flown at first.** The orb and the black triangle are held in **secret government
-facilities** out in the country (fenced compounds, four searchlight towers, a gold beacon over the captured ship):
-beam the ship up to make it yours, for good. A locked ship says so on the title screen.
+**Only the saucer can be flown at first.** The other five are held in **secret government facilities** out
+in the country (fenced compounds, four searchlight towers, a gold beacon over the captured ship): beam the ship
+up to make it yours, for good. A facility whose ship has already been found holds one not yet found instead
+(`captive` in main.gd). A locked ship says so on the title screen.
 
 ### The shield
 
@@ -62,9 +63,12 @@ Chosen on the title screen (left / right, or the arrows), and remembered.
 
 | Ship | Speed | Beam | Shield | Flies | Beam strength |
 | --- | --- | --- | --- | --- | --- |
-| Classic saucer | 12 | x1 | 50 | 8 m | 2: trees and rocks |
-| The orb (after the scout ships of *Close Encounters of the Third Kind*) | 9.5 | x1.5, wide | 80 | 6 m (low) | 3: buildings |
-| Black triangle | 15 | x0.6, narrow | 35 | 10.5 m (high) | 1: small things only |
+| SAUCER, the classic | 12 | x1 | 50 | 8 m | 2: trees and rocks |
+| ORB (after the scout ships of *Close Encounters of the Third Kind*) | 9.5 | x1.5, wide | 80 | 6 m (low) | 3: buildings |
+| TRIANGLE, the black triangle | 15 | x0.6, narrow | 35 | 10.5 m (high) | 1: small things only |
+| FOO, a foo fighter (the balls of light pilots saw in the war): tiny, so hard to hit | 16 | x1.3, narrow | 25 | 5 m (lowest) | 1: small things only |
+| CIGAR, the cigar-shaped mother ship of the 1950s: huge, so hard to miss | 8.5 | x0.9, widest | 120 | 11 m (highest) | 2: trees and rocks |
+| BELL, the bell-shaped scout ship of the 1952 photographs | 10.5 | x0.7 | 40 | 9 m | 4: the land itself |
 
 ### What the beam can take
 
@@ -113,9 +117,22 @@ it holds you. Once there is heat, the patrols lock their lights on and join in.
 Saucers parked out in the country, each with its owner standing by (another alien, with a name). In front of
 each stand **three pods** of goods, each tagged with what it is and what it costs (green if it can be had):
 ENGINE (+12% speed), BEAM (lifts faster, and one tier stronger), SHIELD (+25), DASH (recharges 0.35 s
-faster, two more afterimages), PATCH (the shield filled, a point of score a point). **Beam one up to buy it
-with score**; the trader packs up the other two and leaves. With any heat, or too little score, a pod only
-rattles. At two stars the traders take off. Upgrades last the run, each up to four times, dearer each time.
+faster, two more afterimages), PATCH (the shield filled, a point of score a point), and:
+
+- **LASER** (500): a turret under the hull that fires by itself, a pink bolt every 2 s (0.4 s sooner a level,
+  down to 0.8 s) out to 16 m (2 m further a level). It shoots down shells and missiles coming at the ship
+  first, then jets, then, once there is heat, the nearest police or army: a hit stuns one (it holds its fire
+  for 2 s), and enough hits blow it up (a police car 2, a jeep 3, a tank 5), for half its points and a
+  quarter of a star of heat, as a crush is. They are soon replaced, and it never stops the bullets.
+- **FLEET** (450): a little saucer for each level (up to four, `scripts/drone.gd`). Each keeps station round
+  the ship and goes off by itself after the small things nearby that nobody will miss (animals, hay, bushes:
+  nothing heavy, hot, rare or on the road), beaming them up slowly with a beam of its own, for the score and
+  the heat as if the ship took them. Shots that meet one stop there, and the police and army sometimes aim
+  at one instead of the ship; three hits bring it down, and a new one comes out of the ship 14 s later.
+
+**Beam a pod up to buy it with score**; the trader packs up the other two and leaves. With any heat, or too
+little score, a pod only rattles. At two stars the traders take off. Upgrades last the run, each up to four
+times, dearer each time (x1.8).
 When the shield is gone the ship comes down and the game is over. The score goes to the arcade page
 (`PLAYER_DIED`); the best score and the ship are kept in `user://best.cfg`.
 
@@ -144,7 +161,7 @@ Anything between the camera and the ship is drawn see-through (`shaders/ps1.gdsh
   scenery pulled up by the beam, the moon title and launch, radar, the autopilot (in tests), effects, camera, HUD, touch.
 - `scripts/ufo.gd` (the ships, `SHIPS`), `alien.gd` (the pilot), `thing.gd` (everything that can be taken:
   `KINDS` holds points, weight, heat, tier, how it moves, its gun, its searchlight), `shop.gd` (a trader),
-  `shot.gd`, `world.gd`, `sfx.gd` (synthesised sounds), `ps1.gd` (materials, and the Blender models in them).
+  `drone.gd` (one of the mini fleet), `shot.gd`, `world.gd`, `sfx.gd` (synthesised sounds), `ps1.gd` (materials, and the Blender models in them).
 - `shaders/`: `bend.gdshaderinc` (the bend and PS1 snap), `ps1` (with the see-through), `ps1_flat`, `glass`,
   `beam` (the tractor beam and the searchlights), `ground` (each region, the roads), `sky`, `screen`.
 
@@ -174,10 +191,10 @@ objects the game moves: the tank's `turret`, the windmill's `fan`, the pumpjack'
 
     godot --headless --path . --fixed-fps 60 -s res://tests/smoke.gd      # heat, forces, patrols, dodge, crash
     godot --headless --path . --fixed-fps 60 -s res://tests/travel.gd     # the endless world
-    godot --headless --path . --fixed-fps 60 -s res://tests/upgrades.gd   # traders, tiers, a tree, a mesa
+    godot --headless --path . --fixed-fps 60 -s res://tests/upgrades.gd   # traders, tiers, a tree, a mesa, the laser, the fleet
     godot --path . --fixed-fps 60 --resolution 1280x720 -s res://tests/touch.gd   # touch controls, pause, quit
-    godot --headless --path . --fixed-fps 60 -s res://tests/unlock.gd     # a secret facility unlocks a ship
-    godot --path . --fixed-fps 60 --resolution 1280x720 -s res://tests/<shots|regions|look|look_more>.gd -- <out dir>
+    godot --headless --path . --fixed-fps 60 -s res://tests/unlock.gd     # a secret facility unlocks a ship; every ship flies
+    godot --path . --fixed-fps 60 --resolution 1280x720 -s res://tests/<shots|regions|look|look_more|look_ships>.gd -- <out dir>
     godot --path . --fixed-fps 60 --resolution <390x844|1280x720> -s res://tests/moon_look.gd -- <out dir>   # the title
     godot --path . --resolution 390x844 -s res://tests/log_look.gd -- <out dir>    # the title's buttons and the log
     godot --path . --resolution 1280x720 -s res://tests/aliens.gd -- <out.png>
