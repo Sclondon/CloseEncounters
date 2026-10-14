@@ -143,6 +143,8 @@ var _touch_debug := false
 var _debug_label: Label
 var _debug_lines: Array[String] = []
 var _debug_state := ""
+var _coin_taps := 0
+var _coin_tapped := 0.0
 ## Where and when each finger came down, to tell a swipe (a quick flick: a dodge) from a hold
 var _touch_from := {}
 const SWIPE_TIME := 0.3
@@ -1465,6 +1467,7 @@ func _debug_show() -> void:
 		_debug_label.position = Vector2(20, 180)
 		_debug_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		hud.add_child(_debug_label)
+	_debug_label.visible = _touch_debug
 	_debug_label.text = _debug_state + "\n" + "\n".join(_debug_lines)
 
 
@@ -1482,6 +1485,17 @@ func _layout_touch() -> void:
 func _input(event: InputEvent) -> void:
 	if _touch_debug and (event is InputEventScreenTouch or event is InputEventScreenDrag or event is InputEventMouseButton):
 		_debug_line("%s | %s%s" % [event.as_text(), mode, " PAUSED" if get_tree().paused else ""])
+	# Five quick taps on the alien coin turn the touch readout on or off (to see what a phone sends)
+	if event is InputEventScreenTouch and event.pressed and coin.visible and coin.get_global_rect().grow(24).has_point(event.position):
+		var now := Time.get_ticks_msec() / 1000.0
+		_coin_taps = _coin_taps + 1 if now - _coin_tapped < 0.6 else 1
+		_coin_tapped = now
+		if _coin_taps >= 5:
+			_coin_taps = 0
+			_touch_debug = not _touch_debug
+			if _debug_label != null:
+				_debug_label.visible = _touch_debug
+			_debug_line("touch readout on")
 	if mode != "play" or autopilot:
 		return
 	if get_tree().paused:
