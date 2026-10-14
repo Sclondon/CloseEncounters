@@ -26,7 +26,10 @@ const FORCES: Array[Dictionary] = [
 	{"police_car": 1, "jeep": 2, "tank": 2},
 ]
 ## How many of each thing the farm keeps about (taken ones are replaced, somewhere else)
-const CAMERA_OFFSET := Vector3(0, 17.0, 13.0)
+const CAMERA_OFFSET := Vector3(0, 21.5, 16.5)
+## Each run opens with the ship coming down from space: this long, from this high
+const INTRO := 4.5
+const INTRO_HEIGHT := 320.0
 
 @export var start_mode := "title"
 var autopilot := false
@@ -34,6 +37,11 @@ var autopilot := false
 var testing := false
 ## Leaves the camera where a test put it
 var hold_camera := false
+## Seconds of the descent from space left (nothing can be done until it is over)
+var intro := 0.0
+## Tests skip the descent unless they ask for it
+var intro_in_tests := false
+var _sky_mat: ShaderMaterial
 
 var mode := "title"
 var view: SubViewport
@@ -56,9 +64,13 @@ var _spawn_wait := 0.0
 var _cull_wait := 0.0
 var _patrol_wait := 1.0
 var _pull_wait := 0.0
+var _spark_wait := 0.0
+var _circle_at := Vector3.INF
+var _circle_time := 0.0
+var _circle_done := false
 ## The traders parked about the country, and what has been bought from them this run
 var shops: Array[Shop] = []
-var upgrades := {"engine": 0, "beam": 0, "shield": 0}
+var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0}
 var shop_open: Shop
 var _shop_left: Shop
 var _shop_box: PanelContainer
@@ -69,9 +81,12 @@ const UPGRADES := {
 	"engine": {"title": "ENGINE", "about": "+12% speed", "price": 300},
 	"beam": {"title": "BEAM", "about": "lifts faster, and stronger: one more kind of thing it can take", "price": 400},
 	"shield": {"title": "SHIELD", "about": "+25 shield, and patched up", "price": 300},
+	"dash": {"title": "DASH", "about": "recharges faster, and leaves two more afterimages", "price": 250},
 }
 const MAX_UPGRADE := 4
-var _heavy_wait := 0.0
+## Where phone lines have been cut this run (a call near one cannot get through)
+var _cuts: Array[Vector3] = []
+const LINE_REACH := 150.0
 var _spotted_for := 0.0
 ## Things further than this from the saucer are let go (their chunk has gone, or soon will)
 const CULL := 216.0
@@ -95,9 +110,16 @@ var title_box: Control
 var over_box: Control
 var over_label: Label
 var hint_label: Label
+## A little picture of the cockpit, from inside the dome, so the pilot can be seen at work
+var cockpit_view: SubViewport
+var cockpit_camera: Camera3D
+var cockpit_frame: PanelContainer
+var _play_button: Button
 var ship_label: Label
 ## Which ship is flown (see Ufo.SHIPS), chosen on the title screen and remembered
 var ship := "saucer"
+## The ships that can be flown: the saucer from the start, the others once found (see World.facility)
+var unlocked: Array[String] = ["saucer"]
 ## The pilot of this run: a new alien every time
 var alien_seed := randi()
 var font: Font
@@ -109,8 +131,12 @@ var stick_from := Vector2.ZERO
 var stick := Vector2.ZERO
 var beam_finger := -1
 var beam_button: Control
+var _pause_button: Button
+var _pause_box: VBoxContainer
+var _resume_button: Button
 var stick_ring: Control
 var touched := false
+var _touch_screen := DisplayServer.is_touchscreen_available()
 ## Where and when each finger came down, to tell a swipe (a quick flick: a dodge) from a hold
 var _touch_from := {}
 const SWIPE_TIME := 0.3
@@ -183,6 +209,7 @@ func _build_view() -> void:
 	var sky_mat := ShaderMaterial.new()
 	sky_mat.shader = load("res://shaders/sky.gdshader")
 	sky.sky_material = sky_mat
+	_sky_mat = sky_mat
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.32, 0.4, 0.62)
@@ -201,6 +228,8 @@ func _build_view() -> void:
 	var back := ColorRect.new()
 	back.color = Color(0.02, 0.03, 0.07)
 	back.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# (neither the backdrop nor the picture may take a touch: the game reads them, in _unhandled_input)
+	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(back)
 	screen_mat = ShaderMaterial.new()
 	screen_mat.shader = load("res://shaders/screen.gdshader")
@@ -211,6 +240,7 @@ func _build_view() -> void:
 	screen.stretch_mode = TextureRect.STRETCH_SCALE
 	screen.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(screen)
 
 
@@ -230,6 +260,8 @@ func _fit() -> void:
 # ------------------------------------------------------------------ the run
 
 func start() -> void:
+	if not ship in unlocked:
+		return
 	mode = "play"
 	for t in things.duplicate():
 		if t.is_enemy():
@@ -242,7 +274,8 @@ func start() -> void:
 	jets.clear()
 	ufo.queue_free()
 	alien_seed = randi()
-	upgrades = {"engine": 0, "beam": 0, "shield": 0}
+	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0}
+	_cuts.clear()
 	_make_ufo(Vector3.ZERO)
 	heat = 0.0
 	calm = 0.0
@@ -254,8 +287,10 @@ func start() -> void:
 	_jet_wait = 8.0
 	title_box.visible = false
 	over_box.visible = false
-	_banner("BEAM THEM UP", 2.5)
-	sfx.play("whoosh", 1.2)
+	intro = INTRO if (not testing or intro_in_tests) else 0.0
+	if intro <= 0.0:
+		_banner("BEAM THEM UP", 2.5)
+	sfx.play("whoosh", 0.6, 2.0)
 
 
 func heat_level() -> int:
@@ -272,13 +307,19 @@ func _process(delta: float) -> void:
 			close_shop()
 		return
 	if Input.is_action_just_pressed("pause") and mode == "play" and not autopilot:
-		get_tree().paused = not get_tree().paused
-		_banner("PAUSED" if get_tree().paused else "", 999.0 if get_tree().paused else 0.0)
+		set_paused(not get_tree().paused)
 	if get_tree().paused:
 		return
 	var steer := Vector2.ZERO
 	var beam := false
-	if mode == "play" and not autopilot:
+	if intro > 0.0:
+		# Coming down from space: out of the stars, until the planet is under the ship
+		intro = maxf(intro - delta, 0.0)
+		var k := 1.0 - intro / INTRO
+		ufo.descent = INTRO_HEIGHT * pow(1.0 - k, 2.2)
+		if intro <= 0.0:
+			_banner("BEAM THEM UP", 2.5)
+	elif mode == "play" and not autopilot:
 		steer = _read_steer()
 		beam = Input.is_action_pressed("beam") or beam_finger >= 0
 		if Input.is_action_just_pressed("dodge"):
@@ -294,7 +335,11 @@ func _process(delta: float) -> void:
 		var held := ufo.position
 		ufo.position = world.push_out(ufo.position, 2.6)
 		ufo.position.y = held.y
-	ufo.mend_rate = 6.0 if heat_level() == 0 else 0.0
+	ufo.mend_rate = 2.0 if heat_level() == 0 else 0.0
+	if ufo.shield_broke:
+		ufo.shield_broke = false
+		_banner("SHIELD DOWN: ONE MORE HIT AND YOU'RE FINISHED", 2.5)
+		sfx.play("boom", 1.8)
 	if mode == "title":
 		heat = 0.0
 		ufo.hull = ufo.hull_max
@@ -303,14 +348,21 @@ func _process(delta: float) -> void:
 		if t.state == "gone":
 			continue
 		if ufo.in_beam(t.position, t.reach):
-			if t.tier() > ufo.tier:
-				if t.state == "walk":
-					_too_heavy(t)
+			if t.power > 0.0 and t.state == "walk":
+				_drain(t, delta)
 				t.tick(delta, ufo)
+				continue
+			if t.tier() > ufo.tier:
+				# (too much for this beam: it only rattles)
+				t.tick(delta, ufo)
+				if t.state == "walk":
+					t.rattle()
 				continue
 			if t.state == "walk" or t.state == "falling":
 				if t.state == "walk" and t.info.has("voice") and randf() < 0.6:
 					sfx.play(t.info["voice"], randf_range(0.9, 1.1), -4.0)
+				if t.state == "walk":
+					_witnessed(t)
 				t.state = "lifted"
 				t.lift = clampf(t.position.y / (ufo.altitude - 0.9), 0.0, 1.0)
 			t.held = true
@@ -318,6 +370,8 @@ func _process(delta: float) -> void:
 	things = things.filter(func(t: Thing) -> bool: return t.state != "gone")
 	_pull_scenery(delta)
 	_shops(delta)
+	_watchers(delta)
+	_crop_circles(delta)
 	for s in shots:
 		s.tick(delta, ufo, self)
 	for s in shots:
@@ -325,11 +379,12 @@ func _process(delta: float) -> void:
 			s.queue_free()
 	shots = shots.filter(func(s: Shot) -> bool: return not s.done)
 	_jets(delta)
-	if mode == "play":
+	if mode == "play" and intro <= 0.0:
 		time_alive += delta
 		_heat(delta)
 		_forces(delta)
-	_patrols(delta)
+	if intro <= 0.0:
+		_patrols(delta)
 	world.update(ufo.position, delta)
 	_cull(delta)
 	_sounds()
@@ -390,7 +445,6 @@ func _heat(delta: float) -> void:
 func _patrols(delta: float) -> void:
 	_patrol_wait -= delta
 	_spotted_for = maxf(_spotted_for - delta, 0.0)
-	_heavy_wait -= delta
 	if _patrol_wait > 0.0 or ufo.dead:
 		return
 	_patrol_wait = 3.0
@@ -407,16 +461,87 @@ func _patrols(delta: float) -> void:
 
 
 ## A patrol's searchlight has the ship in it: the heat goes up fast, and does not cool while it does
-func spotted(_by: Thing, delta: float) -> void:
+func spotted(_by: Thing, delta: float, why := "SPOTTED!") -> void:
 	if mode != "play":
 		return
 	if _spotted_for <= 0.0:
-		_banner("SPOTTED!", 1.2)
+		_banner(why, 1.4)
 		sfx.play("star", 1.3)
 		heat = maxf(heat, minf(heat + 0.35, MAX_HEAT))
 	_spotted_for = 0.6
 	heat = minf(heat + 0.5 * delta, MAX_HEAT)
 	calm = 0.0
+
+
+## A substation under the beam: its power runs up the beam into the shield, until it goes dark
+func _drain(t: Thing, delta: float) -> void:
+	var take := minf(t.power, 18.0 * delta)
+	t.power -= take
+	ufo.hull = minf(ufo.hull + take, ufo.hull_max)
+	_spark_wait -= delta
+	if _spark_wait <= 0.0:
+		_spark_wait = 0.06
+		var up := randf_range(0.5, ufo.altitude - 1.0)
+		puff(Vector3(ufo.position.x + randf_range(-1.2, 1.2), up, ufo.position.z + randf_range(-1.2, 1.2)), Color(0.55, 0.85, 1.0), 0.35)
+		sfx.play("static", 2.0, -12.0)
+	if t.power <= 0.0:
+		Ps1.flash(t.model, Color(-0.5, -0.5, -0.5))
+		_popup("DRAINED", t.position + Vector3(0, 4, 0), Color(0.6, 0.85, 1.0))
+		sfx.play("cool", 0.7)
+
+
+## Those who watch the sky: linger in range of one and it gives the ship away
+func _watchers(delta: float) -> void:
+	for t in things:
+		var reach: float = t.info.get("watch", 0.0)
+		if reach <= 0.0 or t.state != "walk":
+			continue
+		if not ufo.dead and t.ground().distance_to(ufo.ground()) < reach:
+			t.watching += delta
+			if t.watching > 2.0:
+				spotted(t, delta * 0.6, t.info.get("why", "SPOTTED!"))
+		else:
+			t.watching = maxf(t.watching - delta, 0.0)
+
+
+## Crop circles: hold the beam still over a field of crops and a circle presses into it, growing
+## as long as the beam stays, and scoring once it is full size
+func _crop_circles(delta: float) -> void:
+	var here := ufo.ground()
+	var over := ufo.beaming and not ufo.dead and ufo.velocity.length() < 3.0 and world.crops_at(here)
+	if not over or (_circle_at != Vector3.INF and _circle_at.distance_to(here) > 2.5):
+		_circle_at = Vector3.INF
+		_circle_time = 0.0
+		return
+	_circle_time += delta
+	if _circle_time < 0.5:
+		return
+	var full := ufo.beam_foot * 2.2
+	if _circle_at == Vector3.INF:
+		_circle_at = here
+		world.crop_circle(here, 1.0)
+		_circle_done = false
+	var r := minf(1.0 + (_circle_time - 0.5) * 2.5, full)
+	world.grow_circle(r)
+	if r >= full and not _circle_done and mode == "play":
+		_circle_done = true
+		var points := 60 * multiplier()
+		score += points
+		heat = minf(heat + 0.02, MAX_HEAT)
+		_popup("CROP CIRCLE +%d" % points, ufo.position + Vector3(0, 1.5, 0), Color(0.9, 0.85, 0.5))
+		sfx.play("fanfare", 1.3, -4.0)
+
+
+## Where the police (or the army) come from: their nearest station or base, if one is near
+func _station_for(kind: String) -> Vector3:
+	var wants := "police" if kind == "police_car" else "army"
+	var best := Vector3.INF
+	for t in things:
+		if t.info.get("station", "") == wants and t.state == "walk":
+			var d := t.ground().distance_to(ufo.ground())
+			if d < 120.0 and (best == Vector3.INF or d < best.distance_to(ufo.ground())):
+				best = t.ground()
+	return best
 
 
 ## Keeps the police and army up to strength for the heat, bringing them in from out of sight
@@ -437,6 +562,10 @@ func _forces(delta: float) -> void:
 			var angle := randf_range(-PI * 0.8, PI * 0.8) + PI
 			# (just out of sight: past the bend ahead, or off the edge of the screen behind)
 			var at := ufo.ground() + Vector3(sin(angle), 0, cos(angle)) * 32.0
+			# (out of the nearest police station or army base, when there is one)
+			var home := _station_for(kind)
+			if home != Vector3.INF:
+				at = home + Vector3(randf_range(-6, 6), 0, 10.0)
 			at = world.push_out(at, 3.0)
 			var t := spawn(kind, at)
 			t.heading = atan2(ufo.position.x - at.x, ufo.position.z - at.z)
@@ -447,10 +576,11 @@ func _forces(delta: float) -> void:
 
 
 func _jets(delta: float) -> void:
-	if mode == "play" and heat_level() >= 5 and not ufo.dead:
+	if mode == "play" and heat_level() >= 4 and not ufo.dead:
 		_jet_wait -= delta
 		if _jet_wait <= 0.0:
-			_jet_wait = randf_range(7.0, 10.0)
+			# Fighter jets from four stars, twice as often at five
+			_jet_wait = randf_range(7.0, 10.0) if heat_level() >= 5 else randf_range(13.0, 18.0)
 			var jet := Ps1.model("jet")
 			jet.position = ufo.ground() + Vector3(randf_range(-20, 20), 15.0, -90.0)
 			jet.set_meta("fired", 0)
@@ -539,6 +669,7 @@ func _apply_upgrades() -> void:
 	ufo.lift_rate = float(spec["lift"]) * (1.0 + 0.2 * upgrades["beam"])
 	ufo.tier = mini(int(spec["tier"]) + int(upgrades["beam"]), 4)
 	ufo.hull_max = float(spec["hull"]) + 25.0 * upgrades["shield"]
+	ufo.dash_level = upgrades["dash"]
 
 
 func buy(what: String) -> bool:
@@ -627,27 +758,60 @@ func _fill_shop() -> void:
 ## The beam pulls up the scenery under it that it is strong enough for, a piece at a time
 func _pull_scenery(delta: float) -> void:
 	_pull_wait -= delta
+	# (scenery too much for the beam rattles in the ground)
+	world.rattle(ufo.ground(), ufo.beam_foot if ufo.beaming and not ufo.dead else 0.0, ufo.tier)
 	if not ufo.beaming or ufo.dead or _pull_wait > 0.0:
 		return
 	_pull_wait = 0.15
 	var found := world.pull(ufo.ground(), ufo.beam_foot, ufo.tier)
 	if found.is_empty():
-		if world.too_heavy_under(ufo.ground(), ufo.beam_foot, ufo.tier) and _heavy_wait <= 0.0:
-			_heavy_wait = 2.0
-			_popup("TOO HEAVY", ufo.position + Vector3(0, -2, 0), Color(1.0, 0.6, 0.4))
 		return
 	var xf: Transform3D = found[1]
 	var t := spawn(found[0], xf.origin, {"turn": xf.basis.get_euler().y, "size": xf.basis.get_scale().x, "tints": found[2]})
 	t.state = "lifted"
 
 
-## Something the beam is over is beyond it: says so now and then
-func _too_heavy(t: Thing) -> void:
-	if _heavy_wait > 0.0:
+## The beam has taken hold of something: anyone near enough to see it reaches for a phone
+func _witnessed(taken_thing: Thing) -> void:
+	if mode != "play":
 		return
-	_heavy_wait = 2.0
-	_popup("TOO HEAVY", t.position + Vector3(0, 3, 0), Color(1.0, 0.6, 0.4))
-	_banner("A STRONGER BEAM COULD TAKE THAT", 1.5)
+	for t in things:
+		if t != taken_thing and t.info.get("caller", false) and t.state == "walk" and t.calling <= 0.0 \
+				and t.ground().distance_to(ufo.ground()) < 26.0:
+			t.witness()
+			sfx.play("ring", 1.0, _near_db(t))
+
+
+## Someone who saw the ship got through to the police (unless the lines near them are cut)
+func phone_call(t: Thing) -> void:
+	if mode != "play":
+		return
+	if lines_down_near(t.position):
+		_popup("NO SIGNAL", t.position + Vector3(0, 3, 0), Color(0.7, 0.8, 1.0))
+		sfx.play("static", 1.0, _near_db(t))
+		return
+	heat = minf(heat + 0.9, MAX_HEAT)
+	calm = 0.0
+	_banner("SOMEONE CALLED THE POLICE", 1.8)
+	sfx.play("ring", 0.8)
+
+
+## A phone pole was taken: the line is down there, and its wires (and the last pole's, to it) go
+func line_cut(pole: Thing) -> void:
+	if _cuts.is_empty() and mode == "play":
+		_banner("THE PHONE LINES ARE DOWN HERE", 1.8)
+	_cuts.append(Vector3(pole.position.x, 0, pole.position.z))
+	for t in things:
+		if t.kind == "phone_pole" and t.wires != null and t.wire_to.distance_to(Vector3(pole.position.x, 0, pole.position.z)) < 1.0:
+			t.wires.visible = false
+
+
+## Whether a call from `p` cannot get through: a line is down within LINE_REACH of it
+func lines_down_near(p: Vector3) -> bool:
+	for c in _cuts:
+		if Vector2(c.x - p.x, c.z - p.z).length() < LINE_REACH:
+			return true
+	return false
 
 
 ## A new thing of a kind, standing at `at` (the world calls this as it makes each chunk)
@@ -684,6 +848,13 @@ func abducted(t: Thing) -> void:
 		calm = 0.0
 	ufo.alien.feel("cheer", 0.9)
 	sfx.play("bloop", 1.0 + randf() * 0.2)
+	if t.info.get("rare", false) and mode == "play":
+		_banner(t.info.get("title", "A RARE FIND"), 3.0)
+		sfx.play("fanfare")
+	var found: String = t.info.get("unlock", "")
+	if found != "" and mode == "play" and not found in unlocked:
+		unlocked.append(found)
+		_save_best()
 	if mode == "play":
 		_popup("+%d" % points, ufo.position + Vector3(0, 1.5, 0), Color(0.6, 1.0, 0.6))
 	t.state = "gone"
@@ -793,7 +964,9 @@ func _pilot(delta: float) -> Array:
 			if t.state == "gone" or (t.is_enemy() and mode == "title") or t.info["move"] == "road" or t.tier() > 1 or t.fixed():
 				continue
 			var d := t.ground().distance_to(ufo.ground())
-			var worth := float(t.points()) / (1.0 + float(t.info["weight"])) - d * 2.0
+			if d > 60.0:
+				continue
+			var worth := sqrt(float(t.points())) / (1.0 + float(t.info["weight"])) - d * 0.3
 			if worth > best_score:
 				best_score = worth
 				_pilot_target = t
@@ -856,6 +1029,22 @@ func _sounds() -> void:
 
 # ------------------------------------------------------------------ the camera
 
+## The descent: first close behind the ship looking up past it into the stars, then swinging up and
+## back as it comes down until the curve of the planet fills the picture, and the game's camera
+func _intro_camera() -> void:
+	var k := 1.0 - intro / INTRO
+	var settle := smoothstep(0.45, 1.0, k)
+	var normal_from := _camera_offset() - Vector3(0, ufo.altitude, 0)
+	camera.position = ufo.position + Vector3(0, 1.2, 8.0).lerp(normal_from, settle)
+	var normal_at := ufo.ground() + Vector3(0, ufo.altitude * 0.5, -1.5)
+	var look := (ufo.position + Vector3(0, 3.2, -12.0)).lerp(normal_at, smoothstep(0.25, 0.95, k))
+	camera.look_at(look, Vector3.UP)
+	RenderingServer.global_shader_parameter_set("bend_focus", Vector3(ufo.position.x, 0.0, ufo.position.z - 1.0))
+	RenderingServer.global_shader_parameter_set("saucer_pos", ufo.position)
+	_sky_mat.set_shader_parameter("space", 1.0 - smoothstep(0.3, 0.85, k))
+	camera.environment.fog_density = 0.006 * smoothstep(0.55, 1.0, k)
+
+
 ## Further up and back for a ship that flies higher
 func _camera_offset() -> Vector3:
 	return CAMERA_OFFSET + Vector3(0, 1.3, 0.5) * (ufo.altitude - 8.0)
@@ -867,6 +1056,11 @@ func _camera(delta: float) -> void:
 	var focus := Vector3(ufo.position.x, 0.0, ufo.position.z)
 	if ufo.crashed or ufo.dead:
 		focus = Vector3(ufo.position.x, 0.0, ufo.position.z)
+	if intro > 0.0 and mode == "play":
+		_intro_camera()
+		return
+	_sky_mat.set_shader_parameter("space", 0.0)
+	camera.environment.fog_density = 0.006
 	var goal := focus + _camera_offset()
 	if mode == "title":
 		goal = focus + Vector3(0, 11.0, 15.0)
@@ -927,7 +1121,7 @@ func _build_hud() -> void:
 	shield_bar.main = self
 	shield_bar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	shield_bar.position = Vector2(-264, 20)
-	shield_bar.size = Vector2(240, 54)
+	shield_bar.size = Vector2(240, 66)
 	shield_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(shield_bar)
 
@@ -977,7 +1171,8 @@ func _build_hud() -> void:
 	right.custom_minimum_size = Vector2(70, 70)
 	picker.add_child(right)
 	title_box.add_child(picker)
-	title_box.add_child(_button("PLAY", start))
+	_play_button = _button("PLAY", start)
+	title_box.add_child(_play_button)
 
 	_shop_box = PanelContainer.new()
 	var frame := StyleBoxFlat.new()
@@ -1001,6 +1196,56 @@ func _build_hud() -> void:
 	_shop_list = VBoxContainer.new()
 	_shop_list.add_theme_constant_override("separation", 6)
 	inside.add_child(_shop_list)
+
+	# A pause button in the corner, and what pausing shows
+	cockpit_view = SubViewport.new()
+	cockpit_view.size = Vector2i(176, 128)
+	cockpit_view.world_3d = view.world_3d
+	cockpit_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(cockpit_view)
+	cockpit_camera = Camera3D.new()
+	cockpit_camera.fov = 66.0
+	cockpit_camera.near = 0.02
+	cockpit_camera.far = 60.0
+	cockpit_camera.environment = camera.environment
+	cockpit_view.add_child(cockpit_camera)
+	cockpit_frame = PanelContainer.new()
+	var rim := StyleBoxFlat.new()
+	rim.bg_color = Color(0, 0, 0, 0.6)
+	rim.border_color = Color(0.55, 1.0, 0.6, 0.7)
+	rim.set_border_width_all(3)
+	rim.set_corner_radius_all(10)
+	rim.set_content_margin_all(4)
+	cockpit_frame.add_theme_stylebox_override("panel", rim)
+	cockpit_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cockpit_frame.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	cockpit_frame.position = Vector2(-126, -196)
+	var picture := TextureRect.new()
+	picture.texture = cockpit_view.get_texture()
+	picture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	picture.material = screen_mat
+	picture.custom_minimum_size = Vector2(244, 178)
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_SCALE
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cockpit_frame.add_child(picture)
+	root.add_child(cockpit_frame)
+
+	_pause_button = _button("II", func() -> void: set_paused(true))
+	_pause_button.custom_minimum_size = Vector2(64, 56)
+	_pause_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_pause_button.position = Vector2(-88, 92)
+	_pause_button.focus_mode = Control.FOCUS_NONE
+	root.add_child(_pause_button)
+	_pause_box = _panel(root)
+	var paused := _label(64, Color(0.7, 1.0, 0.72))
+	paused.text = "PAUSED"
+	paused.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pause_box.add_child(paused)
+	_resume_button = _button("RESUME", func() -> void: set_paused(false))
+	_pause_box.add_child(_resume_button)
+	_pause_box.add_child(_button("QUIT TO MENU", quit_to_menu))
+	_pause_box.visible = false
 
 	over_box = _panel(root)
 	over_label = _label(38)
@@ -1071,7 +1316,14 @@ func _pick_ship(step: int) -> void:
 
 func _show_ship() -> void:
 	var spec: Dictionary = Ufo.SHIPS[ship]
-	ship_label.text = "%s\n%s" % [spec["title"], spec["about"]]
+	if ship in unlocked:
+		ship_label.text = "%s\n%s" % [spec["title"], spec["about"]]
+		_play_button.text = "PLAY"
+		_play_button.disabled = false
+	else:
+		ship_label.text = "%s (LOCKED)\nFind it in a secret government facility." % spec["title"]
+		_play_button.text = "LOCKED"
+		_play_button.disabled = true
 
 
 func _show_title() -> void:
@@ -1079,7 +1331,40 @@ func _show_title() -> void:
 	_show_ship()
 	title_box.visible = true
 	over_box.visible = false
-	hint_label.text = "Move: WASD, arrows, stick or drag on the left    Beam: hold Space, A, or the button    Dodge: Shift, B, or swipe"
+	hint_label.text = "Move: WASD, arrows, stick or drag on the left    Beam: hold Space, A, or the right side    Dodge: Shift, B, or swipe"
+
+
+## Gives up the run (no score is sent) and goes back to the title, the ship flying itself again
+func quit_to_menu() -> void:
+	set_paused(false)
+	for t in things.duplicate():
+		if t.is_enemy():
+			_remove(t)
+	for s in shots:
+		s.queue_free()
+	shots.clear()
+	for j in jets:
+		j.queue_free()
+	jets.clear()
+	heat = 0.0
+	score = 0
+	var at := ufo.ground()
+	ufo.queue_free()
+	_make_ufo(at)
+	_banner("", 0.0)
+	_show_title()
+
+
+func set_paused(on: bool) -> void:
+	if mode != "play" or shop_open != null:
+		return
+	get_tree().paused = on
+	_pause_box.visible = on
+	if on:
+		_resume_button.call_deferred("grab_focus")
+		stick_finger = -1
+		beam_finger = -1
+		stick = Vector2.ZERO
 
 
 func _banner(text: String, seconds: float) -> void:
@@ -1088,8 +1373,11 @@ func _banner(text: String, seconds: float) -> void:
 
 
 func _hud(delta: float) -> void:
-	var playing := mode == "play"
+	# (nothing on the screen while the ship comes down from space)
+	var playing := mode == "play" and intro <= 0.0
 	score_label.visible = playing or mode == "over"
+	if intro > 0.0:
+		score_label.visible = false
 	mult_label.visible = playing
 	stars.visible = playing
 	shield_bar.visible = playing
@@ -1098,8 +1386,19 @@ func _hud(delta: float) -> void:
 	stars.queue_redraw()
 	shield_bar.queue_redraw()
 	stick_ring.queue_redraw()
-	beam_button.visible = touched and playing
+	# (on a touch screen the stick and the beam show from the start, so it is plain how to fly)
+	beam_button.visible = (touched or _touch_screen) and playing
+	stick_ring.visible = (touched or _touch_screen) and playing
 	beam_button.queue_redraw()
+	_pause_button.visible = playing and not autopilot
+	cockpit_frame.visible = playing and not ufo.crashed
+	cockpit_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if cockpit_frame.visible else SubViewport.UPDATE_DISABLED
+	if cockpit_frame.visible:
+		# (inside the dome, in front of the panel, looking back at the pilot; it banks with the ship)
+		var s := ufo.pilot_size
+		var eye := ufo.body.global_transform * (ufo.seat + Vector3(0.0, 0.7 * s, 1.25 * s))
+		var head := ufo.body.global_transform * (ufo.seat + Vector3(0.0, 0.6 * s, 0.0))
+		cockpit_camera.look_at_from_position(eye, head, ufo.body.global_basis.y)
 	if banner_time > 0.0:
 		banner_time -= delta
 		banner.modulate.a = clampf(banner_time * 2.0, 0.0, 1.0)
@@ -1111,24 +1410,21 @@ func _layout_touch() -> void:
 	if beam_button == null:
 		return
 	var size := get_viewport().get_visible_rect().size
-	var r := minf(size.x, size.y) * 0.14
+	var r := minf(size.x, size.y) * 0.13
 	beam_button.size = Vector2(r * 2, r * 2)
-	beam_button.position = Vector2(size.x - r * 2.6, size.y - r * 2.6)
+	beam_button.position = Vector2(size.x * 0.75 - r, size.y * 0.74 - r)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if mode != "play" or autopilot:
 		return
 	if get_tree().paused:
-		if event is InputEventScreenTouch and event.pressed:
-			get_tree().paused = false
-			_banner("", 0.0)
 		return
 	if event is InputEventScreenTouch:
 		touched = true
 		var e: InputEventScreenTouch = event
 		var size := get_viewport().get_visible_rect().size
-		var on_beam := beam_button.get_global_rect().grow(30).has_point(e.position)
+		var on_beam := false
 		var now := Time.get_ticks_msec() / 1000.0
 		if not e.pressed and _touch_from.has(e.index):
 			var from: Array = _touch_from[e.index]
@@ -1138,7 +1434,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_dodge(flick)
 		if e.pressed:
 			_touch_from[e.index] = [e.position, now]
-			if on_beam or e.position.x > size.x * 0.6:
+			if on_beam or e.position.x > size.x * 0.5:
 				beam_finger = e.index
 			elif stick_finger < 0:
 				stick_finger = e.index
@@ -1165,11 +1461,18 @@ func _unhandled_input(event: InputEvent) -> void:
 # ------------------------------------------------------------------ bests
 
 func _load_best() -> void:
+	# (tests fly the saucer, whatever was last picked here, and may fly any ship)
+	if testing:
+		unlocked.assign(Ufo.ORDER)
+		return
 	var cfg := ConfigFile.new()
 	if cfg.load("user://best.cfg") == OK:
 		best = int(cfg.get_value("best", "score", 0))
+		for found: String in cfg.get_value("best", "unlocked", []):
+			if Ufo.SHIPS.has(found) and not found in unlocked:
+				unlocked.append(found)
 		var kept: String = cfg.get_value("best", "ship", "saucer")
-		if Ufo.SHIPS.has(kept):
+		if Ufo.SHIPS.has(kept) and kept in unlocked:
 			ship = kept
 
 
@@ -1179,13 +1482,13 @@ func _save_best() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("best", "score", best)
 	cfg.set_value("best", "ship", ship)
+	cfg.set_value("best", "unlocked", unlocked)
 	cfg.save("user://best.cfg")
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and mode == "play" and not autopilot and not testing:
-		get_tree().paused = true
-		_banner("PAUSED", 999.0)
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and mode == "play" and not autopilot and not testing and shop_open == null:
+		set_paused(true)
 
 
 # ------------------------------------------------------------------ HUD pieces
@@ -1223,7 +1526,10 @@ class Shield extends Control:
 
 	func _draw() -> void:
 		var hull: float = main.ufo.hull
-		draw_string(main.font, Vector2(0, 18), "SHIELD", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(0.8, 0.9, 1.0))
+		var bare: bool = main.ufo.hull <= 0.0
+		var flashing := fmod(Time.get_ticks_msec() / 200.0, 2.0) < 1.0
+		draw_string(main.font, Vector2(0, 18), "NO SHIELD" if bare else "SHIELD", HORIZONTAL_ALIGNMENT_LEFT, -1, 20,
+			Color(1.0, 0.3, 0.2) if bare and flashing else Color(0.8, 0.9, 1.0))
 		var r := Rect2(0, 26, size.x, 20)
 		draw_rect(r, Color(0, 0, 0, 0.6))
 		var c := Color(0.4, 0.9, 1.0) if hull > 35.0 else Color(1.0, 0.3, 0.2)
@@ -1231,26 +1537,56 @@ class Shield extends Control:
 			c = c.lightened(0.4)
 		draw_rect(Rect2(r.position, Vector2(r.size.x * hull / float(main.ufo.hull_max), r.size.y)), c)
 		draw_rect(r, Color(1, 1, 1, 0.5), false, 2.0)
+		var ready: float = main.ufo.dodge_ready()
+		var d := Rect2(size.x * 0.45, 52, size.x * 0.55, 8)
+		draw_string(main.font, Vector2(0, 62), "DODGE", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.8, 0.9, 1.0, 0.8))
+		draw_rect(d, Color(0, 0, 0, 0.6))
+		draw_rect(Rect2(d.position, Vector2(d.size.x * ready, d.size.y)), Color(0.7, 1.0, 0.75) if ready >= 1.0 else Color(0.5, 0.6, 0.6))
 
 
 ## Where the thumb is on the touch stick
 class StickRing extends Control:
 	var main: Node
 
+	## At rest, a stick in the lower left (a thumb anywhere on the left half takes it from there)
 	func _draw() -> void:
-		if main.stick_finger < 0:
-			return
-		var reach := minf(main.get_viewport().get_visible_rect().size.y * 0.12, 90.0)
-		draw_arc(main.stick_from, reach, 0, TAU, 32, Color(1, 1, 1, 0.35), 3.0)
-		draw_circle(main.stick_from + main.stick * reach, reach * 0.4, Color(0.6, 1.0, 0.6, 0.4))
+		var view: Vector2 = main.get_viewport().get_visible_rect().size
+		var reach := minf(view.y * 0.12, 90.0)
+		var held: bool = main.stick_finger >= 0
+		var centre: Vector2 = main.stick_from if held else Vector2(view.x * 0.16, view.y * 0.74)
+		draw_circle(centre, reach, Color(0.3, 1.0, 0.45, 0.08 if held else 0.05))
+		draw_arc(centre, reach, 0, TAU, 40, Color(0.7, 1.0, 0.75, 0.45 if held else 0.25), 3.0)
+		for k in 4:
+			var a := k * PI / 2.0
+			var tip := centre + Vector2(cos(a), sin(a)) * reach * 0.78
+			draw_colored_polygon(PackedVector2Array([tip, tip - Vector2(cos(a), sin(a)) * 10.0 + Vector2(-sin(a), cos(a)) * 7.0,
+				tip - Vector2(cos(a), sin(a)) * 10.0 - Vector2(-sin(a), cos(a)) * 7.0]), Color(0.7, 1.0, 0.75, 0.3))
+		var knob: Vector2 = main.stick if held else Vector2.ZERO
+		draw_circle(centre + knob * reach, reach * 0.38, Color(0.6, 1.0, 0.65, 0.45 if held else 0.25))
 
 
 class BeamButton extends Control:
 	var main: Node
 
+	## A little saucer with its beam down, in a soft glow: brighter, with rings running out, while held
 	func _draw() -> void:
 		var r := size.x * 0.5
+		var c := Vector2(r, r)
 		var on: bool = main.beam_finger >= 0
-		draw_circle(Vector2(r, r), r, Color(0.3, 1.0, 0.45, 0.55 if on else 0.25))
-		draw_arc(Vector2(r, r), r, 0, TAU, 40, Color(0.7, 1.0, 0.75, 0.8), 3.0)
-		draw_string(main.font, Vector2(0, r + 12), "BEAM", HORIZONTAL_ALIGNMENT_CENTER, size.x, 32, Color(1, 1, 1, 0.9))
+		var t := Time.get_ticks_msec() / 1000.0
+		for i in 6:
+			draw_circle(c, r * (1.0 - i * 0.12), Color(0.3, 1.0, 0.45, (0.05 if on else 0.025) * (i + 1)))
+		if on:
+			for i in 3:
+				var k := fmod(t * 1.5 + i / 3.0, 1.0)
+				draw_arc(c, r * (0.5 + k * 0.5), 0, TAU, 40, Color(0.7, 1.0, 0.75, (1.0 - k) * 0.6), 3.0)
+		var glow := Color(0.7, 1.0, 0.75, 0.95 if on else 0.6)
+		draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.12, -r * 0.12), c + Vector2(r * 0.12, -r * 0.12),
+			c + Vector2(r * 0.34, r * 0.5), c + Vector2(-r * 0.34, r * 0.5)]), Color(0.5, 1.0, 0.6, 0.45 if on else 0.22))
+		var hull := PackedVector2Array()
+		for k in 24:
+			var a := TAU * k / 24.0
+			hull.append(c + Vector2(cos(a) * r * 0.42, sin(a) * r * 0.11 - r * 0.18))
+		draw_colored_polygon(hull, glow)
+		draw_circle(c + Vector2(0, -r * 0.3), r * 0.15, glow)
+		draw_arc(c, r * 0.98, 0, TAU, 48, Color(0.7, 1.0, 0.75, 0.5 if on else 0.3), 2.0)

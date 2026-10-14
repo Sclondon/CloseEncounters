@@ -1,24 +1,31 @@
 class_name Ufo
 extends Node3D
 ## The ship, with the alien at the controls under its dome. It flies at one height over the land,
-## banks into its turns, and holds a beam down to the ground that slows it while it is on. Its
-## shield (`hull`) takes the shots; at nothing it falls out of the sky.
+## banks into its turns, and holds a beam down to the ground that slows it while it is on.
+##
+## A bubble of shield round it (`hull`, drawn by `bubble`) takes the shots, fading as it weakens.
+## Once it is gone the ship is bare, and the next shot brings it down. It recharges only once the
+## heat is off.
 ##
 ## There are three ships (SHIPS), chosen on the title screen. The classic saucer is the all-rounder;
-## the orb (after the scout ships of Close Encounters of the Third Kind) is slow but tough, flies
-## high (shots take longer to reach it) and pulls things up fast; the black triangle is quick but
-## thin-skinned, flies low and has a weak beam.
+## the orb (after the scout ships of Close Encounters of the Third Kind) is slow and low but tough,
+## and pulls things up fast; the black triangle is quick and flies high (shots take longer to reach
+## it), but is thin-skinned and its beam is slow and weak.
+##
+## A dodge spins the ship like a top, leaves afterimages behind it and throws the pilot about.
+## The ship's lights flash with the beam, a dodge and a hit. The pilot works a stick and a panel
+## of buttons in front of it (see `panel`), mashing the buttons while the beam is on.
 
 const SHIPS := {
-	"saucer": {"title": "CLASSIC SAUCER", "model": "ufo", "speed": 12.0, "lift": 1.0, "hull": 100.0, "tier": 2, "altitude": 8.0,
+	"saucer": {"title": "CLASSIC SAUCER", "model": "ufo", "speed": 12.0, "lift": 1.0, "hull": 50.0, "tier": 2, "altitude": 8.0,
 		"radius": 2.8, "beam_foot": 2.7, "alien_y": 0.3, "alien_size": 0.9, "spin": true,
-		"about": "The all-rounder. Its beam pulls up trees and rocks."},
-	"orb": {"title": "THE ORB", "model": "orb", "speed": 9.5, "lift": 1.5, "hull": 150.0, "tier": 3, "altitude": 10.5,
+		"about": "The all-rounder. Its beam pulls up trees and rocks.", "ghost": Color(0.5, 1.0, 0.65)},
+	"orb": {"title": "THE ORB", "model": "orb", "speed": 9.5, "lift": 1.5, "hull": 80.0, "tier": 3, "altitude": 6.0,
 		"radius": 2.2, "beam_foot": 3.2, "alien_y": 1.2, "alien_size": 0.72, "spin": true,
-		"about": "Slow but tough. Flies high; its beam lifts buildings."},
-	"triangle": {"title": "BLACK TRIANGLE", "model": "triangle", "speed": 15.0, "lift": 0.72, "hull": 70.0, "tier": 1, "altitude": 6.0,
-		"radius": 3.0, "beam_foot": 2.3, "alien_y": 0.2, "alien_size": 0.62, "spin": false,
-		"about": "Fast and low. Thin shield; a beam for small things only."},
+		"about": "Slow and low, but tough. Its beam lifts buildings.", "ghost": Color(1.0, 0.7, 0.3)},
+	"triangle": {"title": "BLACK TRIANGLE", "model": "triangle", "speed": 15.0, "lift": 0.6, "hull": 35.0, "tier": 1, "altitude": 10.5,
+		"radius": 2.3, "beam_foot": 2.3, "alien_y": 0.14, "alien_size": 0.46, "spin": false, "scale": 0.7,
+		"about": "High and fast. Thin shield; a slow beam for small things.", "ghost": Color(0.6, 0.8, 1.0)},
 }
 const ORDER: Array[String] = ["saucer", "orb", "triangle"]
 const BEAM_SLOW := 0.6
@@ -26,7 +33,9 @@ const BEAM_SLOW := 0.6
 const DASH_SPEED := 34.0
 const DASH_TIME := 0.22
 const DASH_SAFE := 0.35
-const DASH_WAIT := 0.9
+const DASH_WAIT := 2.5
+## Afterimages a dodge leaves, before upgrades (the DASH upgrade adds two a level)
+const GHOSTS := 3
 ## The beam's radius up under the ship
 const BEAM_TOP := 1.0
 
@@ -52,7 +61,31 @@ var since_hit := 10.0
 var dash_left := 0.0
 var dash_wait := 0.0
 var _dash_dir := Vector3.ZERO
-var _roll := 0.0
+## Bought from traders: each level a quicker recharge and two more afterimages
+var dash_level := 0
+## How far above its flying height it still is, coming down from space at the start of a run
+var descent := 0.0
+## Where the pilot sits, and how long it is still being thrown about after a dodge
+var seat := Vector3.ZERO
+var pilot_size := 1.0
+var _toss := 0.0
+var _spin := 0.0
+var _ghost_wait := 0.0
+var _model_name := "ufo"
+var _ghost_colour := Color.WHITE
+## The ship's own lights, and the rest of its hull (to flash them apart)
+var _lights: Array[ShaderMaterial] = []
+var _plates: Array[ShaderMaterial] = []
+## The pilot's controls: a panel of buttons and a stick that leans as the ship is steered
+var panel: Node3D
+var stick: Node3D
+var _buttons: Array[ShaderMaterial] = []
+var _steer := Vector2.ZERO
+## The shield, seen: a bubble round the ship
+var bubble: MeshInstance3D
+var _bubble_mat: ShaderMaterial
+## Whether the last hit broke the shield (the game says so)
+var shield_broke := false
 var _spins := true
 var body: Node3D
 var hull_model: Node3D
@@ -81,14 +114,34 @@ func _ready() -> void:
 	body = Node3D.new()
 	add_child(body)
 	hull_model = Ps1.model(spec["model"], {}, true)
+	hull_model.scale = Vector3.ONE * float(spec.get("scale", 1.0))
 	body.add_child(hull_model)
+	_model_name = spec["model"]
+	_ghost_colour = spec.get("ghost", Color.WHITE)
+	_sort_materials(hull_model)
 	alien = Alien.new()
 	alien.look_seed = alien_seed
 	alien.scale = Vector3.ONE * float(spec["alien_size"])
 	alien.position = Vector3(0, spec["alien_y"], 0)
+	seat = alien.position
+	pilot_size = float(spec["alien_size"])
 	body.add_child(alien)
+	_build_panel(float(spec["alien_size"]), Vector3(0, spec["alien_y"], 0))
+	bubble = MeshInstance3D.new()
+	var ball := SphereMesh.new()
+	ball.radius = 1.0
+	ball.height = 2.0
+	ball.radial_segments = 20
+	ball.rings = 10
+	bubble.mesh = ball
+	_bubble_mat = ShaderMaterial.new()
+	_bubble_mat.shader = load("res://shaders/shield.gdshader")
+	bubble.material_override = _bubble_mat
+	bubble.scale = Vector3(radius + 0.7, radius * 0.55 + 0.6, radius + 0.7)
+	bubble.position.y = 0.3
+	body.add_child(bubble)
 	# The dome is drawn after the alien inside it
-	var dome := hull_model.find_child("dome", true, false) as MeshInstance3D
+	var dome := hull_model.find_child("dome*", true, false) as MeshInstance3D
 	if dome != null:
 		dome.sorting_offset = 1.0
 
@@ -148,20 +201,27 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	else:
 		velocity = velocity.lerp(want, minf(delta * (4.0 if want.length() > 0.1 else 2.5), 1.0))
 	position += velocity * delta
-	position.y = altitude + sin(_t * 1.7) * 0.15
+	position.y = altitude + descent + sin(_t * 1.7) * 0.15
 	# Banks into the way it is going
 	body.rotation.x = lerpf(body.rotation.x, velocity.z / speed * 0.25, minf(delta * 5.0, 1.0))
 	body.rotation.z = lerpf(body.rotation.z, -velocity.x / speed * 0.25, minf(delta * 5.0, 1.0))
-	# (a dodge is a barrel roll the way it goes)
-	_roll = move_toward(_roll, 0.0, delta * TAU / DASH_SAFE)
-	body.rotation.z += _roll * -signf(_dash_dir.x if absf(_dash_dir.x) > 0.3 else 1.0)
-	if _spins:
+	_steer = steer
+	if _spin > 0.0:
+		# A dodge spins the hull like a top, and leaves afterimages behind it
+		_spin -= delta
+		hull_model.rotation.y += delta * 30.0
+		_ghost_wait -= delta
+		if _ghost_wait <= 0.0:
+			_ghost_wait = DASH_SAFE / float(GHOSTS + 2 * dash_level)
+			_afterimage()
+	elif _spins:
 		# The saucer and the orb turn slowly, faster with the beam on
 		hull_model.rotation.y += delta * (0.6 + (1.8 if beaming else 0.0))
-	elif velocity.length() > 1.0:
+	elif velocity.length() > 1.0 and not _spins:
 		# The triangle points where it is going
 		hull_model.rotation.y = lerp_angle(hull_model.rotation.y, atan2(velocity.x, velocity.z), minf(delta * 6.0, 1.0))
 	alien.look = Vector2(velocity.x, velocity.z) / speed
+	_throw_pilot(delta)
 	if alien.mood in ["steer", "beam"]:
 		alien.mood = "beam" if beaming else "steer"
 	_power = move_toward(_power, 1.0 if beaming else 0.0, delta * 6.0)
@@ -172,7 +232,16 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	# A shield that has not been hit for a while mends, but only once the heat is off
 	if since_hit > 3.0 and hull < hull_max:
 		hull = minf(hull + delta * mend_rate * hull_max / 100.0, hull_max)
-	Ps1.flash(hull_model, Color(0.8, 0.1, 0.05) * maxf(0.0, 1.0 - since_hit * 5.0))
+	_flash_lights()
+	var left := hull / hull_max
+	bubble.visible = hull > 0.0
+	_bubble_mat.set_shader_parameter("strength", 0.25 + 0.75 * left)
+	_bubble_mat.set_shader_parameter("hit", maxf(0.0, 1.0 - since_hit * 3.0))
+	if stick != null:
+		stick.rotation = Vector3(steer.y * 0.5, 0, -steer.x * 0.5)
+	for i in _buttons.size():
+		var lit := beaming and fmod(_t * 9.0 + i * 0.37, 1.0) < 0.5
+		_buttons[i].set_shader_parameter("flash", Color(0.6, 0.6, 0.6) if lit else Color.BLACK)
 
 
 ## How fast the shield mends (the game sets it from the heat)
@@ -185,14 +254,105 @@ func dodge(dir: Vector2) -> bool:
 		return false
 	_dash_dir = Vector3(dir.x, 0, dir.y).normalized()
 	dash_left = DASH_TIME
-	dash_wait = DASH_WAIT
-	_roll = TAU
+	dash_wait = dash_wait_max()
+	_spin = DASH_SAFE
+	_ghost_wait = 0.0
+	alien.feel("tossed", DASH_SAFE + 0.35)
+	_toss = DASH_SAFE + 0.35
 	return true
+
+
+## In a dodge the pilot is flung round the cockpit with the spin, tumbling, and then drops back
+## into the seat
+func _throw_pilot(delta: float) -> void:
+	if _toss > 0.0:
+		_toss -= delta
+		var a := _t * 24.0
+		var r := 0.32 * pilot_size
+		alien.position = seat + Vector3(cos(a) * r, absf(sin(_t * 17.0)) * 0.35 * pilot_size, sin(a) * r)
+		alien.rotation = Vector3(sin(_t * 21.0) * 1.1, sin(_t * 9.0) * 1.5, cos(_t * 16.0) * 1.2)
+	else:
+		alien.position = alien.position.lerp(seat, minf(delta * 10.0, 1.0))
+		alien.rotation = alien.rotation.lerp(Vector3.ZERO, minf(delta * 10.0, 1.0))
+
+
+## How ready the next dodge is, 0 (just used) to 1
+func dodge_ready() -> float:
+	return clampf(1.0 - dash_wait / dash_wait_max(), 0.0, 1.0)
+
+
+## The wait between dodges, shorter with each DASH upgrade
+func dash_wait_max() -> float:
+	return DASH_WAIT - 0.35 * dash_level
+
+
+## The lights apart from the plates of the hull: what is drawn glowing is a light
+func _sort_materials(n: Node) -> void:
+	if n is MeshInstance3D:
+		var mi: MeshInstance3D = n
+		for i in mi.get_surface_override_material_count():
+			var m := mi.get_surface_override_material(i) as ShaderMaterial
+			if m == null or m.shader != Ps1.LIT:
+				continue
+			if float(m.get_shader_parameter("glow")) > 0.0:
+				_lights.append(m)
+			else:
+				_plates.append(m)
+	for c in n.get_children():
+		_sort_materials(c)
+
+
+## Red on a hit (the whole hull), a white strobe in a dodge, a quick green pulse with the beam
+func _flash_lights() -> void:
+	var hit := maxf(0.0, 1.0 - since_hit * 4.0)
+	var light := Color.BLACK
+	if hit > 0.0:
+		light = Color(1.5, 0.1, 0.05) * (1.0 if fmod(_t, 0.1) < 0.05 else 0.3)
+	elif dodging():
+		light = Color(1.4, 1.4, 1.4) if fmod(_t, 0.08) < 0.04 else Color.BLACK
+	elif beaming:
+		light = Color(0.2, 1.0, 0.35) * (0.5 + 0.5 * sin(_t * 18.0))
+	for m in _lights:
+		m.set_shader_parameter("flash", light)
+	for m in _plates:
+		m.set_shader_parameter("flash", Color(0.8, 0.1, 0.05) * hit)
+
+
+## A see-through copy of the hull where it is, fading out behind the dodge
+func _afterimage() -> void:
+	var ghost := Ps1.ghost_of(_model_name, _ghost_colour, 0.55)
+	get_parent().add_child(ghost)
+	ghost.global_transform = hull_model.global_transform
+	var m: ShaderMaterial = ghost.get_meta("ghost")
+	var tw := ghost.create_tween()
+	tw.tween_method(func(a: float) -> void: m.set_shader_parameter("alpha", a), 0.55, 0.0, 0.4)
+	tw.tween_callback(ghost.queue_free)
+
+
+## The desk in front of the pilot: a row of buttons and a stick, at the pilot's size
+func _build_panel(size: float, at: Vector3) -> void:
+	panel = Node3D.new()
+	panel.position = at
+	panel.scale = Vector3.ONE * size
+	body.add_child(panel)
+	var desk := Ps1.mat(Color(0.25, 0.27, 0.32))
+	Ps1.part(panel, BoxMesh.new(), desk, Vector3(0, 0.28, 0.3), Vector3(0.44, 0.04, 0.16), Vector3(0.35, 0, 0))
+	Ps1.part(panel, BoxMesh.new(), desk, Vector3(0, 0.14, 0.32), Vector3(0.36, 0.28, 0.06))
+	var colours: Array[Color] = [Color(1.0, 0.25, 0.2), Color(0.3, 1.0, 0.4), Color(0.3, 0.5, 1.0), Color(1.0, 0.85, 0.2), Color(1.0, 0.4, 0.9)]
+	for i in 5:
+		var m := Ps1.own(colours[i], 0.6)
+		_buttons.append(m)
+		Ps1.part(panel, BoxMesh.new(), m, Vector3(-0.17 + i * 0.05, 0.305, 0.3), Vector3(0.03, 0.02, 0.03), Vector3(0.35, 0, 0))
+	stick = Node3D.new()
+	stick.position = Vector3(0.14, 0.3, 0.28)
+	panel.add_child(stick)
+	Ps1.part(stick, CylinderMesh.new(), Ps1.mat(Color(0.12, 0.12, 0.14)), Vector3(0, 0.05, 0), Vector3(0.012, 0.05, 0.012))
+	Ps1.part(stick, Ps1.ball(), Ps1.mat(Color(0.9, 0.15, 0.1), 0.3), Vector3(0, 0.1, 0), Vector3.ONE * 0.022)
 
 
 ## Untouchable for a moment at the start of a dodge
 func dodging() -> bool:
-	return dash_wait > DASH_WAIT - DASH_SAFE
+	return dash_wait > dash_wait_max() - DASH_SAFE
 
 
 ## Whether a point is inside the beam: wide at the ground, narrow under the ship
@@ -215,11 +375,17 @@ func struck(p: Vector3) -> bool:
 func hurt(amount: float) -> void:
 	if dead:
 		return
-	hull -= amount
 	since_hit = 0.0
 	alien.feel("hurt", 0.4)
-	if hull <= 0.0:
-		hull = 0.0
+	if hull > 0.0:
+		# The shield takes it
+		hull -= amount
+		if hull <= 0.0:
+			hull = 0.0
+			shield_broke = true
+		return
+	# Nothing left to take it: one shot is enough
+	if true:
 		dead = true
 		beaming = false
 		beam.visible = false

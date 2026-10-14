@@ -41,7 +41,14 @@ COLOURS = {
     "chrome": (0.78, 0.8, 0.84), "horse": (0.48, 0.3, 0.18), "mane": (0.15, 0.1, 0.08), "bison": (0.3, 0.2, 0.12),
     "bison_dark": (0.18, 0.12, 0.08), "longhorn": (0.8, 0.62, 0.42), "coyote": (0.6, 0.52, 0.4), "logs": (0.48, 0.32, 0.18),
     "stone": (0.5, 0.48, 0.46), "camp": (0.95, 0.5, 0.1), "rv_stripe": (0.55, 0.3, 0.15), "felt": (0.4, 0.28, 0.16),
-    "orb_shell": (0.62, 0.6, 0.58), "black_hull": (0.09, 0.09, 0.11), "hull_edge": (0.2, 0.2, 0.24),
+    "orb_shell": (0.62, 0.6, 0.58),
+    "bear": (0.22, 0.14, 0.09), "goat": (0.92, 0.9, 0.84), "elk": (0.5, 0.36, 0.22), "elk_dark": (0.28, 0.18, 0.1),
+    "antler": (0.82, 0.76, 0.6), "pronghorn": (0.75, 0.52, 0.3), "rabbit": (0.6, 0.5, 0.4), "roadrunner": (0.35, 0.3, 0.25),
+    "crow": (0.06, 0.06, 0.08), "hawk": (0.45, 0.3, 0.18), "hawk_light": (0.85, 0.78, 0.65), "pole": (0.36, 0.25, 0.16),
+    "insulator": (0.4, 0.7, 0.6), "sasquatch": (0.3, 0.2, 0.13), "sasquatch_face": (0.18, 0.13, 0.1),
+    "satellite": (0.75, 0.75, 0.7), "panel": (0.12, 0.18, 0.4), "gold": (1.0, 0.78, 0.2),
+    "brick": (0.55, 0.3, 0.22), "police_blue": (0.15, 0.25, 0.55), "concrete": (0.6, 0.6, 0.58), "hangar": (0.45, 0.48, 0.42),
+    "transformer": (0.5, 0.55, 0.5), "hazard": (0.95, 0.75, 0.1), "black_hull": (0.09, 0.09, 0.11), "hull_edge": (0.2, 0.2, 0.24),
 }
 GLOWS = {
     "window": ((1.0, 0.85, 0.45), 2.0), "siren_red": ((1.0, 0.1, 0.1), 3.0),
@@ -49,7 +56,7 @@ GLOWS = {
     "lights_under": ((0.5, 1.0, 0.6), 3.0), "headlight": ((1.0, 0.95, 0.8), 2.0),
     "flame": ((1.0, 0.55, 0.15), 3.0), "neon": ((1.0, 0.35, 0.6), 3.0),
     "light_red": ((1.0, 0.2, 0.15), 3.0), "light_blue": ((0.3, 0.5, 1.0), 3.0), "light_white": ((1.0, 1.0, 0.95), 3.0),
-    "light_amber": ((1.0, 0.65, 0.2), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0),
+    "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0),
 }
 
 _mats = {}
@@ -725,7 +732,7 @@ def triangle():
     hull = bpy.data.objects.new("triangle", mesh)
     bpy.context.collection.objects.link(hull)
     _done(hull, "black_hull")
-    p = [hull, box((0.5, 5.6, 0.12), (0, 0.1, -0.33), "hull_edge"), drum(0.55, 0.12, (0, 0.2, -0.38), "light_red", 10)]
+    p = [hull, box((0.5, 4.6, 0.12), (0, -0.8, -0.33), "hull_edge"), drum(0.55, 0.12, (0, 0.2, -0.38), "light_red", 10)]
     for x, y in ((0, -front + 0.45), (half - 0.55, back - 0.3), (-half + 0.55, back - 0.3)):
         p.append(ball((0.6, 0.6, 0.3), (x, y, -0.33), "light_white", 8, 4))
     body = join("triangle", p)
@@ -733,11 +740,233 @@ def triangle():
     dome.parent = body
     return body
 
+# ---------------------------------------------------------------- wildlife
+
+def quadruped(name, body, leg, head_at, head, colour, dark=None, tail=None):
+    """A four-legged animal: a body box `body` (w, l, h) at its height, four legs `leg` (w, h) high,
+    a head box `head` at `head_at`"""
+    w, l, h = body
+    lw, lh = leg
+    p = [box((w, l, h), (0, 0, lh + h / 2), colour), box(head, head_at, colour)]
+    for s in (-1, 1):
+        for y in (-l / 2 + lw, l / 2 - lw):
+            p.append(box((lw, lw, lh + 0.1), (s * (w / 2 - lw / 2), y, lh / 2), dark or colour))
+        p.append(box((0.04, 0.02, 0.04), (s * head[0] * 0.35, head_at[1] - head[1] / 2, head_at[2] + head[2] * 0.15), "black"))
+    if tail:
+        p.append(box(tail, (0, l / 2 + tail[1] / 2, lh + h * 0.7), dark or colour))
+    return p
+
+
+def bear():
+    p = quadruped("bear", (0.9, 1.7, 0.85), (0.28, 0.55), (0, -1.05, 1.15), (0.55, 0.6, 0.5), "bear")
+    p += [roughen(ball((1.0, 1.0, 0.7), (0, -0.4, 1.35), "bear", 8, 4), 0.04, 1), box((0.3, 0.25, 0.22), (0, -1.4, 1.05), "bison_dark")]
+    for s in (-1, 1):
+        p.append(ball((0.16, 0.08, 0.16), (s * 0.2, -0.95, 1.45), "bear", 6, 3))
+    return join("bear", p)
+
+
+def mountain_goat():
+    p = quadruped("mountain_goat", (0.5, 1.1, 0.6), (0.14, 0.55), (0, -0.7, 1.25), (0.28, 0.42, 0.32), "goat", "goat", (0.1, 0.12, 0.1))
+    p += [box((0.3, 0.2, 0.3), (0, -0.78, 0.95), "goat"), box((0.52, 0.6, 0.3), (0, -0.3, 1.35), "goat")]
+    for s in (-1, 1):
+        p.append(cone(0.04, 0.3, (s * 0.08, -0.62, 1.52), "black", 5, (0.4, 0, 0)))
+    return join("mountain_goat", p)
+
+
+def elk():
+    p = quadruped("elk", (0.65, 1.7, 0.8), (0.14, 1.0), (0, -1.2, 2.15), (0.3, 0.6, 0.32), "elk", "elk_dark", (0.12, 0.1, 0.12))
+    p += [box((0.4, 0.4, 0.8), (0, -0.95, 1.85), "elk_dark", (-0.5, 0, 0)), box((0.66, 0.5, 0.6), (0, 0.65, 1.4), "hawk_light")]
+    for s in (-1, 1):
+        base = (s * 0.1, -1.1, 2.3)
+        tip = (s * 0.5, -0.8, 3.1)
+        p.append(drum(0.04, 0.95, ((base[0] + tip[0]) / 2, (base[1] + tip[1]) / 2, (base[2] + tip[2]) / 2), "antler", 5, (0.35, -0.5 * s, 0)))
+        for k in range(3):
+            p.append(cone(0.03, 0.35, (s * (0.2 + k * 0.12), -1.0 + k * 0.08, 2.55 + k * 0.2), "antler", 4, (-0.4, 0, 0)))
+    return join("elk", p)
+
+
+def pronghorn():
+    p = quadruped("pronghorn", (0.42, 1.1, 0.5), (0.09, 0.75), (0, -0.75, 1.45), (0.2, 0.36, 0.22), "pronghorn", "white")
+    p += [box((0.3, 0.3, 0.5), (0, -0.62, 1.2), "pronghorn", (-0.4, 0, 0)), box((0.44, 0.3, 0.3), (0, 0.45, 1.05), "white"),
+          box((0.43, 0.8, 0.18), (0, 0, 0.82), "white")]
+    for s in (-1, 1):
+        p.append(cone(0.03, 0.3, (s * 0.06, -0.7, 1.7), "black", 4))
+    return join("pronghorn", p)
+
+
+def rabbit(name="rabbit", antlers=False):
+    p = [ball((0.36, 0.5, 0.36), (0, 0, 0.22), "rabbit", 8, 4), ball((0.24, 0.26, 0.24), (0, -0.25, 0.4), "rabbit", 6, 4),
+         ball((0.12, 0.12, 0.12), (0, 0.26, 0.28), "white", 5, 3)]
+    for s in (-1, 1):
+        p.append(box((0.05, 0.03, 0.3), (s * 0.06, -0.22, 0.62), "rabbit", (0.2, 0, s * 0.15)))
+        p.append(box((0.03, 0.02, 0.03), (s * 0.08, -0.37, 0.43), "black"))
+        if antlers:
+            p.append(drum(0.018, 0.3, (s * 0.1, -0.2, 0.68), "antler", 4, (0, 0, -0.5 * s)))
+            p.append(cone(0.015, 0.15, (s * 0.2, -0.2, 0.8), "antler", 4, (0, 0, 0.3 * s)))
+    return join(name, p)
+
+
+def roadrunner():
+    p = [ball((0.2, 0.5, 0.22), (0, 0, 0.45), "roadrunner", 6, 4), ball((0.14, 0.16, 0.14), (0, -0.25, 0.62), "roadrunner", 6, 3),
+         cone(0.035, 0.18, (0, -0.4, 0.62), "black", 4, (math.pi / 2, 0, 0)), box((0.04, 0.12, 0.12), (0, -0.22, 0.72), "black"),
+         box((0.08, 0.45, 0.05), (0, 0.4, 0.55), "roadrunner", (-0.4, 0, 0))]
+    for s in (-1, 1):
+        p.append(box((0.02, 0.02, 0.36), (s * 0.05, 0, 0.18), "hawk_light"))
+    return join("roadrunner", p)
+
+
+def bird(name, colour, size, light=None):
+    """A bird with its wings on two children, `wing_l` and `wing_r`, which the game flaps"""
+    s = size
+    p = [ball((0.2 * s, 0.5 * s, 0.2 * s), (0, 0, 0), colour, 6, 4), ball((0.15 * s, 0.15 * s, 0.15 * s), (0, -0.27 * s, 0.06 * s), colour, 6, 3),
+         cone(0.03 * s, 0.12 * s, (0, -0.38 * s, 0.05 * s), "yellow" if light else "black", 4, (math.pi / 2, 0, 0)),
+         box((0.18 * s, 0.25 * s, 0.03 * s), (0, 0.32 * s, 0), colour)]
+    if light:
+        p.append(ball((0.17 * s, 0.35 * s, 0.1 * s), (0, -0.02 * s, -0.06 * s), light, 6, 3))
+    body = join(name, p)
+    for side, label in ((1, "wing_r"), (-1, "wing_l")):
+        w = join(label, [box((0.55 * s, 0.24 * s, 0.025 * s), (side * 0.3 * s, 0, 0), colour)])
+        w.parent = body
+    return body
+
+
+def phone_pole():
+    p = [drum(0.13, 7.6, (0, 0, 3.8), "pole", 6), box((1.8, 0.14, 0.14), (0, 0, 6.9), "pole"), box((1.1, 0.12, 0.12), (0, 0, 6.3), "pole")]
+    for x in (-0.8, -0.3, 0.3, 0.8):
+        p.append(drum(0.05, 0.16, (x, 0, 7.05), "insulator", 5))
+    p.append(drum(0.2, 0.5, (0.25, 0, 5.3), "metal_dark", 6))
+    return join("phone_pole", p)
+
+
+# ---------------------------------------------------------------- rare finds
+
+def sasquatch():
+    p = []
+    for s in (-1, 1):
+        p.append(box((0.3, 0.32, 1.0), (0.2 * s, 0, 0.5), "sasquatch"))
+        p.append(box((0.32, 0.5, 0.14), (0.2 * s, -0.08, 0.07), "sasquatch_face"))
+        p.append(box((0.24, 0.26, 1.15), (0.55 * s, 0, 1.25), "sasquatch", (0, 0.12 * s, 0)))
+        p.append(box((0.2, 0.22, 0.24), (0.6 * s, -0.02, 0.62), "sasquatch_face"))
+    p += [roughen(ball((1.0, 0.75, 1.15), (0, 0, 1.55), "sasquatch", 8, 5), 0.05, 2), roughen(ball((0.95, 0.65, 0.45), (0, 0, 2.1), "sasquatch", 8, 4), 0.05, 3),
+          ball((0.5, 0.5, 0.55), (0, -0.08, 2.4), "sasquatch", 7, 4), box((0.34, 0.1, 0.3), (0, -0.33, 2.35), "sasquatch_face"),
+          box((0.3, 0.06, 0.05), (0, -0.37, 2.47), "black")]
+    return join("sasquatch", p)
+
+
+def meteorite():
+    return join("meteorite", [roughen(ball((1.3, 1.1, 0.9), (0, 0, 0.4), "black", 7, 4), 0.15, 5),
+                              roughen(ball((0.7, 0.7, 0.6), (0.2, -0.1, 0.7), "meteor_glow", 6, 4), 0.08, 6),
+                              roughen(ball((2.6, 2.6, 0.3), (0, 0, 0.0), "talus", 8, 3), 0.1, 7)])
+
+
+def satellite():
+    p = [drum(0.5, 1.4, (0, 0, 0.55), "satellite", 8, (0.3, 0.2, 0)), drum(0.55, 0.2, (0, 0.65, 0.75), "gold", 8, (0.3, 0.2, 0)),
+         box((2.2, 0.8, 0.04), (1.6, 0, 0.4), "panel", (0, 0.3, 0.1)), box((2.2, 0.8, 0.04), (-1.6, 0, 0.75), "panel", (0, -0.2, 0)),
+         cone(0.5, 0.4, (0, -0.8, 0.4), "satellite", 8, (math.pi / 2 + 0.3, 0, 0)), drum(0.03, 1.2, (0.2, -0.6, 1.2), "metal", 4)]
+    return join("satellite", p)
+
+# ---------------------------------------------------------------- the law and the army
+
+def police_station():
+    p = [box((10.0, 7.0, 4.0), (0, 0, 2.0), "brick"), box((10.4, 7.4, 0.4), (0, 0, 4.1), "concrete"),
+         box((4.0, 0.2, 0.9), (0, -3.6, 3.3), "police_blue"), box((3.6, 0.22, 0.5), (0, -3.62, 3.3), "white"),
+         box((1.6, 0.12, 2.4), (0, -3.52, 1.2), "glass"), box((0.5, 0.3, 0.2), (-0.4, -3.4, 4.45), "siren_red"),
+         box((0.5, 0.3, 0.2), (0.4, -3.4, 4.45), "siren_blue"), drum(0.08, 6.0, (6.0, -3.0, 3.0), "metal", 6),
+         box((1.2, 0.04, 0.8), (6.65, -3.0, 5.5), "police_blue")]
+    for x in (-3.6, -2.2, 2.2, 3.6):
+        p.append(box((1.0, 0.12, 1.0), (x, -3.52, 2.2), "window"))
+    return join("police_station", p)
+
+
+def hangar():
+    """A quonset hangar: half a drum on its side, open at the front"""
+    import bmesh
+    p = []
+    segs = 10
+    for i in range(segs):
+        a0, a1 = math.pi * i / segs, math.pi * (i + 1) / segs
+        mid = (a0 + a1) / 2
+        r = 7.0
+        p.append(box((r * (a1 - a0) + 0.05, 16.0, 0.25), (math.cos(mid) * r, 0, math.sin(mid) * r), "hangar", (0, -(mid - math.pi / 2), 0)))
+    back = drum(7.0, 0.3, (0, 8.0, 0), "hangar", 16, (math.pi / 2, 0, 0))
+    p.append(back)
+    p += [box((14.0, 0.4, 0.6), (0, -8.0, 7.2), "hazard"), box((14.2, 16.4, 0.1), (0, 0, 0.05), "concrete")]
+    return join("hangar", p)
+
+
+def watchtower():
+    p = []
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.append(box((0.2, 0.2, 7.2), (sx * 1.0, sy * 1.0, 3.6), "olive_dark", (sy * 0.06, -sx * 0.06, 0)))
+    p += [box((2.8, 2.8, 0.2), (0, 0, 7.2), "olive_dark"), box((2.6, 2.6, 1.0), (0, 0, 7.8), "olive"),
+          gable(3.2, 3.2, 0.8, (0, 0, 8.3), "olive_dark"), box((2.62, 2.62, 0.4), (0, 0, 8.0), "glass")]
+    return join("watchtower", p)
+
+
+def substation():
+    """An electric substation: transformers on a pad behind a fence, with a gantry over them"""
+    p = [box((12.0, 9.0, 0.2), (0, 0, 0.1), "concrete")]
+    for x in (-3.5, 0.0, 3.5):
+        p += [box((2.0, 2.4, 2.4), (x, 0.6, 1.4), "transformer"), box((2.1, 0.3, 1.6), (x, 1.9, 1.3), "metal_dark")]
+        for k in (-0.6, 0.0, 0.6):
+            p.append(drum(0.12, 0.9, (x + k, 0.2, 3.0), "insulator", 6))
+            p.append(ball((0.16, 0.16, 0.16), (x + k, 0.2, 3.5), "spark", 5, 3))
+    for x in (-5.0, 5.0):
+        p.append(box((0.3, 0.3, 6.0), (x, -1.5, 3.0), "metal"))
+    p += [box((10.3, 0.3, 0.4), (0, -1.5, 5.9), "metal"), box((1.0, 0.06, 0.7), (0, -4.6, 1.2), "hazard")]
+    for side in (-1, 1):
+        p.append(box((12.0, 0.06, 2.0), (0, side * 4.5, 1.0), "metal_dark"))
+        p.append(box((0.06, 9.0, 2.0), (side * 6.0, 0, 1.0), "metal_dark"))
+    return join("substation", p)
+
+# ---------------------------------------------------------------- those who watch the sky
+
+def observatory():
+    """A white drum of a building under a dome (a child, "cupola", that the game turns) with a slit in it"""
+    import bmesh
+    body = join("observatory", [drum(4.0, 5.0, (0, 0, 2.5), "white", 16), drum(4.2, 0.3, (0, 0, 5.0), "metal", 16),
+                                box((1.4, 0.2, 2.2), (0, -4.0, 1.1), "door"), box((3.0, 1.6, 2.6), (5.0, 0, 1.3), "white")])
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=16, ring_count=8, radius=4.0, location=(0, 0, 0))
+    cup = bpy.context.object
+    bm = bmesh.new()
+    bm.from_mesh(cup.data)
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z < -0.01 or (abs(v.co.x) < 0.7 and v.co.y < 0 and v.co.z > 0.3)], context="VERTS")
+    bm.to_mesh(cup.data)
+    bm.free()
+    _done(cup, "metal")
+    slit = drum(0.05, 7.0, (0, -1.0, 2.6), "black", 4, (math.pi / 2 - 0.6, 0, 0))
+    scope = drum(0.45, 3.4, (0, -0.8, 1.6), "metal_dark", 8, (0.8, 0, 0))
+    cupola = join("cupola", [cup, slit, scope])
+    cupola.location = (0, 0, 5.1)
+    cupola.parent = body
+    return body
+
+
+def seti_dish():
+    """A radio telescope: a pedestal and a dish (a child, "dish", that the game aims) on a yoke"""
+    p = [drum(0.9, 0.6, (0, 0, 0.3), "concrete", 10), drum(0.45, 6.0, (0, 0, 3.3), "white", 8),
+         box((2.6, 0.5, 0.5), (0, 0, 6.3), "white")]
+    body = join("seti_dish", p)
+    bowl = lathe("bowl", [(0.3, -0.6), (2.0, -0.35), (3.6, 0.3), (4.6, 1.2), (4.7, 1.25)], ["white", "white", "white", "metal", "metal"], 18, 0.0, seed=12)
+    feed = [bowl, drum(0.06, 3.0, (0, 0, 2.2), "metal_dark", 4), ball((0.4, 0.4, 0.5), (0, 0, 3.7), "metal_dark", 6, 3)]
+    for a in range(3):
+        ang = a * math.tau / 3
+        feed.append(drum(0.04, 4.0, (math.cos(ang) * 1.9, math.sin(ang) * 1.9, 2.2), "metal_dark", 4, (math.sin(ang) * 0.6, -math.cos(ang) * 0.6, 0)))
+    dish = join("dish", feed)
+    dish.location = (0, 0, 6.6)
+    dish.rotation_euler = (0.9, 0, 0)
+    dish.parent = body
+    return body
+
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
-            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle]
+            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle,
+            bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
+            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, sasquatch, meteorite, satellite,
+            police_station, hangar, watchtower, substation, observatory, seti_dish]
 
 
 def main():

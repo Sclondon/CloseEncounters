@@ -14,24 +14,41 @@ extends Node3D
 ## buildings come from the world (see World), which may say which `chunk` they belong to.
 
 const KINDS := {
-	"chicken": {"points": 10, "weight": 0.7, "heat": 0.06, "move": "peck", "speed": 1.6, "size": 0.5, "voice": "cluck"},
-	"sheep": {"points": 25, "weight": 1.1, "heat": 0.08, "move": "graze", "speed": 1.3, "size": 0.9, "voice": "baa"},
-	"pig": {"points": 30, "weight": 1.2, "heat": 0.08, "move": "graze", "speed": 1.3, "size": 0.9, "voice": "oink"},
-	"cow": {"points": 50, "weight": 1.7, "heat": 0.12, "move": "graze", "speed": 1.0, "size": 1.3, "voice": "moo"},
+	"chicken": {"points": 10, "weight": 0.7, "heat": 0.03, "move": "peck", "speed": 1.6, "size": 0.5, "voice": "cluck"},
+	"sheep": {"points": 25, "weight": 1.1, "heat": 0.04, "move": "graze", "speed": 1.3, "size": 0.9, "voice": "baa"},
+	"pig": {"points": 30, "weight": 1.2, "heat": 0.04, "move": "graze", "speed": 1.3, "size": 0.9, "voice": "oink"},
+	"cow": {"points": 50, "weight": 1.7, "heat": 0.06, "move": "graze", "speed": 1.0, "size": 1.3, "voice": "moo"},
 	"hay_bale": {"points": 15, "weight": 1.0, "heat": 0.04, "move": "still", "size": 1.0},
 	"scarecrow": {"points": 40, "weight": 1.0, "heat": 0.06, "move": "still", "size": 0.8},
 	"outhouse": {"points": 90, "weight": 2.2, "heat": 0.2, "move": "still", "size": 1.2, "voice": "scream"},
-	"farmer": {"points": 100, "weight": 1.3, "heat": 0.4, "move": "flee", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "shotgun"},
-	"person": {"points": 100, "weight": 1.3, "heat": 0.35, "move": "flee", "speed": 3.6, "size": 0.7, "voice": "scream"},
+	"farmer": {"points": 100, "weight": 1.3, "heat": 0.4, "move": "flee", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "shotgun", "caller": true},
+	"person": {"points": 100, "weight": 1.3, "heat": 0.35, "move": "flee", "speed": 3.6, "size": 0.7, "voice": "scream", "caller": true},
 	"tractor": {"points": 150, "weight": 2.6, "heat": 0.3, "move": "graze", "speed": 1.5, "size": 2.0},
 	"car": {"points": 150, "weight": 2.6, "heat": 0.4, "move": "road", "speed": 9.0, "size": 2.2},
 	"pickup": {"points": 180, "weight": 2.9, "heat": 0.4, "move": "road", "speed": 8.0, "size": 2.4},
 	# The West
-	"horse": {"points": 60, "weight": 1.6, "heat": 0.1, "move": "graze", "speed": 1.8, "size": 1.3, "voice": "neigh"},
-	"bison": {"points": 120, "weight": 2.6, "heat": 0.15, "move": "graze", "speed": 1.0, "size": 1.6, "voice": "moo"},
-	"longhorn": {"points": 70, "weight": 1.9, "heat": 0.12, "move": "graze", "speed": 1.0, "size": 1.4, "voice": "moo"},
-	"coyote": {"points": 45, "weight": 0.9, "heat": 0.06, "move": "flee", "speed": 5.0, "size": 0.8, "voice": "howl"},
-	"cowboy": {"points": 110, "weight": 1.3, "heat": 0.4, "move": "flee", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "pistol"},
+	"horse": {"points": 60, "weight": 1.6, "heat": 0.05, "move": "graze", "speed": 1.8, "size": 1.3, "voice": "neigh"},
+	"bison": {"points": 120, "weight": 2.6, "heat": 0.06, "move": "graze", "speed": 1.0, "size": 1.6, "voice": "moo"},
+	"longhorn": {"points": 70, "weight": 1.9, "heat": 0.06, "move": "graze", "speed": 1.0, "size": 1.4, "voice": "moo"},
+	"coyote": {"points": 45, "weight": 0.9, "heat": 0.02, "move": "flee", "speed": 5.0, "size": 0.8, "voice": "howl"},
+	"cowboy": {"points": 110, "weight": 1.3, "heat": 0.4, "move": "flee", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "pistol", "caller": true},
+	# Wildlife, out where nobody lives: hardly any heat
+	"bear": {"points": 120, "weight": 2.0, "heat": 0.02, "move": "graze", "speed": 1.4, "size": 1.4, "voice": "growl"},
+	"mountain_goat": {"points": 55, "weight": 1.0, "heat": 0.01, "move": "graze", "speed": 1.6, "size": 0.9, "voice": "baa"},
+	"elk": {"points": 80, "weight": 1.8, "heat": 0.02, "move": "graze", "speed": 1.6, "size": 1.4, "voice": "bugle"},
+	"pronghorn": {"points": 45, "weight": 1.0, "heat": 0.01, "move": "flee", "speed": 7.0, "size": 0.9},
+	"rabbit": {"points": 15, "weight": 0.5, "heat": 0.005, "move": "flee", "speed": 5.0, "size": 0.5},
+	"roadrunner": {"points": 30, "weight": 0.5, "heat": 0.01, "move": "flee", "speed": 7.0, "size": 0.5},
+	"crow": {"points": 10, "weight": 0.4, "heat": 0.005, "move": "fly", "speed": 3.0, "size": 0.7, "voice": "caw"},
+	"hawk": {"points": 35, "weight": 0.7, "heat": 0.01, "move": "fly", "speed": 4.0, "size": 1.1, "voice": "caw"},
+	# The telephone lines along the roads: take a pole and nobody near can call the police
+	"phone_pole": {"points": 40, "weight": 1.0, "heat": 0.05, "move": "still", "size": 1.2},
+	# Rare finds, each with a beacon of light to be seen from far off
+	"golden_cow": {"title": "THE GOLDEN COW", "model": "cow", "tints": {"hide": Color(1.0, 0.8, 0.25), "spot": Color(0.85, 0.55, 0.1), "pink": Color(1.0, 0.85, 0.5)}, "points": 2000, "weight": 1.7, "heat": 0.2, "move": "graze", "speed": 1.0, "size": 1.3, "voice": "moo", "rare": true},
+	"jackalope": {"title": "A JACKALOPE", "points": 900, "weight": 0.6, "heat": 0.05, "move": "flee", "speed": 7.5, "size": 0.6, "rare": true},
+	"sasquatch": {"title": "BIGFOOT!", "points": 3000, "weight": 2.2, "heat": 0.3, "move": "flee", "speed": 4.6, "size": 1.0, "voice": "growl", "rare": true},
+	"meteorite": {"title": "A METEORITE", "points": 2500, "weight": 2.5, "heat": 0.2, "move": "still", "size": 1.4, "rare": true},
+	"satellite": {"title": "A FALLEN SATELLITE", "points": 2000, "weight": 2.0, "heat": 0.3, "move": "still", "size": 2.0, "rare": true},
 	"saguaro": {"points": 30, "weight": 1.3, "heat": 0.03, "move": "still", "size": 0.8},
 	"pumpjack": {"points": 160, "weight": 3.0, "heat": 0.25, "move": "still", "size": 2.0},
 	"rv": {"points": 220, "weight": 3.2, "heat": 0.4, "move": "road", "speed": 7.0, "size": 2.6},
@@ -64,6 +81,23 @@ const KINDS := {
 	"mesa": {"points": 2500, "weight": 10.0, "heat": 1.2, "move": "still", "size": 2.0, "tier": 4},
 	"peak": {"points": 4000, "weight": 12.0, "heat": 1.5, "move": "still", "size": 2.0, "tier": 4},
 	"devils_tower": {"points": 5000, "weight": 12.0, "heat": 2.0, "move": "still", "size": 2.0, "tier": 4},
+	# The law, the army, and those who watch the sky (tier 3, but for the jets and the parked ones)
+	"police_station": {"points": 600, "weight": 5.0, "heat": 0.8, "move": "still", "size": 4.0, "tier": 3, "station": "police"},
+	"hangar": {"points": 800, "weight": 6.0, "heat": 0.8, "move": "still", "size": 5.0, "tier": 3, "station": "army"},
+	"watchtower": {"points": 300, "weight": 4.0, "heat": 0.5, "move": "still", "size": 2.0, "tier": 3, "searchlight": true, "light_y": 9.0, "station": "army"},
+	"tent": {"points": 40, "weight": 1.0, "heat": 0.1, "move": "still", "size": 2.0, "tier": 2},
+	"fighter_jet": {"model": "jet", "points": 1500, "weight": 3.0, "heat": 0.8, "move": "still", "size": 3.0, "tier": 2, "rest_y": 1.1},
+	"parked_jeep": {"model": "jeep", "points": 300, "weight": 3.0, "heat": 0.5, "move": "still", "size": 2.2},
+	"parked_tank": {"model": "tank", "points": 700, "weight": 4.5, "heat": 0.8, "move": "still", "size": 3.0},
+	# A substation: hold the beam over it to drain its power into the shield (then it can be taken)
+	"substation": {"points": 500, "weight": 5.0, "heat": 0.4, "move": "still", "size": 4.0, "tier": 3, "power": 60.0},
+	# They watch for the ship; linger near one and it gives the ship away
+	"observatory": {"points": 900, "weight": 6.0, "heat": 0.6, "move": "still", "size": 4.0, "tier": 3, "watch": 45.0, "why": "THE OBSERVATORY SAW YOU"},
+	"seti_dish": {"points": 600, "weight": 5.0, "heat": 0.5, "move": "still", "size": 3.0, "tier": 3, "watch": 55.0, "why": "SIGNAL DETECTED"},
+	# Ships held in secret government facilities: take one and it is yours to fly
+	"captured_orb": {"title": "YOU FOUND THE ORB: IT'S YOURS", "model": "orb", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "orb", "rest_y": 1.5},
+	"captured_triangle": {"title": "YOU FOUND THE BLACK TRIANGLE: IT'S YOURS", "model": "triangle", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "triangle", "rest_y": 0.6},
+	"floodlight": {"points": 150, "weight": 2.5, "heat": 0.3, "move": "still", "size": 1.2, "tier": 3},
 	"police_car": {"points": 300, "weight": 3.0, "heat": 0.6, "move": "chase", "speed": 7.5, "size": 2.2, "gun": "pistol", "keep": 10.0, "enemy": true},
 	"jeep": {"points": 400, "weight": 3.4, "heat": 0.7, "move": "chase", "speed": 7.0, "size": 2.2, "gun": "mg", "keep": 12.0, "enemy": true},
 	"tank": {"points": 800, "weight": 5.0, "heat": 1.0, "move": "chase", "speed": 4.0, "size": 3.0, "gun": "cannon", "keep": 16.0, "enemy": true},
@@ -111,6 +145,24 @@ var obstacle := Vector4.ZERO
 ## How far from the beam's middle it can be and still be caught
 var reach := 0.4
 var fan: Node3D
+var wings: Array[Node3D] = []
+## How high a bird flies
+var fly_y := 0.0
+## A phone pole's wires to the next pole along, and where they go
+var wires: Node3D
+var wire_to := Vector3.INF
+## A person who has seen the ship counts down to getting through to the police (see main.gd `phone_call`)
+var calling := -1.0
+var _call_label: Label3D
+var beacon: MeshInstance3D
+## How far its model sits off the ground (a jet on its wheels)
+var model_y := 0.0
+## A substation's power left; the parts that aim at the ship (a dish, an observatory's dome)
+var power := 0.0
+var aim: Node3D
+## How long a watcher has had the ship in view
+var watching := 0.0
+var _rattling := false
 ## A pumpjack nods its beam
 var beam_arm: Node3D
 ## A patrol's searchlight: the lamp turns on `light`, whose +Y is where it points
@@ -141,6 +193,7 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 		tints["shirt"] = SHIRTS[randi() % SHIRTS.size()]
 	if k in ["car"]:
 		tints["paint"] = Color.from_hsv(randf(), randf_range(0.4, 0.7), randf_range(0.5, 0.8))
+	tints.merge(info.get("tints", {}), true)
 	tints.merge(extra.get("tints", {}), true)
 	model = Ps1.model(extra.get("model", info.get("model", k)), tints, true)
 	add_child(model)
@@ -148,12 +201,26 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 		heading = extra["turn"]
 	base_size = extra.get("size", 1.0)
 	model.scale = Vector3.ONE * base_size
+	model_y = info.get("rest_y", 0.0)
+	model.position.y = model_y
+	power = info.get("power", 0.0)
+	aim = model.find_child("dish*", true, false) as Node3D
+	if aim == null:
+		aim = model.find_child("cupola*", true, false) as Node3D
 	chunk = extra.get("chunk", NO_CHUNK)
 	obstacle = extra.get("obstacle", Vector4.ZERO)
 	reach = obstacle.z + 3.5 if obstacle != Vector4.ZERO else size() * 0.4 * base_size
-	fan = model.find_child("fan", true, false) as Node3D
-	turret = model.find_child("turret", true, false) as Node3D
-	beam_arm = model.find_child("beam", true, false) as Node3D
+	fan = model.find_child("fan*", true, false) as Node3D
+	wings = [model.find_child("wing_l*", true, false) as Node3D, model.find_child("wing_r*", true, false) as Node3D]
+	if info["move"] == "fly":
+		fly_y = randf_range(2.5, 6.0)
+		position.y = fly_y
+	if extra.has("wire_to"):
+		_string_wires(extra["wire_to"])
+	if info.get("rare", false):
+		_beacon()
+	turret = model.find_child("turret*", true, false) as Node3D
+	beam_arm = model.find_child("beam*", true, false) as Node3D
 	if info.get("searchlight", false):
 		_build_searchlight()
 	rotation.y = heading
@@ -187,6 +254,16 @@ func ground() -> Vector3:
 
 func tick(delta: float, ufo: Ufo) -> void:
 	_t += delta
+	if calling > 0.0:
+		calling -= delta
+		_call_label.visible = fmod(_t, 0.5) < 0.35
+		if calling <= 0.0:
+			_call_label.visible = false
+			game.phone_call(self)
+	if not wings.is_empty() and wings[0] != null:
+		var beat := sin(_t * (14.0 if state == "walk" else 24.0)) * 0.7
+		wings[0].rotation.y = beat
+		wings[1].rotation.y = -beat
 	match state:
 		"lifted":
 			_rise(delta, ufo)
@@ -205,6 +282,15 @@ func _rise(delta: float, ufo: Ufo) -> void:
 		fall_from = position.y
 		Ps1.flash(model, Color.BLACK)
 		return
+	if calling > 0.0:
+		# (taken before it gets through)
+		calling = -1.0
+		_call_label.visible = false
+	if wires != null and wires.visible:
+		wires.visible = false
+		game.line_cut(self)
+	if beacon != null:
+		beacon.visible = false
 	if obstacle != Vector4.ZERO:
 		# (once the land is in the beam it no longer stands in the way)
 		game.world.remove_obstacle(chunk, obstacle)
@@ -294,6 +380,17 @@ func _walk(delta: float, ufo: Ufo) -> void:
 					var a := randf() * TAU
 					goal = here + Vector3(sin(a), 0, cos(a)) * randf_range(20.0, 40.0)
 				want = (goal - here).normalized()
+		"fly":
+			if near < 10.0 or panic > 0.0:
+				want = -to_ufo.normalized() if near > 0.01 else Vector3.FORWARD
+				pace *= 2.0
+			else:
+				think -= delta
+				if think <= 0.0 or here.distance_to(goal) < 2.0:
+					think = randf_range(3.0, 7.0)
+					goal = home + Vector3(randf_range(-20, 20), 0, randf_range(-20, 20))
+				want = (goal - here).normalized()
+			position.y = lerpf(position.y, fly_y + sin(_t * 1.3) * 0.4, minf(delta * 1.5, 1.0))
 		"chase":
 			var keep: float = info["keep"]
 			if leaving:
@@ -335,9 +432,12 @@ func _walk(delta: float, ufo: Ufo) -> void:
 		model.rotation.z = sin(_t * speed * 4.0) * 0.08
 	elif kind == "chicken" and info["move"] == "peck" and speed < 0.2:
 		model.rotation.x = maxf(sin(_t * 5.0), 0.0) * 0.6
-	else:
-		model.position.y = 0.0
+	elif not _rattling:
+		model.position = Vector3(0, model_y, 0)
 		model.rotation.z = sin(_t * 3.0) * 0.01 * speed
+	_rattling = false
+	if aim != null:
+		_aim(delta, ufo)
 
 
 var _chase_want := Vector3.ZERO
@@ -363,7 +463,7 @@ func _chase(delta: float, ufo: Ufo, to_ufo: Vector3, near: float, pace: float) -
 
 func _build_searchlight() -> void:
 	light = Node3D.new()
-	light.position = Vector3(0, 2.3, 0)
+	light.position = Vector3(0, info.get("light_y", 2.3), 0)
 	add_child(light)
 	Ps1.part(light, BoxMesh.new(), Ps1.flat(Color(1.0, 0.97, 0.85)), Vector3.ZERO, Vector3(0.45, 0.25, 0.45))
 	var cone := CylinderMesh.new()
@@ -407,6 +507,90 @@ func _aim_light(delta: float, ufo: Ufo) -> void:
 		var off := (to - axis * along).length()
 		if off < 0.2 + along * (LIGHT_WIDE / LIGHT_LONG) + ufo.radius * 0.6:
 			game.spotted(self, delta)
+
+
+## Too heavy for the beam that has hold of it: it shakes where it stands
+func rattle() -> void:
+	_rattling = true
+	model.position = Vector3(randf_range(-0.1, 0.1), model_y + randf() * 0.08, randf_range(-0.1, 0.1))
+	model.rotation.z = randf_range(-0.04, 0.04)
+
+
+## A dish or an observatory turns to look at the ship when it is about
+func _aim(delta: float, ufo: Ufo) -> void:
+	var to: Vector3 = transform.basis.inverse() * (ufo.position - aim.global_position)
+	if to.length() > 90.0:
+		return
+	var yaw := atan2(to.x, to.z)
+	if aim.name.begins_with("dish"):
+		var tilt := acos(clampf(to.normalized().y, -1.0, 1.0))
+		aim.rotation.y = lerp_angle(aim.rotation.y, yaw, minf(delta * 1.5, 1.0))
+		aim.rotation.x = lerpf(aim.rotation.x, clampf(tilt, 0.1, 1.4), minf(delta * 1.5, 1.0))
+	else:
+		aim.rotation.y = lerp_angle(aim.rotation.y, yaw, minf(delta * 0.8, 1.0))
+
+
+## Starts phoning the police (if it can phone, is not already, and is about)
+func witness() -> void:
+	if not info.get("caller", false) or calling > 0.0 or state != "walk":
+		return
+	calling = 4.0
+	if _call_label == null:
+		_call_label = Label3D.new()
+		_call_label.text = "!"
+		_call_label.font = game.font
+		_call_label.font_size = 96
+		_call_label.pixel_size = 0.02
+		_call_label.modulate = Color(1.0, 0.3, 0.2)
+		_call_label.outline_size = 14
+		_call_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_call_label.no_depth_test = true
+		_call_label.position = Vector3(0, 2.6, 0)
+		add_child(_call_label)
+
+
+func _string_wires(to: Vector3) -> void:
+	wire_to = to
+	wires = Node3D.new()
+	add_child(wires)
+	var a := Vector3(position.x, 6.95, position.z)
+	var b := Vector3(to.x, 6.95, to.z)
+	var across := (b - a).cross(Vector3.UP).normalized()
+	var black := Ps1.flat(Color(0.05, 0.05, 0.06))
+	for off: float in [-0.8, -0.3, 0.3, 0.8]:
+		var mi := MeshInstance3D.new()
+		mi.mesh = BoxMesh.new()
+		mi.material_override = black
+		var from := a + across * off
+		var end := b + across * off
+		mi.position = (from + end) * 0.5 - position + Vector3(0, -0.15, 0)
+		mi.scale = Vector3(0.04, 0.04, from.distance_to(end))
+		mi.look_at_from_position(mi.position, mi.position + (end - from), Vector3.UP)
+		mi.scale = Vector3(0.04, 0.04, from.distance_to(end))
+		wires.add_child(mi)
+	# (the wires belong to the world, not to the pole's turning)
+	wires.top_level = false
+
+
+## A tall shaft of gold light over a rare find, so it can be seen from far off
+func _beacon() -> void:
+	beacon = MeshInstance3D.new()
+	var shaft := CylinderMesh.new()
+	shaft.top_radius = 0.6
+	shaft.bottom_radius = 0.9
+	shaft.height = 40.0
+	shaft.radial_segments = 8
+	shaft.cap_top = false
+	shaft.cap_bottom = false
+	beacon.mesh = shaft
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/beam.gdshader")
+	m.set_shader_parameter("tint", Color(1.0, 0.8, 0.3))
+	m.set_shader_parameter("power", 0.6)
+	beacon.material_override = m
+	beacon.position.y = 20.0
+	beacon.extra_cull_margin = 60.0
+	add_child(beacon)
 
 
 func _arm_gun() -> void:

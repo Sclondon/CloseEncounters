@@ -9,6 +9,8 @@ uniform sampler2D biomes : filter_nearest;
 uniform vec2 biome_corner = vec2(0.0);
 uniform float chunk = 48.0;
 uniform float road_every = 240.0;
+// Crop circles: (x, z, radius, -) each, pressed into the crop fields only (see world.gd crop_circle)
+uniform vec4 circles[24];
 
 float hash(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -42,6 +44,20 @@ vec3 farm(vec2 p, float speck) {
 		c = mix(vec3(0.12, 0.26, 0.08), vec3(0.22, 0.38, 0.12), step(0.45, row)) * (0.9 + 0.15 * speck);
 	} else {
 		c = mix(vec3(0.3, 0.42, 0.18), vec3(0.36, 0.46, 0.2), speck);
+	}
+	// A crop circle: the crop laid flat in rings, pale under the moon
+	if (h >= 0.3 && h < 0.85) {
+		for (int i = 0; i < 24; i++) {
+			vec4 cc = circles[i];
+			if (cc.z <= 0.0) continue;
+			float d = length(p - cc.xy);
+			if (d < cc.z) {
+				float ring = step(0.5, fract(d / cc.z * 3.0));
+				float centre = 1.0 - step(cc.z * 0.18, d);
+				c = mix(vec3(0.78, 0.72, 0.5), vec3(0.6, 0.55, 0.36), ring) * (0.95 + 0.1 * speck);
+				c = mix(c, vec3(0.85, 0.8, 0.58), centre);
+			}
+		}
 	}
 	float border = min(min(in_cell.x, 1.0 - in_cell.x), min(in_cell.y, 1.0 - in_cell.y)) * field;
 	if (border < 0.7) {

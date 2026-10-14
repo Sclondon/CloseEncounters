@@ -55,6 +55,7 @@ static func ball() -> SphereMesh:
 
 static func part(parent: Node, mesh: Mesh, material: Material, at: Vector3, size := Vector3.ONE, turn := Vector3.ZERO) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
+	mi.extra_cull_margin = 70.0
 	mi.mesh = mesh
 	mi.material_override = material
 	mi.position = at
@@ -99,6 +100,10 @@ static func _first_mesh(n: Node) -> MeshInstance3D:
 static func _dress(n: Node, tints: Dictionary, own_mats: bool) -> void:
 	if n is MeshInstance3D:
 		var mi: MeshInstance3D = n
+		# Godot decides what is on screen before the world is bent: far things, which the bend
+		# drops into view, would otherwise only pop in once they were close
+		mi.extra_cull_margin = 70.0
+		mi.visibility_range_end = 170.0
 		for i in mi.mesh.get_surface_count():
 			var was := mi.mesh.surface_get_material(i)
 			var c := Color.WHITE
@@ -116,7 +121,8 @@ static func _dress(n: Node, tints: Dictionary, own_mats: bool) -> void:
 			if tints.has(label):
 				c = tints[label]
 			var m: Material
-			if label == "glass" and mi.name == "dome":
+			# (Blender numbers names that repeat across its scene: "dome", "dome_001", ...)
+			if label == "glass" and String(mi.name).begins_with("dome"):
 				m = ShaderMaterial.new()
 				m.shader = GLASS
 			elif own_mats:
@@ -126,6 +132,27 @@ static func _dress(n: Node, tints: Dictionary, own_mats: bool) -> void:
 			mi.set_surface_override_material(i, m)
 	for c in n.get_children():
 		_dress(c, tints, own_mats)
+
+
+## A see-through copy of a model in one colour, fading from `alpha` (for afterimages)
+static func ghost_of(name: String, c: Color, alpha: float) -> Node3D:
+	var n := model(name)
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://shaders/ghost.gdshader")
+	m.set_shader_parameter("tint", c)
+	m.set_shader_parameter("alpha", alpha)
+	n.set_meta("ghost", m)
+	_ghost(n, m)
+	return n
+
+
+static func _ghost(n: Node, m: Material) -> void:
+	if n is MeshInstance3D:
+		var mi: MeshInstance3D = n
+		for i in mi.get_surface_override_material_count():
+			mi.set_surface_override_material(i, m)
+	for c in n.get_children():
+		_ghost(c, m)
 
 
 ## Lights up every material of a model dressed with `own_mats` (black to put it out)

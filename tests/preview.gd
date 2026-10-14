@@ -13,7 +13,10 @@ func _initialize() -> void:
 	main.start_mode = "play"
 	main.autopilot = true
 	main.testing = true
+	main.intro_in_tests = true
 	root.add_child(main)
+	# (no touch controls in the film, whatever this machine has)
+	main._touch_screen = false
 
 
 func _process(_delta: float) -> bool:

@@ -3,7 +3,8 @@ extends Node3D
 ## The pilot: the alien of Cryptlins, built the same way (cryptlin.gd `_build_alien`, with its parts,
 ## proportions and colours: a head too big for its body, long thin hands, and two great slanted
 ## black eyes with a light far down in each). Here it sits in the saucer's dome and looks where it
-## is going, raises its arms while the beam is on, cheers each catch and flinches when hit.
+## is going and works the stick and buttons in front of it (see Ufo `panel`), mashing the buttons
+## while the beam is on; it cheers each catch, flinches when hit, and is flung about in a dodge.
 ##
 ## Each one is its own (`look_seed`, a new one every run): its coat and the light in its eyes are from
 ## the alien's colours in Cryptlins, drifted a little, and its build, the size of its head and eyes,
@@ -129,16 +130,13 @@ func _process(delta: float) -> void:
 	_t += delta
 	if mood_time > 0.0:
 		mood_time -= delta
-		if mood_time <= 0.0 and mood in ["cheer", "hurt"]:
+		if mood_time <= 0.0 and mood in ["cheer", "hurt", "tossed"]:
 			mood = "steer"
 	var arm_goal := STEER_ARM
 	var wave := 0.0
 	var hop := 0.0
 	var open := 1.0
 	match mood:
-		"beam":
-			arm_goal = UP_ARM
-			wave = 0.15
 		"cheer":
 			arm_goal = UP_ARM
 			wave = 0.5
@@ -147,23 +145,47 @@ func _process(delta: float) -> void:
 		"hurt":
 			arm_goal = Vector3(-2.2, 0.0, 0.6)
 			open = 0.4
+		"tossed":
+			arm_goal = UP_ARM
+			wave = 1.2
+			open = 1.35
 		"dead":
 			arm_goal = UP_ARM
 			wave = 0.9
 			open = 1.3
-	_arm = _arm.lerp(arm_goal, minf(delta * 8.0, 1.0))
-	var w := sin(_t * 9.0) * wave
-	# (at the controls, its hands work them a little)
-	var work := sin(_t * 5.0) * 0.12 if mood == "steer" else 0.0
-	arms[1].rotation = Vector3(_arm.x + w + work, _arm.y, _arm.z)
-	arms[0].rotation = Vector3(_arm.x - w - work, -_arm.y, -_arm.z)
+	_arm = _arm.lerp(arm_goal, minf(delta * (20.0 if mood == "tossed" else 8.0), 1.0))
+	var w := sin(_t * (20.0 if mood == "tossed" else 9.0)) * wave
+	# At the controls: the right hand on the stick, leaning it the way the ship goes, and the left
+	# on the buttons; with the beam on, both hands mash the buttons as fast as they can
+	var right := Vector3.ZERO
+	var left := Vector3.ZERO
+	if mood == "steer":
+		right = Vector3(-look.y * 0.6, 0, -look.x * 0.5)
+		left = Vector3(sin(_t * 4.0) * 0.15 + maxf(sin(_t * 11.0), 0.0) * 0.2, 0, 0)
+	elif mood == "beam":
+		right = Vector3(maxf(sin(_t * 30.0), 0.0) * 0.8 - 0.2, 0, 0.25 * sin(_t * 7.0))
+		left = Vector3(maxf(sin(_t * 30.0 + PI), 0.0) * 0.8 - 0.2, 0, -0.25 * sin(_t * 5.0))
+		hop = absf(sin(_t * 15.0)) * 0.03
+	arms[1].rotation = Vector3(_arm.x + w + right.x, _arm.y, _arm.z + right.z)
+	arms[0].rotation = Vector3(_arm.x - w + left.x, -_arm.y, -_arm.z + left.z)
 	torso.position.y = hop + sin(_t * 2.0) * 0.008
 	if mood == "hurt":
 		torso.rotation.z = sin(_t * 40.0) * 0.12
+		torso.position.x = 0.0
+	elif mood == "tossed":
+		# Flung about inside the dome as the ship spins
+		torso.rotation = Vector3(sin(_t * 31.0) * 0.45, 0.0, sin(_t * 23.0) * 0.6)
+		torso.position = Vector3(sin(_t * 17.0) * 0.07, hop + absf(sin(_t * 13.0)) * 0.08, cos(_t * 19.0) * 0.05)
 	else:
+		torso.rotation.x = lerpf(torso.rotation.x, 0.1 if mood == "beam" else 0.0, minf(delta * 8.0, 1.0))
 		torso.rotation.z = lerpf(torso.rotation.z, -look.x * 0.15, minf(delta * 4.0, 1.0))
-	_yaw = lerpf(_yaw, clampf(look.x * 0.9, -0.9, 0.9), minf(delta * 5.0, 1.0))
+		torso.position.x = lerpf(torso.position.x, 0.0, minf(delta * 8.0, 1.0))
+		torso.position.z = lerpf(torso.position.z, 0.0, minf(delta * 8.0, 1.0))
+	_yaw =lerpf(_yaw, clampf(look.x * 0.9, -0.9, 0.9), minf(delta * 5.0, 1.0))
 	_pitch = lerpf(_pitch, 0.35 if mood == "beam" else clampf(-look.y * 0.2, -0.3, 0.3), minf(delta * 5.0, 1.0))
+	if mood == "tossed":
+		_yaw = sin(_t * 15.0) * 0.8
+		_pitch = cos(_t * 12.0) * 0.4
 	neck.rotation = Vector3(_pitch, _yaw, 0.0)
 	# It blinks now and then, both eyes together
 	_blink -= delta
@@ -173,7 +195,7 @@ func _process(delta: float) -> void:
 			_blink = randf_range(1.5, 4.5)
 	for e in eyes:
 		e.scale.y = lerpf(e.scale.y, open * float(e.get_meta("size", 1.0)), minf(delta * 25.0, 1.0))
-	mouth_node.scale = Vector3.ONE * (1.6 if mood in ["cheer", "dead"] else 1.0)
+	mouth_node.scale = Vector3.ONE * (1.6 if mood in ["cheer", "dead", "tossed"] else 1.0)
 
 
 func _pivot(parent: Node3D, at: Vector3) -> Node3D:
