@@ -154,16 +154,14 @@ var _touch_from := {}
 const NO_FINGER := -1
 ## When and where the mouse Godot makes of a touch went down: [position, time], or empty
 var _mouse_down: Array = []
-## A tap: this short and this still
-const TAP_TIME := 0.3
-const TAP_SLOP := 24.0
-## The beam left on by a tap on its mark (off with another)
-var beam_latched := false
+var _mouse_frame := 0
+var _touch_frame_seen := true
+var _touch_down_frame := -10
 ## Where the finger beaming is (the mark follows it)
 var _beam_at := Vector2.INF
-## Where a tap on the ground sent the ship, and the mark on the ground there
-var _move_target := Vector3.INF
-var _target_mark: MeshInstance3D
+## A finger known only from the mouse Godot made of it (its own coming down was lost), until a
+## drag or its lifting says which finger it is
+const PENDING := -2
 const SWIPE_TIME := 0.3
 const SWIPE_LENGTH := 70.0
 
@@ -188,16 +186,6 @@ func _ready() -> void:
 	_spawn_some(true)
 	_warm_models()
 	_build_hud()
-	_target_mark = MeshInstance3D.new()
-	var ring := TorusMesh.new()
-	ring.inner_radius = 1.0
-	ring.outer_radius = 1.3
-	ring.rings = 16
-	ring.ring_segments = 4
-	_target_mark.mesh = ring
-	_target_mark.material_override = Ps1.flat(Color(0.5, 1.0, 0.6))
-	_target_mark.visible = false
-	view.add_child(_target_mark)
 	if start_mode == "play":
 		start()
 	else:
@@ -315,8 +303,7 @@ func start() -> void:
 	alien_seed = randi()
 	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0}
 	_cuts.clear()
-	beam_latched = false
-	_move_target = Vector3.INF
+	_forget_fingers()
 	_make_ufo(Vector3.ZERO)
 	heat = 0.0
 	calm = 0.0
@@ -354,7 +341,7 @@ func _process(delta: float) -> void:
 		ufo.descent = INTRO_HEIGHT * pow(1.0 - k, 2.2)
 	elif mode == "play" and not autopilot:
 		steer = _read_steer()
-		beam = Input.is_action_pressed("beam") or beam_finger != NO_FINGER or beam_latched
+		beam = Input.is_action_pressed("beam") or beam_finger != NO_FINGER
 		if Input.is_action_just_pressed("dodge"):
 			# (the way it is steered, or else the way it is going, or else away up the screen)
 			var way := steer if steer.length() > 0.2 else Vector2(ufo.velocity.x, ufo.velocity.z)
@@ -364,7 +351,7 @@ func _process(delta: float) -> void:
 		steer = pilot[0]
 		beam = pilot[1]
 	if _touch_debug and Engine.get_process_frames() % 30 == 0:
-		_debug_state = "stick finger %d %s | beam finger %d latched %s | steer %s beam %s | target %s | view %s" % [stick_finger, stick.snapped(Vector2(0.01, 0.01)), beam_finger, beam_latched, steer.snapped(Vector2(0.01, 0.01)), beam, _move_target != Vector3.INF, get_viewport().get_visible_rect().size]
+		_debug_state = "stick finger %d %s | beam finger %d | steer %s beam %s | view %s" % [stick_finger, stick.snapped(Vector2(0.01, 0.01)), beam_finger, steer.snapped(Vector2(0.01, 0.01)), beam, get_viewport().get_visible_rect().size]
 		print("[CE] " + _debug_state)
 		_debug_show()
 	ufo.tick(delta, steer, beam)
@@ -445,6 +432,8 @@ func _process(delta: float) -> void:
 		_patrols(delta)
 	world.update(ufo.position, delta)
 	_spawn_some()
+	if mode == "play" and not autopilot and not get_tree().paused:
+		_pending_fingers()
 	_cull(delta)
 	_sounds()
 	_camera(delta)
@@ -472,21 +461,8 @@ func _dodge(way: Vector2) -> void:
 
 func _read_steer() -> Vector2:
 	var v := Input.get_vector("left", "right", "up", "down")
-	if v.length() > 0.1:
-		_move_target = Vector3.INF
 	if stick_finger != NO_FINGER:
 		v = stick
-	elif _move_target != Vector3.INF:
-		# (flying to where the ground was tapped)
-		var to := _move_target - ufo.ground()
-		if to.length() < 1.2:
-			_move_target = Vector3.INF
-		else:
-			v = Vector2(to.x, to.z).normalized() * clampf(to.length() / 3.0, 0.35, 1.0)
-	_target_mark.visible = _move_target != Vector3.INF and mode == "play"
-	if _target_mark.visible:
-		_target_mark.position = _move_target + Vector3(0, 0.1, 0)
-		_target_mark.rotation.y += 0.05
 	return v.limit_length(1.0)
 
 
@@ -1453,6 +1429,7 @@ func _show_title() -> void:
 ## Gives up the run (no score is sent) and goes back to the title, the ship flying itself again
 func quit_to_menu() -> void:
 	set_paused(false)
+	_forget_fingers()
 	for t in things.duplicate():
 		if t.is_enemy():
 			_remove(t)
@@ -1471,6 +1448,16 @@ func quit_to_menu() -> void:
 	_show_title()
 
 
+## Forgets every finger (a run starting or ending, or the game pausing)
+func _forget_fingers() -> void:
+	stick_finger = NO_FINGER
+	beam_finger = NO_FINGER
+	stick = Vector2.ZERO
+	_touch_from.clear()
+	_mouse_down = []
+	_touch_frame_seen = true
+
+
 func set_paused(on: bool) -> void:
 	if mode != "play":
 		return
@@ -1478,11 +1465,7 @@ func set_paused(on: bool) -> void:
 	_pause_box.visible = on
 	if on:
 		_resume_button.call_deferred("grab_focus")
-		stick_finger = NO_FINGER
-		beam_finger = NO_FINGER
-		beam_latched = false
-		_move_target = Vector3.INF
-		stick = Vector2.ZERO
+		_forget_fingers()
 
 
 func _banner(text: String, seconds: float) -> void:
@@ -1522,12 +1505,37 @@ func _hud(delta: float) -> void:
 		banner.text = ""
 
 
+## A mouse press with no touch with it, two frames on: its finger's coming down was lost, so the
+## press stands in for it until the finger is heard from (see _name_pending)
+func _pending_fingers() -> void:
+	if _mouse_down.is_empty() or _touch_frame_seen or Engine.get_process_frames() - _mouse_frame < 2:
+		return
+	if stick_finger == PENDING or beam_finger == PENDING or _touch_from.has(PENDING):
+		return
+	_touch_frame_seen = true
+	_finger_down(PENDING, _mouse_down[0])
+
+
+## A finger heard from for the first time takes over a press that stood in for it
+func _name_pending(index: int) -> void:
+	if index == PENDING or not (stick_finger == PENDING or beam_finger == PENDING or _touch_from.has(PENDING)):
+		return
+	if _touch_from.has(index):
+		return
+	if stick_finger == PENDING:
+		stick_finger = index
+	if beam_finger == PENDING:
+		beam_finger = index
+	if _touch_from.has(PENDING):
+		_touch_from[index] = _touch_from[PENDING]
+		_touch_from.erase(PENDING)
+
+
 ## The stick comes up under the thumb, centred there: nothing moves until the thumb does
 func _take_stick(index: int, at: Vector2) -> void:
 	stick_finger = index
 	stick_from = at
 	stick = Vector2.ZERO
-	_move_target = Vector3.INF
 
 
 func _stick_reach() -> float:
@@ -1608,6 +1616,9 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventScreenTouch and event.pressed and _pause_button.visible \
 			and _pause_button.get_global_rect().grow(8).has_point(event.position):
+		# (a touch, even one left to the button: its mouse is not a lost finger)
+		_touch_down_frame = Engine.get_process_frames()
+		_touch_frame_seen = true
 		return
 	if event is InputEventScreenTouch:
 		var e: InputEventScreenTouch = event
@@ -1622,11 +1633,20 @@ func _input(event: InputEvent) -> void:
 	# went down is kept, for a finger whose own coming down was lost
 	elif event is InputEventMouseButton and event.device == InputEvent.DEVICE_ID_EMULATION and event.pressed:
 		_mouse_down = [event.position, Time.get_ticks_msec() / 1000.0]
+		_mouse_frame = Engine.get_process_frames()
+		# (a touch that came down this frame or the last is the finger this mouse was made of)
+		_touch_frame_seen = _touch_down_frame >= _mouse_frame - 1
+	elif event is InputEventMouseButton and event.device == InputEvent.DEVICE_ID_EMULATION and not event.pressed:
+		if stick_finger == PENDING or beam_finger == PENDING or _touch_from.has(PENDING):
+			_finger_up(PENDING, event.position)
 
 
 ## A finger down: the right half (or the beam's mark) beams, the left half steers from the stick's home
 func _finger_down(index: int, at: Vector2) -> void:
 	touched = true
+	if index != PENDING:
+		_touch_frame_seen = true
+		_touch_down_frame = Engine.get_process_frames()
 	var now := Time.get_ticks_msec() / 1000.0
 	_touch_from[index] = [at, now]
 	if at.x > get_viewport().get_visible_rect().size.x * 0.5:
@@ -1640,6 +1660,7 @@ func _finger_down(index: int, at: Vector2) -> void:
 ## A finger moving: if its coming down was never heard of (some phones lose it), it is taken up now
 func _finger_moved(index: int, at: Vector2) -> void:
 	touched = true
+	_name_pending(index)
 	if index == stick_finger:
 		stick = _stick_toward(at)
 	elif index == beam_finger:
@@ -1660,6 +1681,7 @@ func _finger_moved(index: int, at: Vector2) -> void:
 ## A finger lifted: a flick dodges; a tap on the beam's mark turns the beam on or off, and a tap
 ## anywhere else flies the ship there (so a phone that only gets taps through can still play)
 func _finger_up(index: int, at: Vector2) -> void:
+	_name_pending(index)
 	var now := Time.get_ticks_msec() / 1000.0
 	if not _touch_from.has(index) and not _mouse_down.is_empty() and now - float(_mouse_down[1]) < 1.0:
 		_touch_from[index] = _mouse_down
@@ -1671,28 +1693,12 @@ func _finger_up(index: int, at: Vector2) -> void:
 		var held := now - float(from[1])
 		if held < SWIPE_TIME and moved.length() > SWIPE_LENGTH:
 			_dodge(moved)
-		elif held < TAP_TIME and moved.length() < TAP_SLOP:
-			if at.x > get_viewport().get_visible_rect().size.x * 0.5:
-				beam_latched = not beam_latched
-			else:
-				_fly_to(at)
 	if index == beam_finger:
 		beam_finger = NO_FINGER
 	if index == stick_finger:
 		stick_finger = NO_FINGER
 		stick = Vector2.ZERO
 
-
-## Flies the ship to the point on the ground under `at` (a point on the screen)
-func _fly_to(at: Vector2) -> void:
-	var picture := Vector2(view.size) / get_viewport().get_visible_rect().size
-	var p := at * picture
-	var from := camera.project_ray_origin(p)
-	var way := camera.project_ray_normal(p)
-	if way.y >= -0.01:
-		return
-	var hit := from + way * (-from.y / way.y)
-	_move_target = Vector3(hit.x, 0, hit.z)
 
 # ------------------------------------------------------------------ bests
 
@@ -1710,7 +1716,6 @@ func _load_best() -> void:
 		var kept: String = cfg.get_value("best", "ship", "saucer")
 		if Ufo.SHIPS.has(kept) and kept in unlocked:
 			ship = kept
-
 
 func _save_best() -> void:
 	if testing:
@@ -1855,7 +1860,7 @@ class BeamButton extends Control:
 	func _draw() -> void:
 		var r := size.x * 0.5
 		var c := Vector2(r, r)
-		var on: bool = main.beam_finger != main.NO_FINGER or main.beam_latched
+		var on: bool = main.beam_finger != main.NO_FINGER
 		var t := Time.get_ticks_msec() / 1000.0
 		for i in 6:
 			draw_circle(c, r * (1.0 - i * 0.12), Color(0.3, 1.0, 0.45, (0.05 if on else 0.012) * (i + 1)))
