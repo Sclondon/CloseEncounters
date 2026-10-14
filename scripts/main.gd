@@ -1169,16 +1169,16 @@ func _build_hud() -> void:
 	hud.add_child(root)
 
 	coin = Coin.new()
-	coin.position = Vector2(92, 22)
+	coin.position = Vector2(20, 22)
 	coin.size = Vector2(38, 38)
 	coin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(coin)
 	score_label = _label(40, Color(0.75, 1.0, 0.78))
-	score_label.position = Vector2(138, 12)
+	score_label.position = Vector2(66, 12)
 	_glow(score_label, Color(0.3, 1.0, 0.45, 0.55))
 	root.add_child(score_label)
 	mult_label = _label(24, Color(0.6, 1.0, 0.6))
-	mult_label.position = Vector2(140, 58)
+	mult_label.position = Vector2(68, 58)
 	root.add_child(mult_label)
 	log_box = VBoxContainer.new()
 	log_box.position = Vector2(22, 100)
@@ -1289,7 +1289,8 @@ func _build_hud() -> void:
 
 	_pause_button = _button("II", func() -> void: set_paused(true))
 	_pause_button.custom_minimum_size = Vector2(64, 56)
-	_pause_button.position = Vector2(16, 14)
+	_pause_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_pause_button.position = Vector2(-80, 14)
 	_pause_button.focus_mode = Control.FOCUS_NONE
 	root.add_child(_pause_button)
 	_pause_box = _panel(root)
