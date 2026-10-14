@@ -80,6 +80,36 @@ func _process(_delta: float) -> bool:
 			main.quit_to_menu()
 		140:
 			_check(main.mode == "title" and not paused and main.title_box.visible, "quitting from the pause menu goes back to the title")
+			main._touch_screen = true
+			main.start()
+		150:
+			# As an iPhone sent it: no finger down at all, only drags with a huge identifier, then up
+			_drag(1273130520, Vector2(size.x * 0.25, size.y * 0.5), Vector2(-8, 0))
+		151:
+			_drag(1273130520, Vector2(size.x * 0.24, size.y * 0.5), Vector2(-8, 0))
+		190:
+			_check(main.stick_finger == 1273130520 and main.ufo.velocity.length() > 3.0, "a drag whose finger-down was lost still takes the stick (speed %.1f)" % main.ufo.velocity.length())
+			_touch(1273130520, Vector2(size.x * 0.24, size.y * 0.5), false)
+		200:
+			_check(main.stick_finger == main.NO_FINGER, "and lifting it lets go")
+			_touch(7, Vector2(size.x * 0.3, size.y * 0.3), true)
+		202:
+			_touch(7, Vector2(size.x * 0.3, size.y * 0.3), false)
+		203:
+			_check(main._move_target != Vector3.INF, "a tap on the ground sets where to fly")
+		240:
+			_check(main.ufo.velocity.length() > 2.0 or main._move_target == Vector3.INF, "and the ship flies there (speed %.1f)" % main.ufo.velocity.length())
+			_touch(8, main.beam_button.get_global_rect().get_center(), true)
+		242:
+			_touch(8, main.beam_button.get_global_rect().get_center(), false)
+		244:
+			_check(main.ufo.beaming and main.beam_latched, "a tap on the beam's mark turns the beam on")
+		270:
+			_touch(9, main.beam_button.get_global_rect().get_center(), true)
+		272:
+			_touch(9, main.beam_button.get_global_rect().get_center(), false)
+		274:
+			_check(not main.beam_latched, "and another tap turns it off")
 			print("PASSED" if fails == 0 else "FAILED")
 			return true
 	if frame > 5 and frame < 20:

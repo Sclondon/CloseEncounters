@@ -15,7 +15,9 @@ like Animal Crossing (`shaders/bend.gdshaderinc`).
 - **Move**: WASD / arrows / left stick, or a thumb anywhere on the left half of a touch screen: the ship flies the
   way the thumb lies from the stick's home in the lower left (shown while touched), so a held thumb steers even if
   the phone never sends a drag.
-- **Beam**: hold Space (or J, Z), gamepad A / right trigger, or a finger on the right half of a touch screen. The ship slows
+- **Beam**: hold Space (or J, Z), gamepad A / right trigger, or a finger on the right half of a touch screen; or tap
+  the beam's mark (lower right) to switch it on, and again to switch it off.
+- **Tap to fly**: tap (or click) the ground and the ship flies there. The ship slows
   while the beam is on. Things rise slowly (the heavier, the slower) and are taken when they reach the ship.
   Let go early and they fall. Drop something from high enough onto the police or the army and it crushes them.
 - **Dodge**: Shift (or X, K), gamepad B / left shoulder, or a quick swipe: a dash that spins the ship like a
