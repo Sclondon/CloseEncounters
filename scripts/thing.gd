@@ -21,9 +21,9 @@ const KINDS := {
 	"tractor": {"points": 150, "weight": 2.6, "heat": 0.3, "move": "graze", "speed": 1.5, "size": 2.0},
 	"car": {"points": 150, "weight": 2.6, "heat": 0.4, "move": "road", "speed": 9.0, "size": 2.2},
 	"pickup": {"points": 180, "weight": 2.9, "heat": 0.4, "move": "road", "speed": 8.0, "size": 2.4},
-	"police_car": {"points": 300, "weight": 3.0, "heat": 0.6, "move": "chase", "speed": 11.0, "size": 2.2, "gun": "pistol", "keep": 10.0, "enemy": true},
-	"jeep": {"points": 400, "weight": 3.4, "heat": 0.7, "move": "chase", "speed": 10.0, "size": 2.2, "gun": "mg", "keep": 12.0, "enemy": true},
-	"tank": {"points": 800, "weight": 5.0, "heat": 1.0, "move": "chase", "speed": 5.0, "size": 3.0, "gun": "cannon", "keep": 16.0, "enemy": true},
+	"police_car": {"points": 300, "weight": 3.0, "heat": 0.6, "move": "chase", "speed": 7.5, "size": 2.2, "gun": "pistol", "keep": 10.0, "enemy": true},
+	"jeep": {"points": 400, "weight": 3.4, "heat": 0.7, "move": "chase", "speed": 7.0, "size": 2.2, "gun": "mg", "keep": 12.0, "enemy": true},
+	"tank": {"points": 800, "weight": 5.0, "heat": 1.0, "move": "chase", "speed": 4.0, "size": 3.0, "gun": "cannon", "keep": 16.0, "enemy": true},
 }
 # How far each gun reaches, and the pause between one go and the next
 const GUNS := {

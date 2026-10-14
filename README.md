@@ -12,7 +12,9 @@ the horizon like Animal Crossing (`shaders/bend.gdshaderinc`).
 ## Playing
 
 - **Move**: WASD / arrows / left stick, or drag on the left of the screen.
-- **Beam**: hold Space (or J, Z, Shift), gamepad A / right trigger, or the BEAM button on the right of a touch screen.
+- **Dodge**: Shift (or X, K), gamepad B / left shoulder, or a quick swipe on a touch screen. A short dash the way
+  you swipe or steer, untouchable while it lasts, then a moment before the next. It drops whatever is in the beam.
+- **Beam**: hold Space (or J, Z), gamepad A / right trigger, or the BEAM button on the right of a touch screen.
   The saucer slows while the beam is on. Things rise slowly (the heavier, the slower) and are taken when they
   reach the saucer. Let go early and they fall. Drop something from high enough onto the police or the army and
   it crushes them.

@@ -87,6 +87,10 @@ var beam_finger := -1
 var beam_button: Control
 var stick_ring: Control
 var touched := false
+## Where and when each finger came down, to tell a swipe (a quick flick: a dodge) from a hold
+var _touch_from := {}
+const SWIPE_TIME := 0.3
+const SWIPE_LENGTH := 70.0
 
 
 func _ready() -> void:
@@ -119,7 +123,7 @@ func _ready() -> void:
 func _input_map() -> void:
 	var keys := {
 		"left": [KEY_A, KEY_LEFT], "right": [KEY_D, KEY_RIGHT], "up": [KEY_W, KEY_UP], "down": [KEY_S, KEY_DOWN],
-		"beam": [KEY_SPACE, KEY_J, KEY_SHIFT, KEY_Z], "start": [KEY_ENTER, KEY_SPACE], "pause": [KEY_ESCAPE, KEY_P],
+		"beam": [KEY_SPACE, KEY_J, KEY_Z], "dodge": [KEY_SHIFT, KEY_X, KEY_K], "start": [KEY_ENTER, KEY_SPACE], "pause": [KEY_ESCAPE, KEY_P],
 	}
 	for action: String in keys:
 		if not InputMap.has_action(action):
@@ -128,7 +132,7 @@ func _input_map() -> void:
 			var e := InputEventKey.new()
 			e.physical_keycode = k
 			InputMap.action_add_event(action, e)
-	for pair: Array in [["beam", JOY_BUTTON_A], ["beam", JOY_BUTTON_RIGHT_SHOULDER], ["start", JOY_BUTTON_A], ["start", JOY_BUTTON_START], ["pause", JOY_BUTTON_START]]:
+	for pair: Array in [["beam", JOY_BUTTON_A], ["beam", JOY_BUTTON_RIGHT_SHOULDER], ["dodge", JOY_BUTTON_B], ["dodge", JOY_BUTTON_LEFT_SHOULDER], ["start", JOY_BUTTON_A], ["start", JOY_BUTTON_START], ["pause", JOY_BUTTON_START]]:
 		var b := InputEventJoypadButton.new()
 		b.button_index = pair[1]
 		InputMap.action_add_event(pair[0], b)
@@ -251,6 +255,10 @@ func _process(delta: float) -> void:
 	if mode == "play" and not autopilot:
 		steer = _read_steer()
 		beam = Input.is_action_pressed("beam") or beam_finger >= 0
+		if Input.is_action_just_pressed("dodge"):
+			# (the way it is steered, or else the way it is going, or else away up the screen)
+			var way := steer if steer.length() > 0.2 else Vector2(ufo.velocity.x, ufo.velocity.z)
+			_dodge(way if way.length() > 0.5 else Vector2(0, -1))
 	elif not ufo.dead:
 		var pilot := _pilot(delta)
 		steer = pilot[0]
@@ -296,6 +304,13 @@ func _process(delta: float) -> void:
 		start()
 	if _over_wait > 0.0:
 		_over_wait -= delta
+
+
+## A dash out of the way of what is coming, if one is ready
+func _dodge(way: Vector2) -> void:
+	if ufo.dodge(way.normalized()):
+		sfx.play("whoosh", 1.7, -2.0)
+		puff(ufo.position, Color(0.6, 0.9, 0.7), 1.2)
 
 
 func _read_steer() -> Vector2:
@@ -755,7 +770,7 @@ func _show_title() -> void:
 	mode = "title"
 	title_box.visible = true
 	over_box.visible = false
-	hint_label.text = "Move: WASD, arrows, stick or drag on the left    Beam: hold Space, A, or the button on the right"
+	hint_label.text = "Move: WASD, arrows, stick or drag on the left    Beam: hold Space, A, or the button    Dodge: Shift, B, or swipe"
 
 
 func _banner(text: String, seconds: float) -> void:
@@ -805,7 +820,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		var e: InputEventScreenTouch = event
 		var size := get_viewport().get_visible_rect().size
 		var on_beam := beam_button.get_global_rect().grow(30).has_point(e.position)
+		var now := Time.get_ticks_msec() / 1000.0
+		if not e.pressed and _touch_from.has(e.index):
+			var from: Array = _touch_from[e.index]
+			_touch_from.erase(e.index)
+			var flick: Vector2 = e.position - from[0]
+			if now - float(from[1]) < SWIPE_TIME and flick.length() > SWIPE_LENGTH:
+				_dodge(flick)
 		if e.pressed:
+			_touch_from[e.index] = [e.position, now]
 			if on_beam or e.position.x > size.x * 0.6:
 				beam_finger = e.index
 			elif stick_finger < 0:

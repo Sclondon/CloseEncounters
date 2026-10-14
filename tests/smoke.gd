@@ -10,6 +10,7 @@ var fails := 0
 var seen := {}
 var hit := false
 var phase := 0
+var dodge_from := 0.0
 
 
 func _initialize() -> void:
@@ -41,6 +42,13 @@ func _process(_delta: float) -> bool:
 		600:
 			_check(main.taken > 0, "the autopilot took something (%d, score %d, heat %.2f)" % [main.taken, main.score, main.heat])
 			main.heat = 2.5
+		650:
+			var x: float = main.ufo.position.x
+			main._dodge(Vector2(1, 0))
+			_check(main.ufo.dodging() and not main.ufo.struck(main.ufo.position), "a dodge makes the saucer untouchable")
+			dodge_from = x
+		670:
+			_check(main.ufo.position.x > dodge_from + 4.0, "a dodge dashes the saucer sideways (%.1f m)" % (main.ufo.position.x - dodge_from))
 		1500:
 			_check(seen.has("police_car"), "police came at two stars")
 			main.heat = 4.5

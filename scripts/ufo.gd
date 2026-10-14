@@ -5,8 +5,13 @@ extends Node3D
 ## Its shield (`hull`) takes the shots; at nothing it falls out of the sky.
 
 const ALTITUDE := 8.0
-const SPEED := 10.0
-const BEAM_SLOW := 0.5
+const SPEED := 12.0
+const BEAM_SLOW := 0.6
+## The dodge: a dash this fast for this long, untouchable while it lasts, then a wait before the next
+const DASH_SPEED := 34.0
+const DASH_TIME := 0.22
+const DASH_SAFE := 0.35
+const DASH_WAIT := 0.9
 ## The beam's reach: its radius on the ground and up under the saucer
 const BEAM_FOOT := 2.7
 const BEAM_TOP := 1.0
@@ -18,6 +23,10 @@ var hull := 100.0
 var dead := false
 var crashed := false
 var since_hit := 10.0
+var dash_left := 0.0
+var dash_wait := 0.0
+var _dash_dir := Vector3.ZERO
+var _roll := 0.0
 var body: Node3D
 var alien: Alien
 var beam: MeshInstance3D
@@ -89,10 +98,16 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	if dead:
 		_falling(delta)
 		return
-	beaming = beam_on
+	dash_wait -= delta
+	dash_left -= delta
+	# (no beam while dashing: whatever was in it drops)
+	beaming = beam_on and dash_left <= 0.0
 	var top := SPEED * (BEAM_SLOW if beaming else 1.0)
 	var want := Vector3(steer.x, 0, steer.y) * top
-	velocity = velocity.lerp(want, minf(delta * (4.0 if want.length() > 0.1 else 2.5), 1.0))
+	if dash_left > 0.0:
+		velocity = _dash_dir * DASH_SPEED
+	else:
+		velocity = velocity.lerp(want, minf(delta * (4.0 if want.length() > 0.1 else 2.5), 1.0))
 	position += velocity * delta
 	position.x = clampf(position.x, -BOUNDS, BOUNDS)
 	position.z = clampf(position.z, -BOUNDS, BOUNDS)
@@ -100,6 +115,9 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	# Banks into the way it is going, and the whole saucer turns slowly
 	body.rotation.x = lerpf(body.rotation.x, velocity.z / SPEED * 0.25, minf(delta * 5.0, 1.0))
 	body.rotation.z = lerpf(body.rotation.z, -velocity.x / SPEED * 0.25, minf(delta * 5.0, 1.0))
+	# (a dodge is a barrel roll the way it goes)
+	_roll = move_toward(_roll, 0.0, delta * TAU / DASH_SAFE)
+	body.rotation.z += _roll * -signf(_dash_dir.x if absf(_dash_dir.x) > 0.3 else 1.0)
 	var saucer := body.get_child(0) as Node3D
 	saucer.rotation.y += delta * (0.6 + (1.8 if beaming else 0.0))
 	alien.look = Vector2(velocity.x, velocity.z) / SPEED
@@ -120,6 +138,22 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 var mend_rate := 0.0
 
 
+## A quick dash `dir` (on the ground plane, x across and y toward the camera), if one is ready
+func dodge(dir: Vector2) -> bool:
+	if dead or dash_wait > 0.0 or dir.length() < 0.01:
+		return false
+	_dash_dir = Vector3(dir.x, 0, dir.y).normalized()
+	dash_left = DASH_TIME
+	dash_wait = DASH_WAIT
+	_roll = TAU
+	return true
+
+
+## Untouchable for a moment at the start of a dodge
+func dodging() -> bool:
+	return dash_wait > DASH_WAIT - DASH_SAFE
+
+
 ## Whether a point is inside the beam: wide at the ground, narrow under the saucer
 func in_beam(p: Vector3, slack := 0.0) -> bool:
 	if not beaming or dead:
@@ -131,7 +165,7 @@ func in_beam(p: Vector3, slack := 0.0) -> bool:
 
 ## Whether a shot at `p` has struck the saucer (a flat disc of it)
 func struck(p: Vector3) -> bool:
-	if dead:
+	if dead or dodging():
 		return false
 	var flat := Vector2(p.x - position.x, p.z - position.z).length()
 	return flat < 2.8 and absf(p.y - position.y) < 0.9 + (1.0 - flat / 2.8) * 0.6
