@@ -1417,6 +1417,24 @@ func _hud(delta: float) -> void:
 		banner.text = ""
 
 
+## Where the touch stick sits, and how far its knob goes
+func _stick_home() -> Vector2:
+	var view := get_viewport().get_visible_rect().size
+	return Vector2(view.x * 0.16, view.y * 0.74)
+
+
+func _stick_reach() -> float:
+	return minf(get_viewport().get_visible_rect().size.y * 0.12, 90.0)
+
+
+## The stick pushed toward a thumb at `p`: full over the rim, nothing in a small dead middle
+func _stick_toward(p: Vector2) -> Vector2:
+	var off := (p - _stick_home()) / _stick_reach()
+	if off.length() < 0.15:
+		return Vector2.ZERO
+	return off.limit_length(1.0)
+
+
 func _layout_touch() -> void:
 	if beam_button == null:
 		return
@@ -1453,9 +1471,12 @@ func _input(event: InputEvent) -> void:
 			if on_beam or e.position.x > size.x * 0.5:
 				beam_finger = e.index
 			elif stick_finger < 0:
+				# The stick has a home in the lower left: a thumb anywhere on the left half steers at once,
+				# the way it lies from there, and a drag only changes that (a phone's browser may never
+				# send the drag)
 				stick_finger = e.index
-				stick_from = e.position
-				stick = Vector2.ZERO
+				stick_from = _stick_home()
+				stick = _stick_toward(e.position)
 		else:
 			if e.index == beam_finger:
 				beam_finger = -1
@@ -1465,13 +1486,7 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventScreenDrag:
 		var e: InputEventScreenDrag = event
 		if e.index == stick_finger:
-			var reach := minf(get_viewport().get_visible_rect().size.y * 0.12, 90.0)
-			var off := e.position - stick_from
-			# (the stick's middle follows a thumb that goes past its rim)
-			if off.length() > reach:
-				stick_from = e.position - off.normalized() * reach
-				off = off.normalized() * reach
-			stick = off / reach
+			stick = _stick_toward(e.position)
 
 
 # ------------------------------------------------------------------ bests
