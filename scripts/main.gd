@@ -1908,6 +1908,10 @@ func _park_ufo() -> void:
 	ufo.parked = true
 	ufo.position = MoonSet.SITE + MoonSet.SHIP_AT
 	ufo.rotation.y = MoonSet.SHIP_TURN
+	# (a ship that points where it flies is parked at an angle, to show its length, nose off away
+	# from the title)
+	if not ufo._spins:
+		ufo.hull_model.rotation.y = -PI / 4.0
 	ufo.lounge(true)
 
 
