@@ -1,7 +1,7 @@
 extends SceneTree
 ## Pictures of the newer things to look over (needs a window):
 ##   godot --path . --fixed-fps 60 --resolution 1280x720 -s res://tests/look.gd -- <out dir>
-## ship_saucer/orb/triangle (the title with each), aliens (four pilots close up), trader,
+## ship_<each of Ufo.ORDER> (the title with each), aliens (four pilots close up), trader,
 ## patrol (a searchlight sweeping)
 
 var main: Node
@@ -27,7 +27,7 @@ func _initialize() -> void:
 			main.hold_camera = true
 			main.title_box.visible = false
 			return "alien_%d" % i)
-	for i in 3:
+	for i in Ufo.ORDER.size():
 		plan.append(func() -> String:
 			main.hold_camera = false
 			main.title_box.visible = true

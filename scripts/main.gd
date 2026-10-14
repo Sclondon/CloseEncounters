@@ -78,21 +78,30 @@ var _circle_time := 0.0
 var _circle_done := false
 ## The traders parked about the country, and what has been bought from them this run
 var shops: Array[Shop] = []
-var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0}
+var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "fleet": 0}
 var _hot_wait := 0.0
 ## Things the world has asked for, waiting to be put down: [kind, where, extra]
 var _to_spawn: Array = []
 const SPAWN_A_FRAME := 6
 ## What traders sell, one pod each: three of these are set out in front of each trader
-const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch"]
+const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "fleet"]
 const UPGRADES := {
 	"engine": {"title": "ENGINE", "about": "+12% speed", "price": 300, "colour": Color(1.0, 0.55, 0.15)},
 	"beam": {"title": "BEAM", "about": "lifts faster, and stronger: one more kind of thing it can take", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
 	"shield": {"title": "SHIELD", "about": "+25 shield, and patched up", "price": 300, "colour": Color(0.3, 0.6, 1.0)},
 	"patch": {"title": "PATCH", "about": "the shield filled up again", "price": 0, "colour": Color(0.4, 1.0, 1.0)},
 	"dash": {"title": "DASH", "about": "recharges faster, and leaves two more afterimages", "price": 250, "colour": Color(0.75, 0.4, 1.0)},
+	"laser": {"title": "LASER", "about": "fires by itself: shoots down shells and missiles, then jets, then the police and army; quicker and further each level", "price": 500, "colour": Color(1.0, 0.3, 0.45)},
+	"fleet": {"title": "FLEET", "about": "one more little saucer that beams up small things nearby, and gets in the way of shots", "price": 450, "colour": Color(1.0, 0.9, 0.3)},
 }
 const MAX_UPGRADE := 4
+## The defence laser (see `_laser`): how far it reaches before upgrades (+2 m a level), and the hits
+## that blow each of the police and army up (one less is only a moment's stun)
+const LASER_REACH := 14.0
+const LASER_HITS := {"police_car": 2, "patrol_car": 2, "jeep": 3, "patrol_jeep": 3, "tank": 5}
+var _laser_wait := 0.0
+## The mini fleet: a little saucer for each level of FLEET (see Drone)
+var fleet: Array[Drone] = []
 ## Where phone lines have been cut this run (a call near one cannot get through)
 var _cuts: Array[Vector3] = []
 const LINE_REACH := 150.0
@@ -318,7 +327,9 @@ func start(from_launch := false) -> void:
 	ufo.queue_free()
 	if not from_launch:
 		alien_seed = randi()
-	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0}
+	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "fleet": 0}
+	_clear_fleet()
+	_laser_wait = 0.0
 	_cuts.clear()
 	_forget_fingers()
 	_make_ufo(Vector3.ZERO)
@@ -449,6 +460,8 @@ func _process(delta: float) -> void:
 	_crop_circles(delta)
 	for s in shots:
 		s.tick(delta, ufo, self)
+	_laser(delta)
+	_fleet(delta)
 	for s in shots:
 		if s.done:
 			s.queue_free()
@@ -812,7 +825,8 @@ func upgrade_price(what: String) -> int:
 	return int(round(float(UPGRADES[what]["price"]) * pow(1.8, upgrades[what]) / 10.0)) * 10
 
 
-## What has been bought, on the ship: faster, a stronger beam, a bigger shield, a quicker dodge
+## What has been bought, on the ship: faster, a stronger beam, a bigger shield, a quicker dodge, the
+## laser under it and the fleet round it
 func _apply_upgrades() -> void:
 	var spec: Dictionary = Ufo.SHIPS[ship]
 	ufo.speed = float(spec["speed"]) * (1.0 + 0.12 * upgrades["engine"])
@@ -820,6 +834,9 @@ func _apply_upgrades() -> void:
 	ufo.tier = mini(int(spec["tier"]) + int(upgrades["beam"]), 4)
 	ufo.hull_max = float(spec["hull"]) + 25.0 * upgrades["shield"]
 	ufo.dash_level = upgrades["dash"]
+	if upgrades["laser"] > 0:
+		ufo.arm_laser()
+	_build_fleet()
 
 
 func buy(what: String) -> bool:
@@ -832,6 +849,10 @@ func buy(what: String) -> bool:
 	log_line("%s UPGRADED TO %d" % [UPGRADES[what]["title"], upgrades[what]], -price)
 	if what == "shield":
 		ufo.hull = minf(ufo.hull + 25.0, ufo.hull_max)
+	if what == "laser" and upgrades[what] == 1:
+		_banner("LASER ARMED: IT FIRES BY ITSELF", 2.5)
+	elif what == "fleet" and upgrades[what] == 1:
+		_banner("A LITTLE SAUCER JOINS YOU", 2.5)
 	sfx.play("bloop", 1.4)
 	return true
 
@@ -849,6 +870,181 @@ func repair() -> void:
 	ufo.hull = minf(ufo.hull + price, ufo.hull_max)
 	log_line("SHIELD PATCHED", -price)
 	sfx.play("bloop", 1.2)
+
+
+## The defence laser: a turret under the hull that fires by itself, a shot every `laser_reload`
+## seconds. It shoots down the shells and missiles coming at the ship first, then jets, and then,
+## once there is heat, the nearest of the police and army: a hit stuns one (it holds its fire a
+## while), and LASER_HITS blow it up, scored and heating things up as a crush does. Each level it
+## fires sooner and reaches further.
+func _laser(delta: float) -> void:
+	_laser_wait -= delta
+	var level: int = upgrades["laser"]
+	if level == 0 or ufo.dead or mode != "play" or intro > 0.0 or _laser_wait > 0.0:
+		return
+	var reach := LASER_REACH + 2.0 * level
+	var target: Node3D
+	var nearest := reach
+	for s in shots:
+		if s.kind in ["shell", "missile"] and not s.done and s.position.distance_to(ufo.position) < nearest:
+			nearest = s.position.distance_to(ufo.position)
+			target = s
+	if target == null:
+		for j in jets:
+			if j.position.distance_to(ufo.position) < nearest:
+				nearest = j.position.distance_to(ufo.position)
+				target = j
+	if target == null and heat_level() >= 1:
+		for t in things:
+			if t.is_enemy() and t.state == "walk" and not t.leaving and t.position.distance_to(ufo.position) < nearest:
+				nearest = t.position.distance_to(ufo.position)
+				target = t
+	if target == null:
+		return
+	_laser_wait = laser_reload()
+	if ufo.laser == null:
+		ufo.arm_laser()
+	var at := target.global_position + (Vector3(0, 1.0, 0) if target is Thing else Vector3.ZERO)
+	_zap(ufo.aim_laser(at), at)
+	if target is Shot:
+		(target as Shot).done = true
+		boom(at, 1.0)
+		_popup("SHOT DOWN", at + Vector3(0, 1.0, 0), Color(1.0, 0.55, 0.65))
+	elif target is Thing:
+		var t: Thing = target
+		var hits := int(t.get_meta("zapped", 0)) + 1
+		if hits >= int(LASER_HITS.get(t.kind, 2)):
+			var points := t.points() / 2 * multiplier()
+			score += points
+			heat = minf(heat + 0.25, MAX_HEAT)
+			calm = 0.0
+			boom(at, 2.2)
+			sfx.play("boom", 1.3, _near_db(t))
+			log_line("%s BLOWN UP" % t.kind.replace("_", " ").to_upper(), points)
+			_remove(t)
+		else:
+			# (stunned: it holds its fire a while, red and sparking)
+			t.set_meta("zapped", hits)
+			t.reload = maxf(t.reload, 0.0) + 2.0
+			t.burst = 0
+			Ps1.flash(t.model, Color(1.2, 0.15, 0.2))
+			create_tween().tween_callback(func() -> void:
+				if is_instance_valid(t):
+					Ps1.flash(t.model, Color.BLACK)).set_delay(0.2)
+	else:
+		# A jet, out of the sky
+		jets.erase(target)
+		target.queue_free()
+		boom(at, 3.0)
+		sfx.play("boom", 0.9)
+		var points := 250 * multiplier()
+		score += points
+		heat = minf(heat + 0.25, MAX_HEAT)
+		calm = 0.0
+		log_line("JET SHOT DOWN", points)
+
+
+## Seconds between the laser's shots, at its level
+func laser_reload() -> float:
+	return 2.4 - 0.4 * upgrades["laser"]
+
+
+## A bolt of the laser from `from` to `to`: a white-hot core in a pink glow, there and gone, and a
+## spark where it lands
+func _zap(from: Vector3, to: Vector3) -> void:
+	var way := to - from
+	var long := way.length()
+	if long < 0.1:
+		return
+	var bolt := Node3D.new()
+	view.add_child(bolt)
+	bolt.look_at_from_position((from + to) * 0.5, to, Vector3.UP if Vector2(way.x, way.z).length() > 0.1 else Vector3.FORWARD)
+	Ps1.part(bolt, BoxMesh.new(), Ps1.flat(Color(1.0, 0.92, 0.96)), Vector3.ZERO, Vector3(0.16, 0.16, long))
+	var glow := CylinderMesh.new()
+	glow.top_radius = 0.5
+	glow.bottom_radius = 0.5
+	glow.height = long
+	glow.radial_segments = 8
+	glow.rings = 1
+	glow.cap_top = false
+	glow.cap_bottom = false
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/beam.gdshader")
+	m.set_shader_parameter("tint", Color(1.0, 0.25, 0.5))
+	m.set_shader_parameter("power", 1.6)
+	Ps1.part(bolt, glow, m, Vector3.ZERO, Vector3.ONE, Vector3(PI / 2, 0, 0))
+	var tw := create_tween()
+	tw.tween_property(bolt, "scale", Vector3(0.05, 0.05, 1.0), 0.18).set_delay(0.06)
+	tw.tween_callback(bolt.queue_free)
+	_blob(to, Color(1.0, 0.6, 0.75), 0.9, 0.3)
+	sfx.play("zap", 1.0, -2.0)
+
+
+## The mini fleet: each moved, and any shot that meets one stopped there
+func _fleet(delta: float) -> void:
+	for d in fleet:
+		d.of = fleet.size()
+		d.tick(delta, ufo)
+	for s in shots:
+		if s.done:
+			continue
+		for d in fleet:
+			if d.is_up() and s.position.distance_to(d.position) < 0.9:
+				s.done = true
+				d.hit()
+				puff(s.position, Color(1.0, 0.85, 0.5), 0.5)
+				sfx.play("clang", 1.6, _near_db(d) - 4.0)
+				break
+
+
+## One little saucer for each level of FLEET, out of the ship
+func _build_fleet() -> void:
+	while fleet.size() < int(upgrades["fleet"]):
+		var d := Drone.new()
+		view.add_child(d)
+		d.setup(self, fleet.size(), ufo.position + Vector3(0, -1.0, 0))
+		fleet.append(d)
+		puff(d.position, Color(1.0, 0.9, 0.4), 0.8)
+
+
+## One of the fleet has brought something home: taken as the ship takes it (out of the list of
+## things here, the fleet being moved after the list is gone through)
+func drone_took(t: Thing) -> void:
+	abducted(t)
+	things.erase(t)
+
+
+func _clear_fleet() -> void:
+	for d in fleet:
+		d._let_go()
+		d.queue_free()
+	fleet.clear()
+
+
+## One of the mini fleet the police and army take for the ship this time, if any (the more of the
+## fleet, the likelier)
+func _decoy() -> Drone:
+	var up: Array[Drone] = []
+	for d in fleet:
+		if d.is_up():
+			up.append(d)
+	if up.is_empty() or randf() > minf(0.12 * up.size(), 0.4):
+		return null
+	return up[randi() % up.size()]
+
+
+## The ship a secret facility holds: the one it was built round, or, once that one has been found,
+## another not yet found (so a facility is always worth the trip while there are ships to find)
+func captive(held: String, c: Vector2i) -> String:
+	if not held in unlocked:
+		return held
+	var left: Array[String] = []
+	for s in Ufo.ORDER:
+		if not s in unlocked:
+			left.append(s)
+	if left.is_empty():
+		return held
+	return left[posmod(c.x * 7 + c.y * 13, left.size())]
 
 ## The beam pulls up the scenery under it that it is strong enough for, a piece at a time
 func _pull_scenery(delta: float) -> void:
@@ -1017,8 +1213,15 @@ func landed(t: Thing, height: float) -> void:
 
 func fire(from: Thing, gun: String, target: Ufo) -> void:
 	var muzzle := from.muzzle()
+	var mark := target.position
+	var going := target.velocity
+	# (now and then they take one of the mini fleet for the ship, and aim at that instead)
+	var decoy := _decoy()
+	if decoy != null:
+		mark = decoy.position
+		going = Vector3.ZERO
 	# Aimed where the saucer will be, give or take
-	var lead := target.position + target.velocity * (muzzle.distance_to(target.position) / 28.0)
+	var lead := mark + going * (muzzle.distance_to(mark) / 28.0)
 	match gun:
 		"shotgun":
 			for i in 5:
@@ -1031,7 +1234,7 @@ func fire(from: Thing, gun: String, target: Ufo) -> void:
 			_shot("tracer", muzzle, lead + Vector3(randf_range(-1.8, 1.8), randf_range(-0.5, 0.5), randf_range(-1.8, 1.8)))
 			sfx.play("rat", 1.0, _near_db(from) - 4.0)
 		"cannon":
-			var aim := target.position + target.velocity * (muzzle.distance_to(target.position) / 20.0)
+			var aim := mark + going * (muzzle.distance_to(mark) / 20.0)
 			_shot("shell", muzzle, aim)
 			puff(muzzle, Color(0.8, 0.7, 0.5), 1.2)
 			sfx.play("boom", 1.6, _near_db(from))
@@ -1581,6 +1784,7 @@ func quit_to_menu() -> void:
 	for j in jets:
 		j.queue_free()
 	jets.clear()
+	_clear_fleet()
 	heat = 0.0
 	score = 0
 	var at := ufo.ground()

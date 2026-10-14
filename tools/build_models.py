@@ -59,6 +59,7 @@ GLOWS = {
     "flame": ((1.0, 0.55, 0.15), 3.0), "neon": ((1.0, 0.35, 0.6), 3.0),
     "light_red": ((1.0, 0.2, 0.15), 3.0), "light_blue": ((0.3, 0.5, 1.0), 3.0), "light_white": ((1.0, 1.0, 0.95), 3.0),
     "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "pod_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0),
+    "foo_glow": ((0.85, 0.22, 0.03), 2.5),
 }
 
 _mats = {}
@@ -742,6 +743,63 @@ def triangle():
     dome.parent = body
     return body
 
+
+def foo():
+    """A foo fighter, the balls of light that flew beside the bombers in the war: a small glowing ball
+    with a ring of metal round its middle, lights in the ring, and the pilot under glass on top"""
+    p = [ball((1.8, 1.8, 1.7), (0, 0, 0), "foo_glow", 12, 7), drum(1.0, 0.16, (0, 0, 0), "hull_edge", 14),
+         drum(0.52, 0.14, (0, 0, 0.72), "hull_edge", 10), drum(0.3, 0.1, (0, 0, -0.82), "light_white", 8)]
+    for i in range(8):
+        a = i / 8 * math.tau
+        p.append(ball((0.24, 0.24, 0.2), (1.0 * math.cos(a), 1.0 * math.sin(a), 0), "light_white" if i % 2 else "light_red", 5, 3))
+    body = join("foo", p)
+    dome = _dome(0.5, 0.76, 1.0)
+    dome.parent = body
+    return body
+
+
+def cigar():
+    """The cigar-shaped mother ship of the 1950s sightings: long and silver, a row of lit portholes
+    down each side, a fin at the tail, a glowing hatch underneath and the pilot under glass on its back"""
+    half = 4.5
+    p = [ball((2.2, 2.0, half * 2.0), (0, 0, 0), "metal", 12, 10, (math.pi / 2, 0, 0)),
+         ball((2.24, 2.2, 0.5), (0, 0, -0.05), "hull_edge", 12, 4, (math.pi / 2, 0, 0)),
+         ball((1.1, 2.6, 0.3), (0, 0.2, -0.92), "lights_under", 8, 3),
+         ball((0.34, 0.34, 0.34), (0, -half + 0.05, 0), "light_red", 6, 3),
+         box((0.12, 1.4, 0.9), (0, half - 1.0, 0.75), "metal_dark", (0.3, 0, 0)),
+         box((1.8, 0.9, 0.1), (0, half - 0.9, 0.0), "metal_dark")]
+    for side in (-1, 1):
+        for k in range(7):
+            y = -3.0 + k * 1.0
+            x = 1.1 * math.sqrt(1.0 - (y / half) ** 2)
+            p.append(ball((0.14, 0.4, 0.4), (side * x * 0.97, y, 0.22), "window", 6, 3))
+    body = join("cigar", p)
+    dome = _dome(0.75, 0.82, 1.0)
+    dome.parent = body
+    return body
+
+
+def bell():
+    """The bell-shaped scout ship of the 1952 photographs: a bell of a hull with a row of portholes, a
+    wide flat rim ringed with lights, three balls underneath for landing gear, the pilot under glass"""
+    p = [lathe("bell_hull", [(2.7, 0.0), (2.7, 0.18), (1.75, 0.36), (1.55, 1.12), (1.05, 1.34)],
+               ["hull_edge", "metal", "metal", "metal", "metal"], sides=16),
+         drum(2.7, 0.06, (0, 0, 0.0), "metal_dark", 16), drum(1.0, 0.06, (0, 0, -0.04), "lights_under", 12),
+         drum(1.0, 0.1, (0, 0, 1.38), "hull_edge", 12)]
+    for i in range(8):
+        a = i / 8 * math.tau + math.pi / 8
+        p.append(ball((0.38, 0.38, 0.34), (1.64 * math.cos(a), 1.64 * math.sin(a), 0.74), "window", 6, 3))
+    for i in range(12):
+        a = i / 12 * math.tau
+        p.append(ball((0.2, 0.2, 0.14), (2.66 * math.cos(a), 2.66 * math.sin(a), 0.09), "light_amber", 5, 3))
+    for i in range(3):
+        a = -math.pi / 2 + i * math.tau / 3
+        p.append(ball((0.95, 0.95, 0.95), (1.3 * math.cos(a), 1.3 * math.sin(a), -0.26), "metal_dark", 10, 5))
+    body = join("bell", p)
+    dome = _dome(0.85, 1.3, 1.0)
+    dome.parent = body
+    return body
+
 # ---------------------------------------------------------------- wildlife
 
 def quadruped(name, body, leg, head_at, head, colour, dark=None, tail=None):
@@ -1032,7 +1090,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
-            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle,
+            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, sasquatch, meteorite, satellite,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail]

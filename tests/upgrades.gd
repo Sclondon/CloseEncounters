@@ -2,6 +2,8 @@ extends SceneTree
 ## Trading and the strength of the beam: the ship beams up one of the pods the trader near the start
 ## has set out (bought, and the trader packs up and goes), pulls a tree out of the ground with a
 ## strong beam and then a whole mesa, and finally the heat goes up and another trader takes off.
+## Then the defence laser shoots a shell down and blows up a police car, and the mini fleet beams up
+## chickens by itself, stops a shot, is shot down and comes back.
 ##   godot --headless --path . --fixed-fps 60 -s res://tests/upgrades.gd
 ## Ends with PASSED or FAILED.
 
@@ -15,6 +17,10 @@ var mesa_at := Vector3.ZERO
 var taken_before := 0
 var mesa: Thing
 var pod: Thing
+var shell: Shot
+var police: Thing
+var score_before := 0
+var hits_before := 0
 
 
 func _initialize() -> void:
@@ -142,6 +148,67 @@ func _process(_delta: float) -> bool:
 				main.calm = 0.0
 			elif wait == 60:
 				_check(shop.state == "leaving" or not is_instance_valid(shop), "with two stars of heat, the trader takes off")
+				step = "laser"
+				wait = 0
+		"laser":
+			if wait == 1:
+				# Three stars, the laser bought, and a tank shell fired at the ship from 13 m off
+				main.heat = 3.2
+				main.score = 50000
+				_check(main.buy("laser") and main.ufo.laser != null, "a LASER can be bought, and a turret is slung under the ship")
+				shell = main._shot("shell", main.ufo.position + Vector3(0, -6, 11), main.ufo.position)
+			elif wait == 12:
+				_check((not is_instance_valid(shell) or shell.done) and main.ufo.since_hit > 0.15, "the laser shoots a shell down before it hits")
+				for i in 3:
+					main.buy("laser")
+				_check(main.upgrades["laser"] == 4 and not main.buy("laser") and is_equal_approx(main.laser_reload(), 0.8),
+					"the laser goes up to level 4, firing every %.1f s" % main.laser_reload())
+				for t in main.things.duplicate():
+					if t.is_enemy():
+						main._remove(t)
+				police = main.spawn("police_car", main.ufo.ground() + Vector3(6, 0, 6))
+				score_before = main.score
+			elif wait > 12 and wait < 500 and not is_instance_valid(police):
+				_check(main.score > score_before, "the laser blows up a police car near the ship, for points (%d)" % (main.score - score_before))
+				step = "fleet"
+				wait = 0
+			elif wait == 500:
+				_check(false, "the laser blows up a police car near the ship")
+				step = "fleet"
+				wait = 0
+		"fleet":
+			main.heat = 0.0
+			if wait == 1:
+				for t in main.things.duplicate():
+					if t.is_enemy():
+						main._remove(t)
+				main.score = 50000
+				main.buy("fleet")
+				main.buy("fleet")
+				_check(main.fleet.size() == main.upgrades["fleet"] and main.fleet.size() >= 2, "FLEET upgrades: a little saucer about the ship for each (%d)" % main.fleet.size())
+				_over(Vector3(-40, 0, -40))
+				for i in 5:
+					var a := i * TAU / 5.0
+					main.spawn("chicken", main.ufo.ground() + Vector3(cos(a), 0, sin(a)) * 8.0)
+				taken_before = main.taken
+			elif wait == 600:
+				_check(main.taken > taken_before, "the fleet beams up small things by itself (%d taken)" % (main.taken - taken_before))
+				var d: Drone = main.fleet[0]
+				hits_before = d.hits
+				main._shot("bullet", d.position + Vector3(0, 0.3, 0), d.position + Vector3(0, -5, 0))
+			elif wait == 610:
+				var d: Drone = main.fleet[0]
+				_check(d.hits > hits_before, "a shot that meets one of the fleet stops there")
+				var decoys := 0
+				for i in 400:
+					if main._decoy() != null:
+						decoys += 1
+				_check(decoys > 20 and decoys < 200, "the police and army sometimes aim at the fleet instead (%d in 400)" % decoys)
+				for i in Drone.HITS:
+					d.hit()
+				_check(not d.is_up(), "shot enough, one of the fleet goes down")
+			elif wait == 610 + int(Drone.REBUILT * 60.0) + 30:
+				_check(main.fleet[0].is_up(), "and a new one comes out of the ship a while later")
 				return _end()
 	return false
 

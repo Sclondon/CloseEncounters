@@ -7,27 +7,40 @@ extends Node3D
 ## Once it is gone the ship is bare, and the next shot brings it down. It recharges only once the
 ## heat is off.
 ##
-## There are three ships (SHIPS), chosen on the title screen. The classic saucer is the all-rounder;
+## There are six ships (SHIPS), chosen on the title screen. The classic saucer is the all-rounder;
 ## the orb (after the scout ships of Close Encounters of the Third Kind) is slow and low but tough,
 ## and pulls things up fast; the black triangle is quick and flies high (shots take longer to reach
-## it), but is thin-skinned and its beam is slow and weak.
+## it), but is thin-skinned and its beam is slow and weak. The foo fighter (the balls of light
+## pilots saw in the war) is tiny and quick, hard to hit but with hardly any shield, and low, so
+## shots reach it soon; the cigar (the mother ship of the 1950s sightings) is huge and slow and hard
+## to miss, with the toughest shield and the widest beam; the bell (the scout ship of the 1952
+## photographs) takes the land itself from the start, but slowly, and its shield is thin.
 ##
 ## A dodge spins the ship like a top, leaves afterimages behind it and throws the pilot about.
 ## The ship's lights flash with the beam, a dodge and a hit. The pilot works a stick and a panel
 ## of buttons in front of it (see `panel`), mashing the buttons while the beam is on.
 
 const SHIPS := {
-	"saucer": {"title": "CLASSIC SAUCER", "model": "ufo", "speed": 12.0, "lift": 1.0, "hull": 50.0, "tier": 2, "altitude": 8.0,
+	"saucer": {"title": "SAUCER", "model": "ufo", "speed": 12.0, "lift": 1.0, "hull": 50.0, "tier": 2, "altitude": 8.0,
 		"radius": 2.8, "beam_foot": 2.7, "alien_y": 0.3, "alien_size": 0.9, "spin": true,
 		"about": "The all-rounder. Its beam pulls up trees and rocks.", "ghost": Color(0.5, 1.0, 0.65)},
-	"orb": {"title": "THE ORB", "model": "orb", "speed": 9.5, "lift": 1.5, "hull": 80.0, "tier": 3, "altitude": 6.0,
+	"orb": {"title": "ORB", "model": "orb", "speed": 9.5, "lift": 1.5, "hull": 80.0, "tier": 3, "altitude": 6.0,
 		"radius": 2.2, "beam_foot": 3.2, "alien_y": 1.2, "alien_size": 0.72, "spin": true,
 		"about": "Slow and low, but tough. Its beam lifts buildings.", "ghost": Color(1.0, 0.7, 0.3)},
-	"triangle": {"title": "BLACK TRIANGLE", "model": "triangle", "speed": 15.0, "lift": 0.6, "hull": 35.0, "tier": 1, "altitude": 10.5,
+	"triangle": {"title": "TRIANGLE", "model": "triangle", "speed": 15.0, "lift": 0.6, "hull": 35.0, "tier": 1, "altitude": 10.5,
 		"radius": 2.3, "beam_foot": 2.3, "alien_y": 0.14, "alien_size": 0.46, "spin": false, "scale": 0.7,
 		"about": "High and fast. Thin shield; a slow beam for small things.", "ghost": Color(0.6, 0.8, 1.0)},
+	"foo": {"title": "FOO", "model": "foo", "speed": 16.0, "lift": 1.3, "hull": 25.0, "tier": 1, "altitude": 5.0,
+		"radius": 1.2, "beam_foot": 1.8, "alien_y": 0.66, "alien_size": 0.42, "spin": true,
+		"about": "Tiny, quick, hard to hit. Hardly any shield; small things.", "ghost": Color(1.0, 0.55, 0.25)},
+	"cigar": {"title": "CIGAR", "model": "cigar", "speed": 8.5, "lift": 0.9, "hull": 120.0, "tier": 2, "altitude": 11.0,
+		"radius": 3.8, "beam_foot": 4.2, "alien_y": 0.66, "alien_size": 0.66, "spin": false, "lamps": Vector3(0, 0.95, 2.0),
+		"about": "Huge and slow. The toughest shield and the widest beam.", "ghost": Color(0.85, 0.9, 1.0)},
+	"bell": {"title": "BELL", "model": "bell", "speed": 10.5, "lift": 0.7, "hull": 40.0, "tier": 4, "altitude": 9.0,
+		"radius": 2.7, "beam_foot": 2.6, "alien_y": 1.12, "alien_size": 0.72, "spin": true,
+		"about": "Its beam takes the land itself, slowly. A thin shield.", "ghost": Color(1.0, 0.85, 0.5)},
 }
-const ORDER: Array[String] = ["saucer", "orb", "triangle"]
+const ORDER: Array[String] = ["saucer", "orb", "triangle", "foo", "cigar", "bell"]
 const BEAM_SLOW := 0.6
 ## The dodge: a dash this fast for this long, untouchable while it lasts, then a wait before the next
 const DASH_SPEED := 34.0
@@ -142,10 +155,13 @@ func _ready() -> void:
 	pilot_size = float(spec["alien_size"])
 	body.add_child(alien)
 	_build_panel(float(spec["alien_size"]), Vector3(0, spec["alien_y"], 0))
+	# (on the front of the rim; or where the ship says, on its hull and turning with it: the cigar's
+	# are on its back, its nose being too narrow)
+	var lamps: Vector3 = spec.get("lamps", Vector3(0, 0.22, radius * 0.78))
 	for i in 3:
 		var m := Ps1.own(Color(0.4, 1.0, 0.5), 1.5)
 		_lamps.append(m)
-		Ps1.part(body, Ps1.ball(), m, Vector3((i - 1) * 0.42, 0.22, radius * 0.78), Vector3.ONE * 0.13)
+		Ps1.part(hull_model if spec.has("lamps") else body, Ps1.ball(), m, lamps + Vector3((i - 1) * 0.42, 0, 0), Vector3.ONE * 0.13)
 	_legs = Node3D.new()
 	body.add_child(_legs)
 	for i in 3:
@@ -398,6 +414,42 @@ func _build_panel(size: float, at: Vector3) -> void:
 	panel.add_child(stick)
 	Ps1.part(stick, CylinderMesh.new(), Ps1.mat(Color(0.12, 0.12, 0.14)), Vector3(0, 0.05, 0), Vector3(0.012, 0.05, 0.012))
 	Ps1.part(stick, Ps1.ball(), Ps1.mat(Color(0.9, 0.15, 0.1), 0.3), Vector3(0, 0.1, 0), Vector3.ONE * 0.022)
+
+
+## The defence laser bought from a trader: a turret slung under the hull, turning to whatever it
+## fires at (see main.gd `_laser`), nothing until then
+var laser: Node3D
+var _laser_tip: ShaderMaterial
+
+
+func arm_laser() -> void:
+	if laser != null:
+		return
+	# (under the front of the hull, a little way up into it, whatever the ship's shape)
+	var under := 0.0
+	var mesh := Ps1._first_mesh(hull_model)
+	if mesh != null:
+		under = mesh.get_aabb().position.y * hull_model.scale.y
+	laser = Node3D.new()
+	laser.position = Vector3(0, under * 0.75, radius * 0.3)
+	body.add_child(laser)
+	Ps1.part(laser, Ps1.ball(), Ps1.mat(Color(0.2, 0.21, 0.25)), Vector3.ZERO, Vector3.ONE * 0.3)
+	Ps1.part(laser, BoxMesh.new(), Ps1.mat(Color(0.3, 0.31, 0.35)), Vector3(0, 0, 0.35), Vector3(0.09, 0.09, 0.6))
+	_laser_tip = Ps1.own(Color(1.0, 0.25, 0.4), 1.5)
+	Ps1.part(laser, Ps1.ball(), _laser_tip, Vector3(0, 0, 0.68), Vector3.ONE * 0.1)
+
+
+## Turns the laser on `at` and says where its beam leaves from (the tip flashes as it fires)
+func aim_laser(at: Vector3) -> Vector3:
+	var to := at - laser.global_position
+	if to.length() < 0.1:
+		return laser.global_position
+	laser.look_at(at, Vector3.UP if Vector2(to.x, to.z).length() > 0.2 else Vector3.FORWARD)
+	# (look_at points -Z at it, and the barrel is on +Z)
+	laser.rotate_object_local(Vector3.UP, PI)
+	_laser_tip.set_shader_parameter("flash", Color(1.5, 0.6, 0.8))
+	create_tween().tween_callback(func() -> void: _laser_tip.set_shader_parameter("flash", Color.BLACK)).set_delay(0.12)
+	return laser.global_position + laser.global_basis.z * 0.7
 
 
 ## Untouchable for a moment at the start of a dodge

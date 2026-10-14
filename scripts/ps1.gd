@@ -82,7 +82,7 @@ static func model(name: String, tints := {}, own_mats := false) -> Node3D:
 
 
 ## Models whose surfaces stay apart
-const KEEP_SURFACES: Array[String] = ["ufo", "orb", "triangle"]
+const KEEP_SURFACES: Array[String] = ["ufo", "orb", "triangle", "foo", "cigar", "bell"]
 ## How far off anything is drawn, and how far past the edge of the view (the bend drops far things
 ## into view after Godot has decided what is on screen)
 const DRAW_TO := 115.0
