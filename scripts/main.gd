@@ -1623,20 +1623,19 @@ class Shield extends Control:
 		# the glass, dark inside
 		draw_circle(c, r + 6, Color(0.6, 0.85, 1.0, 0.18))
 		draw_circle(c, r, Color(0.02, 0.05, 0.1, 0.75))
-		# the fluid: the part of the orb below its level, with a wave on top
+		# the fluid: thin columns of it from its wavy level down to the bottom of the glass
 		if left > 0.0:
 			var level := c.y + r - left * 2.0 * r
-			var fluid := PackedVector2Array()
-			for k in 25:
-				var x := c.x - r + 2.0 * r * k / 24.0
-				var y := level + sin(t * 3.0 + k * 0.6) * 3.0 * (0.4 + left)
-				var half := sqrt(maxf(r * r - pow(x - c.x, 2.0), 0.0))
-				fluid.append(Vector2(x, clampf(y, c.y - half, c.y + half)))
-			for k in 33:
-				var a := PI * k / 32.0
-				fluid.append(c + Vector2(cos(a), sin(a)) * r)
 			var hot := Color(0.15, 0.55, 1.0) if left > 0.3 else Color(1.0, 0.3, 0.2)
-			draw_colored_polygon(fluid, hot * Color(1, 1, 1, 0.85))
+			var cols := 40
+			var w := 2.0 * r / cols
+			for k in cols:
+				var x := c.x - r + w * (k + 0.5)
+				var half := sqrt(maxf(r * r - pow(x - c.x, 2.0), 0.0))
+				var y0 := maxf(level + sin(t * 3.0 + k * 0.5) * 3.0 * (0.4 + left), c.y - half)
+				var y1 := c.y + half
+				if y1 > y0:
+					draw_rect(Rect2(x - w * 0.5, y0, w + 0.6, y1 - y0), hot * Color(1, 1, 1, 0.85))
 			for k in 4:
 				var bx := c.x + sin(k * 2.3 + t * 0.7) * r * 0.5
 				var by := c.y + r - fmod(t * 25.0 + k * 31.0, left * 2.0 * r)
