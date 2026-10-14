@@ -34,8 +34,16 @@ func _process(_delta: float) -> bool:
 			main.autopilot = true
 		return false
 	main.ufo.hull = maxf(main.ufo.hull, 60.0)
-	# (the heat climbing once the descent is over: 4.5 s, 135 frames)
+	# (the heat climbing once the descent is over: 4.5 s, 135 frames; and a laser and two little
+	# saucers of the fleet bought, to be seen at work)
 	match frame - began:
+		140:
+			main.score = 5000
+			main.buy("laser")
+			main.buy("laser")
+			main.buy("fleet")
+			main.buy("fleet")
+			main.score = 0
 		300:
 			main.heat = 1.6
 		420:
