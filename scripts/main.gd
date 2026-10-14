@@ -115,10 +115,6 @@ var title_box: Control
 var over_box: Control
 var over_label: Label
 var hint_label: Label
-## A little picture of the cockpit, from inside the dome, so the pilot can be seen at work
-var cockpit_view: SubViewport
-var cockpit_camera: Camera3D
-var cockpit_frame: PanelContainer
 var _play_button: Button
 var ship_label: Label
 ## Which ship is flown (see Ufo.SHIPS), chosen on the title screen and remembered
@@ -1254,38 +1250,6 @@ func _build_hud() -> void:
 
 
 	# A pause button in the corner, and what pausing shows
-	cockpit_view = SubViewport.new()
-	cockpit_view.size = Vector2i(176, 128)
-	cockpit_view.world_3d = view.world_3d
-	cockpit_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	add_child(cockpit_view)
-	cockpit_camera = Camera3D.new()
-	cockpit_camera.fov = 66.0
-	cockpit_camera.near = 0.02
-	cockpit_camera.far = 60.0
-	cockpit_camera.environment = camera.environment
-	cockpit_view.add_child(cockpit_camera)
-	cockpit_frame = PanelContainer.new()
-	var rim := StyleBoxFlat.new()
-	rim.bg_color = Color(0, 0, 0, 0.6)
-	rim.border_color = Color(0.55, 1.0, 0.6, 0.7)
-	rim.set_border_width_all(3)
-	rim.set_corner_radius_all(10)
-	rim.set_content_margin_all(4)
-	cockpit_frame.add_theme_stylebox_override("panel", rim)
-	cockpit_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	cockpit_frame.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	cockpit_frame.position = Vector2(-126, -196)
-	var picture := TextureRect.new()
-	picture.texture = cockpit_view.get_texture()
-	picture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	picture.material = screen_mat
-	picture.custom_minimum_size = Vector2(244, 178)
-	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	picture.stretch_mode = TextureRect.STRETCH_SCALE
-	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	cockpit_frame.add_child(picture)
-	root.add_child(cockpit_frame)
 
 	_pause_button = _button("II", func() -> void: set_paused(true))
 	_pause_button.custom_minimum_size = Vector2(64, 56)
@@ -1450,14 +1414,6 @@ func _hud(delta: float) -> void:
 	stick_ring.visible = playing and stick_finger >= 0
 	beam_button.queue_redraw()
 	_pause_button.visible = playing and not autopilot
-	cockpit_frame.visible = playing and not ufo.crashed
-	cockpit_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if cockpit_frame.visible else SubViewport.UPDATE_DISABLED
-	if cockpit_frame.visible:
-		# (inside the dome, in front of the panel, looking back at the pilot; it banks with the ship)
-		var s := ufo.pilot_size
-		var eye := ufo.body.global_transform * (ufo.seat + Vector3(0.0, 0.7 * s, 1.25 * s))
-		var head := ufo.body.global_transform * (ufo.seat + Vector3(0.0, 0.6 * s, 0.0))
-		cockpit_camera.look_at_from_position(eye, head, ufo.body.global_basis.y)
 	if banner_time > 0.0:
 		banner_time -= delta
 		banner.modulate.a = clampf(banner_time * 2.0, 0.0, 1.0)

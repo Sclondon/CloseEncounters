@@ -27,7 +27,7 @@ recharges (three lamps on the front of the ship light with them). The touch stic
 it.
 
 The pilot works a stick and a panel of buttons in front of it, mashes the buttons while the beam is on, and is
-thrown about the cockpit in a dodge: a little **cockpit camera** at the bottom of the screen shows it. The ship's
+thrown about the cockpit in a dodge. The ship's
 lights flash with the beam, a dodge and a hit.
 
 **Only the saucer can be flown at first.** The orb and the black triangle are held in **secret government
