@@ -1571,7 +1571,13 @@ func _layout_title(size: Vector2) -> void:
 		title_box.offset_right = 650.0
 		title_box.custom_minimum_size = Vector2(620, 0)
 	_title_gap.visible = upright
-	_title_label.add_theme_font_size_override("font_size", 150 if upright else 84)
+	# (the name on one line, glowing: as big as it fits across the box, up to a modest size)
+	var room := (size.x - 80.0 if upright else 620.0) - 24.0
+	var name_size := 76 if upright else 56
+	while name_size > 24 and font.get_string_size(_title_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size).x > room:
+		name_size -= 2
+	_title_label.add_theme_font_size_override("font_size", name_size)
+	_title_label.add_theme_constant_override("outline_size", maxi(name_size / 6, 4))
 	ship_label.add_theme_font_size_override("font_size", 56 if upright else 34)
 	ship_label.custom_minimum_size = Vector2(620 if upright else 420, 0)
 	for b in _arrows:
@@ -1839,7 +1845,9 @@ func _build_hud() -> void:
 	_title_label = _label(84, Color(0.7, 1.0, 0.72))
 	_title_label.text = "CLOSE ENCOUNTERS"
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_title_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_glow(_title_label, Color(0.3, 1.0, 0.45, 0.6))
+	_title_label.add_theme_constant_override("shadow_outline_size", 16)
 	title_box.add_child(_title_label)
 	_title_gap = Control.new()
 	_title_gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
