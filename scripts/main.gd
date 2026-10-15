@@ -9,7 +9,7 @@ extends Node
 ## The world is drawn small and blown up with hard pixels, as in Cryptlins, and it bends away
 ## over the horizon like a rolling log (shaders/bend.gdshaderinc).
 ##
-## Modes: "title" (the pilot lounging on the moon), "launch" (off to Earth), "play", "over". Tests set
+## Modes: "title" (the pilot lounging on the moon), "launch" (off into space), "play", "over". Tests set
 ## `autopilot` to fly it themselves and `start_mode` to skip the title.
 
 const MAX_HEAT := 5.0
@@ -53,22 +53,18 @@ var ufo: Ufo
 var sfx: Sfx
 var music: Music
 var moon_set: MoonSet
-## How far into the flight from the moon to Earth
+## How far into the flight off the moon
 var _launch_t := 0.0
 var _launch_from := Vector3.ZERO
 const LAUNCH := 4.2
-## The camera rides behind the ship in the flight to Earth and the start of the descent: this far
+## The camera rides behind the ship in the flight off the moon and the start of the descent: this far
 ## back along the way it is going and this far up, looking on ahead of it
 const CHASE_BACK := 12.0
 const CHASE_UP := 3.0
-## The way the ship dives into Earth at the end of the flight, which is the way the camera looks at
-## the start of the descent (down and ahead, near enough the game camera's own angle)
-const DIVE := Vector3(0, -0.6, -0.8)
-## How far off Earth the flight from the moon ends, where the descent takes over
-const LAUNCH_GAP := 10.0
-## The radius of the ball the ground bends into under the ship (1 / (2 bend_k), bend_k in the
-## project's shader globals)
-const BEND_BALL := 83.0
+## The way the camera looks over the ship from lift-off until the descent is well under way: up and
+## away from Earth and the moon, so that both slide out of the picture, and clear of the moon in
+## the sky (sky.gdshader), so that only stars are left
+const AWAY := Vector3(-0.95, 0.2, 0.1)
 var things: Array[Thing] = []
 var shots: Array[Shot] = []
 var jets: Array[Node3D] = []
@@ -393,23 +389,10 @@ func start(from_launch := false) -> void:
 
 
 ## Coming down from space, `k` of the way (0 to 1): out of the stars until the planet is under the
-## ship. The Earth it dived at from the moon swells under it into the curve of the farm country
-## (the bend makes the ground under the ship a ball of radius BEND_BALL) and fades into it, and
-## the shield comes up
+## ship, the shield coming up on the way
 func _descend(k: float) -> void:
 	ufo.descent = INTRO_HEIGHT * pow(1.0 - k, 2.2)
 	ufo.bubble_fade = smoothstep(0.4, 0.9, k)
-	if k >= 1.0:
-		moon_set.rest_earth()
-		return
-	# (its near side kept just ahead of the ship, from where the flight left it to the ground under
-	# the ship, as it swells to the size of the ball the ground bends into)
-	var grow := smoothstep(0.0, 0.6, k)
-	var size := lerpf(MoonSet.EARTH_SIZE, BEND_BALL, grow)
-	var gap := lerpf(LAUNCH_GAP, ufo.altitude + ufo.descent, grow)
-	var way := DIVE.normalized().lerp(Vector3.DOWN, grow).normalized()
-	var ship_at := Vector3(ufo.position.x, ufo.altitude + ufo.descent, ufo.position.z)
-	moon_set.carry_earth(ship_at + way * (gap + size), size / MoonSet.EARTH_SIZE, 1.0 - smoothstep(0.45, 0.75, k))
 
 
 ## How seriously they take the ship, from its score: 1 at the start, 3 from DANGER_FULL points on.
@@ -536,7 +519,7 @@ func _process(delta: float) -> void:
 		_forces(delta)
 	if intro <= 0.0:
 		_patrols(delta)
-	# (on the moon and on the way to Earth, the world stays ready round where the run starts,
+	# (on the moon and on the way off it, the world stays ready round where the run starts,
 	# rather than loading chunks under a ship flying off across the sky)
 	world.update(Vector3.ZERO if mode == "title" or mode == "launch" else ufo.position, delta)
 	_spawn_some()
@@ -1480,19 +1463,19 @@ func _sounds() -> void:
 
 # ------------------------------------------------------------------ the camera
 
-## The descent: first just as the flight from the moon left it, riding behind the ship as it dives
-## (see `_chase`), then swinging up and back as it comes down until the curve of the planet fills
-## the picture, and the game's camera
+## The descent: first just as the flight from the moon left it, behind the ship looking up past it
+## into the stars (see `_chase`), then swinging up and back as it comes down until the curve of the
+## planet fills the picture, and the game's camera
 func _intro_camera() -> void:
 	camera.fov = _fov()
 	var k := 1.0 - intro / INTRO
 	var settle := smoothstep(0.3, 1.0, k)
-	var dive := DIVE.normalized()
+	# (round the ship, not across it, so it keeps its place in the picture as the camera swings)
+	var away := AWAY.normalized()
 	var normal_from := _camera_offset() - Vector3(0, ufo.altitude, 0)
-	camera.position = ufo.position + _chase(dive).lerp(normal_from, settle)
-	var normal_at := ufo.ground() + Vector3(0, ufo.altitude * 0.5, -1.5)
-	var look := (ufo.position + dive * 40.0).lerp(normal_at, settle)
-	camera.look_at(look, Vector3.UP)
+	camera.position = ufo.position + _chase(away).slerp(normal_from, settle)
+	var normal_way := (Vector3(0, -ufo.altitude * 0.5, -1.5) - normal_from).normalized()
+	camera.look_at(camera.position + away.slerp(normal_way, settle), Vector3.UP)
 	RenderingServer.global_shader_parameter_set("bend_focus", Vector3(ufo.position.x, 0.0, ufo.position.z - 1.0))
 	RenderingServer.global_shader_parameter_set("saucer_pos", ufo.position)
 	_sky_mat.set_shader_parameter("space", 1.0 - smoothstep(0.3, 0.85, k))
@@ -1500,7 +1483,7 @@ func _intro_camera() -> void:
 
 
 ## On the moon: low beside the chair, the ship and Earth in the picture; in the launch it rises
-## with the ship and then follows it out toward Earth
+## with the ship and then follows it off into space
 func _moon_camera(delta: float) -> void:
 	var site := MoonSet.SITE
 	# (close on the pilot up on the ship, Earth over its shoulder; on a wide screen the pilot to the
@@ -1512,17 +1495,25 @@ func _moon_camera(delta: float) -> void:
 		look = site + Vector3(6.15, 2.0, -5.68)
 	var focus := Vector3(site.x + 1.0, 0.0, site.z)
 	if mode == "launch" and _launch_t > 0.9:
+		# (rising with the ship from the title's picture of it and swinging round it, not across it,
+		# to behind it: the ship slides from where it stood in the picture to where it rides)
 		var k := smoothstep(0.9, 2.6, _launch_t)
-		var way := _launch_way()
-		at = at.lerp(ufo.position + _chase(way), k)
-		look = look.lerp(ufo.position + way * 40.0, k)
+		var away := AWAY.normalized()
+		var from := at - (site + MoonSet.SHIP_AT)
+		var way := (look - at).normalized().slerp(away, k)
+		at = ufo.position + from.slerp(_chase(away), k)
+		# (turned a little more toward the ship halfway round, for it to keep clear of the edges)
+		look = at + way + (ufo.position - at).normalized() * sin(k * PI) * 0.5
 		# (the bend goes with the ship as it leaves, or it would pull the ship down out of the
 		# picture as it flew away from the moon; the moon rolls away below instead)
 		focus = focus.lerp(Vector3(ufo.position.x, 0.0, ufo.position.z), smoothstep(0.9, 2.1, _launch_t))
 	camera.position = at
 	camera.look_at(look, Vector3.UP)
-	# (wider on a wide screen, for the ground and its cooler and Earth high above both to be seen)
+	# (wider on a wide screen, for the ground and its cooler and Earth high above both to be seen;
+	# the game's own once the ship is away, as the descent has it)
 	camera.fov = _fov() if _upright() else 52.0
+	if mode == "launch":
+		camera.fov = lerpf(camera.fov, _fov(), smoothstep(0.9, 2.6, _launch_t))
 	RenderingServer.global_shader_parameter_set("bend_focus", focus)
 	RenderingServer.global_shader_parameter_set("saucer_pos", Vector3(0, -9999, 0))
 	_sky_mat.set_shader_parameter("space", 1.0)
@@ -1964,9 +1955,8 @@ func _park_ufo() -> void:
 	ufo.lounge(true)
 
 
-## Play pressed on the title: the pilot drops in, the canopy shuts, the ship lifts off and makes for
-## Earth, and the run
-## starts with it coming down from space (see `_launch`)
+## Play pressed on the title: the pilot drops in, the canopy shuts, the ship lifts off and flies
+## away into space, and the run starts with it coming down from space (see `_launch`)
 func begin_launch() -> void:
 	if mode != "title" or not ship in unlocked:
 		return
@@ -1993,37 +1983,27 @@ func _launch(delta: float) -> void:
 		ufo._legs.visible = _launch_t < 1.2
 		_launch_from = ufo.position
 		return
-	# and away to Earth, faster and faster, up and over it and diving in the way the descent
-	# carries on (see `_launch_path`)
-	ufo.position = _launch_path(_launch_s())[0]
+	# and off up into space, faster and faster, the moon and Earth left behind (see `_launch_path`)
+	ufo.position = _launch_path(_launch_s())
 	ufo.hull_model.rotation.y += delta * 6.0
 	if _launch_t >= LAUNCH:
 		start(true)
 
 
-## How far along the flight to Earth (0 to 1), speeding up all the way
+## How far along the flight off the moon (0 to 1), speeding up all the way
 func _launch_s() -> float:
 	return pow(clampf((_launch_t - 2.1) / (LAUNCH - 2.1), 0.0, 1.0), 1.8)
 
 
-## Where the ship is `s` of the way to Earth, and the way it is going: a curve from the top of its
-## climb off the moon, heading for Earth, round to just above Earth, diving into it along DIVE
-func _launch_path(s: float) -> Array:
-	var dive := DIVE.normalized()
-	var earth := moon_set.earth_position()
+## Where the ship is `s` of the way along its flight: a curve from the top of its climb off the moon,
+## still going up, round to heading AWAY
+func _launch_path(s: float) -> Vector3:
+	var away := AWAY.normalized()
 	var p0 := _launch_from
-	var p1 := p0 + (earth - p0).normalized() * 70.0
-	var p3 := earth - dive * (MoonSet.EARTH_SIZE + LAUNCH_GAP)
-	var p2 := p3 - dive * 70.0
-	var way := p0.bezier_derivative(p1, p2, p3, s)
-	return [p0.bezier_interpolate(p1, p2, p3, s), way.normalized() if way.length() > 0.001 else dive]
-
-
-## The way the ship is going in the flight: at Earth as it climbs off the moon, then along its curve
-func _launch_way() -> Vector3:
-	if _launch_t < 2.1:
-		return (moon_set.earth_position() - ufo.position).normalized()
-	return _launch_path(_launch_s())[1]
+	var p1 := p0 + Vector3.UP * 50.0
+	var p3 := p0 + Vector3.UP * 40.0 + away * 200.0
+	var p2 := p3 - away * 80.0
+	return p0.bezier_interpolate(p1, p2, p3, s)
 
 
 ## The next ship along (or the one before), on the title screen
@@ -2093,7 +2073,6 @@ func quit_to_menu() -> void:
 	heat = 0.0
 	score = 0
 	intro = 0.0
-	moon_set.rest_earth()
 	var at := ufo.ground()
 	ufo.queue_free()
 	_make_ufo(at)
