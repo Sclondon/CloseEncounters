@@ -895,6 +895,24 @@ def phone_pole():
     return join("phone_pole", p)
 
 
+
+def helicopter():
+    """A police helicopter: a blue and white body with a glass bubble at the front (-Y), a tail boom
+    and fin, skids, and a main rotor ("rotor") and tail rotor ("tail_rotor") that the game spins"""
+    body = join("helicopter", [
+        ball((1.6, 3.0, 1.5), (0, 0, 1.6), "police_blue", 10, 6), ball((1.3, 1.4, 1.1), (0, -1.1, 1.75), "glass", 10, 6),
+        box((1.62, 2.2, 0.3), (0, 0.2, 1.2), "white"), drum(0.22, 4.2, (0, 3.3, 1.85), "police_blue", 8, (math.pi / 2, 0, 0)),
+        box((0.12, 0.9, 1.3), (0, 5.2, 2.3), "police_blue"), box((1.4, 0.5, 0.1), (0, 5.0, 1.9), "white"),
+        drum(0.25, 0.4, (0, 0, 2.5), "metal_dark", 8), box((0.6, 0.3, 0.12), (0, 0.6, 0.85), "light_white"),
+        box((0.12, 3.2, 0.12), (0.75, -0.2, 0.25), "metal_dark"), box((0.12, 3.2, 0.12), (-0.75, -0.2, 0.25), "metal_dark"),
+        box((0.08, 0.08, 0.6), (0.65, -0.9, 0.55), "metal_dark"), box((0.08, 0.08, 0.6), (-0.65, -0.9, 0.55), "metal_dark"),
+        box((0.08, 0.08, 0.6), (0.65, 0.6, 0.55), "metal_dark"), box((0.08, 0.08, 0.6), (-0.65, 0.6, 0.55), "metal_dark")])
+    rotor = join("rotor", [box((7.0, 0.3, 0.05), (0, 0, 2.75), "metal_dark"), box((0.3, 7.0, 0.05), (0, 0, 2.75), "metal_dark")])
+    attach(rotor, body)
+    tail = join("tail_rotor", [box((0.05, 0.2, 1.4), (0.15, 5.3, 2.4), "metal_dark"), box((0.05, 1.4, 0.2), (0.15, 5.3, 2.4), "metal_dark")])
+    attach(tail, body)
+    return body
+
 def phone_booth():
     """A roadside phone booth: glass on three sides, the door to the road, a lit TELEPHONE sign on
     the roof and an aerial above it (the game sends radio waves out of its tip, BOOTH_TIP, while
@@ -1141,7 +1159,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
             diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
-            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, sasquatch, meteorite, satellite,
+            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, sasquatch, meteorite, satellite,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox]
 
 

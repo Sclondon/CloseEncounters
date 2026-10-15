@@ -17,15 +17,21 @@ const MAX_HEAT := 5.0
 ## Heat cools only after this long without taking anything, and then at this many stars a second
 const COOL_AFTER := 5.0
 const COOL_RATE := 0.07
-## Who comes for you at each level of heat
+## Who comes for you at each level of heat, each a stage of its own: one star, only the farmers
+## with their guns (see Thing "flee"); two, police cars, who must pull up and get out to shoot (see
+## Thing "police"); three, a police helicopter keeping its searchlight on you and the men in black;
+## four, the army's jeeps, firing on the move; five, tanks, and fighter jets overhead (see `_jets`)
 const FORCES: Array[Dictionary] = [
 	{},
-	{"police_car": 1},
-	{"police_car": 3},
-	{"police_car": 2, "jeep": 2},
-	{"police_car": 1, "jeep": 2, "tank": 1},
-	{"police_car": 1, "jeep": 2, "tank": 2},
+	{},
+	{"police_car": 2},
+	{"helicopter": 1, "police_car": 2, "agent_car": 1},
+	{"helicopter": 1, "jeep": 2, "police_car": 1},
+	{"helicopter": 1, "tank": 2, "jeep": 2},
 ]
+## How long after a new star the heat goes up only slowly (see `add_heat`)
+const NEW_STAR := 8.0
+var _new_star := 0.0
 ## How many of each thing the farm keeps about (taken ones are replaced, somewhere else)
 const CAMERA_OFFSET := Vector3(0, 25.8, 19.8)
 ## (tests try others)
@@ -170,7 +176,8 @@ var _log_met: Array[String] = []
 ## The hunters, as the log names them (the jets are not things: they are only flown over)
 const HUNTERS := {
 	"police_car": "POLICE CAR", "patrol_car": "POLICE PATROL", "jeep": "ARMY JEEP",
-	"patrol_jeep": "ARMY PATROL", "tank": "TANK", "jet": "FIGHTER JET",
+	"patrol_jeep": "ARMY PATROL", "tank": "TANK", "jet": "FIGHTER JET", "officer": "POLICE OFFICER",
+	"helicopter": "POLICE HELICOPTER", "agent_car": "MEN IN BLACK", "agent": "AGENT",
 }
 ## The first few frames draw the farm under a black cover, so its shaders are ready before the
 ## ship comes down to it (else the arrival stutters while they are made)
@@ -590,7 +597,18 @@ func _read_steer() -> Vector2:
 	return v.limit_length(1.0)
 
 
+
+## Heat for something the ship did: less the more stars there already are (each takes more to earn
+## than the last), and little for a while after a new star, so that each is a stage of its own
+## rather than a rush from one to five
+func add_heat(amount: float) -> void:
+	var damp := 1.0 / (1.0 + 0.6 * heat_level())
+	if _new_star > 0.0:
+		damp *= 0.25
+	heat = minf(heat + amount * damp, MAX_HEAT)
+
 func _heat(delta: float) -> void:
+	_new_star = maxf(_new_star - delta, 0.0)
 	calm += delta
 	# (the more the ship has taken, the longer it takes them to give up looking)
 	if calm > COOL_AFTER * sqrt(danger()) and heat > 0.0:
@@ -603,7 +621,8 @@ func _heat(delta: float) -> void:
 	var level := heat_level()
 	if level != _last_level:
 		if level > _last_level:
-			_banner(["", "THE FARMERS ARE ARMED", "THE POLICE ARE COMING", "THE ARMY IS HERE", "TANKS!", "THEY SENT THE AIR FORCE"][level], 2.5)
+			_banner(["", "THE FARMERS ARE ARMED", "THE POLICE ARE COMING", "POLICE HELICOPTER!", "THE ARMY IS HERE", "TANKS AND THE AIR FORCE"][level], 2.5)
+			_new_star = NEW_STAR
 			sfx.play("star", 1.0 + level * 0.06)
 		else:
 			_banner("COOLING OFF", 1.5)
@@ -613,7 +632,7 @@ func _heat(delta: float) -> void:
 		var wanted: Dictionary = FORCES[level]
 		var have := {}
 		for t in things:
-			if t.is_enemy() and not t.leaving and not t.info.get("searchlight", false):
+			if t.is_enemy() and not t.leaving and not t.info.get("searchlight", false) and not t.info.get("crew", false):
 				have[t.kind] = int(have.get(t.kind, 0)) + 1
 				if int(have[t.kind]) > int(wanted.get(t.kind, 0)):
 					t.leaving = true
@@ -645,9 +664,9 @@ func spotted(_by: Thing, delta: float, why := "SPOTTED!") -> void:
 	if _spotted_for <= 0.0:
 		_banner(why, 1.4)
 		sfx.play("star", 1.3)
-		heat = maxf(heat, minf(heat + 0.35, MAX_HEAT))
+		add_heat(0.35)
 	_spotted_for = 0.6
-	heat = minf(heat + 0.5 * delta, MAX_HEAT)
+	add_heat(0.5 * delta)
 	calm = 0.0
 
 
@@ -705,7 +724,7 @@ func _crop_circles(delta: float) -> void:
 		_circle_done = true
 		var points := 60 * multiplier()
 		score += points
-		heat = minf(heat + 0.02, MAX_HEAT)
+		add_heat(0.02)
 		log_line("CROP CIRCLE PRESSED", points)
 		sfx.play("fanfare", 1.3, -4.0)
 
@@ -731,9 +750,13 @@ func _forces(delta: float) -> void:
 	if _spawn_wait > 0.0 or ufo.dead:
 		return
 	var wanted: Dictionary = FORCES[heat_level()].duplicate()
-	# (a ship that has taken more is sent more after it: one more of the level's first, a step of danger)
-	if not wanted.is_empty():
-		var first: String = wanted.keys()[0]
+	# (a ship that has taken more is sent more after it: more of the lightest on the ground, a step
+	# of danger)
+	var first := ""
+	for k: String in ["police_car", "jeep", "tank"]:
+		if wanted.has(k) and first == "":
+			first = k
+	if first != "":
 		wanted[first] = int(wanted[first]) + int((danger() - 1.0) * 1.5)
 	for kind: String in wanted:
 		var have := 0
@@ -758,7 +781,7 @@ func _forces(delta: float) -> void:
 
 
 func _jets(delta: float) -> void:
-	if mode == "play" and heat_level() >= 4 and not ufo.dead:
+	if mode == "play" and heat_level() >= 5 and not ufo.dead:
 		_jet_wait -= delta
 		if _jet_wait <= 0.0:
 			# Fighter jets from four stars, twice as often at five
@@ -999,7 +1022,7 @@ func _laser(delta: float) -> void:
 		if hits >= int(LASER_HITS.get(t.kind, 2)):
 			var points := t.points() / 2 * multiplier()
 			score += points
-			heat = minf(heat + 0.25, MAX_HEAT)
+			add_heat(0.25)
 			calm = 0.0
 			boom(at, 2.2)
 			sfx.play("boom", 1.3, _near_db(t))
@@ -1022,7 +1045,7 @@ func _laser(delta: float) -> void:
 		sfx.play("boom", 0.9)
 		var points := 250 * multiplier()
 		score += points
-		heat = minf(heat + 0.25, MAX_HEAT)
+		add_heat(0.25)
 		calm = 0.0
 		log_line("JET SHOT DOWN", points)
 
@@ -1169,7 +1192,7 @@ func phone_call(t: Thing) -> void:
 		return
 	# (the first call brings a star; more ringing in on top of it within a few seconds add little)
 	var now := Time.get_ticks_msec() / 1000.0
-	heat = minf(heat + (0.9 if now - _last_call > 6.0 else 0.2), MAX_HEAT)
+	add_heat(0.9 if now - _last_call > 6.0 else 0.2)
 	_last_call = now
 	calm = 0.0
 	_banner("SOMEONE CALLED THE POLICE", 1.8)
@@ -1272,7 +1295,7 @@ func abducted(t: Thing) -> void:
 	if mode == "play":
 		score += points
 		taken += 1
-		heat = minf(heat + float(t.info["heat"]), MAX_HEAT)
+		add_heat(float(t.info["heat"]))
 		calm = 0.0
 	ufo.alien.feel("cheer", 0.9)
 	sfx.play("bloop", 1.0 + randf() * 0.2)
@@ -1303,7 +1326,7 @@ func landed(t: Thing, height: float) -> void:
 		if other.ground().distance_to(t.ground()) < other.size() + t.size() * 0.5:
 			var points := other.points() / 2 * multiplier()
 			score += points
-			heat = minf(heat + 0.25, MAX_HEAT)
+			add_heat(0.25)
 			calm = 0.0
 			boom(other.position + Vector3(0, 1, 0), 2.0)
 			log_line("%s CRUSHED" % other.kind.replace("_", " ").to_upper(), points)

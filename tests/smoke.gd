@@ -60,9 +60,13 @@ func _process(_delta: float) -> bool:
 			_check(seen.has("police_car"), "police came at two stars")
 			_check(patrols > 0, "patrols with searchlights rove about")
 			_check(spotted, "a patrol's searchlight found the ship")
+			_check(seen.has("officer"), "a police car pulled up and an officer got out")
+			main.heat = 3.5
+		2050:
+			_check(seen.has("helicopter"), "a police helicopter came at three stars")
 			main.heat = 4.5
 		2600:
-			_check(seen.has("jeep") and seen.has("tank"), "jeeps and a tank came at four stars")
+			_check(seen.has("jeep"), "army jeeps came at four stars")
 			_check(hit, "the saucer was shot at and hit")
 			main.heat = 5.0
 		3000:
@@ -72,6 +76,7 @@ func _process(_delta: float) -> bool:
 			main.score = 12000
 			_check(main.danger() > calm and is_equal_approx(main.danger(), 3.0), "a high score makes them keener (danger %.1f to %.1f)" % [calm, main.danger()])
 		4800:
+			_check(seen.has("tank"), "tanks came at five stars")
 			_check(main.mode == "over", "the saucer was shot down (hull %.0f, mode %s)" % [main.ufo.hull, main.mode])
 			print("score %d, taken %d, things %d, shots %d" % [main.score, main.taken, main.things.size(), main.shots.size()])
 			print("PASSED" if fails == 0 else "FAILED")

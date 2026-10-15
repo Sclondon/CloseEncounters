@@ -57,7 +57,7 @@ const KINDS := {
 	"rv": {"points": 220, "weight": 3.2, "heat": 0.4, "move": "road", "speed": 7.0, "size": 2.6},
 	# On patrol whatever the heat, sweeping a searchlight over the sky: be caught in it and the heat
 	# goes up. Once there is heat they lock the light on and come after the ship like the rest.
-	"patrol_car": {"model": "police_car", "points": 300, "weight": 3.0, "heat": 0.6, "move": "patrol", "speed": 6.0, "size": 2.2, "gun": "pistol", "keep": 10.0, "enemy": true, "searchlight": true},
+	"patrol_car": {"model": "police_car", "points": 300, "weight": 3.0, "heat": 0.6, "move": "patrol", "speed": 6.0, "size": 2.2, "keep": 10.0, "enemy": true, "searchlight": true, "police": true},
 	"patrol_jeep": {"model": "jeep", "points": 400, "weight": 3.4, "heat": 0.7, "move": "patrol", "speed": 5.5, "size": 2.2, "gun": "mg", "keep": 12.0, "enemy": true, "searchlight": true},
 	# Scenery, pulled out of the ground (tier 1 and 2)
 	"sagebrush": {"points": 5, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
@@ -106,7 +106,14 @@ const KINDS := {
 	"floodlight": {"points": 150, "weight": 2.5, "heat": 0.3, "move": "still", "size": 1.2, "tier": 3},
 	# A trader's goods (see main.gd spawn_shop): beam one up to buy it
 	"pod": {"points": 0, "weight": 0.9, "heat": 0.0, "move": "still", "size": 1.0},
-	"police_car": {"points": 300, "weight": 3.0, "heat": 0.6, "move": "chase", "speed": 7.5, "size": 2.2, "gun": "pistol", "keep": 10.0, "enemy": true},
+	# (the police cannot shoot from the car: they pull up and an officer gets out, see `_police`)
+	"police_car": {"points": 300, "weight": 3.0, "heat": 0.6, "move": "police", "speed": 7.5, "size": 2.2, "keep": 10.0, "enemy": true, "police": true},
+	"officer": {"model": "person", "tints": {"shirt": Color(0.15, 0.25, 0.55)}, "points": 150, "weight": 1.3, "heat": 0.5, "move": "guard", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "pistol", "enemy": true, "crew": true},
+	# The men in black: a black sedan at three stars, agents in black suits getting out of it
+	"agent_car": {"model": "car", "tints": {"paint": Color(0.06, 0.06, 0.08)}, "points": 500, "weight": 3.0, "heat": 0.7, "move": "police", "speed": 8.0, "size": 2.2, "keep": 11.0, "enemy": true, "police": true, "crew_kind": "agent"},
+	"agent": {"model": "person", "tints": {"shirt": Color(0.05, 0.05, 0.06), "denim": Color(0.05, 0.05, 0.06)}, "points": 250, "weight": 1.3, "heat": 0.6, "move": "guard", "speed": 3.8, "size": 0.7, "voice": "scream", "gun": "pistol", "enemy": true, "crew": true},
+	# Over you at three stars and up, circling with a searchlight on you (it cannot be reached)
+	"helicopter": {"points": 900, "weight": 6.0, "heat": 0.5, "move": "hover", "speed": 9.0, "size": 2.6, "tier": 4, "enemy": true, "searchlight": true, "light_y": -0.4},
 	"jeep": {"points": 400, "weight": 3.4, "heat": 0.7, "move": "chase", "speed": 7.0, "size": 2.2, "gun": "mg", "keep": 12.0, "enemy": true},
 	"tank": {"points": 800, "weight": 5.0, "heat": 1.0, "move": "chase", "speed": 4.0, "size": 3.0, "gun": "cannon", "keep": 16.0, "enemy": true},
 }
@@ -114,7 +121,7 @@ const KINDS := {
 const GUNS := {
 	"shotgun": {"range": 15.0, "reload": 2.6},
 	"pistol": {"range": 20.0, "reload": 1.3},
-	"mg": {"range": 24.0, "reload": 3.0},
+	"mg": {"range": 24.0, "reload": 4.5},
 	"cannon": {"range": 30.0, "reload": 4.5},
 }
 const GRAVITY := 22.0
@@ -153,6 +160,9 @@ var obstacle := Vector4.ZERO
 ## How far from the beam's middle it can be and still be caught
 var reach := 0.4
 var fan: Node3D
+## A helicopter's rotors
+var rotor: Node3D
+var tail_rotor: Node3D
 var wings: Array[Node3D] = []
 ## How high a bird flies
 var fly_y := 0.0
@@ -230,6 +240,10 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 	reach = obstacle.z + 3.5 if obstacle != Vector4.ZERO else size() * 0.4 * base_size
 	fan = model.find_child("fan*", true, false) as Node3D
 	wings = [model.find_child("wing_l*", true, false) as Node3D, model.find_child("wing_r*", true, false) as Node3D]
+	if info["move"] == "hover":
+		position.y = HOVER_Y
+	rotor = model.find_child("rotor*", true, false) as Node3D
+	tail_rotor = model.find_child("tail_rotor*", true, false) as Node3D
 	if info["move"] == "fly":
 		fly_y = randf_range(2.5, 6.0)
 		position.y = fly_y
@@ -427,9 +441,19 @@ func _walk(delta: float, ufo: Ufo) -> void:
 					pace *= 0.4
 		"road":
 			want = Vector3(0, 0, road_dir) if road_axis == "z" else Vector3(road_dir, 0, 0)
+		"police":
+			pace = _police(delta, ufo, to_ufo, near, pace)
+			want = _chase_want
+		"guard":
+			pace = _guard(delta, ufo, to_ufo, near, pace)
+			want = _chase_want
+		"hover":
+			pace = _hover(delta, ufo, here)
+			want = _chase_want
 		"patrol":
-			if game.heat_level() >= 1 or leaving:
-				pace = _chase(delta, ufo, to_ufo, near, pace)
+			# (on the look-out until the police are after the ship, two stars, then after it too)
+			if game.heat_level() >= 2 or leaving:
+				pace = _police(delta, ufo, to_ufo, near, pace) if info.get("police", false) else _chase(delta, ufo, to_ufo, near, pace)
 				want = _chase_want
 			else:
 				think -= delta
@@ -479,12 +503,16 @@ func _walk(delta: float, ufo: Ufo) -> void:
 	if speed > 0.05:
 		position = game.world.push_out(position, size() * 0.5)
 	rotation.y = heading
+	if rotor != null:
+		rotor.rotation.y += delta * 22.0
+	if tail_rotor != null:
+		tail_rotor.rotation.x += delta * 30.0
 	if fan != null:
 		fan.rotation.z += delta * 3.0
 	if beam_arm != null:
 		beam_arm.rotation.x = sin(_t * 1.6) * 0.35
 	# Walkers bob and waddle; anything on wheels only rocks a little
-	var on_legs: bool = info["move"] in ["peck", "graze", "flee"] and kind != "tractor"
+	var on_legs: bool = info["move"] in ["peck", "graze", "flee", "guard"] and kind != "tractor"
 	if on_legs and speed > 0.2:
 		model.position.y = absf(sin(_t * speed * 4.0)) * 0.12
 		model.rotation.z = sin(_t * speed * 4.0) * 0.08
@@ -499,6 +527,18 @@ func _walk(delta: float, ufo: Ufo) -> void:
 
 
 var _chase_want := Vector3.ZERO
+## A police car's officer out of it (see `_police`), and how many are still in it to get out; an
+## officer's car, and whether it is called back to it
+var officer: Thing
+var crew := 1
+var car: Thing
+var recall := false
+var _pulling_up := 0.0
+var _far := 0.0
+## A helicopter's way round the ship, how far out and how high
+var _orbit := randf() * TAU
+const HOVER_OUT := 15.0
+const HOVER_Y := 15.0
 
 
 ## As "chase" moves: closes to its range, circles there, and fires (for a patrol once there is heat)
@@ -518,6 +558,89 @@ func _chase(delta: float, ufo: Ufo, to_ufo: Vector3, near: float, pace: float) -
 		_shoot(delta, ufo, near)
 	return pace
 
+
+
+## A police car (or patrol): after the ship until it is in pistol range, then it pulls up and an
+## officer gets out to shoot (the car cannot). If the ship gets well away, the officer gets back in
+## and the car is off after it again; with its officer taken it can only follow.
+func _police(delta: float, ufo: Ufo, to_ufo: Vector3, near: float, pace: float) -> float:
+	var reach: float = GUNS["pistol"]["range"]
+	if officer != null and (not is_instance_valid(officer) or officer.state != "walk"):
+		officer = null
+	if officer != null:
+		# (pulled up, the officer out)
+		_chase_want = Vector3.ZERO
+		if near > reach + 8.0 or leaving:
+			_far += delta
+			officer.recall = _far > 1.2
+		else:
+			_far = 0.0
+			officer.recall = false
+		return 0.0
+	if leaving:
+		_chase_want = -to_ufo.normalized()
+		return pace
+	if crew > 0 and near < reach - 2.0:
+		# (pulling up; once stopped, out gets the officer)
+		_chase_want = Vector3.ZERO
+		_pulling_up += delta
+		if _pulling_up > 0.7 and speed < 0.5:
+			_pulling_up = 0.0
+			crew -= 1
+			call_deferred("_get_out")
+		return 0.0
+	_pulling_up = 0.0
+	var keep: float = info["keep"]
+	if near > keep + 2.0:
+		_chase_want = to_ufo.normalized()
+	else:
+		_chase_want = Vector3(-to_ufo.z, 0, to_ufo.x).normalized() * 0.5
+		pace *= 0.5
+	return pace
+
+
+## The officer out of the driver's door (once the frame's things have all been seen to)
+func _get_out() -> void:
+	if state != "walk" or not is_instance_valid(game):
+		return
+	var door := position + Vector3(cos(heading), 0, -sin(heading)) * 1.6
+	officer = game.spawn(info.get("crew_kind", "officer"), door)
+	officer.car = self
+	officer.heading = heading
+
+
+## An officer out of a police car: stands by it and shoots; called back, walks back and gets in;
+## with the car gone, runs like anyone
+func _guard(delta: float, ufo: Ufo, to_ufo: Vector3, near: float, pace: float) -> float:
+	if car == null or not is_instance_valid(car) or car.state != "walk":
+		car = null
+		_chase_want = -to_ufo.normalized() if near > 0.01 else Vector3.FORWARD
+		return pace * 1.2
+	if recall:
+		var door := car.position + Vector3(cos(car.heading), 0, -sin(car.heading)) * 1.6
+		if ground().distance_to(door) < 0.8:
+			car.officer = null
+			car.crew += 1
+			state = "gone"
+			queue_free()
+			return 0.0
+		_chase_want = (door - ground()).normalized()
+		return pace * 1.3
+	_chase_want = Vector3.ZERO
+	heading = lerp_angle(heading, atan2(to_ufo.x, to_ufo.z), minf(delta * 6.0, 1.0))
+	_shoot(delta, ufo, near)
+	return 0.0
+
+
+## A helicopter: circling the ship high up, its searchlight on it
+func _hover(delta: float, ufo: Ufo, here: Vector3) -> float:
+	_orbit += delta * 0.3
+	var goal := ufo.ground() + Vector3(sin(_orbit), 0, cos(_orbit)) * HOVER_OUT
+	if leaving:
+		goal = here + (here - ufo.ground()).normalized() * 20.0
+	position.y = lerpf(position.y, HOVER_Y, minf(delta * 0.8, 1.0))
+	_chase_want = (goal - here).normalized() if here.distance_to(goal) > 1.0 else Vector3.ZERO
+	return float(info["speed"]) * clampf(here.distance_to(goal) / 6.0, 0.3, 1.0)
 
 func _build_searchlight() -> void:
 	light = Node3D.new()
@@ -709,7 +832,7 @@ func _shoot(delta: float, ufo: Ufo, near: float) -> void:
 		return
 	reload = float(spec["reload"]) * randf_range(0.85, 1.2) / pow(game.danger(), 0.6)
 	if gun == "mg":
-		burst = 6
+		burst = 3
 		burst_time = 0.0
 	else:
 		game.fire(self, gun, ufo)
@@ -718,7 +841,7 @@ func _shoot(delta: float, ufo: Ufo, near: float) -> void:
 ## Where shots leave it from
 func muzzle() -> Vector3:
 	match kind:
-		"farmer", "cowboy":
+		"farmer", "cowboy", "officer", "agent":
 			return global_position + Vector3(0, 1.5, 0)
 		"tank":
 			return global_position + Vector3(0, 1.9, 0)

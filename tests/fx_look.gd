@@ -49,7 +49,10 @@ func _booth_scene(cut: bool) -> void:
 func _process(_delta: float) -> bool:
 	frame += 1
 	main.heat = 0.0
-	if frame > 425:
+	if frame > 455:
+		main.heat = 2.3 if frame < 560 else 3.3
+		main.ufo.hull = 100.0
+	elif frame > 425:
 		main.ufo.hull = 0.0
 		main.heat = 1.2
 	if main.hold_camera and _booth != null:
@@ -103,7 +106,11 @@ func _process(_delta: float) -> bool:
 			main.autopilot = true
 		450:
 			_shot("smoking")
-			print("[smoke] bits ", main.ufo.puffs._bits.size(), " hull ", main.ufo.hull, " parked ", main.ufo.parked)
-			if main.ufo.puffs._bits.size() > 0:
-				print("[smoke] at ", main.ufo.puffs._bits[0]["node"].global_position, " ufo ", main.ufo.global_position, " pg ", main.ufo.puffs.global_position)
-	return frame >= 455
+			main.autopilot = false
+			main.ufo.velocity = Vector3.ZERO
+			main.spawn("police_car", main.ufo.ground() + Vector3(14, 0, 4))
+		540:
+			_shot("police")
+		620:
+			_shot("helicopter")
+	return frame >= 625
