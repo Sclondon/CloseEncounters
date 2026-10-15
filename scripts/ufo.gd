@@ -103,6 +103,15 @@ var _drink: Node3D
 var chair: Node3D
 var _hop := 0.0
 const HOP := 0.6
+## Seconds since the pilot landed in the cockpit, the ship rocking on its legs (-1 when still)
+var _rock := -1.0
+## A swallow going (1 just taken, down to 0), how big, and the hull's own size to bulge from
+var _gulp := 0.0
+var _gulp_size := 1.0
+var _hull_scale := Vector3.ONE
+## Smoke and sparks off the ship (with its shield gone), and the beam's whirl of dust
+var puffs: Puffs
+var _smoke_wait := 0.0
 ## Where the chair floats over the hull, for a ship of the saucer's size (to the left of the cockpit
 ## as the camera sees it), how high above it, how far it bobs, and how high the pilot sits in it
 const CHAIR_AT := Vector3(-1.5, 0.0, 0.3)
@@ -138,8 +147,15 @@ var body: Node3D
 var hull_model: Node3D
 var alien: Alien
 var beam: MeshInstance3D
+var beam_core: MeshInstance3D
+var _core_mat: ShaderMaterial
+var tornado: Tornado
 var beam_mat: ShaderMaterial
 var spot: SpotLight3D
+var beam_light: SpotLight3D
+## Where the beam will fall, on the ground under the ship, until the beam comes on (reticle.gdshader)
+var reticle: MeshInstance3D
+var _reticle_mat: ShaderMaterial
 var glow: OmniLight3D
 var _power := 0.0
 var _t := 0.0
@@ -162,6 +178,7 @@ func _ready() -> void:
 	add_child(body)
 	hull_model = Ps1.model(spec["model"], {}, true)
 	hull_model.scale = Vector3.ONE * float(spec.get("scale", 1.0))
+	_hull_scale = hull_model.scale
 	body.add_child(hull_model)
 	_model_name = spec["model"]
 	_ghost_colour = spec.get("ghost", Color.WHITE)
@@ -228,6 +245,20 @@ func _ready() -> void:
 	beam.position.y = -(altitude - 0.5) * 0.5 - 0.5
 	beam.visible = false
 	add_child(beam)
+	# (and a second, narrower cone inside it, and the whirl of motes swirling up it)
+	beam_core = MeshInstance3D.new()
+	var inner := cone.duplicate() as CylinderMesh
+	inner.top_radius = BEAM_TOP * 0.55
+	inner.bottom_radius = beam_foot * 0.55
+	beam_core.mesh = inner
+	_core_mat = ShaderMaterial.new()
+	_core_mat.shader = beam_mat.shader
+	_core_mat.set_shader_parameter("core", 1.0)
+	_core_mat.set_shader_parameter("tint", Color(0.75, 1.0, 0.8))
+	beam_core.material_override = _core_mat
+	beam.add_child(beam_core)
+	tornado = Tornado.new()
+	add_child(tornado)
 
 	# A pale light always on the ground under it (to see where it is), green and bright in the beam
 	spot = SpotLight3D.new()
@@ -241,6 +272,34 @@ func _ready() -> void:
 	spot.spot_angle *= 1.25
 	spot.position.y = -0.6
 	add_child(spot)
+	# The beam's own light, green, throwing shadows of whatever is in the beam onto the ground. It
+	# shines only on the ground and on what is in the beam (Thing.BEAM_LAYER), so the shadows cost
+	# little: everything else is left out of them
+	beam_light = SpotLight3D.new()
+	beam_light.rotation.x = -PI / 2
+	beam_light.position.y = -0.6
+	beam_light.spot_range = altitude + 4.0
+	beam_light.spot_angle = spot.spot_angle
+	beam_light.spot_angle_attenuation = 1.5
+	beam_light.light_color = Color(0.55, 1.0, 0.65)
+	beam_light.light_cull_mask = 1 << (Thing.BEAM_LAYER - 1)
+	beam_light.shadow_enabled = true
+	beam_light.visible = false
+	add_child(beam_light)
+	reticle = MeshInstance3D.new()
+	var pad := PlaneMesh.new()
+	pad.size = Vector2.ONE * beam_foot * 1.6
+	pad.subdivide_width = 4
+	pad.subdivide_depth = 4
+	reticle.mesh = pad
+	_reticle_mat = ShaderMaterial.new()
+	_reticle_mat.shader = load("res://shaders/reticle.gdshader")
+	reticle.material_override = _reticle_mat
+	reticle.top_level = true
+	reticle.visible = false
+	add_child(reticle)
+	puffs = Puffs.new()
+	add_child(puffs)
 	glow = OmniLight3D.new()
 	glow.omni_range = 5.0
 	glow.light_energy = 0.8
@@ -301,6 +360,7 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	_t += delta
 	since_hit += delta
 	if dead:
+		reticle.visible = false
 		_falling(delta)
 		return
 	if parked:
@@ -309,7 +369,21 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 		beaming = false
 		beam.visible = false
 		bubble.visible = false
+		var was_hopping := _hop > 0.0
 		_hop = maxf(_hop - delta, 0.0)
+		if was_hopping and _hop <= 0.0:
+			_rock = 0.0
+		if _rock >= 0.0:
+			# (the pilot landing in the cockpit: the ship dips on its legs and rocks, settling)
+			_rock += delta
+			var fade := exp(-3.2 * _rock)
+			body.position.y = -0.22 * fade * sin(_rock * 13.0)
+			body.rotation.z = 0.11 * fade * sin(_rock * 9.0)
+			body.rotation.x = 0.06 * fade * sin(_rock * 7.0 + 1.0)
+			if _rock > 2.0:
+				_rock = -1.0
+				body.position.y = 0.0
+				body.rotation = Vector3.ZERO
 		_canopy = move_toward(_canopy, 1.0 if lounging or _hop > 0.0 else 0.0, delta * 2.2)
 		if _canopy_hinge != null:
 			_canopy_hinge.rotation.x = -1.75 * smoothstep(0.0, 1.0, _canopy)
@@ -369,11 +443,27 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	_power = move_toward(_power, 1.0 if beaming else 0.0, delta * 6.0)
 	beam.visible = _power > 0.01
 	beam_mat.set_shader_parameter("power", _power)
+	_core_mat.set_shader_parameter("power", _power)
+	# (the two cones breathing in and out against each other)
+	var bob := sin(_t * 5.0) * 0.06
+	beam.scale = Vector3(1.0 + bob, 1.0, 1.0 + bob)
+	beam_core.scale = Vector3(1.0 - bob * 2.5, 1.0, 1.0 - bob * 2.5)
+	tornado.power = _power
+	tornado.follow(Vector3(position.x, position.y - 0.6, position.z), beam_foot, BEAM_TOP, delta)
+	# (the beam's light throws shadows of whatever is in it)
+	beam_light.visible = _power > 0.05
+	beam_light.light_energy = _power * 2.6
 	spot.light_color = Color(0.75, 0.85, 1.0).lerp(Color(0.5, 1.0, 0.6), _power)
-	spot.light_energy = 1.5 + _power * 3.0
+	spot.light_energy = 2.2
+	# (the reticle on the ground where the beam will fall, giving way to the beam itself)
+	reticle.visible = _power < 0.99 and descent < 2.0
+	reticle.global_position = Vector3(position.x, 0.06, position.z)
+	_reticle_mat.set_shader_parameter("power", 1.0 - _power)
 	# A shield that has not been hit for a while mends, but only once the heat is off
 	if since_hit > 3.0 and hull < hull_max:
 		hull = minf(hull + delta * mend_rate * hull_max / 100.0, hull_max)
+	_gulping(delta)
+	_smoking(delta)
 	_flash_lights()
 	var ready := dodge_ready()
 	for i in _lamps.size():
@@ -462,6 +552,9 @@ func _flash_lights() -> void:
 		light = Color(1.5, 0.1, 0.05) * (1.0 if fmod(_t, 0.1) < 0.05 else 0.3)
 	elif dodging():
 		light = Color(1.4, 1.4, 1.4) if fmod(_t, 0.08) < 0.04 else Color.BLACK
+	elif _gulp > 0.0:
+		# (something swallowed: a bright flash running through the lights)
+		light = Color(1.6, 1.6, 1.3).lerp(Color(0.3, 1.4, 0.5), 1.0 - _gulp) * (1.0 if fmod(_t, 0.12) < 0.07 else 0.4)
 	elif beaming:
 		light = Color(0.2, 1.0, 0.35) * (0.5 + 0.5 * sin(_t * 18.0))
 	for m in _lights:
@@ -469,6 +562,43 @@ func _flash_lights() -> void:
 	for m in _plates:
 		m.set_shader_parameter("flash", Color(0.8, 0.1, 0.05) * hit)
 
+
+
+## Something taken up into the ship: the hull bulges and squashes back, the ship dips and bounces,
+## and the lights flash (`size` 0.5 for a chicken to 2 for a barn)
+func gulp(size := 1.0) -> void:
+	_gulp = 1.0
+	_gulp_size = clampf(size, 0.5, 2.0)
+
+
+func _gulping(delta: float) -> void:
+	if _gulp <= 0.0:
+		return
+	_gulp = maxf(_gulp - delta * 1.6, 0.0)
+	var t := 1.0 - _gulp
+	var wobble := sin(t * 20.0) * exp(-4.0 * t) * 0.16 * _gulp_size
+	hull_model.scale = _hull_scale * Vector3(1.0 + wobble, 1.0 - wobble * 0.9, 1.0 + wobble)
+	body.position.y = -sin(t * 14.0) * exp(-5.0 * t) * 0.35 * _gulp_size
+	if _gulp <= 0.0:
+		hull_model.scale = _hull_scale
+		body.position.y = 0.0
+
+
+## With its shield gone the ship smokes, trailing dark puffs off its rim, and throws sparks
+func _smoking(delta: float) -> void:
+	if hull > 0.0:
+		return
+	_smoke_wait -= delta
+	if _smoke_wait > 0.0:
+		return
+	_smoke_wait = 0.08
+	var a := randf() * TAU
+	var rim := global_position + Vector3(cos(a) * radius * 0.7, 0.2, sin(a) * radius * 0.7)
+	puffs.puff(rim, Color(0.16, 0.16, 0.18, 0.8), randf_range(0.5, 0.9), Vector3(0, 2.2, 0) - velocity * 0.4, 1.1)
+	if randf() < 0.35:
+		for i in 3:
+			var out := Vector3(cos(a), 0, sin(a))
+			puffs.spark(rim, (out + Vector3(randf_range(-0.5, 0.5), randf_range(0.4, 1.2), randf_range(-0.5, 0.5))) * randf_range(3.0, 6.0))
 
 ## A see-through copy of the hull where it is, fading out behind the dodge
 func _afterimage() -> void:

@@ -43,6 +43,9 @@ const KINDS := {
 	"hawk": {"points": 35, "weight": 0.7, "heat": 0.01, "move": "fly", "speed": 4.0, "size": 1.1, "voice": "caw"},
 	# The telephone lines along the roads: take a pole and nobody near can call the police
 	"phone_pole": {"points": 40, "weight": 1.0, "heat": 0.05, "move": "still", "size": 1.2},
+	# By the roads: a caller runs to one to phone the police, its aerial sending out the call (see
+	# Broadcast); take it and they must find another
+	"phone_booth": {"points": 120, "weight": 1.6, "heat": 0.15, "move": "still", "size": 1.3},
 	# Rare finds, each with a beacon of light to be seen from far off
 	"golden_cow": {"title": "THE GOLDEN COW", "model": "cow", "tints": {"hide": Color(1.0, 0.8, 0.25), "spot": Color(0.85, 0.55, 0.1), "pink": Color(1.0, 0.85, 0.5)}, "points": 2000, "weight": 1.7, "heat": 0.2, "move": "graze", "speed": 1.0, "size": 1.3, "voice": "moo", "rare": true},
 	"jackalope": {"title": "A JACKALOPE", "points": 900, "weight": 0.6, "heat": 0.05, "move": "flee", "speed": 7.5, "size": 0.6, "rare": true},
@@ -159,6 +162,16 @@ var wire_to := Vector3.INF
 ## A person who has seen the ship counts down to getting through to the police (see main.gd `phone_call`)
 var calling := -1.0
 var _call_label: Label3D
+## The phone booth a caller runs to and calls from (see `witness`), and the way to its door; a
+## booth's aerial (see Broadcast)
+var booth: Thing
+var _booth_way := Vector3.ZERO
+var broadcast: Broadcast
+## How far a caller will run to a phone booth
+const BOOTH_REACH := 60.0
+## The visual layer the beam's shadow-casting light shines on (the ground, and what is in the beam)
+const BEAM_LAYER := 2
+var _beam_lit := false
 var beacon: MeshInstance3D
 ## How far its model sits off the ground (a jet on its wheels)
 var model_y := 0.0
@@ -226,6 +239,9 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 		_beacon()
 	turret = model.find_child("turret*", true, false) as Node3D
 	beam_arm = model.find_child("beam*", true, false) as Node3D
+	if k == "phone_booth":
+		broadcast = Broadcast.new()
+		add_child(broadcast)
 	if info.get("searchlight", false):
 		_build_searchlight()
 	rotation.y = heading
@@ -265,6 +281,9 @@ func tick(delta: float, ufo: Ufo) -> void:
 		if calling <= 0.0:
 			_call_label.visible = false
 			game.phone_call(self)
+			booth = null
+	elif booth != null:
+		_call_label.visible = fmod(_t, 0.5) < 0.35
 	if not wings.is_empty() and wings[0] != null:
 		var beat := sin(_t * (14.0 if state == "walk" else 24.0)) * 0.7
 		wings[0].rotation.y = beat
@@ -286,10 +305,15 @@ func _rise(delta: float, ufo: Ufo) -> void:
 		fall_v = 0.0
 		fall_from = position.y
 		Ps1.flash(model, Color.BLACK)
+		if _beam_lit:
+			_beam_lit = false
+			_beam_layer(model, false)
+		model.position.y = model_y
 		return
-	if calling > 0.0:
+	if calling > 0.0 or booth != null:
 		# (taken before it gets through)
 		calling = -1.0
+		booth = null
 		_call_label.visible = false
 	if wires != null and wires.visible:
 		wires.visible = false
@@ -305,15 +329,37 @@ func _rise(delta: float, ufo: Ufo) -> void:
 	var axis := Vector3(ufo.position.x, position.y, ufo.position.z)
 	position = position.lerp(axis, minf(delta * 3.0, 1.0))
 	position.y = lerpf(0.0, top, ease(clampf(lift, 0.0, 1.0), 1.6))
+	if not _beam_lit:
+		# (lit by the beam's own light, so it throws a shadow on the ground below: see Ufo.beam_light)
+		_beam_lit = true
+		_beam_layer(model, true)
 	spin += delta * (1.5 + lift * 4.0)
-	model.rotation = Vector3(sin(_t * 7.0) * 0.25, spin, cos(_t * 6.0) * 0.25)
 	# (the big things shrink as they go up, to fit inside)
 	var shrink := ease(clampf(lift, 0.0, 1.0), 0.6) if tier() >= 3 else clampf((lift - 0.8) / 0.2, 0.0, 1.0)
 	model.scale = Vector3.ONE * base_size * lerpf(1.0, 0.3 if tier() < 3 else 0.12, shrink)
+	if info["move"] in ["peck", "graze", "flee", "fly"]:
+		# People and animals panic: thrashing end over end, kicking, squirming
+		model.rotation = Vector3(sin(_t * 17.0) * 0.7, spin * 1.6, cos(_t * 13.0) * 0.6)
+		var squirm := sin(_t * 24.0) * 0.14
+		model.scale *= Vector3(1.0 - squirm * 0.5, 1.0 + squirm, 1.0 - squirm * 0.5)
+		model.position.y = model_y + absf(sin(_t * 11.0)) * 0.25
+	else:
+		model.rotation = Vector3(sin(_t * 7.0) * 0.25, spin, cos(_t * 6.0) * 0.25)
 	Ps1.flash(model, Color(0.15, 0.4, 0.2) * (0.6 + 0.4 * sin(_t * 12.0)))
 	if lift >= 1.0:
 		game.abducted(self)
 
+
+
+## Puts every mesh of `n` in (or out of) the layer the beam's shadow-casting light shines on, and has it
+## cast a shadow (nothing else does)
+func _beam_layer(n: Node, on: bool) -> void:
+	if n is VisualInstance3D:
+		(n as VisualInstance3D).set_layer_mask_value(BEAM_LAYER, on)
+	if n is GeometryInstance3D:
+		(n as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if on else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for c in n.get_children():
+		_beam_layer(c, on)
 
 func _fall(delta: float) -> void:
 	fall_v -= GRAVITY * delta
@@ -356,7 +402,14 @@ func _walk(delta: float, ufo: Ufo) -> void:
 		"flee":
 			var gun: String = info.get("gun", "")
 			var armed: bool = gun != "" and game.heat_level() >= 1 and not leaving
-			if armed and near < float(GUNS[gun]["range"]) + 4.0:
+			if _to_booth():
+				# (running for the phone booth, or on the phone in it)
+				want = _booth_way
+				pace *= 1.5
+				if want == Vector3.ZERO:
+					pace = 0.0
+					heading = lerp_angle(heading, atan2(booth.position.x - here.x, booth.position.z - here.z), minf(delta * 6.0, 1.0))
+			elif armed and near < float(GUNS[gun]["range"]) + 4.0:
 				# (a farmer or a cowboy with his blood up stands his ground and fires)
 				_arm_gun()
 				heading = lerp_angle(heading, atan2(to_ufo.x, to_ufo.z), minf(delta * 6.0, 1.0))
@@ -536,11 +589,20 @@ func _aim(delta: float, ufo: Ufo) -> void:
 		aim.rotation.y = lerp_angle(aim.rotation.y, yaw, minf(delta * 0.8, 1.0))
 
 
-## Starts phoning the police (if it can phone, is not already, and is about)
+## Starts for the phone to call the police (if it can phone, is not already, and is about): runs to
+## the nearest phone booth and calls from it (see `_to_booth`), or with none near calls from where it
+## is
 func witness() -> void:
-	if not info.get("caller", false) or calling > 0.0 or state != "walk":
+	if not info.get("caller", false) or calling > 0.0 or booth != null or state != "walk":
 		return
-	calling = 4.0 / sqrt(game.danger())
+	booth = game.nearest_booth(position, BOOTH_REACH)
+	if booth == null:
+		calling = 4.0 / sqrt(game.danger())
+	_show_call()
+
+
+## The "!" over a caller's head, flashing while it runs for the phone and while it calls
+func _show_call() -> void:
 	if _call_label == null:
 		_call_label = Label3D.new()
 		_call_label.text = "!"
@@ -553,6 +615,30 @@ func witness() -> void:
 		_call_label.no_depth_test = true
 		_call_label.position = Vector3(0, 2.6, 0)
 		add_child(_call_label)
+
+
+## A caller's way to its phone booth's door (none once there, on the phone): true while it has one
+## to go to or is calling from it. A booth taken (or gone) sends it looking for another
+func _to_booth() -> bool:
+	if booth == null:
+		return false
+	if not is_instance_valid(booth) or booth.state != "walk":
+		booth = null
+		if calling > 0.0:
+			calling = -1.0
+		witness()
+		if booth == null and calling <= 0.0 and _call_label != null:
+			_call_label.visible = false
+		return booth != null
+	var door := booth.position + Vector3(sin(booth.heading), 0, cos(booth.heading)) * 1.1
+	_booth_way = Vector3.ZERO
+	if calling > 0.0:
+		booth.broadcast.keep(game.lines_down_near(booth.position))
+	elif ground().distance_to(door) < 0.7:
+		calling = 2.0 / sqrt(game.danger())
+	else:
+		_booth_way = (door - ground()).normalized()
+	return true
 
 
 func _string_wires(to: Vector3) -> void:

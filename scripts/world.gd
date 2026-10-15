@@ -57,6 +57,7 @@ func _ready() -> void:
 	plane.subdivide_width = 80
 	plane.subdivide_depth = 80
 	ground = MeshInstance3D.new()
+	ground.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	ground.mesh = plane
 	_ground_mat = ShaderMaterial.new()
 	_ground_mat.shader = load("res://shaders/ground.gdshader")
@@ -560,6 +561,7 @@ func _multimesh(name: String, where: Array) -> void:
 	for i in where.size():
 		mm.set_instance_transform(i, where[i])
 	var mmi := MultiMeshInstance3D.new()
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mmi.multimesh = mm
 	mmi.extra_cull_margin = Ps1.CULL_MARGIN
 	mmi.visibility_range_end = Ps1.DRAW_TO + 20.0
@@ -917,6 +919,12 @@ func _phone_line(c: Vector2i, axis: String) -> void:
 		if has_road(c.x) and has_road(c.y) and (absf(at.x - base.x) < 5.0 and absf(at.z - base.z) < 5.0):
 			continue
 		game.spawn_later("phone_pole", at, {"turn": 0.0, "chunk": c, "wire_to": next})
+	# A phone booth across the road from the poles, mostly, its door to the road
+	if hash3(c.x, c.y, 133 if axis == "z" else 134) < 0.6:
+		if axis == "z":
+			game.spawn_later("phone_booth", Vector3(base.x - 4.0, 0, base.z + 8.0), {"turn": PI / 2, "chunk": c})
+		else:
+			game.spawn_later("phone_booth", Vector3(base.x + 8.0, 0, base.z + 4.0), {"turn": PI, "chunk": c})
 
 
 func _car(b: int, axis: String) -> void:

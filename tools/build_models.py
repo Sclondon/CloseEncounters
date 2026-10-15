@@ -61,7 +61,7 @@ GLOWS = {
     "flame": ((1.0, 0.55, 0.15), 3.0), "neon": ((1.0, 0.35, 0.6), 3.0),
     "light_red": ((1.0, 0.2, 0.15), 3.0), "light_blue": ((0.3, 0.5, 1.0), 3.0), "light_white": ((1.0, 1.0, 0.95), 3.0),
     "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "pod_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0),
-    "foo_glow": ((0.85, 0.22, 0.03), 2.5),
+    "foo_glow": ((0.85, 0.22, 0.03), 2.5), "booth_sign": ((0.75, 0.88, 1.0), 2.0),
 }
 
 _mats = {}
@@ -146,8 +146,16 @@ def join(name, parts):
     o.name = name
     o.data.name = name
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-    # (the origin stays at the world's: every part was placed about the model's foot)
+    # (every part was placed about the model's foot, though the origin is the first part's: see attach)
     return o
+
+
+def attach(part, body):
+    """Hangs `part` (a moving part, placed about the model's foot) on `body`, where it was put: a joined
+    body's origin is its first part's, not the foot, so a plain parenting would shift it by that"""
+    bpy.context.view_layer.update()
+    part.parent = body
+    part.matrix_parent_inverse = body.matrix_world.inverted()
 
 
 def _flat(items):
@@ -562,7 +570,7 @@ def windmill():
         blades.append(box((0.32, 0.04, 1.5), (math.cos(a) * 1.0, 0, math.sin(a) * 1.0), "metal", (0, -a + math.pi / 2, 0)))
     fan = join("fan", blades)
     fan.location = (0, -0.4, 8.5)
-    fan.parent = body
+    attach(fan, body)
     return body
 
 
@@ -576,7 +584,7 @@ def pumpjack():
            box((1.0, 0.8, 1.0), (0, 2.6, -0.4), "metal_dark")]
     beam = join("beam", arm)
     beam.location = (0, 0.25, 3.5)
-    beam.parent = body
+    attach(beam, body)
     return body
 
 
@@ -887,6 +895,23 @@ def phone_pole():
     return join("phone_pole", p)
 
 
+def phone_booth():
+    """A roadside phone booth: glass on three sides, the door to the road, a lit TELEPHONE sign on
+    the roof and an aerial above it (the game sends radio waves out of its tip, BOOTH_TIP, while
+    someone calls, or sparks if the lines are down)"""
+    p = [box((1.2, 1.2, 0.1), (0, 0, 0.05), "concrete"), box((1.16, 1.16, 0.12), (0, 0, 2.36), "metal_dark"),
+         box((0.96, 0.96, 0.26), (0, 0, 2.55), "booth_sign"), box((1.02, 1.02, 0.05), (0, 0, 2.7), "metal_dark"),
+         box((0.24, 0.12, 0.4), (0, 0.5, 1.45), "black"), box((0.5, 0.06, 0.04), (0, -0.55, 1.1), "metal")]
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.append(box((0.07, 0.07, 2.26), (sx * 0.55, sy * 0.55, 1.18), "metal"))
+    for sx in (-1, 1):
+        p.append(box((0.03, 1.04, 1.7), (sx * 0.55, 0, 1.3), "glass"))
+    p += [box((1.04, 0.03, 1.7), (0, 0.55, 1.3), "glass"), box((0.95, 0.03, 1.5), (0, -0.55, 1.35), "glass"),
+          drum(0.045, 1.3, (0.3, 0.3, 3.35), "metal", 5), ball((0.2, 0.2, 0.2), (0.3, 0.3, 4.02), "light_red", 6, 3)]
+    return join("phone_booth", p)
+
+
 # ---------------------------------------------------------------- rare finds
 
 def sasquatch():
@@ -1116,7 +1141,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
             diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
-            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, sasquatch, meteorite, satellite,
+            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, sasquatch, meteorite, satellite,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox]
 
 

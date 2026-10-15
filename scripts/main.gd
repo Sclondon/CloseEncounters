@@ -9,7 +9,8 @@ extends Node
 ## The world is drawn small and blown up with hard pixels, as in Cryptlins, and it bends away
 ## over the horizon like a rolling log (shaders/bend.gdshaderinc).
 ##
-## Modes: "title" (the pilot lounging on the moon), "launch" (off into space), "play", "over". Tests set
+## Modes: "title" (the pilot lounging on the moon), "launch" (off into space), "play", "over",
+## "return" and "landing" (going home to the moon, see `quit_to_menu`). Tests set
 ## `autopilot` to fly it themselves and `start_mode` to skip the title.
 
 const MAX_HEAT := 5.0
@@ -55,11 +56,17 @@ var music: Music
 var moon_set: MoonSet
 ## Dust streaming past the ship as it climbs off the moon and comes down to Earth
 var dust: Dust
+## Lines of wind streaming past the ship as it flies
+var wind: Dust
+var clouds: Clouds
 ## How far into the flight off the moon
 var _launch_t := 0.0
 const LAUNCH := 4.2
 ## How high the ship climbs off the moon before the run starts (Earth well below the picture by then)
 const CLIMB := 400.0
+## How long the ship takes climbing off the farm into the stars on its way home (see `quit_to_menu`)
+const RETURN_UP := 2.6
+var _return_t := 0.0
 ## The camera rides behind the ship in the flight off the moon and the start of the descent: this far
 ## back along the way it is going and this far up, looking on ahead of it
 const CHASE_BACK := 12.0
@@ -231,10 +238,16 @@ func _ready() -> void:
 	world = World.new()
 	world.game = self
 	view.add_child(world)
+	# (the ground takes the beam's shadows: see Ufo.beam_light)
+	world.ground.set_layer_mask_value(Thing.BEAM_LAYER, true)
 	_load_best()
 	moon_set = MoonSet.new()
 	view.add_child(moon_set)
 	dust = Dust.new()
+	wind = Dust.wind()
+	clouds = Clouds.new()
+	view.add_child(clouds)
+	view.add_child(wind)
 	view.add_child(dust)
 	_make_ufo(Vector3.ZERO)
 	world.update(ufo.position, 0.0, true)
@@ -425,7 +438,9 @@ func _process(delta: float) -> void:
 		return
 	var steer := Vector2.ZERO
 	var beam := false
-	if intro > 0.0:
+	if mode == "return":
+		_going_home(delta)
+	elif intro > 0.0:
 		intro = maxf(intro - delta, 0.0)
 		_descend(1.0 - intro / INTRO)
 		ufo.hull_model.rotation.y += delta * 6.0 * pow(intro / INTRO, 2.0)
@@ -444,7 +459,7 @@ func _process(delta: float) -> void:
 		_debug_state = "stick finger %d %s | beam finger %d | steer %s beam %s | view %s" % [stick_finger, stick.snapped(Vector2(0.01, 0.01)), beam_finger, steer.snapped(Vector2(0.01, 0.01)), beam, get_viewport().get_visible_rect().size]
 		print("[CE] " + _debug_state)
 		_debug_show()
-	if mode == "launch":
+	if mode == "launch" or mode == "landing":
 		_launch(delta)
 	ufo.tick(delta, steer, beam)
 	if not ufo.dead:
@@ -526,15 +541,20 @@ func _process(delta: float) -> void:
 		_patrols(delta)
 	# (on the moon and on the way off it, the world stays ready round where the run starts,
 	# rather than loading chunks under a ship flying off across the sky)
-	world.update(Vector3.ZERO if mode == "title" or mode == "launch" else ufo.position, delta)
+	world.update(Vector3.ZERO if mode in ["title", "launch", "landing"] else ufo.position, delta)
 	_spawn_some()
 	if mode == "play" and not autopilot and not get_tree().paused:
 		_pending_fingers()
 	_cull(delta)
 	_sounds()
-	if mode != "launch" and intro <= 0.0:
+	if mode != "launch" and mode != "landing" and intro <= 0.0:
 		dust.fade = 0.0
 	dust.follow(ufo.position, camera.position, delta)
+	# (wind streaming past the ship as it flies about, more the faster it goes)
+	wind.fade = smoothstep(2.0, 10.0, ufo.velocity.length()) if mode == "play" and intro <= 0.0 and not ufo.dead else 0.0
+	wind.follow(ufo.position, camera.position, delta)
+	clouds.fade = 0.0 if mode in ["title", "launch", "landing"] else 1.0 - smoothstep(0.0, 0.4, intro / INTRO)
+	clouds.follow(ufo.position, camera.position, delta)
 	_camera(delta)
 	_hud(delta)
 	if ufo.dead and mode == "play":
@@ -1136,7 +1156,10 @@ func phone_call(t: Thing) -> void:
 	if mode != "play":
 		return
 	if lines_down_near(t.position):
-		_popup("NO SIGNAL", t.position + Vector3(0, 3, 0), Color(0.7, 0.8, 1.0))
+		# (from a phone booth its aerial has been sparking all along to say so; from anywhere else, a
+		# word over the caller's head)
+		if t.booth == null:
+			_popup("NO SIGNAL", t.position + Vector3(0, 3, 0), Color(0.7, 0.8, 1.0))
 		sfx.play("static", 1.0, _near_db(t))
 		return
 	# (the first call brings a star; more ringing in on top of it within a few seconds add little)
@@ -1150,8 +1173,6 @@ func phone_call(t: Thing) -> void:
 
 ## A phone pole was taken: the line is down there, and its wires (and the last pole's, to it) go
 func line_cut(pole: Thing) -> void:
-	if _cuts.is_empty() and mode == "play":
-		_banner("THE PHONE LINES ARE DOWN HERE", 1.8)
 	_cuts.append(Vector3(pole.position.x, 0, pole.position.z))
 	for t in things:
 		if t.kind == "phone_pole" and t.wires != null and t.wire_to.distance_to(Vector3(pole.position.x, 0, pole.position.z)) < 1.0:
@@ -1165,6 +1186,18 @@ func lines_down_near(p: Vector3) -> bool:
 			return true
 	return false
 
+
+
+## The nearest phone booth still standing within `reach` of `p`, or null
+func nearest_booth(p: Vector3, reach: float) -> Thing:
+	var best: Thing = null
+	for t in things:
+		if t.kind == "phone_booth" and t.state == "walk":
+			var d := Vector2(t.position.x - p.x, t.position.z - p.z).length()
+			if d < reach:
+				reach = d
+				best = t
+	return best
 
 ## A new thing of a kind, standing at `at` (the world calls this as it makes each chunk)
 func spawn(kind: String, at: Vector3, extra := {}) -> Thing:
@@ -1229,6 +1262,7 @@ func abducted(t: Thing) -> void:
 		t.state = "gone"
 		t.queue_free()
 		return
+	ufo.gulp(t.size() * t.base_size * 0.7)
 	var points := t.points() * multiplier()
 	if mode == "play":
 		score += points
@@ -1502,7 +1536,7 @@ func _moon_camera(delta: float) -> void:
 		at = site + Vector3(0.13, 2.0, 2.31)
 		look = site + Vector3(6.15, 2.0, -5.68)
 	var focus := Vector3(site.x + 1.0, 0.0, site.z)
-	if mode == "launch" and _launch_t > 0.9:
+	if (mode == "launch" or mode == "landing") and _launch_t > 0.9:
 		# (rising with the ship from the title's picture of it and swinging round it, not across it,
 		# to behind it: the ship slides from where it stood in the picture to where it rides)
 		var k := smoothstep(0.9, 2.6, _launch_t)
@@ -1520,7 +1554,7 @@ func _moon_camera(delta: float) -> void:
 	# (wider on a wide screen, for the ground and its cooler and Earth high above both to be seen;
 	# the game's own once the ship is away, as the descent has it)
 	camera.fov = _fov() if _upright() else 52.0
-	if mode == "launch":
+	if mode == "launch" or mode == "landing":
 		camera.fov = lerpf(camera.fov, _fov(), smoothstep(0.9, 2.6, _launch_t))
 	RenderingServer.global_shader_parameter_set("bend_focus", focus)
 	RenderingServer.global_shader_parameter_set("saucer_pos", Vector3(0, -9999, 0))
@@ -1577,7 +1611,8 @@ func _layout_title(size: Vector2) -> void:
 	while name_size > 24 and font.get_string_size(_title_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size).x > room:
 		name_size -= 2
 	_title_label.add_theme_font_size_override("font_size", name_size)
-	_title_label.add_theme_constant_override("outline_size", maxi(name_size / 6, 4))
+	_title_label.add_theme_constant_override("outline_size", maxi(name_size / 4, 6))
+	_title_label.add_theme_constant_override("shadow_outline_size", maxi(name_size / 2, 12))
 	ship_label.add_theme_font_size_override("font_size", 56 if upright else 34)
 	ship_label.custom_minimum_size = Vector2(620 if upright else 420, 0)
 	for b in _arrows:
@@ -1725,13 +1760,13 @@ func _camera(delta: float) -> void:
 	if _warm_frames > 0:
 		_warm_camera()
 		return
-	if mode == "title" or mode == "launch":
+	if mode in ["title", "launch", "landing"]:
 		_moon_camera(delta)
 		return
 	var focus := Vector3(ufo.position.x, 0.0, ufo.position.z)
 	if ufo.crashed or ufo.dead:
 		focus = Vector3(ufo.position.x, 0.0, ufo.position.z)
-	if intro > 0.0 and mode == "play":
+	if intro > 0.0 and (mode == "play" or mode == "return"):
 		_intro_camera()
 		return
 	_sky_mat.set_shader_parameter("space", 0.0)
@@ -1846,8 +1881,11 @@ func _build_hud() -> void:
 	_title_label.text = "CLOSE ENCOUNTERS"
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	_glow(_title_label, Color(0.3, 1.0, 0.45, 0.6))
-	_title_label.add_theme_constant_override("shadow_outline_size", 16)
+	# (glowing: a soft green halo for its outline instead of black, and a wider, fainter one round
+	# that; sized with the text in `_layout_title`)
+	_title_label.add_theme_color_override("font_color", Color(0.85, 1.0, 0.86))
+	_title_label.add_theme_color_override("font_outline_color", Color(0.3, 1.0, 0.45, 0.55))
+	_glow(_title_label, Color(0.25, 1.0, 0.4, 0.3))
 	title_box.add_child(_title_label)
 	_title_gap = Control.new()
 	_title_gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1960,7 +1998,8 @@ func _make_ufo(at: Vector3) -> void:
 
 
 ## On the moon, on its legs, turned to the camera, the canopy open and the pilot lounging on top
-func _park_ufo() -> void:
+## (or, not `lounging`, flying in to land there: see `_going_home`)
+func _park_ufo(lounging := true) -> void:
 	ufo.parked = true
 	ufo.position = MoonSet.SITE + MoonSet.SHIP_AT
 	ufo.rotation.y = MoonSet.SHIP_TURN
@@ -1968,7 +2007,10 @@ func _park_ufo() -> void:
 	# from the title)
 	if not ufo._spins:
 		ufo.hull_model.rotation.y = -PI / 4.0
-	ufo.lounge(true)
+	if lounging:
+		ufo.lounge(true)
+	else:
+		ufo._legs.visible = false
 	# (the cooler and the radio back where they stood, if a launch blew them away)
 	moon_set.tidy()
 
@@ -1985,14 +2027,19 @@ func begin_launch() -> void:
 	sfx.play("whoosh", 1.4)
 
 
+## The flight off the moon (or, `landing`, the same backwards: coming home to it, see
+## `quit_to_menu`)
 func _launch(delta: float) -> void:
-	_launch_t += delta
+	var back := mode == "landing"
+	_launch_t += -delta if back else delta
 	var site := MoonSet.SITE + MoonSet.SHIP_AT
-	if _launch_t >= 0.9 and ufo.alien.mood != "cheer" and _launch_t - delta < 0.9:
+	if not back and _launch_t >= 0.9 and ufo.alien.mood != "cheer" and _launch_t - delta < 0.9:
 		ufo.alien.feel("cheer", 1.0)
 		moon_set.blast(ufo.leave_chair())
 		sfx.play("bloop", 1.2)
 	if _launch_t < 0.9:
+		if back:
+			_home()
 		return
 	# straight up off the moon, legs folding away, up to speed and slowing to a stop at the top (where
 	# the descent starts from) once the moon and Earth have sunk out of the bottom of the picture
@@ -2003,8 +2050,69 @@ func _launch(delta: float) -> void:
 	dust.fade = smoothstep(1.2, 2.0, _launch_t)
 	if _launch_t > 2.1:
 		ufo.hull_model.rotation.y += delta * 6.0
-	if _launch_t >= LAUNCH:
+	if not back and _launch_t >= LAUNCH:
 		start(true)
+
+
+## QUIT TO MENU: the run given up (no score is sent), and the ship flies home: up off the farm into
+## the stars (the descent backwards, see `_going_home`), then down onto the moon (the flight off it
+## backwards), and the pilot back in the chair on the title
+func quit_to_menu() -> void:
+	set_paused(false)
+	_forget_fingers()
+	for t in things.duplicate():
+		if t.is_enemy():
+			_remove(t)
+	for s in shots:
+		s.queue_free()
+	shots.clear()
+	for j in jets:
+		j.queue_free()
+	jets.clear()
+	_clear_fleet()
+	heat = 0.0
+	score = 0
+	intro = 0.0
+	_banner("", 0.0)
+	if testing and not intro_in_tests:
+		_show_title()
+		return
+	mode = "return"
+	_return_t = 0.0
+	ufo.velocity = Vector3.ZERO
+	sfx.play("whoosh", 1.4)
+
+
+## Up off the farm into the stars, the camera swinging round behind the ship as the descent's does,
+## backwards; then on to the moon, coming down onto it
+func _going_home(delta: float) -> void:
+	_return_t += delta
+	var k := 1.0 - smoothstep(0.0, 1.0, _return_t / RETURN_UP)
+	intro = maxf(INTRO * (1.0 - k), 0.001)
+	_descend(k)
+	ufo.hull_model.rotation.y += delta * 6.0 * (1.0 - k) * (1.0 - k)
+	if _return_t < RETURN_UP:
+		return
+	intro = 0.0
+	dust.fade = 0.0
+	ufo.queue_free()
+	_make_ufo(Vector3.ZERO)
+	_park_ufo(false)
+	mode = "landing"
+	_launch_t = LAUNCH
+
+
+## Down on the moon again: on its legs, the canopy opening and the pilot back up in the chair
+func _home() -> void:
+	mode = "title"
+	ufo.position = MoonSet.SITE + MoonSet.SHIP_AT
+	ufo.rotation.y = MoonSet.SHIP_TURN
+	ufo._legs.visible = true
+	ufo.lounge(true)
+	_show_ship()
+	title_box.visible = true
+	over_box.visible = false
+	_save_best()
 
 
 ## The turn that faces the pilot (who looks along the ship's +z) back up `way`, at the camera behind
@@ -2068,30 +2176,6 @@ func _choose_music() -> void:
 		music.play("chase")
 	else:
 		music.play("visitors")
-
-
-## Gives up the run (no score is sent) and goes back to the title, the ship flying itself again
-func quit_to_menu() -> void:
-	set_paused(false)
-	_forget_fingers()
-	for t in things.duplicate():
-		if t.is_enemy():
-			_remove(t)
-	for s in shots:
-		s.queue_free()
-	shots.clear()
-	for j in jets:
-		j.queue_free()
-	jets.clear()
-	_clear_fleet()
-	heat = 0.0
-	score = 0
-	intro = 0.0
-	var at := ufo.ground()
-	ufo.queue_free()
-	_make_ufo(at)
-	_banner("", 0.0)
-	_show_title()
 
 
 ## Forgets every finger (a run starting or ending, or the game pausing)

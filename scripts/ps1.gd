@@ -56,6 +56,7 @@ static func ball() -> SphereMesh:
 static func part(parent: Node, mesh: Mesh, material: Material, at: Vector3, size := Vector3.ONE, turn := Vector3.ZERO) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.extra_cull_margin = 70.0
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.mesh = mesh
 	mi.material_override = material
 	mi.position = at
@@ -138,6 +139,8 @@ static func _dress(n: Node, tints: Dictionary, own_mats: bool, merge: bool) -> v
 	if n is MeshInstance3D:
 		var mi: MeshInstance3D = n
 		mi.extra_cull_margin = CULL_MARGIN
+		# (no shadows but from what is in the beam: see Thing._beam_layer)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.visibility_range_end = DRAW_TO
 		var paints := _paints(mi.mesh, tints)
 		var glass := false
