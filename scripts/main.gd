@@ -53,18 +53,17 @@ var ufo: Ufo
 var sfx: Sfx
 var music: Music
 var moon_set: MoonSet
+## Dust streaming past the ship as it climbs off the moon and comes down to Earth
+var dust: Dust
 ## How far into the flight off the moon
 var _launch_t := 0.0
-var _launch_from := Vector3.ZERO
 const LAUNCH := 4.2
+## How high the ship climbs off the moon before the run starts (Earth well below the picture by then)
+const CLIMB := 400.0
 ## The camera rides behind the ship in the flight off the moon and the start of the descent: this far
 ## back along the way it is going and this far up, looking on ahead of it
 const CHASE_BACK := 12.0
 const CHASE_UP := 3.0
-## The way the camera looks over the ship from lift-off until the descent is well under way: up and
-## away from Earth and the moon, so that both slide out of the picture, and clear of the moon in
-## the sky (sky.gdshader), so that only stars are left
-const AWAY := Vector3(-0.95, 0.2, 0.1)
 var things: Array[Thing] = []
 var shots: Array[Shot] = []
 var jets: Array[Node3D] = []
@@ -235,6 +234,8 @@ func _ready() -> void:
 	_load_best()
 	moon_set = MoonSet.new()
 	view.add_child(moon_set)
+	dust = Dust.new()
+	view.add_child(dust)
 	_make_ufo(Vector3.ZERO)
 	world.update(ufo.position, 0.0, true)
 	_spawn_some(true)
@@ -364,11 +365,8 @@ func start(from_launch := false) -> void:
 	_laser_wait = 0.0
 	_cuts.clear()
 	_forget_fingers()
-	# (from the moon, the hull turned just as it was in the flight)
 	var heading := ufo.rotation.y + ufo.hull_model.rotation.y
 	_make_ufo(Vector3.ZERO)
-	if from_launch:
-		ufo.hull_model.rotation.y = heading
 	heat = 0.0
 	calm = 0.0
 	score = 0
@@ -385,14 +383,21 @@ func start(from_launch := false) -> void:
 	if intro > 0.0:
 		_descend(0.0)
 		ufo.position.y = ufo.altitude + ufo.descent
+	if from_launch:
+		# (the hull turned just as it was in the flight)
+		ufo.hull_model.rotation.y = heading - ufo.rotation.y
 	sfx.play("whoosh", 0.6, 2.0)
 
 
 ## Coming down from space, `k` of the way (0 to 1): out of the stars until the planet is under the
-## ship, the shield coming up on the way
+## ship, the shield coming up on the way, the pilot facing the camera as it swings round (see
+## `_intro_camera`) and the dust streaming past (see Dust)
 func _descend(k: float) -> void:
-	ufo.descent = INTRO_HEIGHT * pow(1.0 - k, 2.2)
+	# (slowly at first, from where the climb off the moon stopped, and slowing again to its height)
+	ufo.descent = INTRO_HEIGHT * (1.0 - smoothstep(0.0, 1.0, k))
 	ufo.bubble_fade = smoothstep(0.4, 0.9, k)
+	ufo.rotation.y = lerp_angle(_facing(_away()), 0.0, smoothstep(0.3, 1.0, k))
+	dust.fade = 1.0 - smoothstep(0.4, 0.6, k)
 
 
 ## How seriously they take the ship, from its score: 1 at the start, 3 from DANGER_FULL points on.
@@ -527,6 +532,9 @@ func _process(delta: float) -> void:
 		_pending_fingers()
 	_cull(delta)
 	_sounds()
+	if mode != "launch" and intro <= 0.0:
+		dust.fade = 0.0
+	dust.follow(ufo.position, camera.position, delta)
 	_camera(delta)
 	_hud(delta)
 	if ufo.dead and mode == "play":
@@ -1471,7 +1479,7 @@ func _intro_camera() -> void:
 	var k := 1.0 - intro / INTRO
 	var settle := smoothstep(0.3, 1.0, k)
 	# (round the ship, not across it, so it keeps its place in the picture as the camera swings)
-	var away := AWAY.normalized()
+	var away := _away()
 	var normal_from := _camera_offset() - Vector3(0, ufo.altitude, 0)
 	camera.position = ufo.position + _chase(away).slerp(normal_from, settle)
 	var normal_way := (Vector3(0, -ufo.altitude * 0.5, -1.5) - normal_from).normalized()
@@ -1498,7 +1506,7 @@ func _moon_camera(delta: float) -> void:
 		# (rising with the ship from the title's picture of it and swinging round it, not across it,
 		# to behind it: the ship slides from where it stood in the picture to where it rides)
 		var k := smoothstep(0.9, 2.6, _launch_t)
-		var away := AWAY.normalized()
+		var away := _away()
 		var from := at - (site + MoonSet.SHIP_AT)
 		var way := (look - at).normalized().slerp(away, k)
 		at = ufo.position + from.slerp(_chase(away), k)
@@ -1953,6 +1961,8 @@ func _park_ufo() -> void:
 	if not ufo._spins:
 		ufo.hull_model.rotation.y = -PI / 4.0
 	ufo.lounge(true)
+	# (the cooler and the radio back where they stood, if a launch blew them away)
+	moon_set.tidy()
 
 
 ## Play pressed on the title: the pilot drops in, the canopy shuts, the ship lifts off and flies
@@ -1972,38 +1982,34 @@ func _launch(delta: float) -> void:
 	var site := MoonSet.SITE + MoonSet.SHIP_AT
 	if _launch_t >= 0.9 and ufo.alien.mood != "cheer" and _launch_t - delta < 0.9:
 		ufo.alien.feel("cheer", 1.0)
-		ufo.leave_chair()
+		moon_set.blast(ufo.leave_chair())
 		sfx.play("bloop", 1.2)
 	if _launch_t < 0.9:
 		return
-	if _launch_t < 2.1:
-		# straight up off the moon, legs folding away
-		var k := ease((_launch_t - 0.9) / 1.2, 2.0)
-		ufo.position = site + Vector3(0, k * 14.0, 0)
-		ufo._legs.visible = _launch_t < 1.2
-		_launch_from = ufo.position
-		return
-	# and off up into space, faster and faster, the moon and Earth left behind (see `_launch_path`)
-	ufo.position = _launch_path(_launch_s())
-	ufo.hull_model.rotation.y += delta * 6.0
+	# straight up off the moon, legs folding away, up to speed and slowing to a stop at the top (where
+	# the descent starts from) once the moon and Earth have sunk out of the bottom of the picture
+	ufo.position = site + Vector3.UP * CLIMB * smoothstep(0.0, 1.0, (_launch_t - 0.9) / (LAUNCH - 0.9))
+	ufo._legs.visible = _launch_t < 1.2
+	# (the pilot turned to face the camera as it swings round behind the ship, see `_moon_camera`)
+	ufo.rotation.y = lerp_angle(MoonSet.SHIP_TURN, _facing(_away()), smoothstep(0.9, 2.6, _launch_t))
+	dust.fade = smoothstep(1.2, 2.0, _launch_t)
+	if _launch_t > 2.1:
+		ufo.hull_model.rotation.y += delta * 6.0
 	if _launch_t >= LAUNCH:
 		start(true)
 
 
-## How far along the flight off the moon (0 to 1), speeding up all the way
-func _launch_s() -> float:
-	return pow(clampf((_launch_t - 2.1) / (LAUNCH - 2.1), 0.0, 1.0), 1.8)
+## The turn that faces the pilot (who looks along the ship's +z) back up `way`, at the camera behind
+func _facing(way: Vector3) -> float:
+	return atan2(-way.x, -way.z)
 
 
-## Where the ship is `s` of the way along its flight: a curve from the top of its climb off the moon,
-## still going up, round to heading AWAY
-func _launch_path(s: float) -> Vector3:
-	var away := AWAY.normalized()
-	var p0 := _launch_from
-	var p1 := p0 + Vector3.UP * 50.0
-	var p3 := p0 + Vector3.UP * 40.0 + away * 200.0
-	var p2 := p3 - away * 80.0
-	return p0.bezier_interpolate(p1, p2, p3, s)
+## The way the camera looks over the ship from lift-off until the descent is well under way: the
+## way the title's camera looks, made level, so that the ship's climb sinks the moon and Earth out of
+## the bottom of the picture and leaves only stars
+func _away() -> Vector3:
+	var way := Vector3(4.05, 0, -9.1) if not _upright() else Vector3(6.02, 0, -7.99)
+	return way.normalized()
 
 
 ## The next ship along (or the one before), on the title screen

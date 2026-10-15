@@ -281,17 +281,12 @@ func lounge(on: bool) -> void:
 			_drink = null
 
 
-## The chair, left behind as the ship lifts off, still floating and bobbing where it was
-func leave_chair() -> void:
-	if chair == null:
-		return
+## The chair, left behind as the ship lifts off (for the blast to blow away, see MoonSet.blast), or
+## null with none
+func leave_chair() -> Node3D:
 	var left := chair
 	chair = null
-	left.reparent(get_parent())
-	var y := left.position.y
-	var tw := left.create_tween().set_loops()
-	tw.tween_property(left, "position:y", y + CHAIR_BOB, 1.1).set_trans(Tween.TRANS_SINE)
-	tw.tween_property(left, "position:y", y - CHAIR_BOB, 1.1).set_trans(Tween.TRANS_SINE)
+	return left
 
 
 ## How high the top of the hull is just in front of the cockpit (where the chair stands)

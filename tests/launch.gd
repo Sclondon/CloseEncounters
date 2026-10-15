@@ -19,6 +19,6 @@ func _process(_d: float) -> bool:
 	frame += 1
 	if frame == 40:
 		main.begin_launch()
-	if frame >= 60 and (frame % 4 == 0 or (frame >= 156 and frame <= 176)):
+	if frame >= 60 and (frame % 4 == 0 or (frame >= 156 and frame <= 176) or (frame >= 66 and frame <= 100 and frame % 2 == 0)):
 		root.get_texture().get_image().save_png(out.path_join("f_%03d_%s.png" % [frame, main.mode]))
 	return frame >= 40 + 130 + 140
