@@ -143,7 +143,7 @@ place is always the same. Five regions, several chunks across, blended at their 
 
 - **Farm**: Colorado farm country (where it starts): fields, the odd farmstead, pens of cows, pigs, sheep, chickens.
 - **Plains**: the Wyoming high plains: golden grass, sagebrush, bison, ranches with horses and cowboys,
-  windmills, oil pumpjacks, buttes, and **Devils Tower** (always one just north of the start).
+  windmills, oil pumpjacks, buttes, and **Devils Tower** (just the one, about a kilometre out, alone in a pine forest away from the roads).
 - **Desert**: Arizona: red sand, saguaros, prickly pear, red rock, mesas and buttes, coyotes, RVs.
 - **Mesa**: New Mexico: ochre earth, pinyon, adobe villages with water towers, longhorns.
 - **Mountain**: the Colorado Rockies: snow-capped peaks, pines, aspens gone gold, log cabins, campers.

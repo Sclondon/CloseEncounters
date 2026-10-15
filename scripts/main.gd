@@ -27,7 +27,7 @@ const FORCES: Array[Dictionary] = [
 	{"police_car": 1, "jeep": 2, "tank": 2},
 ]
 ## How many of each thing the farm keeps about (taken ones are replaced, somewhere else)
-const CAMERA_OFFSET := Vector3(0, 21.5, 16.5)
+const CAMERA_OFFSET := Vector3(0, 25.8, 19.8)
 ## (tests try others)
 var camera_offset := CAMERA_OFFSET
 ## Each run opens with the ship coming down from space: this long, from this high
@@ -743,7 +743,7 @@ func _forces(delta: float) -> void:
 		if have < int(wanted[kind]):
 			var angle := randf_range(-PI * 0.8, PI * 0.8) + PI
 			# (just out of sight: past the bend ahead, or off the edge of the screen behind)
-			var at := ufo.ground() + Vector3(sin(angle), 0, cos(angle)) * 32.0
+			var at := ufo.ground() + Vector3(sin(angle), 0, cos(angle)) * 46.0
 			# (out of the nearest police station or army base, when there is one)
 			var home := _station_for(kind)
 			if home != Vector3.INF:
@@ -1521,7 +1521,7 @@ func _intro_camera() -> void:
 	var away := _away()
 	var normal_from := _camera_offset() - Vector3(0, ufo.altitude, 0)
 	camera.position = ufo.position + _chase(away).slerp(normal_from, settle)
-	var normal_way := (Vector3(0, -ufo.altitude * 0.5, -1.5) - normal_from).normalized()
+	var normal_way := (Vector3(0, -ufo.altitude, 0) - normal_from).normalized()
 	camera.look_at(camera.position + away.slerp(normal_way, settle), Vector3.UP)
 	RenderingServer.global_shader_parameter_set("bend_focus", Vector3(ufo.position.x, 0.0, ufo.position.z - 1.0))
 	RenderingServer.global_shader_parameter_set("saucer_pos", ufo.position)
@@ -1781,8 +1781,9 @@ func _camera(delta: float) -> void:
 	if mode == "title":
 		goal = focus + Vector3(0, 11.0, 15.0)
 	camera.position = camera.position.lerp(goal, minf(delta * 4.0, 1.0)) if camera.position != Vector3.ZERO else goal
-	# (the saucer sits a little above the middle of the picture, with more to see ahead of it)
-	var look_at_point := camera.position - _camera_offset() + Vector3(0, ufo.altitude * 0.5, -1.5)
+	# (looking at the ground under the ship, where the beam will fall and the reticle shows, the ship
+	# itself a little above the middle of the picture)
+	var look_at_point := camera.position - _camera_offset()
 	if mode == "title":
 		look_at_point = camera.position - Vector3(0, 11.0, 15.0) + Vector3(0, 4.0, -6.0)
 	camera.look_at(look_at_point)

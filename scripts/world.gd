@@ -27,8 +27,9 @@ const NEAR := 3
 const FAR := 4
 ## Roads run along every fifth line of chunks (every 240 m)
 const ROAD_EVERY := 5
-## Devils Tower stands a little north of where the game starts
-const TOWER := Vector3(26, 0, -62)
+## Devils Tower: one of it, about a kilometre out from where the game starts, well away from the
+## roads, in a forest of pines
+const TOWER := Vector3(-624, 0, -864)
 const BIOME_SPAN := 13
 
 var game: Node
@@ -105,8 +106,8 @@ static func noise(x: float, z: float, s: int) -> float:
 
 
 static func biome(c: Vector2i) -> int:
-	# Farm country where the game starts, and the plains round the tower
-	if c == chunk_of(TOWER) or c == chunk_of(TOWER) + Vector2i(0, -1):
+	# Farm country where the game starts, and plains (and pines) round the tower
+	if near_tower(c):
 		return Biome.PLAINS
 	if absi(c.x) <= 1 and absi(c.y) <= 1:
 		return Biome.FARM
@@ -121,6 +122,12 @@ static func biome(c: Vector2i) -> int:
 	if dry < 0.4:
 		return Biome.FARM
 	return Biome.PLAINS
+
+
+## Whether a chunk is Devils Tower's or one of those round it (its forest)
+static func near_tower(c: Vector2i) -> bool:
+	var d := c - chunk_of(TOWER)
+	return maxi(absi(d.x), absi(d.y)) <= 1
 
 
 static func has_road(n: int) -> bool:
@@ -369,11 +376,15 @@ func _make(c: Vector2i) -> void:
 		(obstacles[c] as Array).append(block)
 		_prop(f["name"], f["at"], f["turn"], f["size"], {}, block)
 		if f["name"] == "devils_tower":
-			# (ponderosa pines round its foot)
-			for i in 10:
-				var foot := _ring_spot(f["at"], float(f["skirt"]) + 2.0, float(f["skirt"]) + 9.0)
-				if _clear(foot, 1.5):
-					_plant("pine", 0.8, 1.3, foot)
+			# (a thick ring of ponderosa pines round its foot)
+			for i in 40:
+				var foot := _ring_spot(f["at"], float(f["skirt"]) + 1.0, float(f["skirt"]) + 14.0)
+				if _clear(foot, 1.3):
+					_plant("pine", 0.8, 1.4, foot)
+	if near_tower(c) and c != chunk_of(TOWER):
+		# (and the forest round it, out to the next chunks)
+		for i in 26:
+			_plant("pine", 0.8, 1.4, Vector3.INF, 1.3)
 	# Now and then a trader's saucer parked out of the way (and always one near the start)
 	if game != null and not road_x and not road_z and (hash3(c.x, c.y, 33) < 0.06 or c == Vector2i(-1, 0)):
 		var pad := _spot(7.0)
@@ -435,13 +446,13 @@ static func landforms(c: Vector2i) -> Array[Dictionary]:
 	var b := biome(c)
 	var r := rng.randf()
 	var pick := ""
-	if c == chunk_of(TOWER) or (b == Biome.PLAINS and hash3(c.x, c.y, 5) < 0.012):
+	if c == chunk_of(TOWER):
 		pick = "devils_tower"
-	elif b == Biome.PLAINS and r < 0.18:
+	elif b == Biome.PLAINS and r < 0.08 and not near_tower(c):
 		pick = "butte"
 	elif b == Biome.DESERT:
-		pick = "mesa" if r < 0.35 else ("butte" if r < 0.65 else "")
-	elif b == Biome.MESA and r < 0.3:
+		pick = "mesa" if r < 0.15 else ("butte" if r < 0.3 else "")
+	elif b == Biome.MESA and r < 0.15:
 		pick = "mesa"
 	elif b == Biome.MOUNTAIN and r < 0.55:
 		pick = "peak"
@@ -640,7 +651,9 @@ func _plains() -> void:
 		_plant("rock", 0.5, 1.0, Vector3.INF, 1.0)
 	if _rng.randf() < 0.45:
 		_herd("bison", _spot(6.0), _rng.randi_range(3, 6), 7.0)
-	var ranch_at := _spot(14.0) if _rng.randf() < 0.35 else Vector3.INF
+	# (nobody lives in the forest round Devils Tower: no ranches, windmills or oil wells there)
+	var wild := near_tower(_chunk)
+	var ranch_at := _spot(14.0) if _rng.randf() < 0.35 and not wild else Vector3.INF
 	if ranch_at != Vector3.INF:
 		var at := ranch_at
 		var turn := _rng.randi_range(0, 3) * PI / 2
@@ -650,9 +663,9 @@ func _plains() -> void:
 		_pen(at + Basis(Vector3.UP, turn) * Vector3(-1, 0, 6), turn, 5, 3)
 		_herd("horse", at + Basis(Vector3.UP, turn) * Vector3(-1, 0, 6), _rng.randi_range(2, 4), 4.0)
 		_herd("cowboy", at, _rng.randi_range(1, 2), 4.0)
-	elif _rng.randf() < 0.25:
+	elif _rng.randf() < 0.25 and not wild:
 		_prop("windmill", _spot(3.0), _rng.randf() * TAU)
-	if _rng.randf() < 0.35:
+	if _rng.randf() < 0.35 and not wild:
 		var at := _spot(8.0)
 		if at != Vector3.INF:
 			for i in _rng.randi_range(1, 3):

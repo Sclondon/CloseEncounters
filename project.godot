@@ -52,5 +52,5 @@ saucer_pos={
 }
 bend_k={
 "type": "float",
-"value": 0.006
+"value": 0.0025
 }
