@@ -26,7 +26,7 @@ float vnoise(vec2 p) {
 }
 
 vec3 farm(vec2 p, float speck) {
-	float field = 22.0;
+	float field = 40.0;
 	vec2 cell = floor(p / field);
 	vec2 in_cell = p / field - cell;
 	float h = hash(cell + 0.5);

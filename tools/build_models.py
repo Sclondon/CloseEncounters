@@ -47,6 +47,8 @@ COLOURS = {
     "crow": (0.06, 0.06, 0.08), "hawk": (0.45, 0.3, 0.18), "hawk_light": (0.85, 0.78, 0.65), "pole": (0.36, 0.25, 0.16),
     "insulator": (0.4, 0.7, 0.6), "sasquatch": (0.3, 0.2, 0.13), "sasquatch_face": (0.18, 0.13, 0.1),
     "satellite": (0.75, 0.75, 0.7), "panel": (0.12, 0.18, 0.4), "gold": (1.0, 0.78, 0.2),
+    "awning": (0.75, 0.15, 0.12), "wheat_head": (0.92, 0.75, 0.3), "corn_leaf": (0.35, 0.55, 0.2), "corn_cob": (0.95, 0.82, 0.3),
+    "pumpkin": (0.95, 0.5, 0.08), "hill": (0.3, 0.38, 0.2), "asphalt": (0.13, 0.13, 0.15),
     "brick": (0.55, 0.3, 0.22), "police_blue": (0.15, 0.25, 0.55), "concrete": (0.6, 0.6, 0.58), "hangar": (0.45, 0.48, 0.42),
     "transformer": (0.5, 0.55, 0.5), "hazard": (0.95, 0.75, 0.1),
     "regolith": (0.58, 0.57, 0.55), "regolith_dark": (0.4, 0.4, 0.4), "canvas_a": (0.95, 0.4, 0.3), "canvas_b": (0.95, 0.9, 0.8),
@@ -61,7 +63,8 @@ GLOWS = {
     "flame": ((1.0, 0.55, 0.15), 3.0), "neon": ((1.0, 0.35, 0.6), 3.0),
     "light_red": ((1.0, 0.2, 0.15), 3.0), "light_blue": ((0.3, 0.5, 1.0), 3.0), "light_white": ((1.0, 1.0, 0.95), 3.0),
     "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "pod_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0),
-    "foo_glow": ((0.85, 0.22, 0.03), 2.5), "booth_sign": ((0.75, 0.88, 1.0), 2.0),
+    "foo_glow": ((0.85, 0.22, 0.03), 2.5), "booth_sign": ((0.75, 0.88, 1.0), 2.0), "clock_face": ((1.0, 0.95, 0.8), 1.3),
+    "sign": ((1.0, 0.85, 0.55), 1.2),
 }
 
 _mats = {}
@@ -364,16 +367,119 @@ def barn():
 
 
 def farmhouse():
-    p = [box((7.0, 6.0, 3.2), (0, 0, 1.6), "walls"), gable(7.6, 6.6, 2.4, (0, 0, 3.2), "roof"),
-         box((1.0, 0.1, 2.0), (0, -3.0, 1.0), "door"), box((0.6, 0.6, 1.6), (2.0, 1.5, 5.0), "barn"),
-         box((7.2, 1.6, 0.1), (0, -3.6, 2.4), "roof"), box((0.1, 0.1, 2.3), (-3.4, -4.3, 1.15), "trim"),
-         box((0.1, 0.1, 2.3), (3.4, -4.3, 1.15), "trim")]
+    """A two-storey farmhouse with a porch wrapped round its front (-Y) and both sides: a deck, a
+    roof on posts, railings, and the door in the middle of the front"""
+    p = [box((7.0, 6.0, 5.6), (0, 0, 2.8), "walls"), gable(7.6, 6.6, 2.6, (0, 0, 5.6), "roof"),
+         box((0.8, 0.8, 1.8), (2.0, 1.5, 7.4), "brick"), box((1.0, 0.1, 2.0), (0, -3.0, 1.0), "door"),
+         box((9.6, 8.0, 0.25), (0, -0.8, 0.12), "wood"), box((9.8, 8.2, 0.14), (0, -0.8, 2.75), "roof")]
+    for x in (-4.65, -2.3, 2.3, 4.65):
+        p.append(box((0.16, 0.16, 2.6), (x, -4.65, 1.4), "trim"))
+    for y in (-2.0, 0.6, 3.05):
+        for x in (-4.65, 4.65):
+            p.append(box((0.16, 0.16, 2.6), (x, y, 1.4), "trim"))
+    # (railings: along the front either side of the steps, and down both sides)
+    for x0, x1 in ((-4.65, -0.9), (0.9, 4.65)):
+        p.append(box((x1 - x0, 0.08, 0.08), ((x0 + x1) / 2, -4.65, 1.0), "trim"))
+    for x in (-4.65, 4.65):
+        p.append(box((0.08, 7.7, 0.08), (x, -0.8, 1.0), "trim"))
     for x in (-2.2, 2.2):
-        p.append(box((1.0, 0.1, 0.9), (x, -3.02, 1.7), "window"))
+        p.append(box((1.0, 0.1, 1.0), (x, -3.02, 1.7), "window"))
+        p.append(box((1.0, 0.1, 1.0), (x, -3.02, 4.3), "window"))
     for y in (-1.4, 1.4):
-        p.append(box((0.1, 0.9, 0.9), (3.52, y, 1.7), "window"))
-        p.append(box((0.1, 0.9, 0.9), (-3.52, y, 1.7), "window"))
+        for z in (1.7, 4.3):
+            p.append(box((0.1, 0.9, 0.9), (3.52, y, z), "window"))
+            p.append(box((0.1, 0.9, 0.9), (-3.52, y, z), "window"))
     return join("farmhouse", p)
+
+
+def storefront():
+    """A small-town main street shop: two storeys behind a tall false front with a sign across the
+    top, a big lit shop window and a door at the front (-Y), and a striped awning over the pavement"""
+    p = [box((6.0, 7.0, 6.0), (0, 0, 3.0), "walls"), box((6.2, 0.3, 7.8), (0, -3.5, 3.9), "walls"),
+         box((6.5, 0.45, 0.3), (0, -3.6, 7.8), "trim"), box((4.6, 0.12, 1.0), (0, -3.72, 6.7), "sign"),
+         box((3.2, 0.12, 1.9), (-0.9, -3.7, 1.35), "window"), box((1.0, 0.12, 2.2), (2.1, -3.7, 1.1), "door"),
+         box((6.3, 1.8, 0.12), (0, -4.5, 2.9), "awning", (0.28, 0, 0)), box((6.3, 0.06, 0.4), (0, -5.35, 2.55), "awning")]
+    for x in (-2.0, 0.0, 2.0):
+        p.append(box((1.0, 0.12, 1.2), (x, -3.7, 4.7), "window"))
+    return join("storefront", p)
+
+
+def clock_tower():
+    """A town's clock tower: brick, a lit clock face on each side near the top, a belfry and a
+    pointed roof"""
+    p = [box((3.2, 3.2, 12.0), (0, 0, 6.0), "brick"), box((3.7, 3.7, 0.4), (0, 0, 12.2), "trim"),
+         box((2.8, 2.8, 2.6), (0, 0, 13.7), "brick"), box((3.3, 3.3, 0.3), (0, 0, 15.1), "trim"),
+         cone(2.6, 3.6, (0, 0, 17.0), "roof", 4, (0, 0, math.pi / 4)), box((1.2, 1.2, 0.3), (0, 0, 0.15), "stone")]
+    for a in range(4):
+        r = a * math.pi / 2
+        dx, dy = math.sin(r), -math.cos(r)
+        p.append(drum(1.05, 0.12, (dx * 1.62, dy * 1.62, 10.4), "clock_face", 16, (math.pi / 2, 0, r)))
+        p.append(box((0.1, 0.06, 0.8) if a % 2 == 0 else (0.06, 0.1, 0.8), (dx * 1.7, dy * 1.7, 10.7), "black"))
+        p.append(box((0.5, 0.06, 0.1) if a % 2 == 0 else (0.06, 0.5, 0.1), (dx * 1.7 + (0.22 if a % 2 == 0 else 0), dy * 1.7 + (0 if a % 2 == 0 else 0.22), 10.4), "black"))
+    return join("clock_tower", p)
+
+
+def wheat():
+    """A stook of wheat: sheaves leant together, their heads gold"""
+    p = []
+    for i in range(6):
+        a = i / 6 * math.tau
+        p.append(box((0.12, 0.12, 1.1), (math.cos(a) * 0.18, math.sin(a) * 0.18, 0.5), "straw", (math.sin(a) * 0.25, -math.cos(a) * 0.25, 0)))
+        p.append(box((0.18, 0.18, 0.35), (math.cos(a) * 0.08, math.sin(a) * 0.08, 1.1), "wheat_head"))
+    return join("wheat", p)
+
+
+def corn():
+    """A corn stalk: tall and green, leaves off it, a cob and a tassel"""
+    p = [box((0.1, 0.1, 2.2), (0, 0, 1.1), "corn_leaf"), box((0.16, 0.16, 0.5), (0.14, 0, 1.2), "corn_cob", (0, 0.4, 0)),
+         box((0.06, 0.3, 0.3), (0, 0, 2.3), "straw")]
+    for i, z in enumerate((0.7, 1.1, 1.5, 1.85)):
+        a = i * 2.2
+        p.append(box((0.8, 0.12, 0.04), (math.cos(a) * 0.35, math.sin(a) * 0.35, z), "corn_leaf", (0, -0.4, a)))
+    return join("corn", p)
+
+
+def pumpkin():
+    """A pumpkin, ribbed, with its stem"""
+    p = [ball((0.9, 0.9, 0.62), (0, 0, 0.31), "pumpkin", 10, 6), box((0.08, 0.08, 0.22), (0, 0, 0.68), "corn_leaf")]
+    return join("pumpkin", p)
+
+
+def hill():
+    """A low rolling hill, grassed, its foot sunk in the ground"""
+    return join("hill", [ball((28.0, 24.0, 4.6), (0, 0, 0), "hill", 12, 6)])
+
+
+def control_tower():
+    """An airfield's control tower: a concrete shaft and a glass cab with a beacon on top"""
+    p = [box((2.4, 2.4, 9.0), (0, 0, 4.5), "concrete"), box((4.2, 4.2, 0.3), (0, 0, 9.15), "metal_dark"),
+         box((3.8, 3.8, 2.0), (0, 0, 10.3), "glass"), box((4.2, 4.2, 0.3), (0, 0, 11.45), "metal_dark"),
+         drum(0.2, 0.6, (0, 0, 11.9), "metal", 6), ball((0.35, 0.35, 0.35), (0, 0, 12.3), "light_red", 6, 3)]
+    return join("control_tower", p)
+
+
+def plane():
+    """A little high-winged prop plane, nose to -Y"""
+    p = [box((0.9, 5.0, 1.0), (0, 0, 1.3), "white"), box((7.5, 1.3, 0.12), (0, -0.4, 1.9), "white"),
+         box((2.6, 0.8, 0.1), (0, 2.3, 1.45), "white"), box((0.1, 0.8, 1.0), (0, 2.3, 1.9), "red"),
+         box((0.92, 1.1, 0.5), (0, -0.9, 1.75), "glass"), box((0.1, 0.1, 1.6), (0, -2.55, 1.3), "metal_dark"),
+         box((1.6, 0.1, 0.1), (0, -2.6, 1.3), "metal_dark"), box((7.6, 0.2, 0.06), (0, -0.4, 1.97), "red")]
+    for x in (-0.9, 0.9):
+        p.append(box((0.08, 0.08, 0.9), (x, -0.4, 0.55), "metal_dark"))
+        p.append(drum(0.28, 0.16, (x, -0.4, 0.28), "tyre", 8, (0, math.pi / 2, 0)))
+    p.append(drum(0.2, 0.12, (0, 2.0, 0.25), "tyre", 8, (0, math.pi / 2, 0)))
+    return join("plane", p)
+
+
+def runway():
+    """An airfield's runway: 80 m of tarmac with a dashed white line down it and its ends marked"""
+    p = [box((10.0, 80.0, 0.06), (0, 0, 0.03), "asphalt")]
+    for i in range(10):
+        p.append(box((0.5, 4.0, 0.07), (0, -36.0 + i * 8.0, 0.04), "white"))
+    for end in (-1, 1):
+        for x in (-3.5, -2.0, 2.0, 3.5):
+            p.append(box((0.6, 5.0, 0.07), (x, end * 36.5, 0.04), "white"))
+    return join("runway", p)
 
 
 def house():
@@ -1159,7 +1265,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
             diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
-            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, sasquatch, meteorite, satellite,
+            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, sasquatch, meteorite, satellite,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox]
 
 

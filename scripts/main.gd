@@ -1156,11 +1156,11 @@ func captive(held: String, c: Vector2i) -> String:
 func _pull_scenery(delta: float) -> void:
 	_pull_wait -= delta
 	# (scenery too much for the beam rattles in the ground)
-	world.rattle(ufo.ground(), ufo.beam_foot if ufo.beaming and not ufo.dead else 0.0, ufo.tier)
+	world.rattle(ufo.beam_axis(0.0), ufo.beam_foot if ufo.beaming and not ufo.dead else 0.0, ufo.tier)
 	if not ufo.beaming or ufo.dead or _pull_wait > 0.0:
 		return
 	_pull_wait = 0.15
-	var found := world.pull(ufo.ground(), ufo.beam_foot, ufo.tier)
+	var found := world.pull(ufo.beam_axis(0.0), ufo.beam_foot, ufo.tier)
 	if found.is_empty():
 		return
 	var xf: Transform3D = found[1]

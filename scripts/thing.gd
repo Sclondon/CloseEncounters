@@ -72,6 +72,18 @@ const KINDS := {
 	# Buildings (tier 3)
 	"house": {"points": 250, "weight": 4.0, "heat": 0.5, "move": "still", "size": 3.0, "tier": 3, "voice": "scream"},
 	"farmhouse": {"points": 300, "weight": 4.5, "heat": 0.5, "move": "still", "size": 3.0, "tier": 3, "voice": "scream"},
+	# Main street, in the towns: shops with sign boards and awnings, and a clock tower
+	"storefront": {"points": 500, "weight": 4.5, "heat": 0.6, "move": "still", "size": 3.2, "tier": 3, "voice": "scream"},
+	"clock_tower": {"points": 1200, "weight": 6.0, "heat": 0.8, "move": "still", "size": 2.6, "tier": 3},
+	# The airfield: its control tower and little planes
+	"control_tower": {"points": 900, "weight": 5.5, "heat": 0.7, "move": "still", "size": 2.6, "tier": 3},
+	"plane": {"points": 600, "weight": 3.5, "heat": 0.5, "move": "still", "size": 3.0, "tier": 2},
+	# The crops in the fields, in rows: hardly worth anything, but a field of them adds up
+	"wheat": {"points": 8, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
+	"corn": {"points": 10, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
+	"pumpkin": {"points": 15, "weight": 0.6, "heat": 0.01, "move": "still", "size": 0.8},
+	# A low rolling hill (the land itself)
+	"hill": {"points": 1500, "weight": 9.0, "heat": 0.5, "move": "still", "size": 8.0, "tier": 4},
 	"barn": {"points": 350, "weight": 5.0, "heat": 0.5, "move": "still", "size": 3.0, "tier": 3, "voice": "moo"},
 	"silo": {"points": 300, "weight": 4.5, "heat": 0.4, "move": "still", "size": 2.0, "tier": 3},
 	"windmill": {"points": 200, "weight": 3.5, "heat": 0.3, "move": "still", "size": 1.6, "tier": 3},

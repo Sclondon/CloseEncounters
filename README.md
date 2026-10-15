@@ -93,20 +93,24 @@ Searchlights are soft cones, brightest down the middle and fading to their edges
 
 | Heat | Who comes |
 | --- | --- |
-| 1 star | Farmers and cowboys draw; a police car |
-| 2 | Three police cars, and the traders flee |
-| 3 | Police and army jeeps with machine guns |
-| 4 | A tank as well |
-| 5 | Two tanks, and jets fly over firing missiles |
+| 1 star | Farmers and cowboys draw their guns |
+| 2 | Police cars: they pull up and an officer gets out to shoot (take the officer, or get well away and they drive on after you); the traders flee |
+| 3 | A police helicopter circling with its searchlight on you, and the men in black (a black sedan, agents in suits) |
+| 4 | The army: jeeps firing machine guns on the move |
+| 5 | Tanks, and jets fly over firing missiles |
 
-**Witnesses**: anyone who sees the beam take something starts phoning the police (a red "!"). Take them, or
-be gone, within 4 seconds, or the heat jumps a star. **Phone poles** run along every road: take one and calls
-within 150 m of it cannot get through.
+Each star takes more heat than the last, and for 8 seconds after a new one the heat comes only slowly, so the
+stars are stages rather than a rush from one to five.
+
+**Witnesses**: anyone who sees the beam take something runs for the nearest **phone booth** by the road (a red
+"!") and calls the police from it, radio waves rising off its aerial; take them, or the booth, first. With no booth
+near they call from where they stand (4 seconds). **Phone poles** run along every road: take one and calls within
+150 m of it cannot get through (a booth's aerial only sparks).
 
 **Watchers**: radio dishes (in rows, like New Mexico's Very Large Array) and observatories turn to follow the
 ship; linger near one for 2 seconds and it gives you away. **Police stations** (in towns) and **army bases**
 (a hangar, fighter jets, watchtowers with searchlights) are where the police and army come from. Fighter jets
-fly over firing missiles from four stars.
+fly over firing missiles at five stars.
 
 **Patrols** rove about whatever the heat: police cars and army jeeps sweeping searchlights over the sky (more
 of them the longer you last). Fly into a beam and you are **spotted**: the heat jumps and keeps rising while
@@ -141,7 +145,8 @@ When the shield is gone the ship comes down and the game is over. The score goes
 Endless, made in 48 m chunks round the ship as it flies (`scripts/world.gd`) and dropped behind it; the same
 place is always the same. Five regions, several chunks across, blended at their edges on the ground:
 
-- **Farm**: Colorado farm country (where it starts): fields, the odd farmstead, pens of cows, pigs, sheep, chickens.
+- **Farm**: Colorado farm country (where it starts): big fields with rows of wheat, corn and pumpkins (a few points
+  each), the odd farmstead (a farmhouse with a wrap-around porch, a barn and a silo), pens of cows, pigs, sheep, chickens.
 - **Plains**: the Wyoming high plains: golden grass, sagebrush, bison, ranches with horses and cowboys,
   windmills, oil pumpjacks, buttes, and **Devils Tower** (just the one, about a kilometre out, alone in a pine forest away from the roads).
 - **Desert**: Arizona: red sand, saguaros, prickly pear, red rock, mesas and buttes, coyotes, RVs.
@@ -150,7 +155,9 @@ place is always the same. Five regions, several chunks across, blended at their 
 
 Wildlife lives where nobody does: bears, mountain goats and elk in the mountains, pronghorn on the plains,
 rabbits and roadrunners in the desert, crows and hawks overhead (hardly any heat). Highways cross every 240 m;
-some crossings are towns (a police station, a diner, houses lining the roads out), the rest open country.
+some crossings are towns (a main street of shops with sign boards and awnings, a clock tower or a water tower, a
+police station, a diner, more people about, houses lining the roads out), the rest open country. Out in the
+country: low hills, lakes, and now and then a little airfield (a runway, a control tower, prop planes).
 Only people and cars are ever put down in a road. Landforms are planned per chunk before anything else
 (`World.landforms`), so nothing is ever put down on top of one, and buildings stay inside their own chunk.
 Anything between the camera and the ship is drawn see-through (`shaders/ps1.gdshader`).
@@ -202,6 +209,7 @@ objects the game moves: the tank's `turret`, the windmill's `fan`, the pumpjack'
     godot --path . --fixed-fps 30 --resolution <390x844|1280x720> -s res://tests/launch.gd -- <out dir>     # off the moon, the descent, and home again
     godot --path . --fixed-fps 30 --resolution <390x844|1280x720> -s res://tests/fx_look.gd -- <out dir>    # beam, clouds, phone booths, smoke, windmill
     godot --path . --fixed-fps 30 --resolution <390x844|1280x720> -s res://tests/scale_look.gd -- <out dir>  # one spot drawn at a few world scales
+    godot --path . --fixed-fps 30 --resolution <390x844|1280x720> -s res://tests/world_look.gd -- <out dir>  # a town, a farm, a hill, a lake, an airfield
     godot --path . --resolution 390x844 -s res://tests/log_look.gd -- <out dir>    # the title's buttons and the log
     godot --path . --resolution 1280x720 -s res://tests/aliens.gd -- <out.png>
     godot --path . --resolution 1280x720 -s res://tests/perf.gd           # frame time, draw calls, things

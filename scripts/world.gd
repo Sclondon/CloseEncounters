@@ -46,6 +46,9 @@ var _meshes := {}
 var _t := 0.0
 ## Scenery still in the ground, by chunk: [name, its MultiMesh, its index there, where it stands]
 var loose := {}
+## The lakes of the chunks made: (x, z, radius) (no crops in them, see `crops_at`)
+var lakes := {}
+const WATER := preload("res://shaders/water.gdshader")
 var _rattled: Array = []
 ## Crop circles pressed into the fields: (x, z, radius, unused), the oldest written over first
 var _circles: PackedVector4Array = PackedVector4Array()
@@ -205,6 +208,7 @@ func _recentre() -> void:
 			chunks.erase(c)
 			obstacles.erase(c)
 			loose.erase(c)
+			lakes.erase(c)
 			if game != null:
 				game.forget_chunk(c)
 	_queue.clear()
@@ -280,8 +284,19 @@ func grow_circle(radius: float) -> void:
 
 
 ## Whether a crop circle can be pressed at `p`: anywhere in the farm country off the roads
+## Whether a spot in the chunk being made is in its crop fields (not a road, not its lake)
+func crops_here(p: Vector3) -> bool:
+	if biome(_chunk) != Biome.FARM or on_road(p, 3.0):
+		return false
+	var lake: Vector3 = lakes.get(_chunk, Vector3(0, 0, -1))
+	return Vector2(p.x - lake.x, p.z - lake.y).length() > lake.z + 2.0
+
+
 func crops_at(p: Vector3) -> bool:
-	return biome_at(p) == Biome.FARM and not on_road(p, 2.0)
+	if biome_at(p) != Biome.FARM or on_road(p, 2.0):
+		return false
+	var lake: Vector3 = lakes.get(chunk_of(p), Vector3(0, 0, -1))
+	return Vector2(p.x - lake.x, p.z - lake.y).length() > lake.z
 
 
 ## Only people and cars are ever put down in a road
@@ -392,7 +407,10 @@ func _make(c: Vector2i) -> void:
 			_take(pad, 7.0)
 			game.spawn_shop(pad, c)
 	var town := is_town(c)
-	if town:
+	var open := not road_x and not road_z and not town and facility(c) == "" and not is_base(c) and not near_tower(c)
+	if open and airfield(c):
+		_airfield()
+	elif town:
 		_town(b)
 	elif is_edge_of_town(c):
 		_edge_of_town(b, "z" if road_x else "x")
@@ -401,6 +419,14 @@ func _make(c: Vector2i) -> void:
 	elif is_base(c):
 		_base()
 	else:
+		# (out in the open country, now and then a lake, or a low hill)
+		if open and b in [Biome.FARM, Biome.PLAINS, Biome.MOUNTAIN] and hash3(c.x, c.y, 141) < 0.07:
+			_lake()
+		elif open and b in [Biome.FARM, Biome.PLAINS, Biome.MOUNTAIN] and hash3(c.x, c.y, 142) < 0.16:
+			var at := _spot(13.0)
+			if at != Vector3.INF:
+				_take(at, 13.0)
+				_prop("hill", at, _rng.randf() * TAU, _rng.randf_range(0.8, 1.2))
 		match b:
 			Biome.FARM:
 				_farm()
@@ -619,6 +645,19 @@ func _farm() -> void:
 		_herd("hay_bale", at + basis * Vector3(-12, 0, 4), _rng.randi_range(1, 3), 3.0)
 		if _rng.randf() < 0.4:
 			_spawn("outhouse", at + basis * Vector3(14, 0, -2))
+	# Rows of crops out in the fields, a patch or two of one kind each: wheat, corn or pumpkins
+	for patch in _rng.randi_range(1, 2):
+		var crop: String = ["wheat", "corn", "pumpkin"][_rng.randi() % 3]
+		var at := _spot(8.0)
+		if at == Vector3.INF or not crops_here(at):
+			continue
+		_take(at, 8.0)
+		var rows := Basis(Vector3.UP, _rng.randi_range(0, 1) * PI / 2)
+		var gap := 2.2 if crop == "pumpkin" else 1.5
+		for row in 4:
+			for col in 7:
+				var p := at + rows * Vector3((col - 3) * gap, 0, (row - 1.5) * 2.4) + Vector3(_rng.randf_range(-0.2, 0.2), 0, _rng.randf_range(-0.2, 0.2))
+				_plant_at(crop, p, _rng.randf() * TAU)
 	for i in _rng.randi_range(0, 2):
 		_spawn("scarecrow", _spot(2.0))
 	if _rng.randf() < 0.3:
@@ -766,7 +805,7 @@ func _edge_of_town(b: int, axis: String) -> void:
 			else:
 				_prop("house", p, turn, 0.85, {"walls": paint[_rng.randi() % paint.size()]})
 			_take(p, 5.0)
-	_herd("person", base + Vector3(_rng.randf_range(-8, 8), 0, _rng.randf_range(-8, 8)), _rng.randi_range(1, 3), 10.0)
+	_herd("person", base + Vector3(_rng.randf_range(-8, 8), 0, _rng.randf_range(-8, 8)), _rng.randi_range(2, 5), 10.0)
 	for i in _rng.randi_range(2, 4):
 		_plant("tree", 0.7, 1.0, Vector3.INF, 2.0)
 
@@ -844,10 +883,14 @@ func _watchers(c: Vector2i, b: int) -> void:
 				_prop("seti_dish", at, 0.0)
 
 
-## A town where two roads cross: a police station, houses (adobe in the desert and New Mexico), people, a diner
+## A town where two roads cross: main street (shops with sign boards and awnings, in a row facing
+## the road, houses behind them), the police station on a corner, a diner, a clock tower or a water
+## tower, and plenty of people about (more, and more worth taking, than out in the country)
 func _town(b: int) -> void:
 	var dry := b == Biome.DESERT or b == Biome.MESA
 	var paint: Array[Color] = [Color(0.92, 0.9, 0.82), Color(0.75, 0.82, 0.9), Color(0.95, 0.85, 0.6), Color(0.8, 0.9, 0.75), Color(0.9, 0.7, 0.65)]
+	var brick: Array[Color] = [Color(0.6, 0.32, 0.24), Color(0.72, 0.62, 0.48), Color(0.5, 0.42, 0.4), Color(0.78, 0.7, 0.55)]
+	var awning: Array[Color] = [Color(0.75, 0.15, 0.12), Color(0.15, 0.4, 0.3), Color(0.2, 0.3, 0.6), Color(0.85, 0.65, 0.2)]
 	var base := centre_of(_chunk)
 	# The police station on one corner of the crossing
 	var station := base + Vector3(13.0, 0, 13.0)
@@ -860,7 +903,9 @@ func _town(b: int) -> void:
 				var turn := PI / 2 * -qx
 				if not _clear(p, 4.5):
 					continue
-				if dry:
+				if i == 0:
+					_prop("storefront", p, turn, 0.9, {"walls": brick[_rng.randi() % brick.size()], "awning": awning[_rng.randi() % awning.size()]})
+				elif dry:
 					_prop("adobe", p, turn, 0.85)
 				else:
 					_prop("house", p, turn, 0.9, {"walls": paint[_rng.randi() % paint.size()]})
@@ -868,9 +913,12 @@ func _town(b: int) -> void:
 	if b != Biome.MOUNTAIN and _clear(base + Vector3(-12, 0, -9), 5.0):
 		_prop("diner", base + Vector3(-12, 0, -9), PI / 2)
 		_take(base + Vector3(-12, 0, -9), 7.0)
-	if _rng.randf() < 0.6 and _clear(base + Vector3(12, 0, -9), 3.0):
-		_prop("water_tower", base + Vector3(12, 0, -9))
-	for i in _rng.randi_range(3, 5):
+	if _clear(base + Vector3(12, 0, -9), 3.0):
+		if not dry and _rng.randf() < 0.6:
+			_prop("clock_tower", base + Vector3(12, 0, -9), PI)
+		elif _rng.randf() < 0.6:
+			_prop("water_tower", base + Vector3(12, 0, -9))
+	for i in _rng.randi_range(7, 11):
 		_spawn("person", base + Vector3(_rng.randf_range(-16, 16), 0, _rng.randf_range(-16, 16)))
 
 
@@ -952,3 +1000,62 @@ func _car(b: int, axis: String) -> void:
 	var at := base + (Vector3(1.5 * dir, 0, along) if axis == "z" else Vector3(along, 0, -1.5 * dir))
 	if game != null:
 		game.spawn_car(kinds[_rng.randi() % kinds.size()], at, axis, dir)
+
+
+## Whether an airfield is out here: now and then, in open country away from where the game starts
+static func airfield(c: Vector2i) -> bool:
+	return maxi(absi(c.x), absi(c.y)) > 3 and biome(c) in [Biome.FARM, Biome.PLAINS, Biome.DESERT] and hash3(c.x, c.y, 143) < 0.025
+
+
+## A little airfield: a runway across the chunk, a control tower and a hangar beside it, and a few
+## prop planes parked
+func _airfield() -> void:
+	var base := centre_of(_chunk)
+	var turn := PI / 2 if _rng.randf() < 0.5 else 0.0
+	var basis := Basis(Vector3.UP, turn)
+	_put("runway", base, turn)
+	for k in range(-4, 5):
+		_take(base + basis * Vector3(0, 0, k * 9.0), 6.0)
+	var tower := base + basis * Vector3(14, 0, -12)
+	_prop("control_tower", tower, turn)
+	_take(tower, 4.0)
+	var shed := base + basis * Vector3(15, 0, 8)
+	if _clear(shed, 7.0):
+		_prop("hangar", shed, turn - PI / 2, 0.7)
+		_take(shed, 8.0)
+	for i in _rng.randi_range(2, 3):
+		var at := base + basis * Vector3(-10.0, 0, -12.0 + i * 11.0)
+		if _clear(at, 4.0):
+			_prop("plane", at, turn + PI / 2 + _rng.randf_range(-0.3, 0.3))
+			_take(at, 4.5)
+	_herd("person", base + basis * Vector3(10, 0, 0), _rng.randi_range(1, 3), 6.0)
+
+
+## A lake, dark under the moon, with reeds and trees round its shore
+func _lake() -> void:
+	var r := _rng.randf_range(10.0, 15.0)
+	var at := _spot(r + 2.0)
+	if at == Vector3.INF:
+		return
+	_take(at, r + 2.0)
+	lakes[_chunk] = Vector3(at.x, at.z, r)
+	var water := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = r
+	disc.bottom_radius = r
+	disc.height = 0.06
+	disc.radial_segments = 28
+	disc.rings = 1
+	water.mesh = disc
+	var m := ShaderMaterial.new()
+	m.shader = WATER
+	water.material_override = m
+	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	water.extra_cull_margin = Ps1.CULL_MARGIN
+	water.visibility_range_end = Ps1.DRAW_TO
+	water.position = at + Vector3(0, 0.04, 0)
+	_node.add_child(water)
+	for i in _rng.randi_range(5, 9):
+		var shore := _ring_spot(at, r + 1.0, r + 4.0)
+		if _clear(shore, 1.2):
+			_plant("tree" if _rng.randf() < 0.6 else "pine", 0.7, 1.1, shore)
