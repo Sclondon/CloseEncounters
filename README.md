@@ -196,6 +196,7 @@ objects the game moves: the tank's `turret`, the windmill's `fan`, the pumpjack'
     godot --headless --path . --fixed-fps 60 -s res://tests/unlock.gd     # a secret facility unlocks a ship; every ship flies
     godot --path . --fixed-fps 60 --resolution 1280x720 -s res://tests/<shots|regions|look|look_more|look_ships>.gd -- <out dir>
     godot --path . --fixed-fps 60 --resolution <390x844|1280x720> -s res://tests/moon_look.gd -- <out dir>   # the title
+    godot --path . --fixed-fps 30 --resolution <390x844|1280x720> -s res://tests/launch.gd -- <out dir>     # the flight to Earth and the descent
     godot --path . --resolution 390x844 -s res://tests/log_look.gd -- <out dir>    # the title's buttons and the log
     godot --path . --resolution 1280x720 -s res://tests/aliens.gd -- <out.png>
     godot --path . --resolution 1280x720 -s res://tests/perf.gd           # frame time, draw calls, things

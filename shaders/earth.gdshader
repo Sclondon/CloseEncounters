@@ -1,10 +1,12 @@
 shader_type spatial;
-render_mode unshaded;
+render_mode unshaded, blend_mix, cull_back;
 // Earth, seen from the moon: blue oceans, green and brown land, ice at the poles, clouds drifting
 // over, the sun's side lit and the night side dark but for the lights of towns, and a thin blue
 // rim of air. Made from the ball's own directions (no texture). Not bent: it hangs far off.
 
 uniform vec3 sun = vec3(0.8, 0.35, 0.5);
+// How much of it shows (it fades as the ship comes down into it at the start of a run)
+uniform float fade = 1.0;
 
 varying vec3 dir;
 
@@ -46,4 +48,5 @@ void fragment() {
 	float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0);
 	c += vec3(0.3, 0.55, 1.0) * rim * (0.25 + 0.75 * day);
 	ALBEDO = c;
+	ALPHA = fade;
 }

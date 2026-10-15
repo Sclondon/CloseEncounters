@@ -57,3 +57,20 @@ func _process(delta: float) -> void:
 
 func earth_position() -> Vector3:
 	return SITE + EARTH_AT
+
+
+## Earth brought along into the descent (see Main._process): hung at `at`, `grow` times its size,
+## `fade` of it showing
+func carry_earth(at: Vector3, grow: float, fade: float) -> void:
+	earth.visible = fade > 0.0
+	earth.global_position = at
+	earth.scale = Vector3.ONE * grow
+	(earth.material_override as ShaderMaterial).set_shader_parameter("fade", fade)
+
+
+## Earth back where it hangs over the moon
+func rest_earth() -> void:
+	earth.visible = true
+	earth.position = EARTH_AT
+	earth.scale = Vector3.ONE
+	(earth.material_override as ShaderMaterial).set_shader_parameter("fade", 1.0)

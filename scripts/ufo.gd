@@ -84,6 +84,8 @@ var _dash_dir := Vector3.ZERO
 var dash_level := 0
 ## How far above its flying height it still is, coming down from space at the start of a run
 var descent := 0.0
+## How much of the shield bubble shows (it comes up as the ship comes down from space)
+var bubble_fade := 1.0
 ## Landed (on the moon, on the title): it stands on its legs and goes nowhere
 var parked := false:
 	set(value):
@@ -384,8 +386,8 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 		_lamps[i].set_shader_parameter("tint", Color(0.4, 1.0, 0.5) if lit else Color(0.35, 0.08, 0.06))
 		_lamps[i].set_shader_parameter("glow", 1.5 if lit else 0.3)
 	var left := hull / hull_max
-	bubble.visible = hull > 0.0
-	_bubble_mat.set_shader_parameter("strength", 0.25 + 0.75 * left)
+	bubble.visible = hull > 0.0 and bubble_fade > 0.0
+	_bubble_mat.set_shader_parameter("strength", (0.25 + 0.75 * left) * bubble_fade)
 	_bubble_mat.set_shader_parameter("hit", maxf(0.0, 1.0 - since_hit * 3.0))
 	if stick != null:
 		stick.rotation = Vector3(steer.y * 0.5, 0, -steer.x * 0.5)
