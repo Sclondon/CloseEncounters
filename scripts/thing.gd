@@ -326,7 +326,7 @@ func _rise(delta: float, ufo: Ufo) -> void:
 		obstacle = Vector4.ZERO
 	lift += delta * ufo.lift_rate / float(info["weight"])
 	var top := ufo.position.y - 0.9
-	var axis := Vector3(ufo.position.x, position.y, ufo.position.z)
+	var axis := ufo.beam_axis(position.y)
 	position = position.lerp(axis, minf(delta * 3.0, 1.0))
 	position.y = lerpf(0.0, top, ease(clampf(lift, 0.0, 1.0), 1.6))
 	if not _beam_lit:

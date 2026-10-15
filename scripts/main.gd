@@ -28,6 +28,8 @@ const FORCES: Array[Dictionary] = [
 ]
 ## How many of each thing the farm keeps about (taken ones are replaced, somewhere else)
 const CAMERA_OFFSET := Vector3(0, 21.5, 16.5)
+## (tests try others)
+var camera_offset := CAMERA_OFFSET
 ## Each run opens with the ship coming down from space: this long, from this high
 const INTRO := 4.5
 const INTRO_HEIGHT := 320.0
@@ -56,8 +58,8 @@ var music: Music
 var moon_set: MoonSet
 ## Dust streaming past the ship as it climbs off the moon and comes down to Earth
 var dust: Dust
-## Lines of wind streaming past the ship as it flies
-var wind: Dust
+## Motes of dust in the air round the ship as it flies
+var motes: Dust
 var clouds: Clouds
 ## How far into the flight off the moon
 var _launch_t := 0.0
@@ -215,6 +217,8 @@ var _touch_frame_seen := true
 var _touch_down_frame := -10
 ## Where the finger beaming is (the mark follows it)
 var _beam_at := Vector2.INF
+## Where the beam thumb came down (dragging it from there aims the beam, see `_beam_aim`)
+var _beam_from := Vector2.INF
 ## A finger known only from the mouse Godot made of it (its own coming down was lost), until a
 ## drag or its lifting says which finger it is
 const PENDING := -2
@@ -244,10 +248,10 @@ func _ready() -> void:
 	moon_set = MoonSet.new()
 	view.add_child(moon_set)
 	dust = Dust.new()
-	wind = Dust.wind()
+	motes = Dust.motes()
 	clouds = Clouds.new()
 	view.add_child(clouds)
-	view.add_child(wind)
+	view.add_child(motes)
 	view.add_child(dust)
 	_make_ufo(Vector3.ZERO)
 	world.update(ufo.position, 0.0, true)
@@ -447,6 +451,7 @@ func _process(delta: float) -> void:
 	elif mode == "play" and not autopilot:
 		steer = _read_steer()
 		beam = Input.is_action_pressed("beam") or beam_finger != NO_FINGER
+		ufo.beam_aim = _beam_aim()
 		if Input.is_action_just_pressed("dodge"):
 			# (the way it is steered, or else the way it is going, or else away up the screen)
 			var way := steer if steer.length() > 0.2 else Vector2(ufo.velocity.x, ufo.velocity.z)
@@ -550,9 +555,9 @@ func _process(delta: float) -> void:
 	if mode != "launch" and mode != "landing" and intro <= 0.0:
 		dust.fade = 0.0
 	dust.follow(ufo.position, camera.position, delta)
-	# (wind streaming past the ship as it flies about, more the faster it goes)
-	wind.fade = smoothstep(2.0, 10.0, ufo.velocity.length()) if mode == "play" and intro <= 0.0 and not ufo.dead else 0.0
-	wind.follow(ufo.position, camera.position, delta)
+	# (motes of dust in the air round the ship, coming in as it nears the ground)
+	motes.fade = 1.0 - smoothstep(0.0, 0.5, intro / INTRO) if mode == "play" or mode == "over" else 0.0
+	motes.follow(ufo.position, camera.position, delta)
 	clouds.fade = 0.0 if mode in ["title", "launch", "landing"] else 1.0 - smoothstep(0.0, 0.4, intro / INTRO)
 	clouds.follow(ufo.position, camera.position, delta)
 	_camera(delta)
@@ -1751,7 +1756,7 @@ func quit_game() -> void:
 
 ## Further up and back for a ship that flies higher
 func _camera_offset() -> Vector3:
-	return CAMERA_OFFSET + Vector3(0, 1.3, 0.5) * (ufo.altitude - 8.0)
+	return camera_offset + Vector3(0, 1.3, 0.5) * (ufo.altitude - 8.0)
 
 
 func _camera(delta: float) -> void:
@@ -1886,6 +1891,10 @@ func _build_hud() -> void:
 	_title_label.add_theme_color_override("font_color", Color(0.85, 1.0, 0.86))
 	_title_label.add_theme_color_override("font_outline_color", Color(0.3, 1.0, 0.45, 0.55))
 	_glow(_title_label, Color(0.25, 1.0, 0.4, 0.3))
+	# (blooming: the glow breathing and a band of light sweeping across it, see title.gdshader)
+	var bloom := ShaderMaterial.new()
+	bloom.shader = load("res://shaders/title.gdshader")
+	_title_label.material = bloom
 	title_box.add_child(_title_label)
 	_title_gap = Control.new()
 	_title_gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -2314,6 +2323,18 @@ func _debug_show() -> void:
 	_debug_label.text = _debug_state + "\n" + "\n".join(_debug_lines)
 
 
+
+
+## Where the beam is aimed (see Ufo.beam_aim): the beam thumb dragged from where it came down, a
+## fifth of the screen's short side for the beam's full lean; straight down with no thumb on it
+func _beam_aim() -> Vector2:
+	if beam_finger == NO_FINGER or _beam_at == Vector2.INF:
+		_beam_from = Vector2.INF
+		return Vector2.ZERO
+	if _beam_from == Vector2.INF:
+		_beam_from = _beam_at
+	var size := get_viewport().get_visible_rect().size
+	return ((_beam_at - _beam_from) / (minf(size.x, size.y) * 0.2)).limit_length(1.0)
 ## Where the beam's mark rests: the bottom right corner
 func _beam_home() -> Vector2:
 	var view := get_viewport().get_visible_rect().size
@@ -2431,6 +2452,7 @@ func _finger_up(index: int, at: Vector2) -> void:
 			_dodge(moved)
 	if index == beam_finger:
 		beam_finger = NO_FINGER
+		_beam_at = Vector2.INF
 	if index == stick_finger:
 		stick_finger = NO_FINGER
 		stick = Vector2.ZERO

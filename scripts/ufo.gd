@@ -54,6 +54,8 @@ const CHARGES := 3
 const GHOSTS := 3
 ## The beam's radius up under the ship
 const BEAM_TOP := 1.0
+## How far the beam's foot can be leant off from under the ship (see `beam_aim`)
+const BEAM_REACH := 3.0
 
 ## Which of SHIPS this is (set before it is added)
 var ship := "saucer"
@@ -150,6 +152,11 @@ var beam: MeshInstance3D
 var beam_core: MeshInstance3D
 var _core_mat: ShaderMaterial
 var tornado: Tornado
+var beam_pivot: Node3D
+## Where the beam is aimed, from -1 to 1 each way (the beam thumb dragged, see Main): its foot leans
+## that much of BEAM_REACH off from under the ship; and where the foot is now, from under the ship
+var beam_aim := Vector2.ZERO
+var _aim := Vector3.ZERO
 var beam_mat: ShaderMaterial
 var spot: SpotLight3D
 var beam_light: SpotLight3D
@@ -200,10 +207,15 @@ func _ready() -> void:
 		Ps1.part(hull_model if spec.has("lamps") else body, Ps1.ball(), m, lamps + Vector3((i - 1) * 0.42, 0, 0), Vector3.ONE * 0.13)
 	_legs = Node3D.new()
 	body.add_child(_legs)
+	# (three legs splayed out, each 1.2 long, its foot pad right at the bottom of it)
+	const SPLAY := 0.3
 	for i in 3:
 		var a := i * TAU / 3.0
-		Ps1.part(_legs, CylinderMesh.new(), Ps1.mat(Color(0.32, 0.34, 0.38)), Vector3(sin(a) * radius * 0.6, -0.9, cos(a) * radius * 0.6), Vector3(0.08, 0.6, 0.08), Vector3(cos(a) * 0.3, 0, -sin(a) * 0.3))
-		Ps1.part(_legs, Ps1.ball(), Ps1.mat(Color(0.32, 0.34, 0.38)), Vector3(sin(a) * radius * 0.75, -1.5, cos(a) * radius * 0.75), Vector3(0.25, 0.08, 0.25))
+		var out := Vector3(sin(a), 0, cos(a))
+		var mid := out * radius * 0.6 + Vector3(0, -0.9, 0)
+		var foot := mid + out * 0.6 * sin(SPLAY) + Vector3(0, -0.6 * cos(SPLAY), 0)
+		Ps1.part(_legs, CylinderMesh.new(), Ps1.mat(Color(0.32, 0.34, 0.38)), mid, Vector3(0.08, 0.6, 0.08), Vector3(-cos(a) * SPLAY, 0, sin(a) * SPLAY))
+		Ps1.part(_legs, Ps1.ball(), Ps1.mat(Color(0.32, 0.34, 0.38)), foot + Vector3(0, -0.03, 0), Vector3(0.25, 0.08, 0.25))
 	_legs.visible = parked
 	bubble = MeshInstance3D.new()
 	var ball := SphereMesh.new()
@@ -242,14 +254,18 @@ func _ready() -> void:
 	beam_mat = ShaderMaterial.new()
 	beam_mat.shader = load("res://shaders/beam.gdshader")
 	beam.material_override = beam_mat
-	beam.position.y = -(altitude - 0.5) * 0.5 - 0.5
+	beam.position.y = -(altitude - 0.5) * 0.5
 	beam.visible = false
-	add_child(beam)
+	# (hung from a pivot at the belly, which leans it toward where it is aimed: see `_lean_beam`)
+	beam_pivot = Node3D.new()
+	beam_pivot.position.y = -0.5
+	add_child(beam_pivot)
+	beam_pivot.add_child(beam)
 	# (and a second, narrower cone inside it, and the whirl of motes swirling up it)
 	beam_core = MeshInstance3D.new()
 	var inner := cone.duplicate() as CylinderMesh
-	inner.top_radius = BEAM_TOP * 0.55
-	inner.bottom_radius = beam_foot * 0.55
+	inner.top_radius = BEAM_TOP * 0.8
+	inner.bottom_radius = beam_foot * 0.8
 	beam_core.mesh = inner
 	_core_mat = ShaderMaterial.new()
 	_core_mat.shader = beam_mat.shader
@@ -277,15 +293,15 @@ func _ready() -> void:
 	# little: everything else is left out of them
 	beam_light = SpotLight3D.new()
 	beam_light.rotation.x = -PI / 2
-	beam_light.position.y = -0.6
-	beam_light.spot_range = altitude + 4.0
-	beam_light.spot_angle = spot.spot_angle
-	beam_light.spot_angle_attenuation = 1.5
+	beam_light.position.y = -0.1
+	beam_light.spot_range = altitude + 14.0
+	beam_light.spot_angle = 55.0
+	beam_light.spot_angle_attenuation = 3.0
 	beam_light.light_color = Color(0.55, 1.0, 0.65)
 	beam_light.light_cull_mask = 1 << (Thing.BEAM_LAYER - 1)
 	beam_light.shadow_enabled = true
 	beam_light.visible = false
-	add_child(beam_light)
+	beam_pivot.add_child(beam_light)
 	reticle = MeshInstance3D.new()
 	var pad := PlaneMesh.new()
 	pad.size = Vector2.ONE * beam_foot * 1.6
@@ -447,9 +463,9 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	# (the two cones breathing in and out against each other)
 	var bob := sin(_t * 5.0) * 0.06
 	beam.scale = Vector3(1.0 + bob, 1.0, 1.0 + bob)
-	beam_core.scale = Vector3(1.0 - bob * 2.5, 1.0, 1.0 - bob * 2.5)
-	tornado.power = _power
-	tornado.follow(Vector3(position.x, position.y - 0.6, position.z), beam_foot, BEAM_TOP, delta)
+	beam_core.scale = Vector3(1.0 - bob * 1.5, 1.0, 1.0 - bob * 1.5)
+	_lean_beam(delta)
+	tornado.follow(Vector3(position.x, position.y - 0.6, position.z), beam_foot, BEAM_TOP, delta, _aim, beaming)
 	# (the beam's light throws shadows of whatever is in it)
 	beam_light.visible = _power > 0.05
 	beam_light.light_energy = _power * 2.6
@@ -565,11 +581,21 @@ func _flash_lights() -> void:
 
 
 ## Something taken up into the ship: the hull bulges and squashes back, the ship dips and bounces,
-## and the lights flash (`size` 0.5 for a chicken to 2 for a barn)
+## the lights flash and sparkles pop out (`size` 0.5 for a chicken to 2 for a barn)
 func gulp(size := 1.0) -> void:
 	_gulp = 1.0
 	_gulp_size = clampf(size, 0.5, 2.0)
+	sparkle()
 
+
+
+## Something swallowed: a burst of sparkles popping out of the ship's belly
+func sparkle() -> void:
+	var belly := global_position + Vector3(0, -0.6, 0)
+	for i in 16:
+		var a := randf() * TAU
+		var c := Color(0.7, 1.0, 0.75) if i % 3 else Color(1.0, 1.0, 0.85)
+		puffs.spark(belly, Vector3(cos(a), randf_range(0.2, 1.4), sin(a)) * randf_range(3.0, 7.0), c)
 
 func _gulping(delta: float) -> void:
 	if _gulp <= 0.0:
@@ -673,13 +699,30 @@ func dodging() -> bool:
 	return _safe > 0.0
 
 
+
+
+## Leans the beam toward `beam_aim` (easing there), and back straight once it is off
+func _lean_beam(delta: float) -> void:
+	var want := Vector3(beam_aim.x, 0, beam_aim.y).limit_length(1.0) * BEAM_REACH if beaming else Vector3.ZERO
+	_aim = _aim.lerp(want, minf(delta * 6.0, 1.0))
+	var down := altitude - 0.5
+	var to_foot := Vector3(_aim.x, -down, _aim.z)
+	beam_pivot.basis = Basis(Quaternion(Vector3.DOWN, to_foot.normalized())).scaled_local(Vector3(1, to_foot.length() / down, 1))
+
+
+## Where the middle of the beam is at height `y`: under the ship at the top, leant off by the aim
+## lower down
+func beam_axis(y: float) -> Vector3:
+	var h := clampf(y / (altitude - 0.5), 0.0, 1.0)
+	return Vector3(position.x, y, position.z) + _aim * (1.0 - h)
 ## Whether a point is inside the beam: wide at the ground, narrow under the ship
 func in_beam(p: Vector3, slack := 0.0) -> bool:
 	if not beaming or dead:
 		return false
 	var h := clampf(p.y / (altitude - 0.5), 0.0, 1.0)
 	var r := lerpf(beam_foot, BEAM_TOP, h) + slack
-	return Vector2(p.x - position.x, p.z - position.z).length() < r
+	var mid := beam_axis(p.y)
+	return Vector2(p.x - mid.x, p.z - mid.z).length() < r
 
 
 ## Whether a shot at `p` has struck the ship (a flat disc of it)

@@ -1,7 +1,8 @@
 extends SceneTree
 ## Pictures of the effects in a run, to look over (needs a window):
 ##   godot --path . --fixed-fps 30 --resolution <390x844|1280x720> -s res://tests/fx_look.gd -- <out dir>
-## flying (wind lines, clouds, the reticle on the ground), beam (the beam on), patrol (a searchlight),
+## flying (dust in the air, clouds, the reticle on the ground), beam (the beam on, aimed off to the
+## right), patrol (a searchlight),
 ## booth_run and booth_call (a witness running to a phone booth and calling, radio waves off its
 ## aerial), booth_cut (the same with the lines down: sparks), windmill, smoking (the shield gone)
 
@@ -65,9 +66,14 @@ func _process(_delta: float) -> bool:
 			main.ufo.velocity = Vector3.ZERO
 			Input.action_press("beam")
 		122:
+			main.beam_finger = 7
+			main._beam_at = Vector2(400, 300)
+		123:
+			main._beam_at = Vector2(700, 300)
 			main.spawn("cow", main.ufo.ground() + Vector3(0.3, 0, 0.2))
 		150:
 			_shot("beam")
+			main.beam_finger = main.NO_FINGER
 			Input.action_release("beam")
 		140:
 			var patrol: Thing = main.spawn("patrol_car", main.ufo.ground() + Vector3(8, 0, -14))

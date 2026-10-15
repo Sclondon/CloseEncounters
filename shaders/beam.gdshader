@@ -1,8 +1,8 @@
 shader_type spatial;
 render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabled;
 // The tractor beam: a cone of green light from the saucer's belly to the ground, brightest along
-// its edges, with bright scanlines racing up it. Two of them, one inside the other (`core` for the
-// inner, brighter and quicker). `power` fades it in and out.
+// its edges, with bright scanlines racing up it, faint enough to see through. Two of them, one just
+// inside the other (`core` for the inner, quicker). `power` fades it in and out.
 
 #include "res://shaders/bend.gdshaderinc"
 
@@ -19,7 +19,7 @@ void fragment() {
 	float speed = core > 0.5 ? 14.0 : 9.0;
 	float lines = pow(0.5 + 0.5 * sin(up * (core > 0.5 ? 22.0 : 34.0) + TIME * speed), 8.0);
 	float a = (0.1 + 0.5 * pow(edge, 3.0) + 0.6 * lines) * power;
-	ALBEDO = tint * a * mix(1.0, 0.5, up) * (core > 0.5 ? 0.7 : 1.0);
+	ALBEDO = tint * a * mix(1.0, 0.5, up) * (core > 0.5 ? 0.35 : 0.6);
 	if (soft > 0.5) {
 		float middle = smoothstep(0.0, 1.0, abs(dot(NORMAL, VIEW)));
 		float along = up * up;
