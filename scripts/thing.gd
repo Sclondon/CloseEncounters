@@ -173,6 +173,9 @@ const KINDS := {
 	"highway_sign": {"points": 60, "weight": 2.0, "heat": 0.2, "move": "still", "size": 2.0, "tier": 2},
 	"trash_can": {"points": 10, "weight": 0.4, "heat": 0.02, "move": "still", "size": 0.5},
 	"bush": {"points": 8, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
+	"goalpost": {"points": 60, "weight": 1.5, "heat": 0.1, "move": "still", "size": 1.5},
+	# Players at a game: they run about the field (and scatter from the ship)
+	"player": {"model": "person", "points": 110, "weight": 1.3, "heat": 0.35, "move": "graze", "speed": 4.5, "size": 0.7, "voice": "scream"},
 	# Drink: liquor stores (worth a great deal), and coolers of beer left about
 	"liquor_store": {"points": 1500, "weight": 5.0, "heat": 0.6, "move": "still", "size": 4.5, "tier": 3, "voice": "scream"},
 	"cooler": {"points": 300, "weight": 0.5, "heat": 0.05, "move": "still", "size": 0.6},
@@ -249,6 +252,29 @@ var reach := 0.4
 var fan: Node3D
 ## A part that turns about the upright (a carousel's floor and canopy)
 var spin_part: Node3D
+## People riding a carnival ride: in the Ferris wheel's cars (kept upright as it turns) or on the
+## carousel's horses
+var _riders: Array[Node3D] = []
+const RIDER_SHIRTS: Array[Color] = [Color(0.8, 0.3, 0.25), Color(0.3, 0.5, 0.8), Color(0.9, 0.8, 0.3), Color(0.4, 0.7, 0.4), Color(0.8, 0.5, 0.8)]
+
+
+func _seat_riders() -> void:
+	if kind == "ferris_wheel" and fan != null:
+		for i in range(0, 12, 2):
+			var a := i / 12.0 * TAU
+			_rider(fan, Vector3(cos(a) * 6.3, sin(a) * 6.3 - 1.05, 0.0))
+	elif kind == "carousel" and spin_part != null:
+		for i in range(0, 10, 2):
+			var a := i / 10.0 * TAU
+			_rider(spin_part, Vector3(3.0 * cos(a), 1.55 + 0.3 * (i % 2), -3.0 * sin(a)))
+
+
+func _rider(on: Node3D, at: Vector3) -> void:
+	var r := Ps1.model("person", {"shirt": RIDER_SHIRTS[randi() % RIDER_SHIRTS.size()]})
+	r.scale = Vector3.ONE * 0.6
+	r.position = at
+	on.add_child(r)
+	_riders.append(r)
 ## A helicopter's rotors
 var rotors: Array[Node3D] = []
 var tail_rotor: Node3D
@@ -363,6 +389,7 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 	reach = obstacle.z + 3.5 if obstacle != Vector4.ZERO else size() * 0.4 * base_size
 	fan = model.find_child("fan*", true, false) as Node3D
 	spin_part = model.find_child("spin*", true, false) as Node3D
+	_seat_riders()
 	wings = [model.find_child("wing_l*", true, false) as Node3D, model.find_child("wing_r*", true, false) as Node3D]
 	if info["move"] == "hover":
 		position.y = HOVER_Y
@@ -385,6 +412,11 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 			_siren.append(lamp)
 	if k == "phone_booth":
 		broadcast = Broadcast.new()
+		add_child(broadcast)
+	# (a radio dish sends waves up off its dish while it tracks the ship: see main.gd _watchers)
+	if k == "seti_dish" and aim != null:
+		broadcast = Broadcast.new()
+		broadcast.source = aim
 		add_child(broadcast)
 	if info.get("searchlight", false):
 		_build_searchlight()
@@ -730,7 +762,11 @@ func _walk(delta: float, ufo: Ufo) -> void:
 	if tail_rotor != null:
 		tail_rotor.rotation.x += delta * 30.0
 	if fan != null:
-		fan.rotation.z += delta * 3.0
+		# (a Ferris wheel turns slowly, its riders kept upright; a windmill's fan quickly)
+		fan.rotation.z += delta * (0.35 if kind == "ferris_wheel" else 3.0)
+		for r: Node3D in _riders:
+			if r.get_parent() == fan:
+				r.rotation.z = -fan.rotation.z
 	if beam_arm != null:
 		beam_arm.rotation.x = sin(_t * 1.6) * 0.35
 	# Walkers bob and waddle; anything on wheels only rocks a little
@@ -1460,7 +1496,7 @@ static func category(of: String) -> String:
 	var info: Dictionary = KINDS[of]
 	if info.get("rare", false) or of in ["golden_cow", "jackalope", "sasquatch", "meteorite", "satellite", "crash_site"]:
 		return "RARE FINDS"
-	if info.get("caller", false) or info.get("enemy", false) and info["move"] == "guard" or of in ["scarecrow", "believer", "hunter"]:
+	if info.get("caller", false) or info.get("enemy", false) and info["move"] == "guard" or of in ["scarecrow", "believer", "hunter", "player"]:
 		return "EARTHLINGS"
 	if of in ["wheat", "corn", "pumpkin", "hay_bale", "hay_pile"]:
 		return "CROPS"

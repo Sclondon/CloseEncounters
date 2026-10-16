@@ -1167,7 +1167,7 @@ func _watchers(c: Vector2i, b: int) -> void:
 		if at != Vector3.INF:
 			_take(at, 7.0)
 			_prop("observatory", at, _rng.randf() * TAU)
-	elif hash3(c.x, c.y, 92) < 0.12 and b in [Biome.MESA, Biome.PLAINS, Biome.DESERT]:
+	elif hash3(c.x, c.y, 92) < 0.035 and b in [Biome.MESA, Biome.PLAINS, Biome.DESERT]:
 		var along := _rng.randf() < 0.5
 		var base := centre_of(c)
 		# (one size to an array, from small ones to the great ones of the Very Large Array)
@@ -1177,7 +1177,7 @@ func _watchers(c: Vector2i, b: int) -> void:
 			if _clear(at, 4.0):
 				_take(at, 4.5)
 				_prop("seti_dish", at, 0.0, big)
-	elif hash3(c.x, c.y, 93) < 0.08 and b != Biome.MOUNTAIN and field(c) in [Field.NONE, Field.PASTURE]:
+	elif hash3(c.x, c.y, 93) < 0.025 and b != Biome.MOUNTAIN and field(c) in [Field.NONE, Field.PASTURE]:
 		# (or a single dish on its own)
 		var at := _spot(4.5)
 		if at != Vector3.INF:
@@ -1476,10 +1476,10 @@ func _water(at: Vector3, r: float) -> void:
 # the roads, gas stations and car dealerships
 
 const VENUES := {
-	Biome.FARM: ["school", "park", "carnival", "drive_in", "junkyard"],
-	Biome.PLAINS: ["rodeo", "carnival", "drive_in", "junkyard", "school"],
+	Biome.FARM: ["school", "park", "carnival", "drive_in", "junkyard", "football", "baseball"],
+	Biome.PLAINS: ["rodeo", "carnival", "drive_in", "junkyard", "school", "football", "baseball"],
 	Biome.DESERT: ["drive_in", "junkyard", "construction", "rodeo"],
-	Biome.MESA: ["rodeo", "school", "junkyard", "carnival"],
+	Biome.MESA: ["rodeo", "school", "junkyard", "carnival", "baseball"],
 	Biome.MOUNTAIN: ["park", "construction", "school"],
 }
 const PAINTS: Array[Color] = [Color(0.75, 0.12, 0.1), Color(0.2, 0.45, 0.75), Color(0.95, 0.95, 0.92), Color(0.15, 0.15, 0.17), Color(0.95, 0.75, 0.15), Color(0.3, 0.55, 0.3)]
@@ -1550,6 +1550,35 @@ func _venue(c: Vector2i, b: int) -> bool:
 			_prop("mixer", at + basis * Vector3(7, 0, 7), turn + PI / 2)
 			_prop("girders", at + basis * Vector3(-5, 0, 6), turn)
 			_herd("person", at, _rng.randi_range(2, 4), 6.0)
+		"football":
+			# (a striped field, end zones and goalposts, bleachers along one side, a game on)
+			var turf := Ps1.flat(Color(0.2, 0.48, 0.2))
+			var chalk := Ps1.flat(Color(0.92, 0.92, 0.9))
+			Ps1.part(_node, BoxMesh.new(), turf, at + Vector3(0, 0.04, 0), Vector3(1, 0.06, 1)).transform = Transform3D(basis.scaled(Vector3(30.0, 0.06, 16.0)), at + Vector3(0, 0.04, 0))
+			for k in range(-3, 4):
+				Ps1.part(_node, BoxMesh.new(), chalk, at, Vector3.ONE).transform = Transform3D(basis.scaled(Vector3(0.18, 0.07, 16.0)), at + basis * Vector3(k * 4.0, 0.05, 0))
+			for end: float in [-1.0, 1.0]:
+				_prop("goalpost", at + basis * Vector3(end * 15.0, 0, 0), turn + PI / 2)
+			_prop("bleachers", at + basis * Vector3(0, 0, -11.5), turn + PI)
+			_herd("person", at + basis * Vector3(0, 0, -13.5), _rng.randi_range(4, 7), 5.0)
+			for i in 10:
+				var shirt := Color(0.75, 0.12, 0.1) if i % 2 == 0 else Color(0.2, 0.35, 0.75)
+				_player(at + basis * Vector3(_rng.randf_range(-11, 11), 0, _rng.randf_range(-5, 5)), shirt)
+			_prop("cooler", at + basis * Vector3(9, 0, -10), turn, 1.8)
+		"baseball":
+			# (a diamond: grass, a dirt infield, white bases, a backstop, bleachers, a game on)
+			Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.22, 0.5, 0.22)), at, Vector3.ONE).transform = Transform3D(basis.scaled(Vector3(26.0, 0.06, 26.0)), at + Vector3(0, 0.04, 0))
+			var diamond := basis * Basis(Vector3.UP, PI / 4)
+			Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.6, 0.42, 0.26)), at, Vector3.ONE).transform = Transform3D(diamond.scaled(Vector3(11.0, 0.07, 11.0)), at + basis * Vector3(0, 0.05, 4.0))
+			for k in 4:
+				var base_at := at + basis * Vector3(0, 0.08, 4.0) + basis * (Basis(Vector3.UP, k * PI / 2) * Vector3(0, 0, 5.5))
+				Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.95, 0.95, 0.93)), base_at, Vector3(0.6, 0.08, 0.6))
+			_plant_at("fence", at + basis * Vector3(-1.5, 0, 11.5), turn)
+			_plant_at("fence", at + basis * Vector3(1.5, 0, 11.5), turn)
+			_prop("bleachers", at + basis * Vector3(9, 0, 9), turn + PI * 0.75)
+			_herd("person", at + basis * Vector3(10, 0, 11), _rng.randi_range(3, 6), 4.0)
+			for i in 9:
+				_player(at + basis * Vector3(_rng.randf_range(-9, 9), 0, _rng.randf_range(-6, 9)), Color(0.9, 0.9, 0.92) if i < 5 else Color(0.2, 0.3, 0.6))
 		"rodeo":
 			# (a ring of fence, bleachers either side, riders and a bull in it)
 			for i in 18:
@@ -1568,6 +1597,12 @@ func _venue(c: Vector2i, b: int) -> bool:
 		_spawn("believer", _near(at, 10.0, 0.5))
 	_take(at, 16.0)
 	return true
+
+
+## A player at a game, in their team's colour
+func _player(at: Vector3, shirt: Color) -> void:
+	if game != null:
+		game.spawn_later("player", at, {"tints": {"shirt": shirt}})
 
 
 ## Beside a road through this chunk now and then: a gas station, or a car dealership with its lot of

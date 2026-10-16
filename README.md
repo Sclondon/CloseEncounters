@@ -247,10 +247,10 @@ locomotive, boxcars and a caboose, each a thing to take (`move` "rail", main.gd 
 high overhead, blinking, out of reach.
 
 **Places** (`_venue`, one now and then in the middle of an open chunk, by the region): a **schoolhouse** and
-playground, a **park** with a pond, gazebo and benches, a **carnival** (a turning Ferris wheel, a carousel, a big
+playground, a **park** with a pond, gazebo and benches, a **carnival** (a turning Ferris wheel and a carousel with people riding them, a big
 top and game booths), a **drive-in** (the screen glowing, rows of cars, speaker posts), a **junkyard** (rusted cars,
 scrap, tyres, a fence), a **building site** (a tower crane, an excavator, a cement mixer, girders) and a **rodeo** (a
-ring of fence, bleachers, cowboys on horseback and a bull). By the roads (`_roadside`): **gas stations** and **car
+ring of fence, bleachers, cowboys on horseback and a bull), and **football** and **baseball** fields with a game on (players in their teams' colours running about, a crowd in the bleachers). Radio dishes are rarer, and send rings of radio waves up off their dishes while they track the ship. By the roads (`_roadside`): **gas stations** and **car
 dealerships** with their lots of cars and **wacky waving inflatable tube men**. Farm ponds; hot air balloons hanging
 over the fields; cowboys on horseback out on the plains and mesas; town roads have **sidewalks** with **street lights**, benches and trash cans; country roads have **stop signs**, and **highway signs** on the way into a crossing; parks have lamp posts; **bushes** round towns, farms and parks.
 

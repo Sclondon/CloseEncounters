@@ -957,6 +957,8 @@ func _watchers(delta: float) -> void:
 			continue
 		if not ufo.dead and t.ground().distance_to(ufo.ground()) < reach:
 			t.watching += delta
+			if t.broadcast != null:
+				t.broadcast.keep(false)
 			if t.watching > 2.0:
 				spotted(t, delta * 0.6, t.info.get("why", "SPOTTED!"))
 		else:

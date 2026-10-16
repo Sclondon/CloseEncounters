@@ -10,6 +10,8 @@ const WAVE_EVERY := 0.3
 const WAVE_LIFE := 1.1
 const SPARK_EVERY := 0.09
 
+## Where the waves come from instead of a booth's aerial (a radio dish's, while it tracks the ship)
+var source: Node3D
 var _on := 0.0
 var _dead_line := false
 var _wait := 0.0
@@ -39,7 +41,7 @@ func keep(dead_line: bool) -> void:
 
 
 func _process(delta: float) -> void:
-	var tip := (get_parent() as Thing).model.to_global(TIP)
+	var tip := source.global_position if source != null and is_instance_valid(source) else (get_parent() as Thing).model.to_global(TIP)
 	_on -= delta
 	if _on > 0.0:
 		_wait -= delta
