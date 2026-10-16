@@ -43,11 +43,14 @@ lines), DITHER (the PlayStation dither and 15-bit colour, on or off), SHAKE (scr
 (30, 60 or as fast as the screen goes).
 
 **After a crash**: the wreck lies half in the ground in a ring of heaped dirt, burning; the pilot runs for it and
-is gunned down. The results (left-justified, typed out) give what was taken by category, the police and army
-**destroyed** by kind, and the **items** had. TO THE MOON flies home; **REPLAY** flies straight up off the wreck
-into the stars and down again onto a new country, the new ship warping in with a burst of sparkles. Watch long
-enough and the **men in black** drive up: one zips the pilot into a body bag and carries it off to their car, the
-other flashes the crowd with a memory eraser (they forget and wander away), and they drive off.
+is gunned down. The results (left-justified, typed out) give what was **analyzed** (taken) by category, the police
+and army **destroyed** by kind (each section's lines indented under it), the total and best, and the **items**
+had as their holograms with their counts. TO THE MOON flies home; **REPLAY** flies straight up off the wreck into
+the stars and down again onto a new country, the new ship dropping into the picture from above. Watch long enough
+and the **men in black** take over: a black car drives up; one agent zips the pilot into a body bag and carries it
+off to the car; their Chinook comes in over the wreck, lowers a cable and flies off with it hanging underneath;
+a meteorite is set down in the crater in its place; and only then does the other agent flash the crowd with a
+memory eraser (they forget and wander away), before they drive off.
 
 The menus' buttons are holograms: well rounded, roomy, glowing green, with scanlines, a flicker and a band of light sweeping through them (`shaders/holo_button.gdshader`).
 
@@ -268,6 +271,7 @@ Every model except the aliens is built in Blender by `tools/build_models.py`, wh
 Only material colours matter: the game swaps each material for a PS1 one of the same colour. `shirt`, `walls`
 and `paint` are recoloured per copy. Models face -Y in Blender (+Z in Godot) and stand on their origin. Child
 objects the game moves: the tank's `turret`, the windmill's `fan`, the pumpjack's `beam`, and every ship's `dome`.
+The web build's loading screen (`html/head_include` in export_presets.cfg): stars streaming out of the middle, faster as itloads; the Godot logo tinted green as a hologram (glowing, scanlines, a flicker); and a spinning star just under it.
 
 ## Tests and build
 

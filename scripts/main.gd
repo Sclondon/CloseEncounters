@@ -244,6 +244,8 @@ var _title_drop: Control
 ## The log (a field guide): every ship, every kind of thing there is to take (with how many of each
 ## have been taken, ever), and every kind of hunter met; filled in as they are, and kept with the best
 var _log_box: Control
+## The log's list, scrolled by a finger (see `_input`)
+var _log_scroll: ScrollContainer
 var _log_list: VBoxContainer
 var _log_head: Label
 var _log_back: Button
@@ -577,9 +579,21 @@ func _new_world(now: bool) -> void:
 ## Coming down from space, `k` of the way (0 to 1): out of the stars until the planet is under the
 ## ship, the shield coming up on the way, the pilot facing the camera as it swings round (see
 ## `_intro_camera`) and the dust streaming past (see Dust)
+## After REPLAY: the new ship comes down into the picture from above it, this long, and how much of
+## that is left; `_arrive` is how far above its place it still is
+const ARRIVE := 1.4
+const ARRIVE_FROM := 16.0
+var _arrive_t := 0.0
+
+
+func _arrive() -> float:
+	var k := clampf(_arrive_t / ARRIVE, 0.0, 1.0)
+	return ARRIVE_FROM * k * k
+
+
 func _descend(k: float) -> void:
 	# (slowly at first, from where the climb off the moon stopped, and slowing again to its height)
-	ufo.descent = INTRO_HEIGHT * (1.0 - smoothstep(0.0, 1.0, k))
+	ufo.descent = INTRO_HEIGHT * (1.0 - smoothstep(0.0, 1.0, k)) + _arrive()
 	ufo.bubble_fade = smoothstep(0.4, 0.9, k)
 	ufo.rotation.y = lerp_angle(_facing(_away()), 0.0, smoothstep(0.3, 1.0, k))
 	dust.fade = 1.0 - smoothstep(0.4, 0.6, k)
@@ -614,6 +628,7 @@ func _process(delta: float) -> void:
 		_going_home(delta)
 	elif intro > 0.0:
 		intro = maxf(intro - delta, 0.0)
+		_arrive_t = maxf(_arrive_t - delta, 0.0)
 		_descend(1.0 - intro / INTRO)
 		ufo.hull_model.rotation.y += delta * 6.0 * pow(intro / INTRO, 2.0)
 	elif mode == "play" and not autopilot:
@@ -2624,6 +2639,7 @@ func _crash(delta: float) -> void:
 		_save_best()
 	_report(score)
 	over_label.text = _results(is_best)
+	_fill_over_items()
 	over_label.visible_characters = 0
 	_over_typing = 0.0
 	# (the panel up once the wreck has been seen to, see `_wreck_burning`)
@@ -2642,33 +2658,48 @@ func _count_kill(kind: String) -> void:
 ## The results: what was taken, category by category (in the log's order), how many and for how
 ## much; then the total
 func _results(is_best: bool) -> String:
-	var lines: Array[String] = []
+	var lines: Array[String] = ["ANALYZED"]
 	for group: String in Thing.CATEGORIES:
 		if _run_taken.has(group):
-			lines.append("%s x%d  %d" % [group, int(_run_taken[group][0]), int(_run_taken[group][1])])
-	if lines.is_empty():
-		lines.append("NOTHING TAKEN")
+			lines.append("   %s x%d  %d" % [group, int(_run_taken[group][0]), int(_run_taken[group][1])])
+	if lines.size() == 1:
+		lines.append("   NOTHING")
 	# (the hunters destroyed, kind by kind)
 	if not _run_killed.is_empty():
 		lines.append("")
 		lines.append("DESTROYED")
 		for kind: String in _run_killed:
-			lines.append("%s x%d" % [HUNTERS.get(kind, kind.replace("_", " ").to_upper()), int(_run_killed[kind])])
-	# (the items had, with how many of each)
-	var had: Array[String] = []
-	for what: String in ItemBar.ORDER:
-		if upgrades.get(what, 0) > 0:
-			had.append("%s x%d" % [UPGRADES[what]["title"], int(upgrades[what])])
-	if not had.is_empty():
-		lines.append("")
-		lines.append("ITEMS")
-		# (two to a line, to fit an upright phone)
-		for i in range(0, had.size(), 2):
-			lines.append("  ".join(had.slice(i, i + 2)))
+			lines.append("   %s x%d" % [HUNTERS.get(kind, kind.replace("_", " ").to_upper()), int(_run_killed[kind])])
+	# (the items had show under it all as their pictures: see `_fill_over_items`)
 	lines.append("")
 	lines.append("TOTAL  %d" % score)
 	lines.append("BEST  %d%s" % [best, "  (NEW!)" if is_best and score > 0 else ""])
 	return "\n".join(lines)
+
+## The items had this run, under the results: each its hologram and how many
+var _over_items: VBoxContainer
+var _over_items_head: Label
+var _over_icons: HFlowContainer
+
+
+func _fill_over_items() -> void:
+	for old in _over_icons.get_children():
+		old.queue_free()
+	var big := _upright()
+	_over_items_head.add_theme_font_size_override("font_size", over_label.get_theme_font_size("font_size"))
+	for what: String in ItemBar.ORDER:
+		var n: int = upgrades.get(what, 0)
+		if n <= 0:
+			continue
+		var cell := HBoxContainer.new()
+		cell.add_theme_constant_override("separation", 2)
+		cell.add_child(holograms.view("item:" + what, 130.0 if big else 54.0))
+		var count := _label(54 if big else 24, (UPGRADES[what]["colour"] as Color).lerp(Color.WHITE, 0.35))
+		count.text = "x%d" % n
+		count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		cell.add_child(count)
+		_over_icons.add_child(cell)
+
 
 ## Shot down: the ship stays where it hit, half in the ground and tipped over, burning and smoking;
 ## the pilot tumbles out beside it, lies a moment, and gets up; and everyone about on foot comes to
@@ -2798,31 +2829,113 @@ func _men_in_black() -> void:
 		_mib_bag.scale = Vector3(0.42, 0.32, 1.05 * maxf(k, 0.05)) * _wreck_pilot.scale.x
 		if k > 0.9:
 			_wreck_pilot.visible = false
-	# The flash: the crowd's memories gone
-	if t >= 6.0 and not _mib_flashed:
-		_mib_flashed = true
-		_neuralyze(_mib_b.position + Vector3(0, 1.6, 0))
-	# Back to the car with the bag on a shoulder
+	# Back to the car with the bag on a shoulder (and in with it)
 	if t >= 7.2 and t < 9.6:
 		var k := (t - 7.2) / 2.4
 		_walk_to(_mib_a, body + (door_a - body).normalized() * 0.9, door_a, k, t)
-		_walk_to(_mib_b, crowd_spot, door_a + Vector3(0.8, 0, 0.4), k, t)
 		if _mib_bag != null:
 			_mib_bag.position = _mib_a.position + Vector3(0, 1.5, 0)
 			_mib_bag.rotation = Vector3(0, _mib_a.rotation.y + PI / 2, 0)
-	if t >= 9.8 and _mib_a.visible:
+	if t >= 9.8 and _mib_bag != null and _mib_bag.visible:
 		_mib_a.visible = false
+		_mib_bag.visible = false
+		sfx.play("thud", 1.4, -8.0)
+	_mib_helicopter(t)
+	# The flash, once the wreck has gone and the meteor lies in its place: the crowd's memories gone
+	if t >= MIB_FLASH and not _mib_flashed:
+		_mib_flashed = true
+		_neuralyze(_mib_b.position + Vector3(0, 1.6, 0))
+	if t >= MIB_FLASH + 0.6 and t < MIB_FLASH + 3.0:
+		_walk_to(_mib_b, crowd_spot, door_a + Vector3(0.8, 0, 0.4), (t - MIB_FLASH - 0.6) / 2.4, t)
+	if t >= MIB_FLASH + 3.2 and _mib_b.visible:
 		_mib_b.visible = false
-		if _mib_bag != null:
-			_mib_bag.visible = false
 		sfx.play("thud", 1.4, -8.0)
 	# Away, on the way they were going
-	if t >= 10.4 and t < 14.0:
-		var k := pow((t - 10.4) / 3.6, 2.0)
+	var off := MIB_FLASH + 3.8
+	if t >= off and t < off + 3.6:
+		var k := pow((t - off) / 3.6, 2.0)
 		var away := _mib_stop + (_mib_stop - _mib_from).normalized() * 70.0
 		_place(_mib_car, _mib_stop.lerp(away, k), away - _mib_stop)
-	elif t >= 14.0:
+	elif t >= off + 3.6:
 		_mib_car.visible = false
+
+
+# Their helicopter: in over the wreck, a cable down to it, and away with it hanging under; a
+# meteorite set down in the crater in its place, the story everyone will remember
+const MIB_HELI := 6.0
+const MIB_FLASH := 15.5
+const HELI_UP := 9.0
+var _mib_heli: Node3D
+var _mib_cable: MeshInstance3D
+var _mib_meteor: Node3D
+var _wreck_lifted := false
+var _heli_from := Vector3.ZERO
+var _heli_away := Vector3.ZERO
+
+
+func _mib_helicopter(t: float) -> void:
+	if t < MIB_HELI:
+		return
+	var over := Vector3(wreck.x, HELI_UP, wreck.z)
+	if _mib_heli == null:
+		_mib_heli = Ps1.model("chinook")
+		view.add_child(_mib_heli)
+		_wreck_bits.append(_mib_heli)
+		_heli_from = over + Vector3(-70, 22, -50)
+		_heli_away = over + Vector3(80, 30, -60)
+		_mib_cable = Ps1.part(view, BoxMesh.new(), Ps1.flat(Color(0.12, 0.12, 0.13)), over, Vector3(0.08, 0.01, 0.08))
+		_mib_cable.visible = false
+		_wreck_bits.append(_mib_cable)
+	# (rotors turning all the while, and their beat)
+	for r: Node3D in _mib_heli.find_children("rotor*", "Node3D", true, false):
+		r.rotation.y += 0.9
+	if fmod(t, 0.5) < 0.02:
+		sfx.play("whoosh", 0.45, -14.0)
+	var at := over
+	if t < MIB_HELI + 4.0:
+		var k := smoothstep(0.0, 1.0, (t - MIB_HELI) / 4.0)
+		at = _heli_from.lerp(over, k)
+		_mib_heli.rotation.y = atan2(over.x - _heli_from.x, over.z - _heli_from.z)
+	elif t >= MIB_HELI + 6.5:
+		# (away, the wreck swinging under it)
+		var k := pow(clampf((t - MIB_HELI - 6.5) / 5.0, 0.0, 1.0), 1.6)
+		at = over.lerp(_heli_away, k)
+		_mib_heli.rotation.y = lerp_angle(_mib_heli.rotation.y, atan2(_heli_away.x - over.x, _heli_away.z - over.z), 0.05)
+		if k >= 1.0:
+			_mib_heli.visible = false
+			ufo.visible = false
+			_mib_cable.visible = false
+	_mib_heli.position = at + Vector3(0, sin(t * 2.0) * 0.2, 0)
+	# The cable, down to the wreck, then taking it up
+	var hook := _mib_heli.position + Vector3(0, -1.2, 0)
+	if t >= MIB_HELI + 4.0 and _mib_heli.visible:
+		var drop := clampf((t - MIB_HELI - 4.0) / 1.2, 0.0, 1.0)
+		var bottom := hook.lerp(wreck + Vector3(0, 1.0, 0), drop)
+		if t >= MIB_HELI + 5.5:
+			# (lifting: the wreck hangs a little under the hook, the fire out)
+			if not _wreck_lifted:
+				_wreck_lifted = true
+				sfx.play("clang", 0.7, -4.0)
+			var lift := smoothstep(0.0, 1.0, (t - MIB_HELI - 5.5) / 1.6)
+			var hang := hook + Vector3(0, -3.2, 0)
+			ufo.position = (wreck + Vector3(0, 0.6, 0)).lerp(hang, lift)
+			ufo.body.rotation.x = lerpf(0.5, 0.15 * sin(t * 1.7), lift)
+			bottom = ufo.position + Vector3(0, 0.6, 0)
+		_mib_cable.visible = true
+		_mib_cable.position = (hook + bottom) * 0.5
+		_mib_cable.scale = Vector3(0.08, maxf(hook.y - bottom.y, 0.05), 0.08)
+	# The meteorite, set down in the crater once the wreck is up out of it
+	if t >= MIB_HELI + 7.5 and _mib_meteor == null:
+		_mib_meteor = Ps1.model("meteorite")
+		_mib_meteor.position = wreck + Vector3(0, -0.2, 0)
+		_mib_meteor.scale = Vector3.ONE * 1.6
+		view.add_child(_mib_meteor)
+		_wreck_bits.append(_mib_meteor)
+		boom(wreck + Vector3(0, 0.6, 0), 2.0)
+		for i in 8:
+			ufo.puffs.puff(wreck + Vector3(randf_range(-2, 2), 0.4, randf_range(-2, 2)), Color(0.35, 0.28, 0.2, 0.7), randf_range(0.8, 1.3), Vector3(0, 1.4, 0), 1.6)
+		sfx.play("thud", 0.6, 2.0)
+		_shake = maxf(_shake, 0.2)
 
 
 ## A model put at `at` (on the ground), facing `way`
@@ -2876,6 +2989,10 @@ func _clear_wreck() -> void:
 	_mib_b = null
 	_mib_bag = null
 	_mib_flashed = false
+	_mib_heli = null
+	_mib_cable = null
+	_mib_meteor = null
+	_wreck_lifted = false
 	if is_instance_valid(_wreck_pilot):
 		_wreck_pilot.queue_free()
 	_wreck_pilot = null
@@ -2939,11 +3056,11 @@ func _wreck_burning(delta: float) -> void:
 	if wreck == Vector3.INF:
 		return
 	_wreck_t += delta
-	if randf() < delta * 9.0:
+	if randf() < delta * 9.0 and not _wreck_lifted:
 		ufo.puffs.puff(wreck + Vector3(randf_range(-1.5, 1.5), 1.2, randf_range(-1.5, 1.5)), Color(0.15, 0.15, 0.17, 0.8), randf_range(0.8, 1.4), Vector3(0.3, 2.5, 0.1), 2.2)
-	if randf() < delta * 5.0:
+	if randf() < delta * 5.0 and not _wreck_lifted:
 		ufo.puffs.puff(wreck + Vector3(randf_range(-1.2, 1.2), 0.9, randf_range(-1.2, 1.2)), Color(1.0, 0.5, 0.12, 0.85), randf_range(0.5, 0.9), Vector3(0, 2.0, 0), 0.5)
-	if randf() < delta * 1.5:
+	if randf() < delta * 1.5 and not _wreck_lifted:
 		for i in 4:
 			ufo.puffs.spark(wreck + Vector3(0, 1.0, 0), Vector3(randf_range(-1, 1), randf_range(0.5, 1.4), randf_range(-1, 1)) * randf_range(3.0, 6.0))
 	if _wreck_t > 2.6 and _wreck_t < PILOT_SHOT and is_instance_valid(_wreck_pilot):
@@ -2975,6 +3092,7 @@ func _wreck_burning(delta: float) -> void:
 			elif ch != " ":
 				sfx.play("key", randf_range(0.9, 1.15), -8.0)
 		_over_row.visible = over_label.visible_characters >= over_label.text.length()
+		_over_items.visible = _over_row.visible and _over_icons.get_child_count() > 0
 		_replay_button.visible = not coop.active()
 
 
@@ -3149,7 +3267,7 @@ func _intro_camera() -> void:
 	# (round the ship, not across it, so it keeps its place in the picture as the camera swings)
 	var away := _away()
 	var normal_from := _camera_offset() - Vector3(0, ufo.altitude, 0)
-	camera.position = ufo.position + _chase(away).slerp(normal_from, settle)
+	camera.position = ufo.position - Vector3(0, _arrive(), 0) + _chase(away).slerp(normal_from, settle)
 	var normal_way := (Vector3(0, -ufo.altitude * (1.0 - _look_up()), 0) - normal_from).normalized()
 	var way := away.slerp(normal_way, settle)
 	camera.look_at(camera.position + way, Vector3.UP if absf(way.y) < 0.99 else Vector3.FORWARD)
@@ -3371,12 +3489,12 @@ func _layout_title(size: Vector2) -> void:
 		# a wide screen beside it, on the left, in the middle of the height, all of it on the screen)
 		if upright:
 			over_box.set_anchors_preset(Control.PRESET_CENTER)
-			over_box.custom_minimum_size = Vector2(660, 0)
-			over_box.offset_left = -330.0
-			over_box.offset_right = 330.0
+			over_box.custom_minimum_size = Vector2(1120, 0)
+			over_box.offset_left = -560.0
+			over_box.offset_right = 560.0
 			over_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
-			over_box.offset_top = -size.y * 0.1
-			over_box.offset_bottom = -size.y * 0.1
+			over_box.offset_top = -size.y * 0.06
+			over_box.offset_bottom = -size.y * 0.06
 		else:
 			over_box.set_anchors_preset(Control.PRESET_CENTER_LEFT)
 			over_box.custom_minimum_size = Vector2(520, 0)
@@ -3385,6 +3503,13 @@ func _layout_title(size: Vector2) -> void:
 			over_box.grow_vertical = Control.GROW_DIRECTION_BOTH
 			over_box.offset_top = 0.0
 			over_box.offset_bottom = 0.0
+	# (the results' text and buttons sized for thumbs on an upright phone)
+	if over_label != null:
+		over_label.add_theme_font_size_override("font_size", 62 if upright else 34)
+		over_label.add_theme_constant_override("outline_size", 10 if upright else 5)
+		for b in _over_row.get_children():
+			(b as Button).custom_minimum_size = Vector2(500, 140) if upright else Vector2(0, 70)
+			(b as Button).add_theme_font_size_override("font_size", 62 if upright else 40)
 	if upright:
 		title_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		title_box.offset_left = 40.0
@@ -3456,6 +3581,7 @@ func _build_log(root: Control) -> void:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	box.add_child(scroll)
+	_log_scroll = scroll
 	_log_list = VBoxContainer.new()
 	_log_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_log_list.add_theme_constant_override("separation", 6)
@@ -3842,8 +3968,9 @@ func _camera(delta: float) -> void:
 		_moon_camera(delta)
 		return
 	var focus := Vector3(ufo.position.x, 0.0, ufo.position.z)
-	if ufo.crashed or ufo.dead:
-		focus = Vector3(ufo.position.x, 0.0, ufo.position.z)
+	if (ufo.crashed or ufo.dead) and wreck != Vector3.INF:
+		# (on the crash site, even once the wreck has been carried off)
+		focus = Vector3(wreck.x, 0.0, wreck.z)
 	if intro > 0.0 and (mode == "play" or mode == "return"):
 		_intro_camera()
 		_place_moon(delta)
@@ -4151,6 +4278,19 @@ func _build_hud() -> void:
 	over_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_glow(over_label, Color(0.25, 1.0, 0.4, 0.5))
 	over_box.add_child(over_label)
+	# (the items had, as their pictures with their counts, under a heading)
+	_over_items = VBoxContainer.new()
+	_over_items.add_theme_constant_override("separation", 6)
+	_over_items_head = _label(34, Color(0.55, 1.0, 0.62))
+	_over_items_head.text = "ITEMS"
+	_glow(_over_items_head, Color(0.25, 1.0, 0.4, 0.5))
+	_over_items.add_child(_over_items_head)
+	_over_icons = HFlowContainer.new()
+	_over_icons.add_theme_constant_override("h_separation", 14)
+	_over_icons.add_theme_constant_override("v_separation", 8)
+	_over_items.add_child(_over_icons)
+	_over_items.visible = false
+	over_box.add_child(_over_items)
 	_over_row = HBoxContainer.new()
 	_over_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_over_row.add_theme_constant_override("separation", 20)
@@ -4370,12 +4510,10 @@ func _going_home(delta: float) -> void:
 		_from_wreck = false
 		_clear_wreck()
 		_new_world(false)
+		# (the new ship coming down into the picture from above it, the camera holding still for it)
+		_arrive_t = ARRIVE
 		start(true)
-		# (the new ship warping in out of the stars, in a burst of sparkles)
-		ufo.stars.burst(ufo.global_position, 40, Vector3.ZERO)
-		ufo.stars.burst(ufo.global_position + Vector3(0, 1.0, 0), 30, Vector3.ZERO)
-		sfx.play("whoosh", 1.8, -2.0)
-		sfx.play("star", 1.2, -4.0)
+		sfx.play("whoosh", 1.1, -2.0)
 		return
 	intro = 0.0
 	dust.fade = 0.0
@@ -4930,6 +5068,9 @@ func _input(event: InputEvent) -> void:
 			if _debug_label != null:
 				_debug_label.visible = _touch_debug
 			_debug_line("touch readout on")
+	# (the log and the saucers scrolled by a finger dragged anywhere over them, as a phone's lists are)
+	if event is InputEventScreenDrag and _log_box != null and _log_box.visible and _log_scroll != null:
+		_log_scroll.scroll_vertical -= int((event as InputEventScreenDrag).relative.y / hud.scale.y)
 	if mode != "play" or autopilot:
 		return
 	if get_tree().paused:
