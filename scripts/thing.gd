@@ -967,7 +967,7 @@ func _arm_gun() -> void:
 
 func _shoot(delta: float, ufo: Ufo, near: float) -> void:
 	var gun: String = info.get("gun", "")
-	if gun == "" or ufo.dead:
+	if gun == "" or ufo.dead or ufo.cloak > 0.0:
 		return
 	var spec: Dictionary = GUNS[gun]
 	if burst > 0:

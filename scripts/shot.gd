@@ -59,7 +59,7 @@ func tick(delta: float, ufo: Ufo, game: Node) -> void:
 	position += velocity * delta
 	_face()
 	if ufo.struck(position):
-		ufo.hurt(damage)
+		ufo.hurt(damage, position)
 		game.shot_hit(self)
 		done = true
 	elif life <= 0.0 or position.y < 0.0:

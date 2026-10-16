@@ -201,6 +201,35 @@ func _process(_delta: float) -> bool:
 				_check(not main.ufo.beaming, "and no beam comes on while it fires")
 				main.toggle_laser()
 				_check(not main.laser_mode, "switched back, the beam is the beam again")
+				step = "missile"
+				wait = 0
+		"missile":
+			# MISSILES: a police car not far off, and a missile off the ship after it
+			if wait == 1:
+				for t in main.things.duplicate():
+					if t.is_enemy():
+						main._remove(t)
+				main.buy("missiles")
+				main._missile_wait = 0.0
+				police = main.spawn("police_car", main.ufo.ground() + Vector3(18, 0, 10))
+			elif wait == 30:
+				_check(not main._missiles.is_empty() or not is_instance_valid(police), "MISSILES: a missile goes off by itself after the police")
+			elif wait == 300:
+				_check(not is_instance_valid(police) or police.state == "gone", "and blows the police car up")
+				step = "cloak"
+				wait = 0
+		"cloak":
+			# CLOAK: gone from sight; shots go through it; the beam breaks it
+			if wait == 1:
+				main.upgrades["missiles"] = 0
+				main.buy("cloak")
+				main.use_cloak()
+				_check(main.ufo.cloak > 0.0 and not main.ufo.struck(main.ufo.position), "CLOAK: the ship cloaks, and a shot goes through it")
+			elif wait == 20:
+				Input.action_press("beam")
+			elif wait == 24:
+				Input.action_release("beam")
+				_check(main.ufo.cloak <= 0.0, "and the beam breaks the cloak")
 				step = "fleet"
 				wait = 0
 		"fleet":

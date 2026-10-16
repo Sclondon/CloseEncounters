@@ -32,7 +32,7 @@ and while on the moon the world stays loaded round where the run starts (no stut
   The beam is on only while held. The ship slows while the beam is on. Things rise slowly (the heavier, the slower) and are taken when they reach the ship.
   Let go early and they fall. Drop something from high enough onto the police or the army and it crushes them.
 - **Dodge**: Shift (or X, K), gamepad B / left shoulder, or a quick swipe: a dash that spins the ship like a
-  top and leaves afterimages, untouchable while it lasts, then 2.5 s before the next (the DODGE bar). It drops
+  top and leaves afterimages, untouchable while it lasts, each of its three charges then 2.5 s to refill (the DODGE bar). It drops
   whatever is in the beam, and throws the pilot about.
 - **Pause**: Esc / P / Start, or the pause button in the top right; from there, RESUME or QUIT TO MENU (the run is given up).
 
@@ -122,7 +122,7 @@ it holds you. Once there is heat, the patrols lock their lights on and join in.
 
 **Level-ups come with the score** (`level_at`: 600, 2400, 5400, 9600... points): the game pauses and offers a choice
 of upgrades. They are items that stack, as in Risk of Rain: each pick is one more of it (up to ten), small at first and growing with the stack (the fleet up to six saucers, rates with floors). The items had show as a row of little tiles under the heat's stars, with their stack counts:
-ENGINE (+7% speed), BEAM (lifts faster, and every second level one tier stronger), SHIELD (+15), DASH (recharges 0.2 s
+ENGINE (+7% speed), BEAM (lifts faster, and every second level one tier stronger), SHIELD (+15), DASH (each charge refills in 2.5 s at first; recharges 0.6 s
 faster, two more afterimages), and:
 
 - **LASER**: a cutting ray of your own. Switch the beam over to it (L, Tab or C; gamepad Y; or the red bolt button over the beam's mark on a touch screen) and the beam's button fires it, where the beam would fall: the police and army there are hit (a few hits blow them up), cars and oil drums blow up, anyone else runs. Hotter each level.

@@ -107,7 +107,7 @@ var _circle_time := 0.0
 var _circle_done := false
 ## The traders parked about the country, and what has been bought from them this run
 var shops: Array[Shop] = []
-var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "fleet": 0}
+var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "fleet": 0}
 var _hot_wait := 0.0
 ## The level reached this run (see `_levels`), levels still to pick for, and the picker
 var level := 0
@@ -120,7 +120,7 @@ var _picks: VBoxContainer
 var _to_spawn: Array = []
 const SPAWN_A_FRAME := 6
 ## What traders sell, one pod each: three of these are set out in front of each trader
-const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "fleet"]
+const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "missiles", "cloak", "fleet"]
 const UPGRADES := {
 	"engine": {"title": "ENGINE", "about": "faster", "price": 300, "colour": Color(1.0, 0.55, 0.15)},
 	"beam": {"title": "BEAM", "about": "lifts faster, then heavier things", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
@@ -129,6 +129,8 @@ const UPGRADES := {
 	"dash": {"title": "DASH", "about": "recharges faster", "price": 250, "colour": Color(0.75, 0.4, 1.0)},
 	"laser": {"title": "LASER", "about": "fire a cutting ray", "price": 500, "colour": Color(1.0, 0.3, 0.45)},
 	"turret": {"title": "AUTO TURRET", "about": "shoots by itself", "price": 500, "colour": Color(1.0, 0.5, 0.3)},
+	"missiles": {"title": "MISSILES", "about": "homing missiles, from the fleet too", "price": 600, "colour": Color(1.0, 0.75, 0.25)},
+	"cloak": {"title": "CLOAK", "about": "vanish for a few seconds", "price": 550, "colour": Color(0.6, 0.6, 1.0)},
 	"fleet": {"title": "FLEET", "about": "a little helper saucer", "price": 450, "colour": Color(1.0, 0.9, 0.3)},
 }
 ## Upgrades are items that stack, as in Risk of Rain: each pick one more of it, up to this many
@@ -201,6 +203,7 @@ var stars: Control
 var shield_bar: Control
 var heat_note: Label
 var item_bar: Control
+var dash_orb: Control
 var heat_note_time := 0.0
 var title_box: Control
 var over_box: Control
@@ -355,7 +358,7 @@ func _ready() -> void:
 func _input_map() -> void:
 	var keys := {
 		"left": [KEY_A, KEY_LEFT], "right": [KEY_D, KEY_RIGHT], "up": [KEY_W, KEY_UP], "down": [KEY_S, KEY_DOWN],
-		"beam": [KEY_SPACE, KEY_J, KEY_Z], "dodge": [KEY_SHIFT, KEY_X, KEY_K], "laser": [KEY_L, KEY_TAB, KEY_C], "start": [KEY_ENTER, KEY_SPACE], "pause": [KEY_ESCAPE, KEY_P],
+		"beam": [KEY_SPACE, KEY_J, KEY_Z], "dodge": [KEY_SHIFT, KEY_X, KEY_K], "laser": [KEY_L, KEY_TAB, KEY_C], "cloak": [KEY_V, KEY_Q], "start": [KEY_ENTER, KEY_SPACE], "pause": [KEY_ESCAPE, KEY_P],
 	}
 	for action: String in keys:
 		if not InputMap.has_action(action):
@@ -364,7 +367,7 @@ func _input_map() -> void:
 			var e := InputEventKey.new()
 			e.physical_keycode = k
 			InputMap.action_add_event(action, e)
-	for pair: Array in [["beam", JOY_BUTTON_A], ["beam", JOY_BUTTON_RIGHT_SHOULDER], ["dodge", JOY_BUTTON_B], ["dodge", JOY_BUTTON_LEFT_SHOULDER], ["laser", JOY_BUTTON_Y], ["start", JOY_BUTTON_A], ["start", JOY_BUTTON_START], ["pause", JOY_BUTTON_START]]:
+	for pair: Array in [["beam", JOY_BUTTON_A], ["beam", JOY_BUTTON_RIGHT_SHOULDER], ["dodge", JOY_BUTTON_B], ["dodge", JOY_BUTTON_LEFT_SHOULDER], ["laser", JOY_BUTTON_Y], ["cloak", JOY_BUTTON_X], ["start", JOY_BUTTON_A], ["start", JOY_BUTTON_START], ["pause", JOY_BUTTON_START]]:
 		var b := InputEventJoypadButton.new()
 		b.button_index = pair[1]
 		InputMap.action_add_event(pair[0], b)
@@ -397,6 +400,7 @@ func _build_view() -> void:
 	_sky_mat = sky_mat
 	_sky_mat.set_shader_parameter("moon_map", load("res://textures/moon_lroc.jpg"))
 	_sky_mat.set_shader_parameter("star_map", load("res://textures/starmap_nasa.jpg"))
+	_sky_mat.set_shader_parameter("bright_stars", _bright_stars())
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.32, 0.4, 0.62)
@@ -449,6 +453,8 @@ func _fit() -> void:
 		_hud_root.size = size / k
 	_layout_touch()
 	_layout_title(size / k)
+	if _sky_mat != null and ufo != null:
+		_hang_sky()
 
 
 ## How wide the camera sees in a run: across an upright phone, or up and down a wide screen
@@ -479,6 +485,9 @@ func start(from_launch := false) -> void:
 		if n[3] != null:
 			(n[3] as Node3D).queue_free()
 	_nukes.clear()
+	for m: Array in _missiles:
+		(m[0] as Node).queue_free()
+	_missiles.clear()
 	if _nuke_flash != null:
 		_nuke_flash.visible = false
 	for s in shots:
@@ -491,7 +500,7 @@ func start(from_launch := false) -> void:
 	_clear_wreck()
 	if not from_launch:
 		alien_seed = randi()
-	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "fleet": 0}
+	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "fleet": 0}
 	level = 0
 	_levels_due = 0
 	_picker.visible = false
@@ -588,6 +597,8 @@ func _process(delta: float) -> void:
 		steer = _read_steer()
 		beam = Input.is_action_pressed("beam") or beam_finger != NO_FINGER
 		ufo.beam_aim = _beam_aim()
+		if Input.is_action_just_pressed("cloak"):
+			use_cloak()
 		if Input.is_action_just_pressed("laser"):
 			toggle_laser()
 		if Input.is_action_just_pressed("dodge"):
@@ -684,6 +695,7 @@ func _process(delta: float) -> void:
 	_rival_bumps()
 	_nuking(delta)
 	_surface_fx(delta)
+	_launch_missiles(delta)
 	_watchers(delta)
 	_crop_circles(delta)
 	for s in shots:
@@ -820,7 +832,7 @@ func _patrols(delta: float) -> void:
 
 ## A patrol's searchlight has the ship in it: the heat goes up fast, and does not cool while it does
 func spotted(_by: Thing, delta: float, why := "SPOTTED!") -> void:
-	if mode != "play":
+	if mode != "play" or ufo.cloak > 0.0:
 		return
 	if _spotted_for <= 0.0:
 		_heat_note(why, 1.4)
@@ -1271,6 +1283,111 @@ func _laser_hit(t: Thing, at: Vector3) -> void:
 			Ps1.flash(still.model, Color.BLACK)).set_delay(0.2)
 
 
+
+
+
+# ------------------------------------------------------------------ the cloak
+
+## The CLOAK item: gone from sight for a few seconds (longer the more stacked); no searchlight can
+## spot it, nobody shoots at it, and shots go through. The beam put on breaks it. It recharges
+## (quicker the more stacked).
+func cloak_for() -> float:
+	return 3.0 + 1.0 * upgrades["cloak"]
+
+
+func cloak_recharge() -> float:
+	return maxf(22.0 - 2.5 * upgrades["cloak"], 8.0)
+
+
+func use_cloak() -> void:
+	if upgrades["cloak"] <= 0 or mode != "play" or ufo.dead or ufo.cloak > 0.0 or ufo.cloak_wait > 0.0:
+		return
+	ufo.cloak = cloak_for()
+	ufo.cloak_wait = cloak_for() + cloak_recharge()
+	sfx.play("whoosh", 2.2, -4.0)
+	_heat_note("CLOAKED", 1.2)
+
+# ------------------------------------------------------------------ missiles
+
+## The missile launcher (the MISSILES item): now and then, by itself, a homing missile off the ship,
+## and one off each of the fleet, after the nearest of the police and army; whatever one hits is blown
+## up. Oftener the more stacked.
+const MISSILE_REACH := 45.0
+const MISSILE_SPEED := 22.0
+var _missile_wait := 0.0
+## Each missile in the air: [node, target, velocity]
+var _missiles: Array = []
+
+
+func missile_reload() -> float:
+	return maxf(7.0 - 1.0 * upgrades["missiles"], 2.0)
+
+
+func _launch_missiles(delta: float) -> void:
+	for m: Array in _missiles.duplicate():
+		_fly_missile(m, delta)
+	if upgrades["missiles"] <= 0 or ufo.dead or mode != "play" or intro > 0.0:
+		return
+	_missile_wait -= delta
+	if _missile_wait > 0.0:
+		return
+	var target := _missile_target(ufo.position)
+	if target == null:
+		return
+	_missile_wait = missile_reload()
+	_fire_missile(ufo.global_position + Vector3(0, -0.7, 0), target)
+	for d: Drone in fleet:
+		if d.is_up():
+			var t := _missile_target(d.global_position)
+			if t != null:
+				_fire_missile(d.global_position, t)
+
+
+## The nearest of the police and army within reach of `from`, or null
+func _missile_target(from: Vector3) -> Thing:
+	var best: Thing = null
+	var near := MISSILE_REACH
+	for t in things:
+		if t.is_enemy() and t.state == "walk" and not t.leaving and t.position.distance_to(from) < near:
+			near = t.position.distance_to(from)
+			best = t
+	return best
+
+
+func _fire_missile(from: Vector3, target: Thing) -> void:
+	var m := Node3D.new()
+	Ps1.part(m, CylinderMesh.new(), Ps1.flat(Color(0.92, 0.92, 0.88)), Vector3.ZERO, Vector3(0.18, 0.7, 0.18), Vector3(PI / 2, 0, 0))
+	Ps1.part(m, Ps1.ball(), Ps1.own(Color(1.0, 0.7, 0.25), 2.5), Vector3(0, 0, -0.4), Vector3.ONE * 0.16)
+	view.add_child(m)
+	m.global_position = from
+	var up := Vector3(randf_range(-0.4, 0.4), 1.0, randf_range(-0.4, 0.4)).normalized()
+	_missiles.append([m, target, up * MISSILE_SPEED * 0.5])
+	sfx.play("whoosh", 1.8, -6.0)
+
+
+func _fly_missile(m: Array, delta: float) -> void:
+	var node: Node3D = m[0]
+	var target: Thing = m[1] if is_instance_valid(m[1]) and (m[1] as Thing).state == "walk" else null
+	var v: Vector3 = m[2]
+	var goal := target.global_position + Vector3(0, 0.8, 0) if target != null else node.global_position + v
+	# (turning toward its target, quicker the nearer it is)
+	v = v.lerp((goal - node.global_position).normalized() * MISSILE_SPEED, minf(delta * 4.0, 1.0))
+	m[2] = v
+	node.global_position += v * delta
+	if v.length() > 0.1:
+		node.look_at(node.global_position + v, Vector3.UP if absf(v.normalized().y) < 0.95 else Vector3.FORWARD)
+	if randf() < delta * 25.0:
+		ufo.puffs.puff(node.global_position, Color(0.75, 0.75, 0.78, 0.6), 0.25, Vector3(0, 0.6, 0), 0.6)
+	var hit := target != null and node.global_position.distance_to(goal) < 1.0
+	if hit or node.global_position.y < 0.0 or target == null and node.global_position.distance_to(ufo.position) > MISSILE_REACH * 2.0:
+		if hit:
+			# (blown up outright)
+			target.set_meta("zapped", 99)
+			_laser_hit(target, goal)
+		else:
+			boom(node.global_position, 1.5)
+		node.queue_free()
+		_missiles.erase(m)
 # ------------------------------------------------------------------ the ship's own laser
 
 ## Switched over to the laser (see `toggle_laser`): the beam's button fires it instead, where the
@@ -1281,6 +1398,7 @@ var _cut_ray: MeshInstance3D
 var _cut_mat: StandardMaterial3D
 ## The touch switch for it, over the beam's mark
 var laser_button: Control
+var cloak_button: Control
 
 
 ## The beam switched over to the laser, or back (only once a LASER is had)
@@ -1320,7 +1438,8 @@ func _cut(delta: float, firing: bool) -> void:
 		return
 	var aim := _beam_aim()
 	var from := ufo.global_position + Vector3(0, -0.6, 0)
-	var foot := ufo.ground() + Vector3(aim.x, 0, aim.y) * Ufo.BEAM_REACH * 1.6
+	# (aimed over a much wider spread than the beam's lean: the thumb sweeps it well out from under the ship)
+	var foot := ufo.ground() + Vector3(aim.x, 0, aim.y) * Ufo.BEAM_REACH * 3.5
 	var along := foot - from
 	var wide := 0.12 + 0.05 * sin(Time.get_ticks_msec() * 0.05)
 	_cut_ray.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, along.normalized())) * Basis.from_scale(Vector3(wide, along.length(), wide)), (from + foot) * 0.5)
@@ -1676,7 +1795,7 @@ func _detonate(at: Vector3) -> void:
 			_remove(t)
 	var d := Vector2(ufo.position.x - at.x, ufo.position.z - at.z).length()
 	if d < NUKE_REACH and not ufo.dead and not ufo.dodging():
-		ufo.hurt(lerpf(90.0, 25.0, d / NUKE_REACH))
+		ufo.hurt(lerpf(90.0, 25.0, d / NUKE_REACH), at)
 		var away := Vector3(ufo.position.x - at.x, 0, ufo.position.z - at.z)
 		ufo.knock = (away.normalized() if away.length() > 0.1 else Vector3.RIGHT) * 20.0
 
@@ -2544,17 +2663,110 @@ func _intro_camera() -> void:
 ## and the camera moving under it (it comes into the picture as the descent swings round, and goes
 ## out of it on the way home). Where it is: up in the top right of the picture as the game's
 ## camera sees it in play, worked out once (again if the screen's shape changes).
-## (where it shows in the picture in play, a phone's and a wide screen's)
-const MOON_UPRIGHT := Vector2(0.6, 0.1)
+## (where it shows in the picture in play, a phone's and a wide screen's; and how far off its ball is,
+## within the camera's reach)
+const MOON_BALL_FAR := 230.0
+var _moon_ball: MeshInstance3D
+const MOON_UPRIGHT := Vector2(0.72, 0.17)
 const MOON_WIDE := Vector2(0.3, 0.15)
 
 func _place_moon(_delta: float) -> void:
 	if _moon_dir == Vector3.ZERO:
 		_moon_dir = _moon_in_play()
-	_sky_mat.set_shader_parameter("moon_dir", _moon_dir)
-	_sky_mat.set_shader_parameter("moon_fade", 1.0)
+	# (no disc in the sky shader: a real ball, far off along that way, kept there as the camera moves)
+	_sky_mat.set_shader_parameter("moon_fade", 0.0)
+	if _moon_ball == null:
+		_moon_ball = MeshInstance3D.new()
+		var ball := SphereMesh.new()
+		ball.radius = MOON_BALL_FAR * 0.049
+		ball.height = ball.radius * 2.0
+		ball.radial_segments = 48
+		ball.rings = 24
+		_moon_ball.mesh = ball
+		var m := ShaderMaterial.new()
+		m.shader = load("res://shaders/moon_ball.gdshader")
+		m.set_shader_parameter("map", load("res://textures/moon_lroc.jpg"))
+		_moon_ball.material_override = m
+		_moon_ball.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		view.add_child(_moon_ball)
+	_moon_ball.visible = true
+	# (turned round with the stars through the trip from the moon: see _sky_spin)
+	var way := Basis(Vector3.UP, -PI * (1.0 - _sky_spin())) * _moon_dir
+	_moon_ball.global_position = camera.global_position + way * MOON_BALL_FAR
+	# (its near side to us)
+	_moon_ball.look_at(camera.global_position, Vector3.UP, true)
 
 
+
+
+
+## The best-known bright stars, drawn crisp over the star map (see sky.gdshader `bright_stars`):
+## right ascension and declination (degrees) and magnitude. The Big Dipper, Orion, Cassiopeia, and
+## the brightest of the rest
+const BRIGHT_STARS := [
+	[165.9, 61.75, 1.8], [165.5, 56.4, 2.4], [178.5, 53.7, 2.4], [183.9, 57.0, 3.3], [193.5, 55.96, 1.8], [200.98, 54.9, 2.2], [206.9, 49.3, 1.9],
+	[88.8, 7.4, 0.5], [81.3, 6.35, 1.6], [85.2, -1.94, 1.8], [84.05, -1.2, 1.7], [83.0, -0.3, 2.2], [86.9, -9.67, 2.1], [78.6, -8.2, 0.1],
+	[2.3, 59.1, 2.3], [10.1, 56.5, 2.2], [14.2, 60.7, 2.4], [21.45, 60.2, 2.7], [28.6, 63.7, 3.4],
+	[37.95, 89.26, 2.0], [101.3, -16.7, -1.5], [279.2, 38.8, 0.0], [213.9, 19.2, -0.1], [79.2, 46.0, 0.1],
+	[68.98, 16.5, 0.9], [310.4, 45.3, 1.3], [297.7, 8.9, 0.8], [152.1, 11.97, 1.4], [114.8, 5.2, 0.4], [116.3, 28.0, 1.1],
+]
+
+
+
+## The stars as turned by `_hang_sky`, and how far round the trip from the moon has carried them:
+## on the moon the whole sky is half a turn round from Earth's, and it swings round through the
+## lift-off and the descent (back again on the way home), so the moon left behind is behind
+var _sky_base := Basis.IDENTITY
+
+
+func _sky_spin() -> float:
+	match mode:
+		"title":
+			# (after a crash, the rest of the turn made as the camera comes down onto the moon)
+			return 0.5 * ease(_moon_drop, 1.6) if _moon_drop > 0.0 else 0.0
+		"launch":
+			return 0.5 * smoothstep(LIFT, LAUNCH, _launch_t)
+		"landing":
+			return 0.5 * smoothstep(LIFT, LAUNCH, _launch_t)
+		"return":
+			return 1.0 - 0.5 * (intro / INTRO)
+	if intro > 0.0:
+		return 0.5 + 0.5 * smoothstep(0.0, 1.0, 1.0 - intro / INTRO)
+	return 1.0
+
+
+func _turn_sky() -> void:
+	if _sky_mat != null:
+		_sky_mat.set_shader_parameter("sky_turn", _sky_base * Basis(Vector3.UP, PI * (1.0 - _sky_spin())))
+
+## The bright stars as directions in the star map's own terms and brightnesses, for the sky shader
+func _bright_stars() -> PackedVector4Array:
+	var out := PackedVector4Array()
+	for st: Array in BRIGHT_STARS:
+		var ra := deg_to_rad(float(st[0]))
+		var dec := deg_to_rad(float(st[1]))
+		out.append(Vector4(sin(ra) * cos(dec), sin(dec), -cos(ra) * cos(dec), clampf(1.0 - float(st[2]) / 4.0, 0.2, 1.4)))
+	out.resize(40)
+	return out
+
+## Where the Big Dipper stands in the picture in play (a phone's and a wide screen's)
+const DIPPER_UPRIGHT := Vector2(0.56, 0.12)
+const DIPPER_WIDE := Vector2(0.74, 0.19)
+
+
+## The stars turned, once (and again if the screen's shape changes), so that the Big Dipper hangs over
+## the fields in play, in the strip of sky over the curve of the world (Orion is too tall to fit it);
+## the same turn everywhere, on
+## the moon and in space too, so nothing in the sky ever jumps
+func _hang_sky() -> void:
+	var w := _moon_in_play(DIPPER_UPRIGHT if _upright() else DIPPER_WIDE)
+	# (the Dipper's middle in the map's own terms: right ascension 184 degrees, declination 56)
+	var ra := deg_to_rad(184.0)
+	var dec := deg_to_rad(56.0)
+	var s := Vector3(sin(ra) * cos(dec), sin(dec), -cos(ra) * cos(dec))
+	var world := Basis(Vector3.UP.cross(w).normalized(), w.cross(Vector3.UP.cross(w)).normalized(), w)
+	var stars := Basis(Vector3.UP.cross(s).normalized(), s.cross(Vector3.UP.cross(s)).normalized(), s)
+	_sky_base = stars * world.transposed()
 ## Where in the sky the top right of the picture is, from the camera as it is in play
 func _moon_in_play(at := Vector2.ZERO) -> Vector3:
 	var was := camera.global_transform
@@ -2572,9 +2784,8 @@ func _moon_in_play(at := Vector2.ZERO) -> Vector3:
 	return d
 func _moon_camera(delta: float) -> void:
 	var site := MoonSet.SITE
-	# (no moon in the sky when on it, as there is no Earth in the sky over Earth)
-	_sky_mat.set_shader_parameter("moon_fade", 0.0)
-	_moon_dir = Vector3.ZERO
+	# (the moon's ball still placed: on the moon it is turned round behind, with the stars)
+	_place_moon(delta)
 	# (close on the pilot up on the ship, Earth over its shoulder, in the middle of the picture between
 	# the title above and the buttons below, on a phone or a wide screen alike)
 	var at := site + Vector3(0.13, 2.0, 2.31)
@@ -3090,6 +3301,7 @@ func _camera_offset() -> Vector3:
 
 
 func _camera(delta: float) -> void:
+	_turn_sky()
 	if hold_camera:
 		return
 	if _warm_frames > 0:
@@ -3106,6 +3318,7 @@ func _camera(delta: float) -> void:
 		_place_moon(delta)
 		return
 	_sky_mat.set_shader_parameter("space", 0.0)
+	_turn_sky()
 	_place_moon(delta)
 	camera.environment.fog_density = 0.006
 	camera.fov = _fov()
@@ -3171,6 +3384,12 @@ func _build_hud() -> void:
 	radar.size = Vector2(146, 146)
 	radar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(radar)
+	dash_orb = DashOrb.new()
+	dash_orb.main = self
+	dash_orb.position = Vector2(6, 322)
+	dash_orb.size = Vector2(146, 146)
+	dash_orb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(dash_orb)
 
 	# Top right, beside the pause button: the score (its coin before it) and the multiplier under it
 	score_label = _label(54, Color(0.75, 1.0, 0.78))
@@ -3246,6 +3465,11 @@ func _build_hud() -> void:
 	laser_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	laser_button.visible = false
 	root.add_child(laser_button)
+	cloak_button = CloakButton.new()
+	cloak_button.main = self
+	cloak_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cloak_button.visible = false
+	root.add_child(cloak_button)
 
 	# The title: only the name, the ship (with arrows) and PLAY; laid out for the screen's shape by
 	# `_layout_title`
@@ -3264,8 +3488,8 @@ func _build_hud() -> void:
 	bloom.shader = load("res://shaders/title.gdshader")
 	_title_label.material = bloom
 	title_box.add_child(_title_label)
-	# (the label keeps the room in the column; the name itself is drawn over it, letter by letter,
-	# god rays shining out from behind it: see TitleArt)
+	# (the label keeps the room in the column; the name itself is drawn over it, letter by letter:
+	# see TitleArt)
 	_title_label.self_modulate = Color(1, 1, 1, 0)
 	var art := TitleArt.new()
 	art.main = self
@@ -3703,6 +3927,8 @@ func _hud(delta: float) -> void:
 	_layout_touch()
 	shield_bar.visible = playing
 	radar.visible = playing
+	dash_orb.visible = playing
+	dash_orb.queue_redraw()
 	radar.queue_redraw()
 	_facility_wait -= delta
 	if playing and _facility_wait <= 0.0:
@@ -3736,6 +3962,12 @@ func _hud(delta: float) -> void:
 		laser_button.size = Vector2.ONE * r * 0.95 / hud.scale.x
 		laser_button.position = (_beam_home() + Vector2(-r * 0.3, -r * 1.85)) / hud.scale.x - laser_button.size * 0.5
 		laser_button.queue_redraw()
+	cloak_button.visible = beam_button.visible and upgrades["cloak"] > 0
+	if cloak_button.visible:
+		var rc := minf(get_viewport().get_visible_rect().size.x, get_viewport().get_visible_rect().size.y) * 0.13
+		cloak_button.size = Vector2.ONE * rc * 0.95 / hud.scale.x
+		cloak_button.position = (_beam_home() + Vector2(-rc * 1.85, -rc * 0.35)) / hud.scale.x - cloak_button.size * 0.5
+		cloak_button.queue_redraw()
 	_pause_button.visible = playing and not autopilot
 	heat_note.visible = playing
 	if heat_note_time > 0.0:
@@ -3867,6 +4099,11 @@ func _input(event: InputEvent) -> void:
 	if mode != "play" or autopilot:
 		return
 	if get_tree().paused:
+		return
+	if event is InputEventScreenTouch and event.pressed and cloak_button != null and cloak_button.visible \
+			and screen_rect(cloak_button).grow(10).has_point(event.position):
+		# (a tap on the cloak's button)
+		use_cloak()
 		return
 	if event is InputEventScreenTouch and event.pressed and laser_button != null and laser_button.visible \
 			and screen_rect(laser_button).grow(10).has_point(event.position):
@@ -4245,18 +4482,6 @@ class Shield extends Control:
 		draw_arc(c + Vector2(-r * 0.3, -r * 0.35), r * 0.45, PI * 1.05, PI * 1.45, 12, Color(1, 1, 1, 0.5), 3.0)
 		if bare and fmod(t * 2.5, 2.0) < 1.0:
 			draw_string(main.font, c + Vector2(-r, 6), "NO SHIELD", HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, 18, Color(1.0, 0.35, 0.25))
-		# three arrows, one for each dash ready: lit green once charged, filling as it charges
-		var ready: float = main.ufo.dodge_ready()
-		for i in 3:
-			var ax := c.x + r + 18.0 + i * 26.0
-			var ay := c.y + r * 0.45
-			var fill := clampf(ready * 3.0 - i, 0.0, 1.0)
-			var tip := [Vector2(ax, ay - 16), Vector2(ax + 16, ay), Vector2(ax, ay + 16), Vector2(ax + 7, ay + 16), Vector2(ax + 23, ay), Vector2(ax + 7, ay - 16)]
-			var lit := Color(0.45, 1.0, 0.55) if fill >= 1.0 else Color(0.25, 0.3, 0.28).lerp(Color(0.35, 0.6, 0.4), fill)
-			if fill >= 1.0:
-				draw_colored_polygon(PackedVector2Array([tip[0], tip[5], tip[4], tip[1]]), lit)
-				draw_colored_polygon(PackedVector2Array([tip[1], tip[4], tip[3], tip[2]]), lit)
-			draw_polyline(PackedVector2Array(tip + [tip[0]]), Color(0.75, 1.0, 0.78) if fill >= 1.0 else lit, 2.0)
 
 
 ## Where the thumb is on the touch stick
@@ -4363,10 +4588,34 @@ class LaserButton extends Control:
 		draw_colored_polygon(bolt, Color(1.0, 0.4, 0.5) if on else Color(1.0, 0.6, 0.65, 0.6))
 
 
+## The cloak's button, by the laser's on a touch screen: an eye, lit while cloaked, dim while it
+## recharges
+class CloakButton extends Control:
+	var main: Node
+
+	func _draw() -> void:
+		var r := size.x * 0.5
+		var c := Vector2(r, r)
+		var on: bool = main.ufo.cloak > 0.0
+		var ready: bool = main.ufo.cloak_wait <= 0.0
+		var tint := Color(0.6, 0.6, 1.0)
+		draw_circle(c, r, Color(tint, 0.35 if on else (0.14 if ready else 0.05)))
+		draw_arc(c, r - 2.0, 0, TAU, 32, Color(tint.lightened(0.3), 0.95 if on or ready else 0.3), 3.0)
+		# (an eye: two arcs and the pupil)
+		var eye := Color(tint.lightened(0.4), 1.0 if on or ready else 0.35)
+		draw_arc(c + Vector2(0, r * 0.35), r * 0.6, PI * 1.2, PI * 1.8, 12, eye, 3.0)
+		draw_arc(c - Vector2(0, r * 0.35), r * 0.6, PI * 0.2, PI * 0.8, 12, eye, 3.0)
+		draw_circle(c, r * 0.16, eye)
+		if not ready and not on:
+			# (how much of the recharge is left, round the rim)
+			var left: float = main.ufo.cloak_wait / maxf(main.cloak_for() + main.cloak_recharge(), 0.01)
+			draw_arc(c, r - 2.0, -PI / 2, -PI / 2 + TAU * (1.0 - left), 32, Color(tint.lightened(0.3), 0.9), 3.0)
+
+
 ## The items had, under the heat's stars: a little tile for each, in its colour with its mark, and
 ## how many are stacked in its corner (from the second on)
 class ItemBar extends Control:
-	const MARKS := {"engine": "EN", "beam": "BM", "shield": "SH", "dash": "DS", "laser": "LZ", "turret": "AT", "fleet": "FL"}
+	const MARKS := {"engine": "EN", "beam": "BM", "shield": "SH", "dash": "DS", "laser": "LZ", "turret": "AT", "missiles": "MS", "cloak": "CL", "fleet": "FL"}
 	const TILE := 30.0
 	var main: Node
 
@@ -4390,12 +4639,12 @@ class ItemBar extends Control:
 			x += TILE + 6.0
 
 
-## The name on the title: its letters spread wide and each bobbing on its own, glowing green, with
-## god rays turning slowly out from behind it (see _build_hud; the label under it only keeps its room)
+## The name on the title: its letters spread wide and each bobbing on its own, glowing green (see
+## _build_hud; the label under it only keeps its room)
 class TitleArt extends Control:
 	## How much wider than the font's own spacing the letters stand
 	const SPREAD := 1.22
-	const RAYS := 14
+
 	var main: Node
 	var label: Label
 
@@ -4410,20 +4659,6 @@ class TitleArt extends Control:
 		var plain := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var extra := plain * (SPREAD - 1.0) / maxf(text.length() - 1, 1)
 		var c := size * 0.5
-		# god rays: long thin wedges fanning out from behind the name, turning slowly, each breathing
-		var reach := maxf(plain * SPREAD * 0.75, fs * 4.0)
-		for i in RAYS:
-			var a := TAU * i / RAYS + t * 0.12
-			var w := 0.07 + 0.04 * sin(t * 0.9 + i * 1.7)
-			var lit := 0.07 + 0.06 * sin(t * 1.3 + i * 2.3)
-			var tip := c + Vector2(cos(a), sin(a) * 0.55) * reach
-			var l := c + Vector2(cos(a - w), sin(a - w) * 0.55) * reach
-			var r := c + Vector2(cos(a + w), sin(a + w) * 0.55) * reach
-			# (bright at the middle, fading out to nothing at the tip)
-			var glow := Color(0.5, 1.0, 0.6, lit)
-			var none := Color(0.5, 1.0, 0.6, 0.0)
-			draw_polygon(PackedVector2Array([c, l, tip, r]), PackedColorArray([glow, Color(glow, lit * 0.45), none, Color(glow, lit * 0.45)]))
-		draw_circle(c, fs * 0.9, Color(0.4, 1.0, 0.55, 0.06))
 		# the letters
 		var x := c.x - (plain + extra * (text.length() - 1)) * 0.5
 		var base := c.y + fs * 0.35
@@ -4437,3 +4672,29 @@ class TitleArt extends Control:
 				draw_string_outline(font, Vector2(x, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, outline, Color(0.3, 1.0, 0.45, 0.55))
 				draw_string(font, Vector2(x, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.85, 1.0, 0.86))
 			x += adv + extra
+
+
+## The dash, under the radar and the same size as it and the shield: a glass orb holding three
+## arrows, one for each dash, lit green once charged and filling as it charges
+class DashOrb extends Control:
+	var main: Node
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var r := size.x * 0.5 - 4.0
+		draw_circle(c, r + 4.0, Color(0.6, 1.0, 0.7, 0.18))
+		draw_circle(c, r, Color(0.02, 0.08, 0.04, 0.8))
+		var ready: float = main.ufo.dodge_ready()
+		var k := r / 46.0
+		for i in 3:
+			var ax := c.x + (-30.0 + i * 22.0) * k
+			var ay := c.y
+			var fill := clampf(ready * 3.0 - i, 0.0, 1.0)
+			var tip := [Vector2(ax, ay - 16 * k), Vector2(ax + 16 * k, ay), Vector2(ax, ay + 16 * k), Vector2(ax + 7 * k, ay + 16 * k), Vector2(ax + 23 * k, ay), Vector2(ax + 7 * k, ay - 16 * k)]
+			var lit := Color(0.45, 1.0, 0.55) if fill >= 1.0 else Color(0.25, 0.3, 0.28).lerp(Color(0.35, 0.6, 0.4), fill)
+			if fill >= 1.0:
+				draw_colored_polygon(PackedVector2Array([tip[0], tip[5], tip[4], tip[1]]), lit)
+				draw_colored_polygon(PackedVector2Array([tip[1], tip[4], tip[3], tip[2]]), lit)
+			draw_polyline(PackedVector2Array(tip + [tip[0]]), Color(0.75, 1.0, 0.78) if fill >= 1.0 else lit, 2.0)
+		draw_arc(c, r, 0, TAU, 48, Color(0.6, 1.0, 0.7, 0.9), 3.0)
+		draw_arc(c + Vector2(-r * 0.3, -r * 0.35), r * 0.45, PI * 1.05, PI * 1.45, 12, Color(1, 1, 1, 0.5), 3.0)

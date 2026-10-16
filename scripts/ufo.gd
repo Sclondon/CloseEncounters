@@ -46,8 +46,8 @@ const BEAM_SLOW := 0.6
 const DASH_SPEED := 34.0
 const DASH_TIME := 0.22
 const DASH_SAFE := 0.35
-const DASH_WAIT := 2.5
-## The dodge has three charges (the pistons), each refilling in a third of DASH_WAIT; a dodge
+const DASH_WAIT := 7.5
+## The dodge has three charges (the arrows), each refilling in a third of DASH_WAIT (2.5 s at first); a dodge
 ## spends every charge that is full, and goes further, and leaves more afterimages, the more it spends
 const CHARGES := 3
 ## Afterimages a dodge leaves, before upgrades (the DASH upgrade adds two a level)
@@ -76,6 +76,10 @@ var beam_foot := 2.7
 var velocity := Vector3.ZERO
 ## A shove off something it flew into (see bump), dying away
 var knock := Vector3.ZERO
+## Cloaked: seconds left of it (see Main.cloak), and how long until it can be used again
+var cloak := 0.0
+var cloak_wait := 0.0
+var _was_cloaked := false
 var _bumped := 0.0
 var beaming := false
 var hull := 100.0
@@ -431,6 +435,7 @@ func _hull_top() -> float:
 
 ## Flies by `steer` (a stick, at most 1 long); `beam_on` holds the beam down
 func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
+	_cloaking(delta, beam_on)
 	_cast_shadow()
 	_t += delta
 	since_hit += delta
@@ -563,9 +568,9 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 		_lamps[i].set_shader_parameter("tint", Color(0.4, 1.0, 0.5) if lit else Color(0.35, 0.08, 0.06))
 		_lamps[i].set_shader_parameter("glow", 1.5 if lit else 0.3)
 	var left := hull / hull_max
-	bubble.visible = hull > 0.0 and bubble_fade > 0.0
+	bubble.visible = hull > 0.0 and bubble_fade > 0.0 and cloak <= 0.0
 	_bubble_mat.set_shader_parameter("strength", (0.25 + 0.75 * left) * bubble_fade)
-	_bubble_mat.set_shader_parameter("hit", maxf(0.0, 1.0 - since_hit * 3.0))
+	_bubble_mat.set_shader_parameter("hit_age", since_hit)
 	if stick != null:
 		stick.rotation = Vector3(steer.y * 0.5, 0, -steer.x * 0.5)
 	for i in _buttons.size():
@@ -615,7 +620,7 @@ func dodge_ready() -> float:
 
 ## The wait between dodges, shorter with each DASH upgrade
 func dash_wait_max() -> float:
-	return maxf(DASH_WAIT - 0.2 * dash_level, 0.8)
+	return maxf(DASH_WAIT - 0.6 * dash_level, 2.5)
 
 
 ## The lights apart from the plates of the hull: what is drawn glowing is a light
@@ -805,17 +810,20 @@ func in_beam(p: Vector3, slack := 0.0) -> bool:
 
 ## Whether a shot at `p` has struck the ship (a flat disc of it)
 func struck(p: Vector3) -> bool:
-	if dead or dodging():
+	if dead or dodging() or cloak > 0.0:
 		return false
 	var flat := Vector2(p.x - position.x, p.z - position.z).length()
 	return flat < radius and absf(p.y - position.y) < 0.9 + (1.0 - flat / radius) * 0.6
 
 
-func hurt(amount: float) -> void:
+func hurt(amount: float, from := Vector3.INF) -> void:
 	if dead:
 		return
 	since_hit = 0.0
 	alien.feel("hurt", 0.4)
+	# (the shield ripples out from where it was struck)
+	var toward := from - bubble.global_position if from != Vector3.INF else Vector3(randf_range(-1, 1), randf_range(-0.5, 0.5), randf_range(-1, 1))
+	_bubble_mat.set_shader_parameter("hit_dir", (bubble.global_basis.inverse() * toward).normalized())
 	if hull > 0.0:
 		# The shield takes it
 		hull -= amount
@@ -859,28 +867,47 @@ func bump(out: Vector3) -> void:
 	var flat := Vector3(out.x, 0, out.z)
 	if flat.length() < 0.01 or dead:
 		return
-	var into := -velocity.dot(flat.normalized())
-	# (its way into the thing taken off it, so it slides along the rock rather than ploughing on in;
-	# a dash into it ends there)
-	velocity += flat.normalized() * maxf(into, 0.0)
+	var n := flat.normalized()
+	var into := -velocity.dot(n)
+	# (bounced back off it: its way into the thing turned round, a good part of it kept; a dash into
+	# it ends there)
+	if into > 0.0:
+		velocity += n * into * 1.6
 	dash_left = 0.0
-	if Time.get_ticks_msec() / 1000.0 - _bumped < 0.6 or into < 2.0:
+	if Time.get_ticks_msec() / 1000.0 - _bumped < 0.4 or into < 1.0:
 		return
 	_bumped = Time.get_ticks_msec() / 1000.0
-	knock = flat.normalized() * clampf(into * 0.8, 4.0, 10.0)
+	knock = n * clampf(into * 0.9, 6.0, 12.0)
 	_kick = 1.0
-	if hull > 0.0:
-		# (it takes the shield, never the last of the ship)
-		hurt(minf(clampf(into * 0.6, 3.0, 8.0), hull))
+	if hull > 0.0 and into > 4.0:
+		# (a hard knock takes a little of the shield, never the last of the ship; rippling out from
+		# where it struck)
+		hurt(minf(clampf(into * 0.6, 3.0, 8.0), hull), position - n * radius)
 
 
 ## The shadow under the ship, on the ground: as wide as the ship, fainter the higher it comes from
 ## (none on the moon or out in space, or once it is down)
 func _cast_shadow() -> void:
 	var high := position.y
-	_shadow.visible = not dead and not parked and high < 80.0
+	_shadow.visible = not dead and not parked and high < 80.0 and cloak <= 0.0
 	if not _shadow.visible:
 		return
 	_shadow.global_position = Vector3(position.x, 0.06, position.z)
 	_shadow.global_basis = Basis.IDENTITY.scaled(Vector3.ONE * radius * 2.6 * (1.0 + high * 0.02))
 	(_shadow.material_override as StandardMaterial3D).albedo_color.a = clampf(1.0 - (high - altitude) / 40.0, 0.0, 1.0)
+
+
+## The cloak running down (the beam put on breaks it), and the ship shimmering, nearly gone, while
+## it lasts: the hull seen only in flickers, the shield's bubble not at all
+func _cloaking(delta: float, beam_on: bool) -> void:
+	cloak_wait = maxf(cloak_wait - delta, 0.0)
+	if cloak > 0.0:
+		cloak = maxf(cloak - delta, 0.0)
+		if beam_on:
+			cloak = 0.0
+	if cloak > 0.0:
+		body.visible = fmod(_t * 13.0, 1.0) < 0.22
+		_was_cloaked = true
+	elif _was_cloaked:
+		_was_cloaked = false
+		body.visible = true
