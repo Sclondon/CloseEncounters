@@ -21,7 +21,7 @@ ART = os.path.join(ROOT, "art")
 COLOURS = {
     "hide": (0.92, 0.9, 0.85), "spot": (0.08, 0.07, 0.07), "pink": (0.95, 0.62, 0.62),
     "horn": (0.9, 0.86, 0.72), "wool": (0.95, 0.94, 0.88), "black": (0.06, 0.06, 0.07),
-    "red": (0.75, 0.12, 0.1), "yellow": (0.95, 0.75, 0.15), "white": (0.95, 0.95, 0.92),
+    "red": (0.75, 0.12, 0.1), "yellow": (0.95, 0.75, 0.15), "white": (0.95, 0.95, 0.92), "rust": (0.45, 0.22, 0.12), "orange": (0.95, 0.45, 0.1),
     "skin": (0.92, 0.7, 0.55), "denim": (0.22, 0.32, 0.6), "shirt": (0.8, 0.3, 0.25), "blush": (0.95, 0.55, 0.55),
     "straw": (0.88, 0.76, 0.42), "boot": (0.25, 0.16, 0.1), "hair": (0.3, 0.2, 0.12),
     "tyre": (0.08, 0.08, 0.08), "hub": (0.6, 0.6, 0.58), "glass": (0.35, 0.45, 0.55),
@@ -63,7 +63,7 @@ GLOWS = {
     "lights_under": ((0.5, 1.0, 0.6), 3.0), "headlight": ((1.0, 0.95, 0.8), 2.0),
     "flame": ((1.0, 0.55, 0.15), 3.0), "neon": ((1.0, 0.35, 0.6), 3.0),
     "light_red": ((1.0, 0.2, 0.15), 3.0), "light_blue": ((0.3, 0.5, 1.0), 3.0), "light_white": ((1.0, 1.0, 0.95), 3.0),
-    "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "pod_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0), "crystal": ((0.5, 0.28, 0.85), 0.55), "jelly": ((0.95, 0.28, 0.62), 0.3), "jelly_glow": ((0.6, 0.9, 1.0), 2.0),
+    "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "pod_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0), "crystal": ((0.5, 0.28, 0.85), 0.55), "screen_glow": ((0.75, 0.85, 1.0), 1.3), "jelly": ((0.95, 0.28, 0.62), 0.3), "jelly_glow": ((0.6, 0.9, 1.0), 2.0),
     "foo_glow": ((0.85, 0.22, 0.03), 2.5), "booth_sign": ((0.75, 0.88, 1.0), 2.0), "clock_face": ((1.0, 0.95, 0.8), 1.3),
     "sign": ((1.0, 0.85, 0.55), 1.2),
 }
@@ -1671,11 +1671,315 @@ def item_emp():
     return join("item_emp", p)
 
 
+# ---------------------------------------------------------------- the railway, fairgrounds and roadside
+
+def track():
+    """A length of railway (8 m, along x): two steel rails on wooden sleepers"""
+    p = []
+    for s in (-1, 1):
+        p.append(box((8.0, 0.1, 0.14), (0, 0.72 * s, 0.2), "metal_dark"))
+    for i in range(10):
+        p.append(box((0.24, 2.3, 0.1), (-3.6 + i * 0.8, 0, 0.08), "wood_dark"))
+    return join("track", p)
+
+
+def locomotive():
+    """A steam locomotive: a black boiler on its wheels, a smokestack and a red-roofed cab, the cow
+    catcher and lamp in front"""
+    p = [drum(0.9, 5.0, (0, -0.6, 1.9), "black", 12, (math.pi / 2, 0, 0)), box((2.0, 7.4, 0.5), (0, 0, 0.75), "metal_dark"),
+         box((2.3, 2.2, 2.4), (0, 2.6, 2.3), "black"), box((2.6, 2.6, 0.2), (0, 2.6, 3.6), "barn"),
+         box((1.6, 0.06, 0.9), (0, 1.48, 2.8), "window"), drum(0.32, 1.2, (0, -2.4, 3.1), "black", 8, top=0.45),
+         drum(0.35, 0.3, (0, -3.2, 2.0), "headlight", 8, (math.pi / 2, 0, 0)), box((1.9, 0.6, 0.6), (0, -3.7, 0.55), "red", (0.6, 0, 0)),
+         drum(0.5, 0.6, (0, 0.2, 2.9), "gold", 8)]
+    for s in (-1, 1):
+        for y in (-2.0, -0.6, 0.8, 2.4):
+            p.append(drum(0.55 if y > 0 else 0.42, 0.18, (1.0 * s, y, 0.55), "red", 10, (0, math.pi / 2, 0)))
+    return join("locomotive", p)
+
+
+def boxcar():
+    """A railway boxcar, barn red, a sliding door in each side"""
+    p = [box((2.4, 8.0, 2.6), (0, 0, 2.0), "barn"), box((2.5, 8.1, 0.14), (0, 0, 3.35), "roof"),
+         box((2.0, 7.6, 0.4), (0, 0, 0.6), "metal_dark")]
+    for s in (-1, 1):
+        p.append(box((0.06, 2.0, 2.2), (1.22 * s, 0, 1.95), "wood_dark"))
+        for y in (-2.8, 2.8):
+            p += wheel(0.38, 0.2, (0.95 * s, y, 0.38))
+    return join("boxcar", p)
+
+
+def caboose():
+    """The caboose: red, with its lookout on the roof and lit windows"""
+    p = [box((2.4, 6.0, 2.4), (0, 0, 1.9), "red"), box((2.5, 6.1, 0.14), (0, 0, 3.15), "roof"),
+         box((1.6, 1.8, 0.9), (0, 0, 3.6), "red"), box((1.7, 1.9, 0.12), (0, 0, 4.1), "roof"),
+         box((2.0, 5.6, 0.4), (0, 0, 0.6), "metal_dark")]
+    for s in (-1, 1):
+        for y in (-1.6, 0, 1.6):
+            p.append(box((0.06, 0.6, 0.5), (1.22 * s, y, 2.3), "window"))
+        for y in (-2.0, 2.0):
+            p += wheel(0.38, 0.2, (0.95 * s, y, 0.38))
+    return join("caboose", p)
+
+
+def rider():
+    """A cowboy on horseback"""
+    body = horse()
+    man = figure("rider_man", False, True)
+    man.location = (0, 0.1, 1.15)
+    bpy.context.view_layer.update()
+    return join("rider", [body, man])
+
+
+def balloon():
+    """A hot air balloon: a big envelope in bright bands, a wicker basket hung under it on ropes, the
+    burner glowing"""
+    bands = ["red", "yellow", "denim", "white", "chili", "yellow"]
+    p = []
+    for i in range(6):
+        z = 5.0 + i * 0.85
+        r = 2.6 * math.sin(math.pi * (0.25 + i * 0.13))
+        p.append(drum(r, 0.86, (0, 0, z), bands[i], 14))
+    p += [ball((5.0, 5.0, 2.6), (0, 0, 9.9), "red", 14, 6), cone(1.4, 1.6, (0, 0, 4.0), "yellow", 14, (math.pi, 0, 0)),
+          box((1.2, 1.2, 0.9), (0, 0, 0.45), "straw"), drum(0.25, 0.3, (0, 0, 1.6), "camp", 8)]
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.append(box((0.04, 0.04, 2.6), (0.5 * sx, 0.5 * sy, 2.1), "felt"))
+    return join("balloon", p)
+
+
+def tube_man():
+    """A wacky waving inflatable tube man: a tall tube with a face, arms out, on its blower"""
+    p = [box((0.8, 0.8, 0.5), (0, 0, 0.25), "metal_dark"), drum(0.36, 4.2, (0, 0, 2.6), "orange", 10),
+         drum(0.36, 0.3, (0, 0, 4.85), "yellow", 10), box((0.1, 0.05, 0.12), (0.12, -0.36, 4.1), "black"),
+         box((0.1, 0.05, 0.12), (-0.12, -0.36, 4.1), "black"), box((0.3, 0.05, 0.06), (0, -0.36, 3.8), "black")]
+    for s in (-1, 1):
+        p.append(drum(0.14, 1.6, (0.9 * s, 0, 3.4), "orange", 6, (0, math.pi / 2 - 0.5 * s, 0)))
+    return join("tube_man", p)
+
+
+def gas_station():
+    """A gas station: a lit canopy on posts over two pumps, and a little store with a sign"""
+    p = [box((9.0, 6.0, 0.4), (0, 0, 4.2), "white"), box((9.1, 6.1, 0.12), (0, 0, 3.95), "window"),
+         box((9.2, 0.1, 0.5), (0, -3.05, 4.2), "red"), box((6.0, 5.0, 3.2), (0, 8.0, 1.6), "walls"),
+         box((6.2, 5.2, 0.2), (0, 8.0, 3.3), "roof"), box((3.0, 0.06, 1.6), (0, 5.48, 1.3), "window"),
+         box((4.0, 0.2, 0.8), (0, 5.4, 3.0), "red"), box((10.0, 15.0, 0.06), (0, 3.5, 0.03), "concrete")]
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.append(box((0.3, 0.3, 4.0), (3.8 * sx, 2.4 * sy, 2.0), "white"))
+        p += [box((0.6, 0.5, 1.4), (1.8 * sx, 0, 0.7), "red"), box((0.5, 0.06, 0.4), (1.8 * sx, -0.26, 1.1), "window")]
+    p += [drum(0.12, 6.0, (5.5, -2.5, 3.0), "metal", 6), box((0.3, 2.2, 1.6), (5.5, -2.5, 6.5), "yellow")]
+    return join("gas_station", p)
+
+
+def dealership():
+    """A car dealership's showroom: glass across the front, a long sign and pennant bunting"""
+    p = [box((12.0, 7.0, 4.0), (0, 0, 2.0), "white"), box((12.2, 7.2, 0.3), (0, 0, 4.15), "roof"),
+         box((10.0, 0.08, 3.0), (0, -3.52, 1.7), "glass"), box((8.0, 0.25, 1.0), (0, -3.6, 4.6), "denim"),
+         box((7.0, 0.28, 0.5), (0, -3.62, 4.6), "white")]
+    flags = ["red", "yellow", "denim", "white"]
+    for i in range(12):
+        p.append(cone(0.22, 0.4, (-5.5 + i, -3.7, 3.9), flags[i % 4], 3, (math.pi, 0, 0)))
+    return join("dealership", p)
+
+
+def schoolhouse():
+    """A one-room schoolhouse, red with white trim, its bell up in a little tower over the door"""
+    p = [box((6.0, 9.0, 3.2), (0, 0, 1.6), "barn"), box((1.6, 1.6, 1.6), (0, -3.6, 4.6), "white"),
+         cone(1.3, 1.4, (0, -3.6, 6.1), "roof", 4, (0, 0, math.pi / 4)), drum(0.3, 0.4, (0, -3.6, 4.7), "gold", 8),
+         box((1.4, 0.08, 2.2), (0, -4.52, 1.1), "white"), box((1.1, 0.1, 1.9), (0, -4.55, 0.95), "wood_dark")]
+    roof = []
+    for s in (-1, 1):
+        roof.append(box((3.6, 9.6, 0.2), (1.55 * s, 0, 3.95), "roof", (0, -0.6 * s, 0)))
+        for y in (-1.8, 0.4, 2.6):
+            p.append(box((0.08, 1.0, 1.3), (3.02 * s, y, 1.8), "window"))
+    return join("schoolhouse", p + roof)
+
+
+def playground():
+    """A playground: a swing set, a slide up a little ladder, and a seesaw"""
+    p = []
+    for s in (-1, 1):
+        p.append(box((0.12, 0.12, 2.6), (-2.0 + 0.5 * s, -1.2, 1.2), "red", (0.3 * s, 0, 0)))
+        p.append(box((0.12, 0.12, 2.6), (2.0 + 0.5 * s, -1.2, 1.2), "red", (0.3 * s, 0, 0)))
+    p.append(box((4.6, 0.12, 0.12), (0, -1.2, 2.45), "red"))
+    for x in (-1.0, 1.0):
+        p += [box((0.03, 0.03, 1.8), (x - 0.25, -1.2, 1.5), "metal"), box((0.03, 0.03, 1.8), (x + 0.25, -1.2, 1.5), "metal"),
+              box((0.6, 0.3, 0.06), (x, -1.2, 0.6), "denim")]
+    p += [box((1.0, 3.6, 0.1), (0, 2.6, 1.0), "yellow", (0.55, 0, 0)), box((1.0, 1.0, 0.12), (0, 1.0, 1.95), "yellow"),
+          box((0.1, 0.1, 2.0), (-0.45, 0.6, 1.0), "denim"), box((0.1, 0.1, 2.0), (0.45, 0.6, 1.0), "denim"),
+          box((3.2, 0.3, 0.1), (3.2, 2.2, 0.5), "wood", (0, 0.18, 0)), box((0.3, 0.3, 0.45), (3.2, 2.2, 0.22), "denim")]
+    return join("playground", p)
+
+
+def crane():
+    """A tower crane over a building site: a yellow lattice mast, a long jib and a hanging hook"""
+    p = [box((3.0, 3.0, 0.6), (0, 0, 0.3), "concrete"), box((1.2, 1.2, 16.0), (0, 0, 8.6), "yellow"),
+         box((1.0, 16.0, 0.8), (0, 3.0, 16.8), "yellow"), box((1.8, 2.0, 1.6), (0, -0.4, 15.6), "white"),
+         box((1.6, 2.0, 1.6), (0, -4.0, 16.2), "concrete"), box((0.05, 0.05, 6.0), (0, 9.0, 13.4), "metal_dark"),
+         box((0.5, 0.5, 0.4), (0, 9.0, 10.3), "metal_dark")]
+    for i in range(16):
+        p.append(box((1.25, 1.25, 0.08), (0, 0, 1.2 + i), "metal_dark"))
+    return join("crane", p)
+
+
+def excavator():
+    """A yellow excavator on its tracks, its arm reaching down to the bucket"""
+    p = [box((2.4, 3.6, 0.8), (0, 0, 0.4), "metal_dark"), box((2.2, 2.6, 1.4), (0, 0.3, 1.5), "yellow"),
+         box((1.0, 1.2, 1.2), (0.6, -0.8, 2.6), "glass"), box((0.4, 2.8, 0.4), (-0.4, -2.0, 2.6), "yellow", (0.5, 0, 0)),
+         box((0.35, 2.0, 0.35), (-0.4, -3.6, 2.0), "yellow", (-0.7, 0, 0)), box((1.0, 0.6, 0.7), (-0.4, -4.2, 0.9), "metal_dark")]
+    return join("excavator", p)
+
+
+def girders():
+    """A stack of steel girders on a building site, with a traffic cone or two"""
+    p = []
+    for i in range(4):
+        p.append(box((0.4, 6.0, 0.4), (-0.9 + i * 0.6, 0, 0.2 + (i % 2) * 0.4), "rust"))
+    for x in (-2.5, 2.4):
+        p += [cone(0.25, 0.7, (x, 2.6, 0.35), "orange", 8), box((0.6, 0.6, 0.06), (x, 2.6, 0.03), "orange")]
+    return join("girders", p)
+
+
+def mixer():
+    """A cement mixer truck, its drum on the back"""
+    p = car_body_parts(5.6, "white") + [drum(1.0, 3.0, (0, 1.0, 1.9), "orange", 10, (math.pi / 2 - 0.25, 0, 0))]
+    return join("mixer", p)
+
+
+def car_body_parts(length, paint):
+    p = [box((2.0, length, 0.8), (0, 0, 0.8), paint), box((2.0, 1.6, 1.3), (0, -length / 2 + 0.8, 1.6), paint),
+         box((1.9, 0.06, 0.7), (0, -length / 2, 1.8), "glass")]
+    for s in (-1, 1):
+        for y in (-length * 0.35, length * 0.15, length * 0.38):
+            p += wheel(0.45, 0.3, (1.0 * s, y, 0.45))
+    return p
+
+
+def tire_stack():
+    """A stack of old tyres"""
+    p = []
+    for i in range(5):
+        p.append(drum(0.5, 0.28, (0.05 * (i % 2), 0, 0.14 + i * 0.28), "tyre", 10))
+    return join("tire_stack", p)
+
+
+def scrap_pile():
+    """A heap of scrap in a junkyard: rusted panels and pipes"""
+    p = [roughen(ball((4.0, 3.5, 2.0), (0, 0, 0.4), "rust", 8, 4), 0.25, 21)]
+    for i in range(6):
+        a = i * 1.1
+        p.append(box((1.6, 0.1, 0.9), (math.cos(a) * 1.2, math.sin(a) * 1.0, 1.0), "metal_dark" if i % 2 else "rust", (0.5 * i, 0.3, a)))
+    return join("scrap_pile", p)
+
+
+def bench():
+    """A park bench"""
+    p = [box((1.8, 0.5, 0.08), (0, 0, 0.45), "wood"), box((1.8, 0.08, 0.45), (0, 0.24, 0.75), "wood")]
+    for s in (-1, 1):
+        p.append(box((0.08, 0.5, 0.45), (0.8 * s, 0, 0.22), "metal_dark"))
+    return join("bench", p)
+
+
+def gazebo():
+    """A white park gazebo, an eight-sided roof on posts"""
+    p = [drum(3.0, 0.4, (0, 0, 0.2), "white", 8), cone(3.4, 1.8, (0, 0, 3.9), "roof", 8), drum(0.2, 0.3, (0, 0, 4.9), "white", 6)]
+    for i in range(8):
+        a = i / 8 * math.tau
+        p.append(box((0.16, 0.16, 2.8), (2.7 * math.cos(a), 2.7 * math.sin(a), 1.8), "white"))
+    return join("gazebo", p)
+
+
+def screen():
+    """A drive-in's movie screen, a picture glowing on it, up on its frame, and the projection booth"""
+    p = [box((14.0, 0.4, 7.0), (0, 0, 6.5), "white"), box((13.0, 0.1, 6.0), (0, -0.25, 6.5), "screen_glow")]
+    for x in (-6, -2, 2, 6):
+        p.append(box((0.3, 0.3, 10.0), (x, 0.4, 5.0), "metal_dark"))
+    p += [box((3.0, 3.0, 2.4), (0, -22.0, 1.2), "walls"), box((3.2, 3.2, 0.2), (0, -22.0, 2.5), "roof"),
+          box((0.5, 0.1, 0.4), (0, -20.45, 1.8), "headlight")]
+    return join("screen", p)
+
+
+def speaker_post():
+    """A drive-in's speaker post"""
+    return join("speaker_post", [box((0.08, 0.08, 1.2), (0, 0, 0.6), "metal"), box((0.3, 0.16, 0.24), (0, 0, 1.2), "metal_dark")])
+
+
+def bleachers():
+    """Wooden bleachers: rows of benches stepping up, on a frame"""
+    p = []
+    for i in range(5):
+        p.append(box((10.0, 0.6, 0.12), (0, i * 0.7, 0.45 + i * 0.5), "wood"))
+        p.append(box((10.0, 0.06, 0.5), (0, i * 0.7 - 0.3, 0.2 + i * 0.5), "wood_dark"))
+    for x in (-4.8, 0, 4.8):
+        p.append(box((0.15, 3.4, 0.15), (x, 1.4, 1.2), "metal_dark", (-0.62, 0, 0)))
+    return join("bleachers", p)
+
+
+def ferris_wheel():
+    """A Ferris wheel, its rim strung with lights, the cars hanging round it, on an A-frame; the wheel
+    turns (the `fan`)"""
+    legs = []
+    for s in (-1, 1):
+        legs.append(box((0.3, 0.3, 9.0), (2.0 * s, 0.6, 4.3), "white", (0, 0.24 * s, 0)))
+        legs.append(box((0.3, 0.3, 9.0), (2.0 * s, -0.6, 4.3), "white", (0, 0.24 * s, 0)))
+    legs.append(box((5.0, 2.0, 0.4), (0, 0, 0.2), "red"))
+    body = join("ferris_wheel", legs)
+    wheel_parts = [drum(0.6, 1.4, (0, 0, 0), "metal", 10, (math.pi / 2, 0, 0))]
+    bulbs = ["light_red", "light_amber", "light_blue", "light_white"]
+    for i in range(12):
+        a = i / 12 * math.tau
+        wheel_parts.append(box((0.12, 0.12, 6.4), (math.cos(a) * 3.2, 0, math.sin(a) * 3.2), "white", (0, -a + math.pi / 2, 0)))
+        wheel_parts.append(box((1.1, 0.12, 0.12), (math.cos(a) * 6.3, 0, math.sin(a) * 6.3), "white", (0, -a, 0)))
+        wheel_parts.append(box((0.9, 1.2, 0.8), (math.cos(a) * 6.3, 0, math.sin(a) * 6.3 - 0.7), ["red", "yellow", "denim"][i % 3]))
+        wheel_parts.append(ball((0.3, 0.3, 0.3), (math.cos(a + 0.26) * 6.4, 0, math.sin(a + 0.26) * 6.4), bulbs[i % 4], 5, 3))
+    fan = join("fan", wheel_parts)
+    fan.location = (0, 0, 8.6)
+    attach(fan, body)
+    return body
+
+
+def carousel():
+    """A carousel: a striped canopy over a turning floor of horses on poles, lights round its edge;
+    the floor and canopy turn (`spin`)"""
+    body = join("carousel", [drum(4.2, 0.4, (0, 0, 0.2), "red", 16), drum(0.4, 5.0, (0, 0, 2.6), "gold", 8)])
+    parts = [drum(4.0, 0.2, (0, 0, 0.5), "white", 16), cone(4.6, 1.8, (0, 0, 5.2), "red", 16), drum(4.6, 0.6, (0, 0, 4.1), "yellow", 16)]
+    bulbs = ["light_red", "light_amber", "light_blue", "light_white"]
+    for i in range(10):
+        a = i / 10 * math.tau
+        x, y = 3.0 * math.cos(a), 3.0 * math.sin(a)
+        parts += [box((0.06, 0.06, 3.6), (x, y, 2.4), "gold"), box((0.35, 1.0, 0.45), (x, y, 1.6 + 0.3 * (i % 2)), "white", (0, 0, a)),
+                  box((0.2, 0.3, 0.5), (x - 0.4 * math.sin(a), y + 0.4 * math.cos(a), 2.0 + 0.3 * (i % 2)), "white", (0, 0, a))]
+    for i in range(16):
+        a = i / 16 * math.tau
+        parts.append(ball((0.22, 0.22, 0.22), (4.6 * math.cos(a), 4.6 * math.sin(a), 3.75), bulbs[i % 4], 5, 3))
+    spin = join("spin", parts)
+    attach(spin, body)
+    return body
+
+
+def circus_tent():
+    """A big top: a round striped tent, a flag on the pole"""
+    p = []
+    for i in range(12):
+        a = i / 12 * math.tau
+        p.append(box((2.2, 0.15, 3.0), (5.1 * math.cos(a), 5.1 * math.sin(a), 1.5), "red" if i % 2 else "white", (0, 0, a + math.pi / 2)))
+    p += [cone(6.0, 3.8, (0, 0, 4.9), "red", 12), cone(5.95, 3.78, (0, 0, 4.92), "white", 6), drum(0.06, 1.6, (0, 0, 7.4), "metal", 4),
+          box((0.6, 0.04, 0.35), (0.3, 0, 8.0), "yellow"), box((1.8, 0.2, 2.2), (0, -5.3, 1.1), "black")]
+    return join("circus_tent", p)
+
+
+def booth():
+    """A carnival game booth, striped awning, lights along its front"""
+    p = [box((3.0, 2.0, 1.0), (0, 0, 0.5), "wood"), box((3.0, 0.1, 2.4), (0, 1.0, 1.2), "denim"),
+         box((3.2, 2.4, 0.15), (0, -0.2, 2.5), "red", (0.25, 0, 0))]
+    for i in range(6):
+        p.append(ball((0.16, 0.16, 0.16), (-1.3 + i * 0.52, -1.25, 2.25), ["light_red", "light_amber", "light_blue"][i % 3], 5, 3))
+    return join("booth", p)
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
-            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market,
+            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,

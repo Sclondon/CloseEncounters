@@ -133,6 +133,39 @@ const KINDS := {
 	"captured_saturn": {"title": "YOU FOUND THE STARZOID: IT'S YOURS", "model": "saturn", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.9, "rare": true, "unlock": "saturn", "rest_y": 1.25},
 	"captured_diamond": {"title": "YOU FOUND THE KRYSTALLIX-9: IT'S YOURS", "model": "diamond", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.2, "rare": true, "unlock": "diamond", "rest_y": 1.7},
 	"captured_jelly": {"title": "YOU FOUND THE BLOOPUS-7: IT'S YOURS", "model": "jelly", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "jelly", "rest_y": 2.0},
+	# The railway: a train runs the line (`move` "rail", see main.gd _trains), a car of it at a time to take
+	"locomotive": {"points": 700, "weight": 5.0, "heat": 0.5, "move": "rail", "speed": 11.0, "size": 3.6, "tier": 3},
+	"boxcar": {"points": 350, "weight": 4.0, "heat": 0.3, "move": "rail", "speed": 11.0, "size": 3.6, "tier": 2},
+	"caboose": {"points": 400, "weight": 3.5, "heat": 0.3, "move": "rail", "speed": 11.0, "size": 3.0, "tier": 2},
+	# Cowboys on horseback, about the plains and the rodeos
+	"rider": {"points": 180, "weight": 2.0, "heat": 0.4, "move": "flee", "speed": 6.5, "size": 1.4, "voice": "neigh", "gun": "pistol", "caller": true},
+	# A hot air balloon hanging over the fields, bobbing (`bob`)
+	"balloon": {"points": 550, "weight": 2.0, "heat": 0.3, "move": "still", "size": 3.0, "rest_y": 8.0, "bob": true},
+	# A wacky waving inflatable tube man, flailing (`wobble`)
+	"tube_man": {"points": 90, "weight": 0.6, "heat": 0.05, "move": "still", "size": 0.8, "wobble": true},
+	"gas_station": {"points": 450, "weight": 5.0, "heat": 0.5, "move": "still", "size": 5.0, "tier": 3, "voice": "scream"},
+	"dealership": {"points": 500, "weight": 6.0, "heat": 0.5, "move": "still", "size": 6.0, "tier": 3, "voice": "scream"},
+	"lot_car": {"model": "car", "points": 150, "weight": 2.6, "heat": 0.3, "move": "still", "size": 2.2},
+	"schoolhouse": {"points": 400, "weight": 4.5, "heat": 0.5, "move": "still", "size": 4.5, "tier": 3},
+	"playground": {"points": 140, "weight": 2.0, "heat": 0.2, "move": "still", "size": 3.0, "tier": 2},
+	"crane": {"points": 500, "weight": 7.0, "heat": 0.4, "move": "still", "size": 3.0, "tier": 4},
+	"excavator": {"points": 320, "weight": 3.5, "heat": 0.3, "move": "still", "size": 3.0, "tier": 2},
+	"girders": {"points": 110, "weight": 2.5, "heat": 0.1, "move": "still", "size": 2.5},
+	"mixer": {"points": 280, "weight": 3.5, "heat": 0.3, "move": "still", "size": 3.0, "tier": 2},
+	"tire_stack": {"points": 20, "weight": 0.8, "heat": 0.02, "move": "still", "size": 0.8},
+	"scrap_pile": {"points": 70, "weight": 2.5, "heat": 0.05, "move": "still", "size": 2.5, "tier": 2},
+	"junk_car": {"model": "car", "tints": {"paint": Color(0.45, 0.22, 0.12)}, "points": 60, "weight": 2.6, "heat": 0.05, "move": "still", "size": 2.2},
+	"bench": {"points": 15, "weight": 0.5, "heat": 0.02, "move": "still", "size": 1.0},
+	"gazebo": {"points": 220, "weight": 3.5, "heat": 0.2, "move": "still", "size": 3.5, "tier": 3},
+	"screen": {"points": 650, "weight": 7.0, "heat": 0.5, "move": "still", "size": 7.0, "tier": 4},
+	"speaker_post": {"points": 10, "weight": 0.3, "heat": 0.02, "move": "still", "size": 0.5},
+	"bleachers": {"points": 220, "weight": 3.5, "heat": 0.3, "move": "still", "size": 5.0, "tier": 3},
+	"ferris_wheel": {"points": 1100, "weight": 7.0, "heat": 0.6, "move": "still", "size": 6.0, "tier": 4},
+	"carousel": {"points": 800, "weight": 5.0, "heat": 0.5, "move": "still", "size": 4.5, "tier": 3},
+	"circus_tent": {"points": 650, "weight": 5.0, "heat": 0.5, "move": "still", "size": 6.0, "tier": 3},
+	"booth": {"points": 120, "weight": 1.8, "heat": 0.1, "move": "still", "size": 1.8, "tier": 2},
+	# True believers: they want to be taken, and come running to the beam (`move` "believer")
+	"believer": {"model": "person", "tints": {"shirt": Color(0.35, 0.8, 0.4)}, "points": 160, "weight": 1.3, "heat": 0.0, "move": "believer", "speed": 3.8, "size": 0.7, "voice": "star"},
 	"floodlight": {"points": 150, "weight": 2.5, "heat": 0.3, "move": "still", "size": 1.2, "tier": 3},
 	# A trader's goods (see main.gd spawn_shop): beam one up to buy it
 	"pod": {"points": 0, "weight": 0.9, "heat": 0.0, "move": "still", "size": 1.0},
@@ -201,6 +234,8 @@ var obstacle := Vector4.ZERO
 ## How far from the beam's middle it can be and still be caught
 var reach := 0.4
 var fan: Node3D
+## A part that turns about the upright (a carousel's floor and canopy)
+var spin_part: Node3D
 ## A helicopter's rotors
 var rotors: Array[Node3D] = []
 var tail_rotor: Node3D
@@ -314,6 +349,7 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 	obstacle = extra.get("obstacle", Vector4.ZERO)
 	reach = obstacle.z + 3.5 if obstacle != Vector4.ZERO else size() * 0.4 * base_size
 	fan = model.find_child("fan*", true, false) as Node3D
+	spin_part = model.find_child("spin*", true, false) as Node3D
 	wings = [model.find_child("wing_l*", true, false) as Node3D, model.find_child("wing_r*", true, false) as Node3D]
 	if info["move"] == "hover":
 		position.y = HOVER_Y
@@ -536,7 +572,8 @@ func _walk(delta: float, ufo: Ufo) -> void:
 				else:
 					_hid_for = 0.0
 			elif _to_booth():
-				# (running for the phone booth, or on the phone in it)
+				# (running for the phone booth, or on the phone in it: and frightened now, for good)
+				set_meta("scared", true)
 				want = _booth_way
 				pace *= 1.5
 				if want == Vector3.ZERO:
@@ -548,7 +585,14 @@ func _walk(delta: float, ufo: Ufo) -> void:
 				heading = lerp_angle(heading, atan2(to_ufo.x, to_ufo.z), minf(delta * 6.0, 1.0))
 				_shoot(delta, ufo, near)
 				pace = 0.0
+			elif not has_meta("scared") and panic <= 0.0 and info.get("caller", false) and _curious(here, to_ufo, near):
+				# (not yet frightened: curious, edging up to look at the ship, or at a crop circle)
+				want = _curious_way
+				pace *= 0.55
 			elif near < 16.0 or panic > 0.0:
+				# (frightened for good once something has given them a fright: see `_curious`)
+				if panic > 0.0:
+					set_meta("scared", true)
 				# (a person makes for the nearest building to hide in it; else runs from the ship)
 				if info.get("caller", false) and (shelter == null or not is_instance_valid(shelter)):
 					shelter = game.nearest_shelter(here, 25.0)
@@ -572,6 +616,16 @@ func _walk(delta: float, ufo: Ufo) -> void:
 					pace *= 0.4
 		"road":
 			want = _along_road()
+		"rail":
+			# (along the line it was put down on, the way it was going, never off it)
+			want = Vector3(road_dir, 0, 0)
+			position.z = lerpf(position.z, home.z, minf(delta * 4.0, 1.0))
+		"believer":
+			want = _believe(delta, ufo, to_ufo, near)
+			if want == Vector3.ZERO:
+				pace = 0.0
+			elif near < 30.0:
+				pace *= 1.4
 		"police":
 			if _noticed(delta, ufo, near):
 				pace = _police(delta, ufo, to_ufo, near, pace)
@@ -636,6 +690,13 @@ func _walk(delta: float, ufo: Ufo) -> void:
 			if turret != null:
 				var local: Vector3 = transform.basis.inverse() * to_ufo
 				turret.rotation.y = lerp_angle(turret.rotation.y, atan2(local.x, local.z), minf(delta * 2.0, 1.0))
+	if ufo.dead and game.wreck != Vector3.INF and info["move"] in ["police", "patrol", "chase"]:
+		# (the ship down: they may circle the crash site, but never drive into the wreck itself)
+		var off: Vector3 = here - game.wreck
+		off.y = 0.0
+		if off.length() < 7.0 + size():
+			want = off.normalized() if off.length() > 0.01 else Vector3.RIGHT
+			pace = maxf(pace, float(info.get("speed", 0.0)) * 0.6)
 	if light != null:
 		_aim_light(delta, ufo)
 	var moving := want.length() > 0.01 and pace > 0.0
@@ -658,7 +719,7 @@ func _walk(delta: float, ufo: Ufo) -> void:
 	if beam_arm != null:
 		beam_arm.rotation.x = sin(_t * 1.6) * 0.35
 	# Walkers bob and waddle; anything on wheels only rocks a little
-	var on_legs: bool = info["move"] in ["peck", "graze", "flee", "guard"] and kind != "tractor"
+	var on_legs: bool = info["move"] in ["peck", "graze", "flee", "guard", "believer"] and kind != "tractor"
 	if on_legs and speed > 0.2:
 		model.position.y = absf(sin(_t * speed * 4.0)) * 0.12
 		model.rotation.z = sin(_t * speed * 4.0) * 0.08
@@ -668,6 +729,17 @@ func _walk(delta: float, ufo: Ufo) -> void:
 		model.position = Vector3(0, model_y, 0)
 		model.rotation.z = sin(_t * 3.0) * 0.01 * speed
 	_rattling = false
+	# (a true believer under the ship hops up and down for it; a tube man flails; a balloon bobs; a
+	# carousel turns)
+	if info["move"] == "believer" and speed < 0.2 and ufo.ground().distance_to(ground()) < 2.0:
+		model.position.y = absf(sin(_t * 8.0)) * 0.35
+	if info.get("wobble", false):
+		model.rotation = Vector3(sin(_t * 5.3) * 0.22, 0.0, sin(_t * 7.1 + 1.0) * 0.32)
+		model.scale.y = 1.0 + sin(_t * 9.0) * 0.06
+	if info.get("bob", false):
+		model.position.y = model_y + sin(_t * 0.8 + home.x) * 0.6
+	if spin_part != null:
+		spin_part.rotation.y += delta * 0.9
 	if aim != null:
 		_aim(delta, ufo)
 
@@ -1042,6 +1114,56 @@ static func light_strip(parent: Node3D, tint: Color, power: float, reach: float,
 
 ## The way along the road it is on, keeping to its lane (on the right) as the road bends: toward
 ## its lane a few metres ahead
+## Someone not yet frightened, curious: a crop circle near draws them to stand round its edge looking
+## in; the ship near, to stand a way off looking up at it. Whether there is anything to be curious
+## about (and the way to go, `_curious_way`, none once there). A beam on close by frightens them.
+var _curious_way := Vector3.ZERO
+
+
+func _curious(here: Vector3, to_ufo: Vector3, near: float) -> bool:
+	_curious_way = Vector3.ZERO
+	var ufo: Ufo = game.ufo
+	if not ufo.dead and near < 8.0 and ufo.beaming:
+		set_meta("scared", true)
+		return false
+	var keep := float(hash(get_instance_id()) % 5)
+	if not ufo.dead and near < 40.0:
+		heading = lerp_angle(heading, atan2(to_ufo.x, to_ufo.z), 0.1)
+		if near > 11.0 + keep:
+			_curious_way = to_ufo / near
+		return true
+	var circle: Vector3 = game.world.nearest_circle(here, 45.0)
+	if circle != Vector3.INF:
+		var middle := Vector3(circle.x, 0, circle.z)
+		var out := here - middle
+		out.y = 0.0
+		var spot := middle + (out.normalized() if out.length() > 0.1 else Vector3.FORWARD) * (circle.y + 1.5 + keep * 0.4)
+		if here.distance_to(spot) > 1.0:
+			_curious_way = (spot - here).normalized()
+		else:
+			heading = lerp_angle(heading, atan2(middle.x - here.x, middle.z - here.z), 0.1)
+		return true
+	return false
+
+
+## A true believer: they want to be taken. The ship near, they run to stand under it, arms up, hopping
+## (and shout for it once); else they wander about waiting
+func _believe(delta: float, ufo: Ufo, to_ufo: Vector3, near: float) -> Vector3:
+	if not ufo.dead and near < 45.0:
+		if not has_meta("shouted") and near < 25.0:
+			set_meta("shouted", true)
+			game._popup(["TAKE ME!", "OVER HERE!", "I BELIEVE!", "BEAM ME UP!"][randi() % 4], position + Vector3(0, 2.4, 0), Color(0.5, 1.0, 0.55))
+		if near > 1.2:
+			heading = lerp_angle(heading, atan2(to_ufo.x, to_ufo.z), minf(delta * 6.0, 1.0))
+			return to_ufo / near
+		return Vector3.ZERO
+	think -= delta
+	if think <= 0.0:
+		think = randf_range(2.0, 6.0)
+		goal = home + Vector3(randf_range(-8, 8), 0, randf_range(-8, 8))
+	return (goal - ground()).normalized() if ground().distance_to(goal) > 0.6 else Vector3.ZERO
+
+
 func _along_road() -> Vector3:
 	var lane := (1.0 if World.dirt_x(roundi(position.x / World.CHUNK / World.ROAD_EVERY) * World.ROAD_EVERY) else 1.5) if road_axis == "z" \
 		else (1.0 if World.dirt_z(roundi(position.z / World.CHUNK / World.ROAD_EVERY) * World.ROAD_EVERY) else 1.5)
@@ -1278,7 +1400,7 @@ static func category(of: String) -> String:
 	var info: Dictionary = KINDS[of]
 	if info.get("rare", false) or of in ["golden_cow", "jackalope", "sasquatch", "meteorite", "satellite", "crash_site"]:
 		return "RARE FINDS"
-	if info.get("caller", false) or info.get("enemy", false) and info["move"] == "guard" or of in ["scarecrow"]:
+	if info.get("caller", false) or info.get("enemy", false) and info["move"] == "guard" or of in ["scarecrow", "believer"]:
 		return "EARTHLINGS"
 	if of in ["wheat", "corn", "pumpkin", "hay_bale", "hay_pile"]:
 		return "CROPS"
@@ -1288,7 +1410,7 @@ static func category(of: String) -> String:
 		return "PLANTS"
 	if of in ["butte", "mesa", "peak", "devils_tower", "hill", "rock"]:
 		return "THE LAND"
-	if info["move"] in ["road", "police", "patrol", "hover"] or info.get("enemy", false) or of in ["tractor", "pumpjack", "windmill", "plane", "telescope", "barrel", "phone_booth", "phone_pole"]:
+	if info["move"] in ["road", "police", "patrol", "hover", "rail"] or info.get("enemy", false) or of in ["tractor", "pumpjack", "windmill", "plane", "telescope", "barrel", "phone_booth", "phone_pole", "lot_car", "junk_car", "excavator", "mixer", "crane", "tube_man", "balloon"]:
 		return "MACHINES"
 	if int(info.get("tier", 1)) >= 3:
 		return "BUILDINGS"

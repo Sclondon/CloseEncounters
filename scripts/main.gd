@@ -561,6 +561,25 @@ func start(from_launch := false) -> void:
 		# (the hull turned just as it was in the flight)
 		ufo.hull_model.rotation.y = heading - ufo.rotation.y
 	sfx.play("whoosh", 0.6, 2.0)
+	# (a run flown home from, carried on with: its score, level, items and what it had taken)
+	if from_launch and not _saved_run.is_empty() and _saved_run.get("ship", "") == ship and not coop.active():
+		score = int(_saved_run["score"])
+		level = int(_saved_run["level"])
+		_threat = int(_saved_run.get("threat", 0))
+		for what: String in (_saved_run["upgrades"] as Dictionary):
+			if upgrades.has(what):
+				upgrades[what] = int(_saved_run["upgrades"][what])
+		_run_taken = (_saved_run["taken"] as Dictionary).duplicate(true)
+		_run_killed = (_saved_run["killed"] as Dictionary).duplicate()
+		_apply_upgrades()
+		_saved_run = {}
+		_save_best()
+		_heat_note("RUN CONTINUED", 2.5)
+
+
+## A run flown home from (TO THE MOON from the pause), kept to carry on with from the title: its ship,
+## score, level, items and what it had taken (see `quit_to_menu` and `start`)
+var _saved_run := {}
 
 
 
@@ -744,6 +763,8 @@ func _process(delta: float) -> void:
 	_launch_missiles(delta)
 	_magnet(delta)
 	_boosts(delta)
+	_trains(delta)
+	_airliners(delta)
 	_watchers(delta)
 	_crop_circles(delta)
 	for s in shots:
@@ -1052,6 +1073,58 @@ func _jets(delta: float) -> void:
 		if jet.position.z > ufo.position.z + 80.0:
 			jets.erase(jet)
 			jet.queue_free()
+
+
+## The railway's trains: every so often, while the ship is near a line, a train comes along it from
+## off one side, a locomotive pulling boxcars and a caboose, its whistle blowing (each car a thing to
+## take); gone again when far off (see `_cull`)
+const TRAIN := ["locomotive", "boxcar", "boxcar", "boxcar", "caboose"]
+const TRAIN_GAP := 8.6
+var _train_wait := 6.0
+var _airliner_wait := 30.0
+
+
+func _trains(delta: float) -> void:
+	_train_wait -= delta
+	if _train_wait > 0.0 or mode != "play" or intro > 0.0:
+		return
+	_train_wait = randf_range(35.0, 60.0)
+	var here := ufo.ground()
+	var row := roundi(here.z / World.CHUNK)
+	for m in range(row - 3, row + 4):
+		if not World.has_rail(m) or absf(World.rail_z(m) - here.z) > 110.0:
+			continue
+		var dir := 1.0 if randf() < 0.5 else -1.0
+		var front := Vector3(here.x - dir * 80.0, 0, World.rail_z(m))
+		for i in TRAIN.size():
+			var car := spawn_car(TRAIN[i], front - Vector3(dir * TRAIN_GAP * i, 0, 0), "x", dir)
+			car.home = car.position
+		sfx.play("bugle", 0.55, -6.0)
+		return
+
+
+## Now and then an airliner high over everything, out of reach, its lights blinking, crossing the sky
+func _airliners(delta: float) -> void:
+	_airliner_wait -= delta
+	if _airliner_wait > 0.0 or mode != "play" or intro > 0.0:
+		return
+	_airliner_wait = randf_range(40.0, 80.0)
+	var plane := Ps1.model("plane")
+	plane.scale = Vector3.ONE * 2.2
+	var a := randf() * TAU
+	var way := Vector3(cos(a), 0, sin(a))
+	var from := ufo.ground() - way * 140.0 + Vector3(randf_range(-30, 30), 42.0, randf_range(-60, -20))
+	plane.position = from
+	plane.rotation.y = atan2(way.x, way.z)
+	view.add_child(plane)
+	var blink := OmniLight3D.new()
+	blink.light_color = Color(1.0, 0.2, 0.2)
+	blink.omni_range = 6.0
+	plane.add_child(blink)
+	var tw := plane.create_tween()
+	tw.tween_property(plane, "position", from + way * 280.0, 280.0 / 24.0)
+	tw.parallel().tween_method(func(t: float) -> void: blink.light_energy = 3.0 if fmod(t, 1.0) < 0.15 else 0.0, 0.0, 12.0, 280.0 / 24.0)
+	tw.tween_callback(plane.queue_free)
 
 
 ## Lets go of what is far behind the saucer (the world makes more as it goes)
@@ -2642,8 +2715,11 @@ func _crash(delta: float) -> void:
 		best = score
 		_save_best()
 	_report(score)
+	# (the run over for good: nothing kept to carry on with)
+	_saved_run = {}
 	over_label.text = _results(is_best)
 	_fill_over_items()
+	_fit_results(get_viewport().get_visible_rect().size / hud.scale.x)
 	over_label.visible_characters = 0
 	_over_typing = 0.0
 	# (the panel up once the wreck has been seen to, see `_wreck_burning`)
@@ -2680,6 +2756,26 @@ func _results(is_best: bool) -> String:
 	lines.append("TOTAL  %d" % score)
 	lines.append("BEST  %d%s" % [best, "  (NEW!)" if is_best and score > 0 else ""])
 	return "\n".join(lines)
+
+## The results sized for the screen: big for thumbs on an upright phone, and smaller again, a step at
+## a time, until all of them (a long run's many lines too) fit its height
+func _fit_results(size: Vector2) -> void:
+	var upright := size.x < size.y
+	var room := size.y - (220.0 if upright else 80.0)
+	var text := 62 if upright else 34
+	while true:
+		over_label.add_theme_font_size_override("font_size", text)
+		_over_head.add_theme_font_size_override("font_size", int(text * 1.75))
+		_over_items_head.add_theme_font_size_override("font_size", text)
+		over_label.add_theme_constant_override("outline_size", maxi(text / 6, 4))
+		var big := upright and text > 44
+		for b in _over_row.get_children():
+			(b as Button).custom_minimum_size = Vector2(500, 140) if big else Vector2(0, 70)
+			(b as Button).add_theme_font_size_override("font_size", 62 if big else 40)
+		if over_box.get_combined_minimum_size().y <= room or text <= 22:
+			break
+		text -= 4
+
 
 ## The items had this run, under the results: each its hologram and how many
 var _over_items: VBoxContainer
@@ -2767,6 +2863,7 @@ func _dirt_mound() -> void:
 # pilot and carries it off to the car, the other walks to the crowd and flashes them with the
 # memory eraser (they forget and wander off); then they drive away
 const MIB_COME := 10.0
+const MIB_PACE := 0.6
 var _wreck_bits: Array[Node3D] = []
 var _mib_car: Node3D
 var _mib_a: Node3D
@@ -2779,7 +2876,8 @@ var _mib_flashed := false
 
 
 func _men_in_black() -> void:
-	var t := _wreck_t - MIB_COME
+	# (drawn out: their time runs at MIB_PACE of the clock's)
+	var t := (_wreck_t - MIB_COME) * MIB_PACE
 	if t < 0.0 or not is_instance_valid(_wreck_pilot):
 		return
 	var body := _wreck_pilot.position
@@ -2865,6 +2963,55 @@ func _men_in_black() -> void:
 		_place(_mib_car, _mib_stop.lerp(away, k), away - _mib_stop)
 	elif t >= off + 3.6:
 		_mib_car.visible = false
+	_news(t - off - 5.0)
+
+
+# The news, once the men in black have gone: two vans pull up by the meteorite, a reporter and a
+# camera crew get out, and the camera's light comes on
+var _news_vans: Array[Node3D] = []
+var _news_crew: Array[Node3D] = []
+var _news_light: OmniLight3D
+
+
+func _news(t: float) -> void:
+	if t < 0.0:
+		return
+	if _news_vans.is_empty():
+		for i in 2:
+			var van := Ps1.model("rv", {"paint": Color(0.92, 0.92, 0.9)})
+			van.scale = Vector3.ONE * 0.85
+			view.add_child(van)
+			_wreck_bits.append(van)
+			_news_vans.append(van)
+			var person := Ps1.model("person", {"shirt": [Color(0.75, 0.15, 0.2), Color(0.2, 0.3, 0.6)][i]})
+			person.visible = false
+			view.add_child(person)
+			_wreck_bits.append(person)
+			_news_crew.append(person)
+		_news_light = OmniLight3D.new()
+		_news_light.omni_range = 9.0
+		_news_light.light_energy = 0.0
+		view.add_child(_news_light)
+		_wreck_bits.append(_news_light)
+	for i in 2:
+		var side := -1.0 if i == 0 else 1.0
+		var stop := wreck + Vector3(side * 9.0, 0, 7.0 + i * 2.0)
+		var from := stop + Vector3(side * 50.0, 0, 30.0)
+		var k := 1.0 - pow(1.0 - clampf((t - i * 1.2) / 3.5, 0.0, 1.0), 3.0)
+		_place(_news_vans[i], from.lerp(stop, k), stop - from)
+		if t > 4.5 + i:
+			var crew := _news_crew[i]
+			if not crew.visible:
+				crew.visible = true
+				sfx.play("thud", 1.3, -10.0)
+			var to := wreck + Vector3(side * 3.5, 0, 5.0)
+			_walk_to(crew, stop, to, (t - 4.5 - i) / 2.5, t)
+			if t > 7.5 + i:
+				crew.rotation.y = atan2(wreck.x - crew.position.x, wreck.z - crew.position.z)
+	# (the camera's light, on the reporter)
+	if t > 8.5:
+		_news_light.position = wreck + Vector3(2.0, 2.2, 6.5)
+		_news_light.light_energy = 3.0 + 0.3 * sin(t * 30.0)
 
 
 # Their helicopter: in over the wreck, a cable down to it, and away with it hanging under; a
@@ -2996,6 +3143,9 @@ func _clear_wreck() -> void:
 	_mib_b = null
 	_mib_bag = null
 	_mib_flashed = false
+	_news_vans.clear()
+	_news_crew.clear()
+	_news_light = null
 	_mib_heli = null
 	_mib_cable = null
 	_mib_meteor = null
@@ -3495,13 +3645,15 @@ func _layout_title(size: Vector2) -> void:
 		# (the results never over the wreck in the middle of the screen: on a phone just above it; on
 		# a wide screen beside it, on the left, in the middle of the height, all of it on the screen)
 		if upright:
+			# (on a phone: across the screen, in the middle of its height, all of it on the screen: see
+			# `_fit_results`)
 			over_box.set_anchors_preset(Control.PRESET_CENTER)
 			over_box.custom_minimum_size = Vector2(1120, 0)
 			over_box.offset_left = -560.0
 			over_box.offset_right = 560.0
-			over_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
-			over_box.offset_top = -size.y * 0.06
-			over_box.offset_bottom = -size.y * 0.06
+			over_box.grow_vertical = Control.GROW_DIRECTION_BOTH
+			over_box.offset_top = 0.0
+			over_box.offset_bottom = 0.0
 		else:
 			over_box.set_anchors_preset(Control.PRESET_CENTER_LEFT)
 			over_box.custom_minimum_size = Vector2(520, 0)
@@ -3512,12 +3664,7 @@ func _layout_title(size: Vector2) -> void:
 			over_box.offset_bottom = 0.0
 	# (the results' text and buttons sized for thumbs on an upright phone)
 	if over_label != null:
-		over_label.add_theme_font_size_override("font_size", 62 if upright else 34)
-		_over_head.add_theme_font_size_override("font_size", 110 if upright else 60)
-		over_label.add_theme_constant_override("outline_size", 10 if upright else 5)
-		for b in _over_row.get_children():
-			(b as Button).custom_minimum_size = Vector2(500, 140) if upright else Vector2(0, 70)
-			(b as Button).add_theme_font_size_override("font_size", 62 if upright else 40)
+		_fit_results(size)
 	if upright:
 		title_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		title_box.offset_left = 40.0
@@ -4275,6 +4422,9 @@ func _build_hud() -> void:
 	_pause_box.add_child(_resume_button)
 	_pause_box.add_child(_button("OPTIONS", open_options))
 	_pause_box.add_child(_button("TO THE MOON", quit_to_menu))
+	# (and QUIT, as on the title: inside the arcade, or off the web)
+	if _in_arcade() or not OS.has_feature("web"):
+		_pause_box.add_child(_button("QUIT", quit_game))
 	_pause_box.visible = false
 	# (centred both ways whatever its size: see `_fit_pause`)
 	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
@@ -4467,6 +4617,11 @@ func _launch(delta: float) -> void:
 ## the stars (the descent backwards, see `_going_home`), then down onto the moon (the flight off it
 ## backwards), and the pilot back in the chair on the title
 func quit_to_menu() -> void:
+	# (flown home alive, alone: the run kept, to carry on with from the title, see `_saved_run`)
+	if mode == "play" and not ufo.dead and not coop.active() and not testing:
+		_saved_run = {"ship": ship, "score": score, "level": level, "upgrades": upgrades.duplicate(),
+			"taken": _run_taken.duplicate(true), "killed": _run_killed.duplicate(), "threat": _threat}
+		_save_best()
 	# (out of any multiplayer room: the others fly on without us)
 	if net != null and net.active():
 		net.leave()
@@ -4616,7 +4771,7 @@ func _show_ship() -> void:
 	# (no label over it: the button itself says what it will do)
 	ship_label.visible = false
 	if ship in unlocked:
-		_play_button.text = MODE_TITLES[play_mode]
+		_play_button.text = "CONTINUE" if play_mode == "single" and _saved_run.get("ship", "") == ship else MODE_TITLES[play_mode]
 		_play_button.disabled = false
 	else:
 		_play_button.text = "LOCKED"
@@ -5220,6 +5375,7 @@ func _load_best() -> void:
 		if Ufo.SHIPS.has(kept) and kept in unlocked:
 			ship = kept
 		_log_taken = cfg.get_value("log", "taken", {})
+		_saved_run = cfg.get_value("run", "saved", {})
 		for had: String in cfg.get_value("log", "items", []):
 			if UPGRADES.has(had) and not had in _log_items:
 				_log_items.append(had)
@@ -5239,6 +5395,7 @@ func _save_best() -> void:
 	cfg.set_value("best", "ship", ship)
 	cfg.set_value("best", "unlocked", unlocked)
 	cfg.set_value("log", "taken", _log_taken)
+	cfg.set_value("run", "saved", _saved_run)
 	cfg.set_value("log", "met", _log_met)
 	cfg.set_value("log", "items", _log_items)
 	for key: String in ["music_volume", "effects_volume", "picture", "dither", "screen_shake", "frame_rate"]:
@@ -5551,7 +5708,7 @@ class BeamButton extends Control:
 		draw_circle(c, r * 0.42, Color(0.1, 0.25, 0.14))
 
 
-## The Moon Market's trading saucer, painted like a carnival: down out of the sky behind the market
+## The Moon Market's trading saucer, painted like a carnival: there at once behind the market in a puff of confetti
 ## while it is open, bobbing and turning there (the game paused all the while), and away up again
 ## after the pick. Held at a place in the picture, the top middle, a way off. Lit from above by a stage
 ## spotlight (and left out of the dark the market lays over the picture), a puff of confetti as it arrives, and
@@ -5567,7 +5724,7 @@ class MarketShip extends Node3D:
 	var _landed := false
 	## The confetti and the puff: [piece, its way, its spin (none for a puff), its age]
 	var _bits: Array = []
-	const DROP := 1.1
+	const DROP := 0.15
 	const AWAY := 30.0
 	const CONFETTI := [Color(1.0, 0.25, 0.3), Color(1.0, 0.85, 0.2), Color(0.3, 0.75, 1.0), Color(0.45, 1.0, 0.5), Color(1.0, 0.5, 0.9), Color(1.0, 0.6, 0.2)]
 
@@ -5604,7 +5761,7 @@ class MarketShip extends Node3D:
 				queue_free()
 				return
 		_place()
-		if not _landed and _t >= DROP:
+		if not _landed:
 			_landed = true
 			_confetti()
 		_fall(delta)
@@ -5626,7 +5783,7 @@ class MarketShip extends Node3D:
 		# (down from high above, slowing and settling with a little bounce; bobbing; and at the end
 		# up and away the quicker)
 		var k := clampf(_t / DROP, 0.0, 1.0)
-		var drop := (1.0 - k) * (1.0 - k) * 22.0 - sin(k * PI) * 0.8
+		var drop := (1.0 - k) * (1.0 - k) * 3.0 - sin(k * PI) * 0.3
 		var rise := _leaving * _leaving * 30.0 if _leaving > 0.0 else 0.0
 		at.y += drop + rise + sin(_t * 2.2) * 0.35
 		seen = at

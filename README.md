@@ -155,7 +155,7 @@ it holds you. Once there is heat, the patrols lock their lights on and join in.
 ### Level-ups and traders
 
 **Level-ups come with the score** (`level_at`: 600, 2400, 5400, 9600... points): the game pauses and the **MOON
-MARKET** opens: its carnival-painted trading saucer drops out of the sky in a puff of confetti and smoke, lit (`MarketShip`; from above by a stage light and left out of the dark laid over the picture, `market_dim.gdshader`), and its beam throws the market onto the screen (`ProjectorBeam`: from above on a phone, from the side on a wide screen), with a choice
+MARKET** opens: its carnival-painted trading saucer appears at once in a puff of confetti and smoke, lit (`MarketShip`; from above by a stage light and left out of the dark laid over the picture, `market_dim.gdshader`), and its beam throws the market onto the screen (`ProjectorBeam`: from above on a phone, from the side on a wide screen), with a choice
 of upgrades (sized for thumbs, biggest on an upright phone). They are items that stack, as in Risk of Rain: each pick is one more of it (up to ten), small at first and growing with the stack (the fleet up to six saucers, rates with floors). The items had show as a row of little tiles under the heat's stars, each a small 3D model of the item (built in Blender, `item_*` in tools/build_models.py) with its stack count, as in Risk of Rain 2; the level-up choices show them too:
 ENGINE (+7% speed), BEAM (lifts faster, and every second level one tier stronger), SHIELD (+15), DASH (one more
 dash charge, refilling a little sooner, two more afterimages), MAGNET (small things drift to the beam), WIDE BEAM,
@@ -240,6 +240,29 @@ country: low hills, lakes, and now and then a little airfield (a runway, a contr
 Only people and cars are ever put down in a road. Landforms are planned per chunk before anything else
 (`World.landforms`), so nothing is ever put down on top of one, and buildings stay inside their own chunk.
 Anything between the camera and the ship is drawn see-through (`shaders/ps1.gdshader`).
+
+**Railways** run straight across the country down the middle of a few rows of chunks (`has_rail`), rails on
+sleepers on a gravel bed. While the ship is near one, a **train** comes along now and then (whistle blowing): a
+locomotive, boxcars and a caboose, each a thing to take (`move` "rail", main.gd `_trains`). **Airliners** cross
+high overhead, blinking, out of reach.
+
+**Places** (`_venue`, one now and then in the middle of an open chunk, by the region): a **schoolhouse** and
+playground, a **park** with a pond, gazebo and benches, a **carnival** (a turning Ferris wheel, a carousel, a big
+top and game booths), a **drive-in** (the screen glowing, rows of cars, speaker posts), a **junkyard** (rusted cars,
+scrap, tyres, a fence), a **building site** (a tower crane, an excavator, a cement mixer, girders) and a **rodeo** (a
+ring of fence, bleachers, cowboys on horseback and a bull). By the roads (`_roadside`): **gas stations** and **car
+dealerships** with their lots of cars and **wacky waving inflatable tube men**. Farm ponds; hot air balloons hanging
+over the fields; cowboys on horseback out on the plains and mesas; town roads have **sidewalks**.
+
+**People are curious** until something frightens them (a beam on near them, a blast, a laser, seeing something
+taken): they edge up to look at the ship from a way off, and come to stand round any crop circle near. **True
+believers** (in green shirts) want to be taken: they come running to stand under the ship, hopping and shouting
+for it.
+
+**Runs keep**: TO THE MOON from the pause flies home with the run kept (score, level, items, what was taken);
+PLAY becomes CONTINUE for that ship and carries on with it. A crash ends the run for good. QUIT is in the pause
+menu too (in the arcade, or off the web). After a crash the men in black's work is slower, and once they have gone
+two **news vans** pull up by the meteorite, a reporter and a camera crew get out, and the camera's light comes on.
 
 ## Layout
 

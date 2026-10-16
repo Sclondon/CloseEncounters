@@ -193,6 +193,17 @@ static func has_road(n: int) -> bool:
 	return posmod(n, ROAD_EVERY) == 0
 
 
+## Railways run straight along x down the middle of every row of chunks `m` with this: a few rows
+## apart, and never on a road's row or the rows of houses either side of one (z = m * CHUNK)
+static func has_rail(m: int) -> bool:
+	return posmod(m, 7) == 3 and posmod(m, ROAD_EVERY) in [2, 3]
+
+
+## The railway along row `m`: down the middle of it
+static func rail_z(m: int) -> float:
+	return m * CHUNK
+
+
 # ------------------------------------------------------------------ the roads
 # Roads run along every fifth line of chunks, both ways. In open country they meander a little to
 # either side of their line (but never out of their chunks); near a crossing they run straight, so a
@@ -259,7 +270,7 @@ static func is_edge_of_town(c: Vector2i) -> bool:
 
 ## Whether a secret government facility takes up this chunk, and which ship it holds ("" if none)
 static func facility(c: Vector2i) -> String:
-	if has_road(c.x) or has_road(c.y) or absi(c.x) + absi(c.y) < 6 or biome(c) == Biome.MOUNTAIN or not landforms(c).is_empty():
+	if has_road(c.x) or has_road(c.y) or has_rail(c.y) or absi(c.x) + absi(c.y) < 6 or biome(c) == Biome.MOUNTAIN or not landforms(c).is_empty():
 		return ""
 	if hash3(c.x, c.y, 101) >= 0.022:
 		return ""
@@ -270,7 +281,7 @@ static func facility(c: Vector2i) -> String:
 
 ## Whether an army base takes up this chunk
 static func is_base(c: Vector2i) -> bool:
-	return not has_road(c.x) and not has_road(c.y) and absi(c.x) + absi(c.y) > 3 and biome(c) != Biome.MOUNTAIN \
+	return not has_road(c.x) and not has_road(c.y) and not has_rail(c.y) and absi(c.x) + absi(c.y) > 3 and biome(c) != Biome.MOUNTAIN \
 		and hash3(c.x, c.y, 71) < 0.035 and landforms(c).is_empty() and hash3(c.x, c.y, 101) >= 0.022
 
 
@@ -431,6 +442,21 @@ func _crosses_circle(a: Vector2, b: Vector2) -> bool:
 	return false
 
 
+## The nearest crop circle to `p` within `reach`, for the curious to come and look at: (x, its radius,
+## z), or INF
+func nearest_circle(p: Vector3, reach: float) -> Vector3:
+	var best := Vector3.INF
+	var gap := reach
+	for c in _circles:
+		if c.z <= 0.0:
+			continue
+		var d := Vector2(c.x - p.x, c.y - p.z).length()
+		if d < gap:
+			gap = d
+			best = Vector3(c.x, c.z, c.y)
+	return best
+
+
 ## Grows the newest crop circle (the beam is still held over it)
 func grow_circle(radius: float) -> void:
 	var i := posmod(_circle_next - 1, _circles.size())
@@ -488,6 +514,10 @@ func off_road(p: Vector3, margin: float) -> Vector3:
 ## Whether a point is on (or within `margin` of) a road
 func on_road(p: Vector3, margin := 0.0) -> bool:
 	var gaps := road_gaps(p)
+	# (the railway's bed counts too, for nothing to be put down on it)
+	var row := roundi(p.z / CHUNK)
+	if has_rail(row) and absf(p.z - rail_z(row)) < 1.8 + margin:
+		return true
 	return gaps.x < margin or gaps.y < margin
 
 
@@ -548,6 +578,10 @@ func _make(c: Vector2i) -> void:
 		_taken.append(Vector3(c.x * CHUNK, -1.0, 0))
 	if road_z:
 		_taken.append(Vector3(0, -2.0, c.y * CHUNK))
+	# (and the railway, if one runs through)
+	if has_rail(c.y):
+		_taken.append(Vector3(0, -4.0, rail_z(c.y)))
+		_rail_line(c)
 	# The landforms come first, this chunk's and its neighbours' (which may reach over into it),
 	# so that nothing is put down on top of them
 	for x in range(-1, 2):
@@ -596,6 +630,19 @@ func _make(c: Vector2i) -> void:
 			if at != Vector3.INF:
 				_take(at, 13.0)
 				_prop("hill", at, _rng.randf() * TAU, _rng.randf_range(0.8, 1.2))
+		elif open and b == Biome.FARM and hash3(c.x, c.y, 216) < 0.08:
+			# (a farm pond)
+			var r := _rng.randf_range(4.5, 7.0)
+			var pond := _spot(r + 1.5)
+			if pond != Vector3.INF:
+				_water(pond, r)
+				_take(pond, r + 1.5)
+		# (now and then a place people come to, in the middle)
+		if open:
+			_venue(c, b)
+		# (and a hot air balloon hanging over the fields)
+		if open and b in [Biome.FARM, Biome.PLAINS] and hash3(c.x, c.y, 215) < 0.07:
+			_spawn("balloon", _spot(3.0))
 		match b:
 			Biome.FARM:
 				_farm()
@@ -616,6 +663,8 @@ func _make(c: Vector2i) -> void:
 	if not town and not is_base(c) and facility(c) == "":
 		_wildlife(b)
 		_rare(c, b)
+	if road_x != road_z and not town and not is_edge_of_town(c):
+		_roadside(c, "z" if road_x else "x")
 	if road_x and not road_z and _rng.randf() < 0.6:
 		_car(b, "z")
 	if road_z and not road_x and _rng.randf() < 0.6:
@@ -630,7 +679,7 @@ func _make(c: Vector2i) -> void:
 ## enough in from the edges of its chunk that two never run into each other, and never on a road.
 static func landforms(c: Vector2i) -> Array[Dictionary]:
 	var found: Array[Dictionary] = []
-	if has_road(c.x) or has_road(c.y):
+	if has_road(c.x) or has_road(c.y) or has_rail(c.y):
 		return found
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(hash3(c.x, c.y, 91) * 1000000.0) + 7
@@ -704,6 +753,9 @@ func _clear(p: Vector3, radius: float) -> bool:
 				return false
 		elif t.y == -2.0:
 			if absf(p.z - road_z(roundi(t.z / CHUNK), p.x)) < 4.0 + radius:
+				return false
+		elif t.y == -4.0:
+			if absf(p.z - t.z) < 3.5 + radius:
 				return false
 		elif Vector2(p.x - t.x, p.z - t.z).length() < radius + t.y:
 			return false
@@ -1023,6 +1075,7 @@ func _edge_of_town(b: int, axis: String) -> void:
 	var dry := b == Biome.DESERT or b == Biome.MESA
 	var paint: Array[Color] = [Color(0.92, 0.9, 0.82), Color(0.75, 0.82, 0.9), Color(0.95, 0.85, 0.6), Color(0.8, 0.9, 0.75), Color(0.9, 0.7, 0.65)]
 	var base := centre_of(_chunk)
+	_sidewalks(axis)
 	# (now and then one of the houses is a church instead)
 	var church := _rng.randi_range(0, 5) if _rng.randf() < 0.3 else -1
 	var slot := -1
@@ -1180,6 +1233,33 @@ func _town(b: int) -> void:
 	_take(hall, 6.0)
 	for i in _rng.randi_range(7, 11):
 		_spawn("person", base + Vector3(_rng.randf_range(-16, 16), 0, _rng.randf_range(-16, 16)))
+	if _rng.randf() < 0.5:
+		_spawn("believer", base + Vector3(_rng.randf_range(-14, 14), 0, _rng.randf_range(-14, 14)))
+	_sidewalks("z")
+	_sidewalks("x")
+
+
+## Sidewalks along both sides of the road through this chunk that runs along `axis` (in a town, and
+## on the roads out of it): pale concrete kerbs a step up, broken where the other road crosses
+func _sidewalks(axis: String) -> void:
+	var base := centre_of(_chunk)
+	var half := road_half(dirt_x(_chunk.x) if axis == "z" else dirt_z(_chunk.y))
+	var crossing := has_road(_chunk.x) and has_road(_chunk.y)
+	var paving := Ps1.flat(Color(0.62, 0.61, 0.58))
+	for i in 8:
+		var along := -CHUNK * 0.5 + 3.0 + i * 6.0
+		if crossing and absf(along) < half + 2.5:
+			continue
+		for side: float in [-1.0, 1.0]:
+			var at: Vector3
+			var size: Vector3
+			if axis == "z":
+				at = Vector3(road_x(_chunk.x, base.z + along) + side * (half + 0.9), 0.06, base.z + along)
+				size = Vector3(1.6, 0.12, 6.05)
+			else:
+				at = Vector3(base.x + along, 0.06, road_z(_chunk.y, base.x + along) + side * (half + 0.9))
+				size = Vector3(6.05, 0.12, 1.6)
+			Ps1.part(_node, BoxMesh.new(), paving, at, size)
 
 
 ## Animals out where nobody lives, and birds over everything
@@ -1281,9 +1361,19 @@ func _car(b: int, axis: String) -> void:
 		game.spawn_car(kinds[_rng.randi() % kinds.size()], at, axis, dir)
 
 
+## The railway through a chunk: a bed of grey gravel right across it, the rails on their sleepers
+## laid along it
+func _rail_line(c: Vector2i) -> void:
+	var z := rail_z(c.y)
+	var x0 := c.x * CHUNK
+	Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.36, 0.35, 0.34)), Vector3(x0, 0.03, z), Vector3(CHUNK, 0.06, 3.6))
+	for i in 6:
+		_put("track", Vector3(x0 - CHUNK * 0.5 + 4.0 + i * 8.0, 0.06, z))
+
+
 ## Whether an airfield is out here: now and then, in open country away from where the game starts
 static func airfield(c: Vector2i) -> bool:
-	return maxi(absi(c.x), absi(c.y)) > 3 and biome(c) in [Biome.FARM, Biome.PLAINS, Biome.DESERT] and hash3(c.x, c.y, 143) < 0.025
+	return not has_rail(c.y) and maxi(absi(c.x), absi(c.y)) > 3 and biome(c) in [Biome.FARM, Biome.PLAINS, Biome.DESERT] and hash3(c.x, c.y, 143) < 0.025
 
 
 ## A little airfield: a runway across the chunk, a control tower and a hangar beside it, and a few
@@ -1318,6 +1408,15 @@ func _lake() -> void:
 	if at == Vector3.INF:
 		return
 	_take(at, r + 2.0)
+	_water(at, r)
+	for i in _rng.randi_range(5, 9):
+		var shore := _ring_spot(at, r + 1.0, r + 4.0)
+		if _clear(shore, 1.2):
+			_plant("tree" if _rng.randf() < 0.6 else "pine", 0.7, 1.1, shore)
+
+
+## Water, `r` across, at `at`: a lake, or a park's pond
+func _water(at: Vector3, r: float) -> void:
 	lakes[_chunk] = Vector3(at.x, at.z, r)
 	var water := MeshInstance3D.new()
 	var disc := CylinderMesh.new()
@@ -1335,10 +1434,128 @@ func _lake() -> void:
 	water.visibility_range_end = Ps1.DRAW_TO
 	water.position = at + Vector3(0, 0.04, 0)
 	_node.add_child(water)
-	for i in _rng.randi_range(5, 9):
-		var shore := _ring_spot(at, r + 1.0, r + 4.0)
-		if _clear(shore, 1.2):
-			_plant("tree" if _rng.randf() < 0.6 else "pine", 0.7, 1.1, shore)
+
+
+# ------------------------------------------------------------------ places out in the country
+# Now and then out in the open a place people come to: a schoolhouse, a park with its pond, a
+# carnival, a drive-in, a junkyard, a building site, a rodeo (which, by the part of the West); and by
+# the roads, gas stations and car dealerships
+
+const VENUES := {
+	Biome.FARM: ["school", "park", "carnival", "drive_in", "junkyard"],
+	Biome.PLAINS: ["rodeo", "carnival", "drive_in", "junkyard", "school"],
+	Biome.DESERT: ["drive_in", "junkyard", "construction", "rodeo"],
+	Biome.MESA: ["rodeo", "school", "junkyard", "carnival"],
+	Biome.MOUNTAIN: ["park", "construction", "school"],
+}
+const PAINTS: Array[Color] = [Color(0.75, 0.12, 0.1), Color(0.2, 0.45, 0.75), Color(0.95, 0.95, 0.92), Color(0.15, 0.15, 0.17), Color(0.95, 0.75, 0.15), Color(0.3, 0.55, 0.3)]
+
+
+## Whether a place went down here (taking the middle of the chunk; the rest filled round it as usual)
+func _venue(c: Vector2i, b: int) -> bool:
+	if hash3(c.x, c.y, 211) > 0.14 or maxi(absi(c.x - 1), absi(c.y - 1)) < 1:
+		return false
+	var pick: Array = VENUES[b]
+	var name: String = pick[mini(int(hash3(c.x, c.y, 212) * pick.size()), pick.size() - 1)]
+	var at := _spot(16.0)
+	if at == Vector3.INF:
+		return false
+	# (the ground it takes, kept from the rest once it is all down: see the end)
+	var turn := _rng.randf() * TAU
+	var basis := Basis(Vector3.UP, turn)
+	match name:
+		"school":
+			_prop("schoolhouse", at + basis * Vector3(-4, 0, 0), turn)
+			_prop("playground", at + basis * Vector3(7, 0, 3), turn)
+			_herd("person", at + basis * Vector3(6, 0, -3), _rng.randi_range(3, 6), 5.0)
+		"park":
+			_water(at + basis * Vector3(4, 0, 2), _rng.randf_range(5.0, 7.0))
+			_prop("gazebo", at + basis * Vector3(-9, 0, -6), turn)
+			for i in 3:
+				var a := turn + i * 1.4
+				_prop("bench", at + basis * Vector3(4, 0, 2) + Vector3(sin(a), 0, cos(a)) * 9.0, a + PI)
+			for i in 8:
+				_plant("tree", 0.7, 1.1, _ring_spot(at, 12.0, 15.0))
+			_herd("person", at + basis * Vector3(-6, 0, 6), _rng.randi_range(2, 5), 6.0)
+		"carnival":
+			_prop("ferris_wheel", at + basis * Vector3(-8, 0, -5), turn)
+			_prop("carousel", at + basis * Vector3(7, 0, -7), turn)
+			_prop("circus_tent", at + basis * Vector3(6, 0, 7), turn + PI)
+			for i in 3:
+				_prop("booth", at + basis * Vector3(-10 + i * 3.6, 0, 8), turn + PI)
+			_herd("person", at, _rng.randi_range(6, 10), 9.0)
+		"drive_in":
+			_prop("screen", at + basis * Vector3(0, 0, -11), turn)
+			for row in 3:
+				for i in 4:
+					var spot := at + basis * Vector3(-7.5 + i * 5.0, 0, -2.0 + row * 5.0)
+					if _rng.randf() < 0.75:
+						_prop("lot_car", spot, turn + PI + _rng.randf_range(-0.1, 0.1), 1.0, {"paint": PAINTS[_rng.randi() % PAINTS.size()]})
+					_prop("speaker_post", spot + basis * Vector3(1.6, 0, 0), turn)
+		"junkyard":
+			_pen(at, turn, 8, 6)
+			for i in _rng.randi_range(5, 8):
+				_prop("junk_car", _near(at, 9.0, 1.5), _rng.randf() * TAU, 1.0)
+			for i in _rng.randi_range(2, 3):
+				_prop("scrap_pile", _near(at, 8.0, 2.5), _rng.randf() * TAU)
+			for i in _rng.randi_range(3, 6):
+				_prop("tire_stack", _near(at, 10.0, 0.8), _rng.randf() * TAU)
+		"construction":
+			_prop("crane", at + basis * Vector3(-7, 0, -6), turn)
+			_prop("excavator", at + basis * Vector3(5, 0, -3), turn + 2.0)
+			_prop("mixer", at + basis * Vector3(7, 0, 7), turn + PI / 2)
+			_prop("girders", at + basis * Vector3(-5, 0, 6), turn)
+			_herd("person", at, _rng.randi_range(2, 4), 6.0)
+		"rodeo":
+			# (a ring of fence, bleachers either side, riders and a bull in it)
+			for i in 18:
+				var a := i / 18.0 * TAU
+				_plant_at("fence", at + Vector3(sin(a), 0, cos(a)) * 8.5, a + PI / 2)
+			_prop("bleachers", at + basis * Vector3(0, 0, -12.5), turn + PI)
+			_prop("bleachers", at + basis * Vector3(0, 0, 12.5), turn)
+			_herd("rider", at, _rng.randi_range(2, 3), 4.0)
+			_herd("longhorn", at, 1, 3.0)
+			_herd("person", at + basis * Vector3(0, 0, 14.5), _rng.randi_range(3, 5), 4.0)
+			_herd("person", at + basis * Vector3(0, 0, -14.5), _rng.randi_range(3, 5), 4.0)
+	# (and, at any of them, now and then a true believer, hoping)
+	if _rng.randf() < 0.3:
+		_spawn("believer", _near(at, 10.0, 0.5))
+	_take(at, 16.0)
+	return true
+
+
+## Beside a road through this chunk now and then: a gas station, or a car dealership with its lot of
+## cars and its wacky waving inflatable tube men; facing the road
+func _roadside(c: Vector2i, axis: String) -> void:
+	if hash3(c.x, c.y, 213) > 0.22:
+		return
+	var base := centre_of(c)
+	var side := 1.0 if _rng.randf() < 0.5 else -1.0
+	var at: Vector3
+	var turn: float
+	if axis == "z":
+		at = Vector3(road_x(c.x, base.z + 6.0) + side * 15.0, 0, base.z + 6.0)
+		turn = -PI / 2 * side
+	else:
+		at = Vector3(base.x + 6.0, 0, road_z(c.y, base.x + 6.0) + side * 15.0)
+		turn = PI if side > 0.0 else 0.0
+	if not _clear(at, 9.0):
+		return
+	var basis := Basis(Vector3.UP, turn)
+	if hash3(c.x, c.y, 214) < 0.5:
+		_prop("gas_station", at, turn)
+		_prop("tube_man", at + basis * Vector3(5.5, 0, 3.0), turn)
+		if _rng.randf() < 0.6:
+			_prop("lot_car", at + basis * Vector3(1.8, 0, -0.5), turn + PI / 2, 1.0, {"paint": PAINTS[_rng.randi() % PAINTS.size()]})
+	else:
+		_prop("dealership", at + basis * Vector3(0, 0, -4.0), turn)
+		for row in 2:
+			for i in 3:
+				_prop("lot_car", at + basis * Vector3(-5.0 + i * 5.0, 0, 2.5 + row * 4.5), turn + 0.5, 1.0, {"paint": PAINTS[_rng.randi() % PAINTS.size()]})
+		_prop("tube_man", at + basis * Vector3(-7.5, 0, 7.0), turn)
+		_prop("tube_man", at + basis * Vector3(7.5, 0, 7.0), turn)
+	_herd("person", at + basis * Vector3(0, 0, 4.0), _rng.randi_range(1, 2), 3.0)
+	_take(at, 10.0)
 
 
 ## The nearest point in the middle of a road to `p`, and which way that road runs ("z" or "x")
@@ -1392,6 +1609,11 @@ func _country_folk(c: Vector2i, b: int) -> void:
 	var wild := b != Biome.FARM or field(c) == Field.PASTURE
 	if not wild:
 		return
+	# (cowboys out on horseback; and now and then a true believer, waiting to be taken)
+	if b in [Biome.PLAINS, Biome.MESA] and _rng.randf() < 0.3:
+		_herd("rider", _spot(2.0), _rng.randi_range(1, 3), 7.0)
+	if _rng.randf() < 0.08:
+		_spawn("believer", _spot(1.0))
 	if b != Biome.FARM and hash3(c.x, c.y, 161) < 0.09:
 		var at := _spot(6.0)
 		if at != Vector3.INF:
