@@ -18,7 +18,7 @@ floating over the hull beside the cockpit, sipping a cocktail, Earth hanging in 
 lifts off and makes for Earth, and the run starts with it coming down from space. The title has only the
 name, the ship, PLAY, and a row of LOG, SCORES and QUIT. On an upright phone the name sits in the sky and
 the buttons on the moon; now and then a saucer streaks by behind them. **LOG** is a field guide: every ship, every kind of thing there is to take (with how
-many have been taken, ever) and every hunter met, ??? until found (kept in `user://best.cfg`). **SCORES**
+many have been taken, ever), every hunter met and every item had, each as a little model, ??? until found (kept in `user://best.cfg`). **SCORES**
 and **QUIT** ask the arcade page to show this game's leaderboard or close the game (`OPEN_LEADERBOARD`,
 `QUIT_GAME`), so they show only inside it.
 

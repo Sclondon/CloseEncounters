@@ -233,6 +233,8 @@ var _log_taken := {}
 ## This run's takings by kind: [how many, points], for the results (see _results)
 var _run_taken := {}
 var _log_met: Array[String] = []
+## The items (upgrades) ever had, for the log
+var _log_items: Array[String] = []
 ## The hunters, as the log names them (the jets are not things: they are only flown over)
 const HUNTERS := {
 	"police_car": "POLICE CAR", "patrol_car": "POLICE PATROL", "jeep": "ARMY JEEP",
@@ -617,6 +619,9 @@ func _process(delta: float) -> void:
 	elif _cut_ray != null and _cut_ray.visible:
 		_cut(delta, false)
 	ufo.tick(delta, steer, beam)
+	if is_instance_valid(_stand_in):
+		# (the ship parked on the moon while the camera comes down onto it after a crash)
+		_stand_in.tick(delta, Vector2.ZERO, false)
 	if not ufo.dead:
 		var held := ufo.position
 		ufo.position = world.push_out(ufo.position, 2.6)
@@ -1187,6 +1192,8 @@ func buy(what: String) -> bool:
 	if upgrades[what] >= MAX_UPGRADE:
 		return false
 	upgrades[what] += 1
+	if not what in _log_items:
+		_log_items.append(what)
 	_apply_upgrades()
 	log_line("%s x%d" % [UPGRADES[what]["title"], upgrades[what]], 0)
 	if what == "shield":
@@ -3240,6 +3247,11 @@ func _fill_log() -> void:
 	for h: String in HUNTERS:
 		hunters.append([Thing.alien_name(h), "", h in _log_met, h])
 	_log_section("HUNTERS  %d/%d" % [_log_met.size(), HUNTERS.size()], hunters, big)
+	var items: Array = []
+	for what: String in ItemBar.ORDER:
+		var spec: Dictionary = UPGRADES[what]
+		items.append([spec["title"], spec["about"], what in _log_items, "item:" + what])
+	_log_section("ITEMS  %d/%d" % [_log_items.size(), ItemBar.ORDER.size()], items, big)
 
 
 ## A heading, and under it a grid of tiles: [name, note, known] each (an unknown one only "?")
@@ -3788,33 +3800,44 @@ func _going_home(delta: float) -> void:
 	intro = 0.0
 	dust.fade = 0.0
 	# (after a crash as after quitting: the same flight home, a new ship coming down onto the moon)
-	var warped := _from_wreck
+	var wrecked := _from_wreck
 	_from_wreck = false
 	ufo.queue_free()
+	if wrecked:
+		# (after a crash there is no ship coming home: a ship of ours already down on the moon, the
+		# pilot lounging, and the camera comes down onto it by the landing's way, an unseen ship
+		# leading it)
+		_make_ufo(Vector3.ZERO)
+		_park_ufo(true)
+		_stand_in = ufo
 	_make_ufo(Vector3.ZERO)
 	_park_ufo(false)
+	if wrecked:
+		ufo.visible = false
 	_clear_wreck()
 	mode = "landing"
 	_launch_t = LAUNCH
-	if warped:
-		# (the new ship warping in where the camera meets it: a flash and a spray of stars)
-		_warp_in.call_deferred()
 
 
-func _warp_in() -> void:
-	if ufo == null:
-		return
-	ufo.stars.burst(ufo.global_position, 30, Vector3.ZERO)
-	for i in 3:
-		ufo.puffs.puff(ufo.global_position + Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)), Color(0.7, 1.0, 0.8, 0.8), 2.5 + i, Vector3.ZERO, 0.5)
-	ufo._kick = 1.0
-	sfx.play("whoosh", 2.0, -2.0)
+## After a crash: the ship already parked on the moon while the camera comes down onto it (see
+## _going_home), there to take over from the unseen one it followed
+var _stand_in: Ufo
 
 
 ## Down on the moon again: on its legs, the canopy opening and the pilot climbing out and back up
 ## into the chair
 func _home() -> void:
 	mode = "title"
+	if is_instance_valid(_stand_in):
+		# (after a crash: the parked ship, the pilot already lounging, is the one now)
+		ufo.queue_free()
+		ufo = _stand_in
+		_stand_in = null
+		_show_ship()
+		title_box.visible = true
+		over_box.visible = false
+		_save_best()
+		return
 	ufo.position = MoonSet.SITE + MoonSet.SHIP_AT
 	ufo.rotation.y = MoonSet.SHIP_TURN
 	ufo._legs.visible = true
@@ -4227,6 +4250,9 @@ func _load_best() -> void:
 		if Ufo.SHIPS.has(kept) and kept in unlocked:
 			ship = kept
 		_log_taken = cfg.get_value("log", "taken", {})
+		for had: String in cfg.get_value("log", "items", []):
+			if UPGRADES.has(had) and not had in _log_items:
+				_log_items.append(had)
 		for met: String in cfg.get_value("log", "met", []):
 			if HUNTERS.has(met) and not met in _log_met:
 				_log_met.append(met)
@@ -4240,6 +4266,7 @@ func _save_best() -> void:
 	cfg.set_value("best", "unlocked", unlocked)
 	cfg.set_value("log", "taken", _log_taken)
 	cfg.set_value("log", "met", _log_met)
+	cfg.set_value("log", "items", _log_items)
 	cfg.save("user://best.cfg")
 
 
