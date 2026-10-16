@@ -94,6 +94,7 @@ func blast(chair: Node3D) -> void:
 		m.mesh = puff
 		var grey := StandardMaterial3D.new()
 		grey.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		grey.disable_fog = true
 		grey.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		grey.albedo_color = Color(0.62, 0.62, 0.66, 0.85)
 		m.material_override = grey

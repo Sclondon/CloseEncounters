@@ -815,6 +815,7 @@ func _beacon() -> void:
 	m.set_shader_parameter("tint", Color(1.0, 0.8, 0.3))
 	m.set_shader_parameter("power", 0.8)
 	m.set_shader_parameter("soft", 1.0)
+	m.set_shader_parameter("reach", 40.0)
 	beacon.material_override = m
 	beacon.position.y = 20.0
 	beacon.extra_cull_margin = 60.0

@@ -181,7 +181,11 @@ const HUNTERS := {
 }
 ## The first few frames draw the farm under a black cover, so its shaders are ready before the
 ## ship comes down to it (else the arrival stutters while they are made)
-var _warm_frames := 4
+const WARM_FRAMES := 12
+var _warm_frames := WARM_FRAMES
+## One of each effect, drawn under the cover in the first frames so that its shader is made before
+## it is first needed (on the web, making one stalls a frame: see `_warm_effects`)
+var _warm: Node3D
 var _cover: ColorRect
 var _play_button: Button
 var ship_label: Label
@@ -264,6 +268,7 @@ func _ready() -> void:
 	world.update(ufo.position, 0.0, true)
 	_spawn_some(true)
 	_warm_models()
+	_warm_effects()
 	_build_hud()
 	if start_mode == "play":
 		start()
@@ -1240,6 +1245,67 @@ func spawn(kind: String, at: Vector3, extra := {}) -> Thing:
 
 ## A thing the world wants put down as it makes a chunk: put down a few a frame (see _spawn_some),
 ## so a new chunk never stalls a frame
+
+
+## Every effect once, in front of the camera under the cover in the first frames, so that the
+## shaders they need are made then rather than the first time each turns up (the lift-off, the
+## descent, the first beam, the first dodge, ...), when making them stalls the game on the web
+func _warm_effects() -> void:
+	_warm = Node3D.new()
+	view.add_child(_warm)
+	var at := Vector3(0, 1.5, 0)
+	var puffs := Puffs.new()
+	_warm.add_child(puffs)
+	puffs.puff(at, Color(0.2, 0.2, 0.2, 0.8), 1.0)
+	puffs.spark(at, Vector3.UP)
+	var motes := Dust.motes()
+	_warm.add_child(motes)
+	motes.fade = 1.0
+	motes.follow(at, Vector3(0, 100, 0), 0.016)
+	var swirl := Tornado.new()
+	_warm.add_child(swirl)
+	swirl.follow(Vector3(0, 6, 0), 2.7, 1.0, 0.016)
+	swirl.follow(Vector3(0, 6, 0), 2.7, 1.0, 2.0)
+	var sky := Clouds.new()
+	_warm.add_child(sky)
+	sky.fade = 1.0
+	sky.follow(Vector3.ZERO, Vector3(0, 30, 0), 0.0)
+	# (brought down from up in the sky to where the camera looks)
+	sky.position = Vector3(0, -Clouds.HEIGHT + 2.0, 0)
+	for shader: String in ["reticle", "water", "beam", "shield"]:
+		var m := ShaderMaterial.new()
+		m.shader = load("res://shaders/%s.gdshader" % shader)
+		var mi := MeshInstance3D.new()
+		mi.mesh = SphereMesh.new()
+		mi.material_override = m
+		mi.position = at + Vector3(randf_range(-2, 2), 0, randf_range(-2, 2))
+		_warm.add_child(mi)
+	var ghost := Ps1.ghost_of("ufo", Color(0.5, 1.0, 0.65), 0.5)
+	ghost.position = at
+	_warm.add_child(ghost)
+	# (a light throwing shadows on the ground and on something lit by it, as the beam's does)
+	var lit := Ps1.model("cow")
+	lit.position = Vector3(1, 0, -1)
+	_warm.add_child(lit)
+	for n in lit.find_children("*", "GeometryInstance3D", true, false) + [lit]:
+		if n is GeometryInstance3D:
+			(n as GeometryInstance3D).set_layer_mask_value(Thing.BEAM_LAYER, true)
+			(n as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	# (and a ship like the player's, its spot light on the ground: the ground's cull margin is so wide
+	# that the ship's spot "lights" it from 200 m up in the descent, and making the ground's shader
+	# for that light then stalled the game)
+	var stand_in := Ufo.new()
+	stand_in.ship = ship
+	stand_in.position = Vector3(0, 8, 0)
+	_warm.add_child(stand_in)
+	var light := SpotLight3D.new()
+	light.position = Vector3(0, 8, 0)
+	light.rotation.x = -PI / 2
+	light.spot_angle = 50.0
+	light.spot_range = 20.0
+	light.shadow_enabled = true
+	light.light_cull_mask = 1 << (Thing.BEAM_LAYER - 1)
+	_warm.add_child(light)
 ## Every model made ready once (merged and dressed) at the start, not the first time one is met
 func _warm_models() -> void:
 	for kind: String in Thing.KINDS:
@@ -1603,10 +1669,14 @@ func _warm_camera() -> void:
 	RenderingServer.global_shader_parameter_set("bend_focus", Vector3(0, 0, -1.0))
 	_sky_mat.set_shader_parameter("space", 0.0)
 	camera.environment.fog_density = 0.006
+	if _warm_frames == 0 and _warm != null:
+		_warm.queue_free()
+		_warm = null
 	if _warm_frames == 0 and _cover != null:
 		var tw := create_tween()
 		tw.tween_property(_cover, "modulate:a", 0.0, 0.4)
 		tw.tween_callback(_cover.hide)
+
 
 
 func _upright() -> bool:

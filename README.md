@@ -213,6 +213,7 @@ objects the game moves: the tank's `turret`, the windmill's `fan`, the pumpjack'
     godot --path . --resolution 390x844 -s res://tests/log_look.gd -- <out dir>    # the title's buttons and the log
     godot --path . --resolution 1280x720 -s res://tests/aliens.gd -- <out.png>
     godot --path . --resolution 1280x720 -s res://tests/perf.gd           # frame time, draw calls, things
+    godot --path . --resolution 640x360 --max-fps 60 -s res://tests/hitches.gd  # the worst frames through the lift-off and descent
 
 Performance: each model is merged into one surface at load (colours on its corners, see `Ps1._merged`), so a
 thing is one draw call; nothing is drawn past 115 m (`Ps1.DRAW_TO`); far still things are not ticked and far

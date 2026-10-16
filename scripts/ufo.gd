@@ -56,6 +56,8 @@ const GHOSTS := 3
 const BEAM_TOP := 1.0
 ## How far the beam's foot can be leant off from under the ship (see `beam_aim`)
 const BEAM_REACH := 3.0
+## The ship's own visual layer, which its glow lights alone
+const SHIP_LAYER := 4
 
 ## Which of SHIPS this is (set before it is added)
 var ship := "saucer"
@@ -317,11 +319,15 @@ func _ready() -> void:
 	puffs = Puffs.new()
 	add_child(puffs)
 	glow = OmniLight3D.new()
+	# (only the ship itself: lighting anything else, whose wide cull margin had it "lit" from far off,
+	# made a shader for it at that moment, which stalled the game in the descent; see `_ship_layer`)
+	glow.light_cull_mask = 1 << (SHIP_LAYER - 1)
 	glow.omni_range = 5.0
 	glow.light_energy = 0.8
 	glow.light_color = Color(0.7, 1.0, 0.75)
 	glow.position.y = 1.5
 	add_child(glow)
+	_ship_layer(body)
 
 
 func ground() -> Vector3:
@@ -765,3 +771,11 @@ func _falling(delta: float) -> void:
 	body.rotation.y += delta * 6.0
 	if position.y < 0.8:
 		crashed = true
+
+
+## Puts the ship's own meshes on SHIP_LAYER as well, for its glow to light them
+func _ship_layer(n: Node) -> void:
+	if n is VisualInstance3D:
+		(n as VisualInstance3D).set_layer_mask_value(SHIP_LAYER, true)
+	for c in n.get_children():
+		_ship_layer(c)
