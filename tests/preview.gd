@@ -44,6 +44,10 @@ func _process(_delta: float) -> bool:
 			main.buy("fleet")
 			main.buy("fleet")
 			main.score = 0
+		200:
+			# (a rival saucer at work nearby)
+			var r: Thing = main.spawn_rival(main.ufo.ground() + Vector3(16, 0, -12))
+			r.position.y = 12.0
 		300:
 			main.heat = 1.6
 		420:
