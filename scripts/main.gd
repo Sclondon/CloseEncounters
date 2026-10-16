@@ -2552,8 +2552,12 @@ func _type_log(delta: float) -> void:
 			var more := int(_typing)
 			_typing -= more
 			line.visible_characters = mini(line.visible_characters + more, line.text.length())
-			if more > 0 and line.visible_characters % 3 == 0:
-				sfx.play("click", 1.6, -18.0)
+			# (a typewriter, as the results are: a key struck for each letter, the bell at the line's end)
+			if more > 0:
+				if line.visible_characters >= line.text.length():
+					sfx.play("ding", 1.1, -14.0)
+				elif line.text[line.visible_characters - 1] != " ":
+					sfx.play("key", randf_range(0.95, 1.2), -12.0)
 			break
 		var age := now - float(line.get_meta("born"))
 		line.modulate.a = clampf((LOG_FOR - age) / 1.0, 0.0, 1.0)
