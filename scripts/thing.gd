@@ -98,7 +98,7 @@ const KINDS := {
 	"pumpkin": {"points": 15, "weight": 0.6, "heat": 0.01, "move": "still", "size": 0.8},
 	"sunflower": {"points": 12, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
 	"cabbage": {"points": 10, "weight": 0.4, "heat": 0.01, "move": "still", "size": 0.6},
-	"melon": {"points": 18, "weight": 0.6, "heat": 0.01, "move": "still", "size": 0.8},
+	"melon": {"points": 18, "weight": 0.6, "heat": 0.01, "move": "still", "size": 1.1},
 	"pepper": {"points": 14, "weight": 0.4, "heat": 0.01, "move": "still", "size": 0.6},
 	# A low rolling hill (the land itself)
 	"hill": {"points": 1500, "weight": 9.0, "heat": 0.5, "move": "still", "size": 8.0, "tier": 4},

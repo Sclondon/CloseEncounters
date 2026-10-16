@@ -21,7 +21,7 @@ ART = os.path.join(ROOT, "art")
 COLOURS = {
     "hide": (0.92, 0.9, 0.85), "spot": (0.08, 0.07, 0.07), "pink": (0.95, 0.62, 0.62),
     "horn": (0.9, 0.86, 0.72), "wool": (0.95, 0.94, 0.88), "black": (0.06, 0.06, 0.07),
-    "red": (0.75, 0.12, 0.1), "yellow": (0.95, 0.75, 0.15), "white": (0.95, 0.95, 0.92), "rust": (0.45, 0.22, 0.12), "orange": (0.95, 0.45, 0.1), "cabbage": (0.6, 0.78, 0.45), "melon": (0.22, 0.48, 0.2), "hwy_green": (0.1, 0.42, 0.22),
+    "red": (0.75, 0.12, 0.1), "yellow": (0.95, 0.75, 0.15), "white": (0.95, 0.95, 0.92), "rust": (0.45, 0.22, 0.12), "orange": (0.95, 0.45, 0.1), "cabbage": (0.6, 0.78, 0.45), "melon": (0.12, 0.32, 0.12), "melon_light": (0.45, 0.68, 0.3), "melon_flesh": (0.92, 0.22, 0.25), "melon_rind": (0.85, 0.92, 0.7), "hwy_green": (0.1, 0.42, 0.22),
     "skin": (0.92, 0.7, 0.55), "denim": (0.22, 0.32, 0.6), "shirt": (0.8, 0.3, 0.25), "blush": (0.95, 0.55, 0.55),
     "straw": (0.88, 0.76, 0.42), "boot": (0.25, 0.16, 0.1), "hair": (0.3, 0.2, 0.12),
     "tyre": (0.08, 0.08, 0.08), "hub": (0.6, 0.6, 0.58), "glass": (0.35, 0.45, 0.55),
@@ -493,11 +493,47 @@ def cabbage():
     return join("cabbage", p)
 
 
+def striped_melon(length, width, height, at, rings=10, sides=16):
+    """A watermelon's body: a long egg of dark green with pale stripes running nose to tail"""
+    verts, faces, face_mats = [], [], []
+    for i in range(rings + 1):
+        u = i / rings * math.pi
+        for j in range(sides):
+            v = j / sides * math.tau
+            verts.append((at[0] - math.cos(u) * length * 0.5, at[1] + math.sin(u) * math.cos(v) * width * 0.5,
+                          at[2] + math.sin(u) * math.sin(v) * height * 0.5))
+    for i in range(rings):
+        for j in range(sides):
+            a, b = i * sides + j, i * sides + (j + 1) % sides
+            faces.append((a, b, b + sides, a + sides))
+            face_mats.append(j % 4 == 0)
+    mesh = bpy.data.meshes.new("melon_body")
+    mesh.from_pydata(verts, [], faces)
+    o = bpy.data.objects.new("melon_body", mesh)
+    bpy.context.collection.objects.link(o)
+    o.data.materials.append(mat("melon"))
+    o.data.materials.append(mat("melon_light"))
+    for poly, light in zip(o.data.polygons, face_mats):
+        poly.material_index = 1 if light else 0
+    return o
+
+
 def melon():
-    """A watermelon on the vine, striped dark and light green"""
-    p = [ball((0.75, 0.5, 0.48), (0, 0, 0.24), "melon", 10, 6), box((0.06, 0.06, 0.2), (0.35, 0, 0.4), "corn_leaf")]
+    """A watermelon patch: a big striped melon on the vine, a slice cut open beside it (red, black seeds,
+    the pale rind), broad leaves and a curl of vine"""
+    p = [striped_melon(1.5, 0.95, 0.85, (0, 0, 0.4)),
+         box((0.07, 0.07, 0.22), (0.78, 0, 0.5), "corn_leaf", (0, 0.6, 0)),
+         # (the slice: a wedge of rind with the red flesh in it)
+         box((0.7, 0.14, 0.42), (0.35, -0.95, 0.22), "melon", (0, 0, 0.4)),
+         box((0.64, 0.16, 0.36), (0.35, -0.95, 0.25), "melon_rind", (0, 0, 0.4)),
+         box((0.58, 0.18, 0.3), (0.35, -0.95, 0.28), "melon_flesh", (0, 0, 0.4))]
+    for k in range(5):
+        p.append(box((0.04, 0.2, 0.06), (0.17 + k * 0.09, -0.95 + 0.04 * math.sin(k), 0.32 + (k % 2) * 0.06), "black", (0, 0, 0.4)))
     for i in range(4):
-        p.append(box((0.04, 0.52, 0.44), (-0.28 + i * 0.19, 0, 0.25), "leaf_dark"))
+        a = i / 4 * math.tau + 0.5
+        p.append(ball((0.6, 0.45, 0.06), (math.cos(a) * 1.0, math.sin(a) * 0.8, 0.06), "leaf" if i % 2 else "leaf_dark", 7, 3, (0, 0, a)))
+    for k in range(6):
+        p.append(box((0.3, 0.05, 0.05), (-0.9 - k * 0.12, 0.3 * math.sin(k * 1.3), 0.05), "corn_leaf", (0, 0, k * 0.9)))
     return join("melon", p)
 
 

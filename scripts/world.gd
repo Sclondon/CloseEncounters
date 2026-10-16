@@ -989,7 +989,7 @@ func _crops(kind: int) -> void:
 	var crop: String = {Field.WHEAT: "wheat", Field.CORN: "corn", Field.PUMPKIN: "pumpkin", Field.SUNFLOWER: "sunflower", Field.CABBAGE: "cabbage", Field.MELON: "melon", Field.PEPPER: "pepper"}.get(kind, "")
 	if crop != "":
 		# (corn packed close, row on row; wheat and pumpkins sparser)
-		var gap: float = {"pumpkin": 2.6, "corn": 1.3, "melon": 2.6, "cabbage": 1.4, "pepper": 1.4, "sunflower": 1.6}.get(crop, 2.2)
+		var gap: float = {"pumpkin": 2.6, "corn": 1.3, "melon": 3.2, "cabbage": 1.4, "pepper": 1.4, "sunflower": 1.6}.get(crop, 2.2)
 		var rows: float = 1.8 if crop in ["corn", "cabbage", "pepper"] else (2.2 if crop == "sunflower" else 3.0)
 		var row := -CHUNK * 0.5 + 1.5
 		while row < CHUNK * 0.5:

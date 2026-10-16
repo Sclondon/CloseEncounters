@@ -110,6 +110,8 @@ cacti; **2** trees, rocks, tents; **3** houses, barns, silos, windmills, water t
 cabins; **4** the land itself: buttes, mesas, peaks and Devils Tower (up to 5000 points). Over something too
 heavy, it only rattles (and a roof sheds tiles up the beam). Taking a mesa or a peak clears it out of the way. Under the beam, bits of the ground jump up (grass, clods, chaff, sand, drops over a lake) and the swirl up the beam takes their colour; phone wires near it spark.
 
+Watermelons are big and striped, dark green with pale bands, each with a slice cut open beside it showing the red inside.
+
 **Crop circles**: hold the beam still over a field of crops and a circle presses into it (60 points), joined by a pressed line to its nearest neighbours within 14 m (two lines at most to a circle, never through another).
 **Rare finds**, each under a shaft of gold light: the golden cow, a jackalope, Bigfoot, a meteorite, a fallen
 satellite (900 to 3000 points), and, rarer, **crash sites**: another saucer that came down long ago, tipped up in a
