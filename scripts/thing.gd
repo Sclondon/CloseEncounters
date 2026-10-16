@@ -173,6 +173,9 @@ const KINDS := {
 	"highway_sign": {"points": 60, "weight": 2.0, "heat": 0.2, "move": "still", "size": 2.0, "tier": 2},
 	"trash_can": {"points": 10, "weight": 0.4, "heat": 0.02, "move": "still", "size": 0.5},
 	"bush": {"points": 8, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
+	# Drink: liquor stores (worth a great deal), and coolers of beer left about
+	"liquor_store": {"points": 1500, "weight": 5.0, "heat": 0.6, "move": "still", "size": 4.5, "tier": 3, "voice": "scream"},
+	"cooler": {"points": 300, "weight": 0.5, "heat": 0.05, "move": "still", "size": 0.6},
 	# Hunters, in blaze orange with rifles, out in the hills: they shoot at the ship whatever the heat
 	"hunter": {"model": "person", "tints": {"shirt": Color(1.0, 0.45, 0.05), "denim": Color(0.3, 0.33, 0.2)}, "points": 140, "weight": 1.3, "heat": 0.4, "move": "flee", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "rifle", "hunter": true},
 	"floodlight": {"points": 150, "weight": 2.5, "heat": 0.3, "move": "still", "size": 1.2, "tier": 3},
@@ -872,6 +875,7 @@ func _wonder_show(delta: float) -> void:
 	_wonder_mat.set_shader_parameter("fill", alert)
 	_wonder_mat.set_shader_parameter("pop", sin(_wonder_pop * PI))
 	_wonder_mat.set_shader_parameter("lit", Color(1.0, 0.25, 0.2) if chasing else Color(1.0, 0.85, 0.2))
+	_wonder_mat.set_shader_parameter("bang", chasing)
 	# (sure now: it shows a moment, then goes; unsure and calm again, it goes too)
 	_wonder.visible = alert > 0.02 and (not chasing or _wonder_pop > 0.0)
 ## The officer out of the driver's door (once the frame's things have all been seen to)

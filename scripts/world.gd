@@ -1210,7 +1210,10 @@ func _town(b: int) -> void:
 				if not _clear(p, 4.5):
 					continue
 				if i == 0:
-					_prop("storefront", p, turn, 0.9, {"walls": brick[_rng.randi() % brick.size()], "awning": awning[_rng.randi() % awning.size()]})
+					if _rng.randf() < 0.3:
+						_prop("liquor_store", p, turn, 0.8)
+					else:
+						_prop("storefront", p, turn, 0.9, {"walls": brick[_rng.randi() % brick.size()], "awning": awning[_rng.randi() % awning.size()]})
 				elif dry:
 					_prop("adobe", p, turn, 0.85)
 				else:
@@ -1512,6 +1515,7 @@ func _venue(c: Vector2i, b: int) -> bool:
 				var a := turn + i * TAU / 4.0 + 0.4
 				_plant_at("lamp_post", at + basis * Vector3(4, 0, 2) + Vector3(sin(a), 0, cos(a)) * 8.0, 0.0)
 			_plant_at("trash_can", at + basis * Vector3(-6, 0, -3), 0.0)
+			_prop("cooler", at + basis * Vector3(-8, 0, 4), turn, 1.8)
 			for i in 6:
 				_plant("bush", 0.7, 1.1, _ring_spot(at, 9.0, 14.0))
 			_herd("person", at + basis * Vector3(-6, 0, 6), _rng.randi_range(2, 5), 6.0)
@@ -1530,6 +1534,8 @@ func _venue(c: Vector2i, b: int) -> bool:
 					if _rng.randf() < 0.75:
 						_prop("lot_car", spot, turn + PI + _rng.randf_range(-0.1, 0.1), 1.0, {"paint": PAINTS[_rng.randi() % PAINTS.size()]})
 					_prop("speaker_post", spot + basis * Vector3(1.6, 0, 0), turn)
+					if row == 2 and i == 1:
+						_prop("cooler", spot + basis * Vector3(0, 0, 2.8), turn, 1.8)
 		"junkyard":
 			_pen(at, turn, 8, 6)
 			for i in _rng.randi_range(5, 8):
@@ -1553,6 +1559,8 @@ func _venue(c: Vector2i, b: int) -> bool:
 			_prop("bleachers", at + basis * Vector3(0, 0, 12.5), turn)
 			_herd("rider", at, _rng.randi_range(2, 3), 4.0)
 			_herd("longhorn", at, 1, 3.0)
+			_prop("cooler", at + basis * Vector3(4, 0, 14.5), turn, 1.8)
+			_prop("cooler", at + basis * Vector3(-4, 0, -14.5), turn, 1.8)
 			_herd("person", at + basis * Vector3(0, 0, 14.5), _rng.randi_range(3, 5), 4.0)
 			_herd("person", at + basis * Vector3(0, 0, -14.5), _rng.randi_range(3, 5), 4.0)
 	# (and, at any of them, now and then a true believer, hoping)
@@ -1580,7 +1588,12 @@ func _roadside(c: Vector2i, axis: String) -> void:
 	if not _clear(at, 9.0):
 		return
 	var basis := Basis(Vector3.UP, turn)
-	if hash3(c.x, c.y, 214) < 0.5:
+	var which := hash3(c.x, c.y, 214)
+	if which > 0.7:
+		# (a liquor store, a cooler left out front)
+		_prop("liquor_store", at, turn)
+		_prop("cooler", at + basis * Vector3(3.0, 0, 4.5), turn, 1.8)
+	elif which < 0.4:
 		_prop("gas_station", at, turn)
 		_prop("tube_man", at + basis * Vector3(5.5, 0, 3.0), turn)
 		if _rng.randf() < 0.6:
@@ -1659,6 +1672,7 @@ func _country_folk(c: Vector2i, b: int) -> void:
 		if at != Vector3.INF:
 			_take(at, 6.0)
 			_prop("camp_tent", at, _rng.randf() * TAU)
+			_prop("cooler", at + Vector3(2.0, 0, -2.0), _rng.randf() * TAU, 1.8)
 			if _rng.randf() < 0.5:
 				_prop("camp_tent", at + Vector3(3.5, 0, 1.5), _rng.randf() * TAU)
 			_herd("camper", at + Vector3(0, 0, 3.0), _rng.randi_range(2, 3), 3.0)

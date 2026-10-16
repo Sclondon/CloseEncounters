@@ -399,7 +399,9 @@ func lounge(on: bool) -> void:
 			# floating over it does not)
 			add_child(chair)
 		if _drink == null:
-			_drink = Ps1.model("beer")
+			# (an amber bottle, a green one, or a can)
+			var pick := randi() % 3
+			_drink = Ps1.model("beer_can" if pick == 2 else "beer", {"beer": Color(0.22, 0.6, 0.28)} if pick == 1 else {})
 			_drink.scale = Vector3.ONE * 1.6
 			alien.arms[1].add_child(_drink)
 			_drink.position = Vector3(0.02, -0.36, 0.03)
@@ -409,6 +411,17 @@ func lounge(on: bool) -> void:
 		if _drink != null:
 			_drink.queue_free()
 			_drink = null
+
+
+## The pilot's drink, held upside down: every few seconds shaken for the last of it, the drops
+## spilling out of its mouth and falling away
+func _shake_drink(delta: float) -> void:
+	var cycle := fmod(_t, 4.5)
+	var shaking := cycle > 3.3
+	_drink.rotation = Vector3(PI, 0, sin(_t * 32.0) * 0.35 if shaking else 0.0)
+	if shaking and randf() < delta * 26.0:
+		var mouth := _drink.to_global(Vector3(0, 0.27, 0))
+		puffs.spark(mouth, Vector3(randf_range(-0.6, 0.6), randf_range(-1.5, -0.3), randf_range(-0.6, 0.6)), Color(0.95, 0.75, 0.25))
 
 
 ## Home on the moon: the canopy opens and the pilot climbs out of the cockpit and up into the chair,
@@ -441,6 +454,8 @@ func _hull_top() -> float:
 
 ## Flies by `steer` (a stick, at most 1 long); `beam_on` holds the beam down
 func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
+	if _drink != null:
+		_shake_drink(delta)
 	_cloaking(delta, beam_on)
 	_cast_shadow()
 	_t += delta

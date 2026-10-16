@@ -54,7 +54,7 @@ COLOURS = {
     "transformer": (0.5, 0.55, 0.5), "hazard": (0.95, 0.75, 0.1),
     "regolith": (0.58, 0.57, 0.55), "regolith_dark": (0.4, 0.4, 0.4), "canvas_a": (0.95, 0.4, 0.3), "canvas_b": (0.95, 0.9, 0.8),
     "chrome_leg": (0.75, 0.77, 0.8), "drink": (0.35, 0.95, 0.5), "umbrella": (1.0, 0.5, 0.75), "black_hull": (0.09, 0.09, 0.11), "hull_edge": (0.2, 0.2, 0.24),
-    "cooler_red": (0.8, 0.12, 0.1), "cooler_white": (0.93, 0.93, 0.9), "beer": (0.35, 0.18, 0.06), "beer_cap": (0.9, 0.75, 0.25),
+    "cooler_red": (0.8, 0.12, 0.1), "cooler_white": (0.93, 0.93, 0.9), "beer": (0.66, 0.38, 0.12), "beer_green": (0.22, 0.6, 0.28), "can_red": (0.85, 0.15, 0.15), "can_silver": (0.8, 0.82, 0.86), "beer_cap": (0.9, 0.75, 0.25),
     "ice": (0.8, 0.92, 1.0), "radio_body": (0.12, 0.12, 0.14), "radio_trim": (0.7, 0.72, 0.75), "speaker": (0.05, 0.05, 0.05),
 }
 GLOWS = {
@@ -63,7 +63,7 @@ GLOWS = {
     "lights_under": ((0.5, 1.0, 0.6), 3.0), "headlight": ((1.0, 0.95, 0.8), 2.0),
     "flame": ((1.0, 0.55, 0.15), 3.0), "neon": ((1.0, 0.35, 0.6), 3.0),
     "light_red": ((1.0, 0.2, 0.15), 3.0), "light_blue": ((0.3, 0.5, 1.0), 3.0), "light_white": ((1.0, 1.0, 0.95), 3.0),
-    "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "pod_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0), "crystal": ((0.5, 0.28, 0.85), 0.55), "screen_glow": ((0.75, 0.85, 1.0), 1.3), "jelly": ((0.95, 0.28, 0.62), 0.3), "jelly_glow": ((0.6, 0.9, 1.0), 2.0),
+    "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "pod_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0), "crystal": ((0.5, 0.28, 0.85), 0.55), "neon_pink": ((1.0, 0.3, 0.6), 2.5), "neon_blue": ((0.3, 0.7, 1.0), 2.5), "screen_glow": ((0.75, 0.85, 1.0), 1.3), "jelly": ((0.95, 0.28, 0.62), 0.3), "jelly_glow": ((0.6, 0.9, 1.0), 2.0),
     "foo_glow": ((0.85, 0.22, 0.03), 2.5), "booth_sign": ((0.75, 0.88, 1.0), 2.0), "clock_face": ((1.0, 0.95, 0.8), 1.3),
     "sign": ((1.0, 0.85, 0.55), 1.2),
 }
@@ -1505,8 +1505,12 @@ def cooler():
     for i in range(8):
         x, y = -0.24 + (i % 4) * 0.16, -0.07 + (i // 4) * 0.14
         tilt = (0.15 * ((i * 7) % 3 - 1), 0.12 * ((i * 5) % 3 - 1), 0)
-        p.append(drum(0.035, 0.2, (x, y, 0.4), "beer", 6, tilt))
-        p.append(drum(0.018, 0.08, (x, y, 0.53), "beer", 6, tilt))
+        glass = "beer" if i % 3 else "beer_green"
+        if i in (2, 5):
+            p.append(drum(0.04, 0.13, (x, y, 0.36), "can_red" if i == 2 else "can_silver", 8, tilt))
+            continue
+        p.append(drum(0.035, 0.2, (x, y, 0.4), glass, 6, tilt))
+        p.append(drum(0.018, 0.08, (x, y, 0.53), glass, 6, tilt))
         p.append(drum(0.02, 0.015, (x, y, 0.575), "beer_cap", 6, tilt))
     return join("cooler", p)
 
@@ -2051,11 +2055,31 @@ def warthog():
     return join("warthog", p)
 
 
+def beer_can():
+    """An opened can of beer"""
+    return join("beer_can", [drum(0.033, 0.12, (0, 0, 0.06), "can_red", 10), drum(0.034, 0.03, (0, 0, 0.06), "can_silver", 10),
+                             drum(0.028, 0.01, (0, 0, 0.125), "can_silver", 10)])
+
+
+def liquor_store():
+    """A liquor store: a squat brick shop, its window full of bottles, LIQUOR in pink neon on top and a
+    blue neon OPEN in the window"""
+    p = [box((8.0, 6.0, 3.6), (0, 0, 1.8), "brick"), box((8.2, 6.2, 0.25), (0, 0, 3.7), "roof"),
+         box((5.0, 0.08, 1.8), (0, -3.02, 1.6), "window"), box((1.2, 0.1, 2.2), (2.8, -3.05, 1.1), "door"),
+         box((5.6, 0.3, 1.1), (0, -2.8, 4.4), "black"), box((5.0, 0.32, 0.6), (0, -2.84, 4.4), "neon_pink"),
+         box((1.2, 0.1, 0.4), (-1.6, -3.08, 2.1), "neon_blue")]
+    for i in range(10):
+        x = -2.2 + (i % 5) * 0.9
+        z = 1.0 + (i // 5) * 0.7
+        p.append(drum(0.12, 0.5, (x, -2.9, z), ["beer", "beer_green", "white", "chili"][i % 4], 6))
+    return join("liquor_store", p)
+
+
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
-            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog,
+            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,
