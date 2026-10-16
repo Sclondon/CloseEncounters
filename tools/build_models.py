@@ -21,7 +21,7 @@ ART = os.path.join(ROOT, "art")
 COLOURS = {
     "hide": (0.92, 0.9, 0.85), "spot": (0.08, 0.07, 0.07), "pink": (0.95, 0.62, 0.62),
     "horn": (0.9, 0.86, 0.72), "wool": (0.95, 0.94, 0.88), "black": (0.06, 0.06, 0.07),
-    "red": (0.75, 0.12, 0.1), "yellow": (0.95, 0.75, 0.15), "white": (0.95, 0.95, 0.92), "rust": (0.45, 0.22, 0.12), "orange": (0.95, 0.45, 0.1), "hwy_green": (0.1, 0.42, 0.22),
+    "red": (0.75, 0.12, 0.1), "yellow": (0.95, 0.75, 0.15), "white": (0.95, 0.95, 0.92), "rust": (0.45, 0.22, 0.12), "orange": (0.95, 0.45, 0.1), "cabbage": (0.6, 0.78, 0.45), "melon": (0.22, 0.48, 0.2), "hwy_green": (0.1, 0.42, 0.22),
     "skin": (0.92, 0.7, 0.55), "denim": (0.22, 0.32, 0.6), "shirt": (0.8, 0.3, 0.25), "blush": (0.95, 0.55, 0.55),
     "straw": (0.88, 0.76, 0.42), "boot": (0.25, 0.16, 0.1), "hair": (0.3, 0.2, 0.12),
     "tyre": (0.08, 0.08, 0.08), "hub": (0.6, 0.6, 0.58), "glass": (0.35, 0.45, 0.55),
@@ -473,6 +473,41 @@ def pumpkin():
     """A pumpkin, ribbed, with its stem"""
     p = [ball((0.9, 0.9, 0.62), (0, 0, 0.31), "pumpkin", 10, 6), box((0.08, 0.08, 0.22), (0, 0, 0.68), "corn_leaf")]
     return join("pumpkin", p)
+
+
+def sunflower():
+    """A sunflower: a tall stalk, broad leaves, its big yellow head with a dark middle"""
+    p = [box((0.08, 0.08, 2.0), (0, 0, 1.0), "corn_leaf"), drum(0.42, 0.06, (0, -0.1, 2.05), "yellow", 12, (math.pi / 2 - 0.3, 0, 0)),
+         drum(0.22, 0.08, (0, -0.13, 2.05), "wood_dark", 10, (math.pi / 2 - 0.3, 0, 0))]
+    for i, z in enumerate((0.7, 1.2)):
+        p.append(box((0.5, 0.3, 0.04), (0.25 * (1 if i % 2 else -1), 0, z), "corn_leaf", (0, 0.3 * (1 if i % 2 else -1), 0)))
+    return join("sunflower", p)
+
+
+def cabbage():
+    """A cabbage: a pale green head in its spread outer leaves"""
+    p = [ball((0.5, 0.5, 0.42), (0, 0, 0.24), "cabbage", 8, 5)]
+    for i in range(5):
+        a = i / 5 * math.tau
+        p.append(ball((0.42, 0.28, 0.1), (math.cos(a) * 0.28, math.sin(a) * 0.28, 0.1), "leaf", 6, 3, (0.4, 0, a)))
+    return join("cabbage", p)
+
+
+def melon():
+    """A watermelon on the vine, striped dark and light green"""
+    p = [ball((0.75, 0.5, 0.48), (0, 0, 0.24), "melon", 10, 6), box((0.06, 0.06, 0.2), (0.35, 0, 0.4), "corn_leaf")]
+    for i in range(4):
+        p.append(box((0.04, 0.52, 0.44), (-0.28 + i * 0.19, 0, 0.25), "leaf_dark"))
+    return join("melon", p)
+
+
+def pepper():
+    """A chilli pepper plant: a low leafy bush hung with red and green peppers"""
+    p = [roughen(ball((0.7, 0.7, 0.6), (0, 0, 0.35), "leaf", 7, 4), 0.06, 51)]
+    for i in range(6):
+        a = i / 6 * math.tau
+        p.append(cone(0.06, 0.24, (math.cos(a) * 0.3, math.sin(a) * 0.3, 0.28), "chili" if i % 3 else "leaf_dark", 6, (math.pi, 0, 0)))
+    return join("pepper", p)
 
 
 def hill():
@@ -1659,6 +1694,35 @@ def canister():
     return join("canister", p)
 
 
+def item_lucky():
+    """LUCKY CHARM: a four-leaf clover on its stem"""
+    p = [box((0.05, 0.05, 0.5), (0, 0, 0.25), "leaf_dark")]
+    for i in range(4):
+        a = i / 4 * math.tau + math.pi / 4
+        p.append(ball((0.34, 0.26, 0.06), (math.cos(a) * 0.17, math.sin(a) * 0.17, 0.55), "leaf", 8, 3, (0, 0, a)))
+    return join("item_lucky", p)
+
+
+def item_armor():
+    """ARMOR: a plate of armour, riveted, in overlapping bands"""
+    p = []
+    for i in range(3):
+        p.append(box((0.7, 0.12, 0.26), (0, -0.04 * i, 0.2 + i * 0.22), "metal" if i % 2 == 0 else "metal_dark", (0.2, 0, 0)))
+        for s in (-1, 1):
+            p.append(ball((0.06, 0.06, 0.06), (0.28 * s, -0.1 - 0.04 * i, 0.2 + i * 0.22), "chrome", 4, 3))
+    return join("item_armor", p)
+
+
+def item_second_wind():
+    """SECOND WIND: a heart wreathed in a swirl of flame"""
+    p = [ball((0.3, 0.2, 0.3), (-0.1, 0, 0.5), "chili", 8, 4), ball((0.3, 0.2, 0.3), (0.1, 0, 0.5), "chili", 8, 4),
+         cone(0.22, 0.32, (0, 0, 0.3), "chili", 8, (math.pi, 0, 0))]
+    for i in range(5):
+        a = i / 5 * math.tau
+        p.append(cone(0.08, 0.3, (math.cos(a) * 0.32, math.sin(a) * 0.1, 0.45 + 0.12 * math.sin(a)), "camp", 5))
+    return join("item_second_wind", p)
+
+
 def item_coolant():
     """COOLANT: a frosted canister of coolant, ringed with cooling fins, a pipe out of its cap"""
     p = [drum(0.2, 0.62, (0, 0, 0.36), "ice", 12), drum(0.22, 0.06, (0, 0, 0.06), "metal", 12),
@@ -2228,16 +2292,73 @@ def laser_truck():
     return join("laser_truck", p)
 
 
+def fire_truck():
+    """A fire engine: long and red, a ladder along its top, lights on the cab"""
+    p = car_body_parts(7.0, "red") + [box((0.6, 5.0, 0.15), (0, 1.0, 2.0), "metal"), box((0.7, 0.1, 0.1), (0, 3.4, 2.05), "metal"),
+                                      box((1.2, 0.3, 0.2), (0, -2.8, 2.35), "siren_red"), box((2.04, 4.6, 0.2), (0, 1.2, 1.0), "white")]
+    return join("fire_truck", p)
+
+
+def ambulance():
+    """An ambulance: a white box van with a red stripe and a red cross, lights on top"""
+    p = car_body_parts(5.6, "white") + [box((2.04, 3.6, 2.0), (0, 0.9, 1.6), "white"), box((2.06, 3.6, 0.3), (0, 0.9, 1.3), "red"),
+                                        box((0.1, 0.8, 0.25), (1.04, 0.9, 2.1), "red"), box((0.1, 0.25, 0.8), (1.04, 0.9, 2.1), "red"),
+                                        box((1.0, 0.3, 0.2), (0, -0.85, 2.7), "siren_red")]
+    return join("ambulance", p)
+
+
+def hospital():
+    """A small town hospital: white, three storeys, rows of lit windows, a red cross high on the front
+    and the emergency entrance under its canopy"""
+    p = [box((12.0, 7.0, 7.5), (0, 0, 3.75), "white"), box((12.4, 7.4, 0.3), (0, 0, 7.6), "roof"),
+         box((4.0, 2.0, 0.2), (0, -4.4, 2.6), "white"), box((0.15, 0.15, 2.6), (-1.8, -5.3, 1.3), "white"), box((0.15, 0.15, 2.6), (1.8, -5.3, 1.3), "white"),
+         box((2.0, 0.1, 2.2), (0, -3.52, 1.1), "glass"), box((0.4, 0.12, 1.6), (0, -3.6, 6.2), "red"), box((1.6, 0.12, 0.4), (0, -3.6, 6.2), "red")]
+    for row in range(3):
+        for i in range(6):
+            x = -5.0 + i * 2.0
+            if row == 0 and abs(x) < 2.5:
+                continue
+            p.append(box((0.9, 0.1, 0.9), (x, -3.52, 1.6 + row * 2.2), "window"))
+    return join("hospital", p)
+
+
+def fire_station():
+    """A fire station: red brick, two big garage doors, a hose tower on one side"""
+    p = [box((10.0, 8.0, 4.6), (0, 0, 2.3), "brick"), box((10.4, 8.4, 0.3), (0, 0, 4.7), "roof"),
+         box((2.4, 2.4, 9.0), (4.6, 2.6, 4.5), "brick"), box((2.6, 2.6, 0.3), (4.6, 2.6, 9.1), "roof"),
+         box((3.0, 0.4, 0.7), (0, -4.1, 4.0), "white")]
+    for x in (-2.4, 1.2):
+        p.append(box((3.0, 0.1, 3.2), (x, -4.02, 1.6), "red"))
+        p.append(box((2.6, 0.12, 0.5), (x, -4.04, 2.6), "window"))
+    return join("fire_station", p)
+
+
+def prison():
+    """A prison: a long cell block of grey concrete, barred windows in rows, inside a high wall with
+    razor wire along its top"""
+    p = [box((14.0, 6.0, 6.0), (0, 2.0, 3.0), "concrete"), box((14.4, 6.4, 0.3), (0, 2.0, 6.15), "roof")]
+    for row in range(2):
+        for i in range(10):
+            p.append(box((0.6, 0.1, 0.7), (-6.0 + i * 1.33, -1.02, 1.8 + row * 2.3), "black"))
+    for s in (-1, 1):
+        p.append(box((26.0, 0.6, 4.0), (0, 12.0 * s, 2.0), "concrete"))
+        p.append(box((0.6, 24.0, 4.0), (13.0 * s, 0, 2.0), "concrete"))
+        p.append(drum(0.25, 26.0, (0, 12.0 * s, 4.25), "metal", 6, (0, math.pi / 2, 0)))
+        p.append(drum(0.25, 24.0, (13.0 * s, 0, 4.25), "metal", 6, (math.pi / 2, 0, 0)))
+    p.append(box((3.0, 0.7, 3.4), (0, -12.0, 1.7), "metal_dark"))
+    return join("prison", p)
+
+
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
-            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek, motorcycle, cult_altar, helicarrier, railgun, laser_truck,
+            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek, sunflower, cabbage, melon, pepper, motorcycle, cult_altar, helicarrier, railgun, laser_truck, fire_truck, ambulance, hospital, fire_station, prison,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,
             item_engine, item_beam, item_shield, item_dash, item_laser, item_turret, item_missiles, item_cloak,
-            item_magnet, item_wide, item_scanner, item_jammer, item_coolant, canister, item_nanobots, item_gold, item_emp]
+            item_magnet, item_wide, item_scanner, item_jammer, item_coolant, item_lucky, item_armor, item_second_wind, canister, item_nanobots, item_gold, item_emp]
 
 
 def main():

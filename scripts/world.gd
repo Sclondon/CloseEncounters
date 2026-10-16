@@ -494,7 +494,7 @@ func surface_at(p: Vector3) -> String:
 		return "road"
 	match biome_at(p):
 		Biome.FARM:
-			return "crop" if field(chunk_of(p)) in [Field.WHEAT, Field.CORN] else "grass"
+			return "crop" if field(chunk_of(p)) in [Field.WHEAT, Field.CORN, Field.SUNFLOWER] else "grass"
 		Biome.PLAINS:
 			return "grass"
 		Biome.DESERT:
@@ -797,10 +797,21 @@ func _take(p: Vector3, radius: float) -> void:
 	_taken.append(Vector3(p.x, radius, p.z))
 
 
+## Buildings that turn to face a road near them (their doors on their +z side)
+const FACE_ROAD := ["house", "farmhouse", "cabin", "adobe", "church"]
+
+
 ## A building (or a landform, with the `block` it makes): a thing the beam can take, if strong enough
 func _prop(name: String, at: Vector3, turn := 0.0, size := 1.0, tints := {}, block := Vector4.ZERO) -> void:
 	if at == Vector3.INF or (block == Vector4.ZERO and on_road(at, float(Thing.KINDS[name]["size"]) * size * 0.6)):
 		return
+	# (a house near a road faces it, its door to the road)
+	if name in FACE_ROAD:
+		var near: Array = nearest_road(at)
+		var to: Vector3 = (near[0] as Vector3) - at
+		to.y = 0.0
+		if to.length() < 24.0 and to.length() > 0.1:
+			turn = atan2(to.x, to.z)
 	if game == null:
 		_put(name, at, turn, size, tints)
 		return
@@ -931,11 +942,11 @@ func _farm() -> void:
 func _crops(kind: int) -> void:
 	var base := centre_of(_chunk)
 	var across := rows_across(_chunk)
-	var crop: String = {Field.WHEAT: "wheat", Field.CORN: "corn", Field.PUMPKIN: "pumpkin"}.get(kind, "")
+	var crop: String = {Field.WHEAT: "wheat", Field.CORN: "corn", Field.PUMPKIN: "pumpkin", Field.SUNFLOWER: "sunflower", Field.CABBAGE: "cabbage", Field.MELON: "melon", Field.PEPPER: "pepper"}.get(kind, "")
 	if crop != "":
 		# (corn packed close, row on row; wheat and pumpkins sparser)
-		var gap: float = {"pumpkin": 2.6, "corn": 1.3}.get(crop, 2.2)
-		var rows: float = 1.8 if crop == "corn" else 3.0
+		var gap: float = {"pumpkin": 2.6, "corn": 1.3, "melon": 2.6, "cabbage": 1.4, "pepper": 1.4, "sunflower": 1.6}.get(crop, 2.2)
+		var rows: float = 1.8 if crop in ["corn", "cabbage", "pepper"] else (2.2 if crop == "sunflower" else 3.0)
 		var row := -CHUNK * 0.5 + 1.5
 		while row < CHUNK * 0.5:
 			var along := -CHUNK * 0.5 + 1.0
@@ -1226,9 +1237,14 @@ func _town(b: int) -> void:
 	var brick: Array[Color] = [Color(0.6, 0.32, 0.24), Color(0.72, 0.62, 0.48), Color(0.5, 0.42, 0.4), Color(0.78, 0.7, 0.55)]
 	var awning: Array[Color] = [Color(0.75, 0.15, 0.12), Color(0.15, 0.4, 0.3), Color(0.2, 0.3, 0.6), Color(0.85, 0.65, 0.2)]
 	var base := centre_of(_chunk)
+	# (each town laid out its own way round: the plan turned a quarter turn or more)
+	var spin := _rng.randi_range(0, 3) * PI / 2.0
+	var r := Basis(Vector3.UP, spin)
+	var civic: Array = ["hospital", "fire_station"]
+	civic.shuffle()
 	# The police station on one corner of the crossing
-	var station := base + Vector3(13.0, 0, 13.0)
-	_prop("police_station", station, PI)
+	var station := base + r * Vector3(13.0, 0, 13.0)
+	_prop("police_station", station, PI + spin)
 	_take(station, 8.0)
 	for qx: float in [-1.0, 1.0]:
 		for qz: float in [-1.0, 1.0]:
@@ -1236,8 +1252,8 @@ func _town(b: int) -> void:
 			if qx < 0.0 and qz > 0.0:
 				continue
 			for i in 2:
-				var p := base + Vector3(qx * (9.0 + i * 9.5), 0, qz * _rng.randf_range(9.0, 16.0))
-				var turn := PI / 2 * -qx
+				var p := base + r * Vector3(qx * (9.0 + i * 9.5), 0, qz * _rng.randf_range(9.0, 16.0))
+				var turn := PI / 2 * -qx + spin
 				if not _clear(p, 4.5):
 					continue
 				if i == 0:
@@ -1245,32 +1261,36 @@ func _town(b: int) -> void:
 						_prop("liquor_store", p, turn, 0.8)
 					else:
 						_prop("storefront", p, turn, 0.9, {"walls": brick[_rng.randi() % brick.size()], "awning": awning[_rng.randi() % awning.size()]})
+				elif not civic.is_empty() and _rng.randf() < 0.5:
+					# (a hospital or a fire station in place of a house, a truck or an ambulance by it)
+					var which: String = civic.pop_back()
+					_prop(which, p, turn, 0.75)
 				elif dry:
 					_prop("adobe", p, turn, 0.85)
 				else:
 					_prop("house", p, turn, 0.9, {"walls": paint[_rng.randi() % paint.size()]})
 				_take(p, 5.0)
-	if b != Biome.MOUNTAIN and _clear(base + Vector3(-12, 0, -9), 5.0):
-		_prop("diner", base + Vector3(-12, 0, -9), PI / 2)
-		_take(base + Vector3(-12, 0, -9), 7.0)
-	if _clear(base + Vector3(12, 0, -9), 3.0):
+	if b != Biome.MOUNTAIN and _clear(base + r * Vector3(-12, 0, -9), 5.0):
+		_prop("diner", base + r * Vector3(-12, 0, -9), PI / 2 + spin)
+		_take(base + r * Vector3(-12, 0, -9), 7.0)
+	if _clear(base + r * Vector3(12, 0, -9), 3.0):
 		if not dry and _rng.randf() < 0.6:
-			_prop("clock_tower", base + Vector3(12, 0, -9), PI)
+			_prop("clock_tower", base + r * Vector3(12, 0, -9), PI + spin)
 		elif _rng.randf() < 0.6:
-			_prop("water_tower", base + Vector3(12, 0, -9))
+			_prop("water_tower", base + r * Vector3(12, 0, -9))
 	# The town square on one corner: paved, a fountain in the middle, trees, and the city hall on its
 	# far side looking over it
-	var square := base + Vector3(-12.5, 0, 10.0)
-	Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.5, 0.48, 0.45)), square + Vector3(0, 0.04, 0), Vector3(13.0, 0.08, 11.0))
+	var square := base + r * Vector3(-12.5, 0, 10.0)
+	Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.5, 0.48, 0.45)), square + Vector3(0, 0.1, 0), Vector3(13.0, 0.14, 11.0), Vector3(0, spin, 0))
 	_prop("fountain", square, 0.0, 0.8)
 	for corner: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
-		_plant("tree", 0.6, 0.8, square + Vector3(corner.x * 5.2, 0, corner.y * 4.2))
+		_plant("tree", 0.6, 0.8, square + r * Vector3(corner.x * 5.2, 0, corner.y * 4.2))
 	_take(square, 7.5)
-	var hall := base + Vector3(-12.5, 0, 20.0)
-	_prop("city_hall", hall, PI, 0.72)
+	var hall := base + r * Vector3(-12.5, 0, 20.0)
+	_prop("city_hall", hall, PI + spin, 0.72)
 	_take(hall, 6.0)
 	for i in _rng.randi_range(7, 11):
-		_spawn("person", base + Vector3(_rng.randf_range(-16, 16), 0, _rng.randf_range(-16, 16)))
+		_spawn("person", base + r * Vector3(_rng.randf_range(-16, 16), 0, _rng.randf_range(-16, 16)))
 	if _rng.randf() < 0.5:
 		_spawn("believer", base + Vector3(_rng.randf_range(-14, 14), 0, _rng.randf_range(-14, 14)))
 	_sidewalks("z")
@@ -1286,29 +1306,38 @@ func _sidewalks(axis: String) -> void:
 	var half := road_half(dirt_x(_chunk.x) if axis == "z" else dirt_z(_chunk.y))
 	var crossing := has_road(_chunk.x) and has_road(_chunk.y)
 	var paving := Ps1.flat(Color(0.62, 0.61, 0.58))
-	for i in 8:
-		var along := -CHUNK * 0.5 + 3.0 + i * 6.0
+	# (in short slabs, each laid along the road from where it is at one end to where it is at the
+	# other, so the sidewalk follows the road's bends)
+	const SLAB := 3.0
+	var count := int(CHUNK / SLAB)
+	for i in count:
+		var along := -CHUNK * 0.5 + SLAB * (i + 0.5)
 		if crossing and absf(along) < half + 2.5:
 			continue
 		for side: float in [-1.0, 1.0]:
-			var at: Vector3
-			var size: Vector3
-			if axis == "z":
-				at = Vector3(road_x(_chunk.x, base.z + along) + side * (half + 0.9), 0.06, base.z + along)
-				size = Vector3(1.6, 0.12, 6.05)
-			else:
-				at = Vector3(base.x + along, 0.06, road_z(_chunk.y, base.x + along) + side * (half + 0.9))
-				size = Vector3(6.05, 0.12, 1.6)
-			Ps1.part(_node, BoxMesh.new(), paving, at, size)
-			# (street lights along the outer edge every other slab, their arms out over the road; a
+			var a := _kerb(axis, base, along - SLAB * 0.5, side * (half + 0.9))
+			var b := _kerb(axis, base, along + SLAB * 0.5, side * (half + 0.9))
+			var way := b - a
+			var at := (a + b) * 0.5 + Vector3(0, 0.06, 0)
+			Ps1.part(_node, BoxMesh.new(), paving, at, Vector3(1.6, 0.12, way.length() + 0.15), Vector3(0, atan2(way.x, way.z), 0))
+			# (street lights along the outer edge every fourth slab, their arms out over the road; a
 			# bench and a trash can here and there)
-			var edge := at + (Vector3(side * 0.55, -0.06, 0) if axis == "z" else Vector3(0, -0.06, side * 0.55))
-			var to_road := -PI / 2 * side if axis == "z" else (PI if side > 0.0 else 0.0)
-			if i % 2 == 0:
+			var out := way.normalized().cross(Vector3.UP) * (-1.0 if axis == "z" else 1.0) * side
+			var edge := at + out * 0.55 - Vector3(0, 0.06, 0)
+			var to_road := atan2(-out.x, -out.z)
+			if i % 4 == 0:
 				_plant_at("street_light", edge, to_road)
-			elif i == 3 or i == 5 and side < 0.0:
+			elif i == 6 or i == 10 and side < 0.0:
 				_plant_at("bench", edge, to_road)
-				_plant_at("trash_can", edge + (Vector3(0, 0, 1.6) if axis == "z" else Vector3(1.6, 0, 0)), 0.0)
+				_plant_at("trash_can", edge + way.normalized() * 1.6, 0.0)
+
+
+## A point beside the road through this chunk along `axis`, `along` it from the middle and `off` to
+## one side of the road's middle
+func _kerb(axis: String, base: Vector3, along: float, off: float) -> Vector3:
+	if axis == "z":
+		return Vector3(road_x(_chunk.x, base.z + along) + off, 0, base.z + along)
+	return Vector3(base.x + along, 0, road_z(_chunk.y, base.x + along) + off)
 
 
 ## Animals out where nobody lives, and birds over everything
@@ -1318,9 +1347,9 @@ func _wildlife(b: int) -> void:
 			if _rng.randf() < 0.35:
 				_spawn("bear", _spot(2.0))
 			if _rng.randf() < 0.45:
-				_herd("mountain_goat", _spot(2.0), _rng.randi_range(2, 4), 6.0)
+				_herd("mountain_goat", _spot(2.0), _rng.randi_range(1, 3), 6.0)
 			if _rng.randf() < 0.4:
-				_herd("elk", _spot(3.0), _rng.randi_range(2, 4), 7.0)
+				_herd("elk", _spot(3.0), _rng.randi_range(1, 3), 7.0)
 		Biome.PLAINS:
 			if _rng.randf() < 0.5:
 				_herd("pronghorn", _spot(3.0), _rng.randi_range(3, 5), 8.0)
@@ -1426,13 +1455,15 @@ func _car(b: int, axis: String) -> void:
 		return
 	# (now and then a motorcycle; or a biker gang, riding in a pack)
 	var roll := _rng.randf()
-	if roll < 0.1:
+	if roll < 0.06:
 		var step := Vector3(0, 0, -dir * 3.2) if axis == "z" else Vector3(-dir * 3.2, 0, 0)
 		for i in _rng.randi_range(3, 4):
 			game.spawn_car("biker", at + step * i + (Vector3(0.6 * (i % 2), 0, 0) if axis == "z" else Vector3(0, 0, 0.6 * (i % 2))), axis, dir)
 		return
 	if roll < 0.28:
 		kinds = ["motorcycle"]
+	elif roll < 0.34:
+		kinds = ["fire_truck", "ambulance"]
 	game.spawn_car(kinds[_rng.randi() % kinds.size()], at, axis, dir)
 
 
@@ -1507,7 +1538,7 @@ func _water(at: Vector3, r: float) -> void:
 	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	water.extra_cull_margin = Ps1.CULL_MARGIN
 	water.visibility_range_end = Ps1.DRAW_TO
-	water.position = at + Vector3(0, 0.04, 0)
+	water.position = at + Vector3(0, 0.14, 0)
 	_node.add_child(water)
 
 
@@ -1518,8 +1549,8 @@ func _water(at: Vector3, r: float) -> void:
 
 const VENUES := {
 	Biome.FARM: ["school", "park", "carnival", "drive_in", "junkyard", "football", "baseball"],
-	Biome.PLAINS: ["rodeo", "carnival", "drive_in", "junkyard", "school", "football", "baseball", "cult"],
-	Biome.DESERT: ["drive_in", "junkyard", "construction", "rodeo", "cult"],
+	Biome.PLAINS: ["rodeo", "carnival", "drive_in", "junkyard", "school", "football", "baseball", "cult", "prison"],
+	Biome.DESERT: ["drive_in", "junkyard", "construction", "rodeo", "cult", "prison"],
 	Biome.MESA: ["rodeo", "school", "junkyard", "carnival", "baseball"],
 	Biome.MOUNTAIN: ["park", "construction", "school", "cult"],
 }
@@ -1528,7 +1559,7 @@ const PAINTS: Array[Color] = [Color(0.75, 0.12, 0.1), Color(0.2, 0.45, 0.75), Co
 
 ## Whether a place went down here (taking the middle of the chunk; the rest filled round it as usual)
 func _venue(c: Vector2i, b: int) -> bool:
-	if hash3(c.x, c.y, 211) > 0.11 or maxi(absi(c.x - 1), absi(c.y - 1)) < 1:
+	if hash3(c.x, c.y, 211) > 0.09 or maxi(absi(c.x - 1), absi(c.y - 1)) < 1:
 		return false
 	var pick: Array = VENUES[b]
 	var name: String = pick[mini(int(hash3(c.x, c.y, 212) * pick.size()), pick.size() - 1)]
@@ -1591,6 +1622,13 @@ func _venue(c: Vector2i, b: int) -> bool:
 			_prop("mixer", at + basis * Vector3(7, 0, 7), turn + PI / 2)
 			_prop("girders", at + basis * Vector3(-5, 0, 6), turn)
 			_herd("person", at, _rng.randi_range(2, 4), 6.0)
+		"prison":
+			# (a prison: its block and walls, watchtowers at two corners, inmates in the yard)
+			_prop("prison", at, turn, 0.6)
+			for corner: Vector3 in [Vector3(-8, 0, -7.5), Vector3(8, 0, 7.5)]:
+				_prop("watchtower", at + basis * corner, turn)
+			for i in _rng.randi_range(4, 6):
+				_spawn("inmate", at + basis * Vector3(_rng.randf_range(-5, 5), 0, _rng.randf_range(2.0, 6.0)))
 		"cult":
 			# (a cult's compound: a fence round it, cabins, and robed cultists in a ring round their
 			# glowing altar, waiting to be taken)
@@ -1605,12 +1643,12 @@ func _venue(c: Vector2i, b: int) -> bool:
 			# (a striped field, end zones and goalposts, bleachers along one side, a game on)
 			var turf := Ps1.flat(Color(0.2, 0.48, 0.2))
 			var chalk := Ps1.flat(Color(0.92, 0.92, 0.9))
-			Ps1.part(_node, BoxMesh.new(), turf, at + Vector3(0, 0.04, 0), Vector3(1, 0.06, 1)).transform = Transform3D(basis.scaled(Vector3(30.0, 0.06, 16.0)), at + Vector3(0, 0.04, 0))
+			Ps1.part(_node, BoxMesh.new(), turf, at + Vector3(0, 0.04, 0), Vector3(1, 0.06, 1)).transform = Transform3D(basis * Basis.from_scale(Vector3(30.0, 0.1, 16.0)), at + Vector3(0, 0.12, 0))
 			for k in range(-3, 4):
-				Ps1.part(_node, BoxMesh.new(), chalk, at, Vector3.ONE).transform = Transform3D(basis.scaled(Vector3(0.18, 0.07, 16.0)), at + basis * Vector3(k * 4.0, 0.05, 0))
+				Ps1.part(_node, BoxMesh.new(), chalk, at, Vector3.ONE).transform = Transform3D(basis * Basis.from_scale(Vector3(0.18, 0.1, 16.0)), at + basis * Vector3(k * 4.0, 0.18, 0))
 			for end: float in [-1.0, 1.0]:
 				_prop("goalpost", at + basis * Vector3(end * 15.0, 0, 0), turn + PI / 2)
-			_prop("bleachers", at + basis * Vector3(0, 0, -11.5), turn + PI)
+			_prop("bleachers", at + basis * Vector3(0, 0, -11.5), turn)
 			_herd("person", at + basis * Vector3(0, 0, -13.5), _rng.randi_range(4, 7), 5.0)
 			for i in 6:
 				var shirt := Color(0.75, 0.12, 0.1) if i % 2 == 0 else Color(0.2, 0.35, 0.75)
@@ -1618,15 +1656,15 @@ func _venue(c: Vector2i, b: int) -> bool:
 			_prop("cooler", at + basis * Vector3(9, 0, -10), turn, 1.8)
 		"baseball":
 			# (a diamond: grass, a dirt infield, white bases, a backstop, bleachers, a game on)
-			Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.22, 0.5, 0.22)), at, Vector3.ONE).transform = Transform3D(basis.scaled(Vector3(26.0, 0.06, 26.0)), at + Vector3(0, 0.04, 0))
+			Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.22, 0.5, 0.22)), at, Vector3.ONE).transform = Transform3D(basis * Basis.from_scale(Vector3(26.0, 0.1, 26.0)), at + Vector3(0, 0.12, 0))
 			var diamond := basis * Basis(Vector3.UP, PI / 4)
-			Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.6, 0.42, 0.26)), at, Vector3.ONE).transform = Transform3D(diamond.scaled(Vector3(11.0, 0.07, 11.0)), at + basis * Vector3(0, 0.05, 4.0))
+			Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.6, 0.42, 0.26)), at, Vector3.ONE).transform = Transform3D(diamond * Basis.from_scale(Vector3(11.0, 0.1, 11.0)), at + basis * Vector3(0, 0.18, 4.0))
 			for k in 4:
-				var base_at := at + basis * Vector3(0, 0.08, 4.0) + basis * (Basis(Vector3.UP, k * PI / 2) * Vector3(0, 0, 5.5))
+				var base_at := at + basis * Vector3(0, 0.24, 4.0) + basis * (Basis(Vector3.UP, k * PI / 2) * Vector3(0, 0, 5.5))
 				Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.95, 0.95, 0.93)), base_at, Vector3(0.6, 0.08, 0.6))
 			_plant_at("fence", at + basis * Vector3(-1.5, 0, 11.5), turn)
 			_plant_at("fence", at + basis * Vector3(1.5, 0, 11.5), turn)
-			_prop("bleachers", at + basis * Vector3(9, 0, 9), turn + PI * 0.75)
+			_prop("bleachers", at + basis * Vector3(9, 0, 9), turn - PI * 0.75)
 			_herd("person", at + basis * Vector3(10, 0, 11), _rng.randi_range(3, 6), 4.0)
 			for i in 6:
 				_player(at + basis * Vector3(_rng.randf_range(-9, 9), 0, _rng.randf_range(-6, 9)), Color(0.9, 0.9, 0.92) if i < 3 else Color(0.2, 0.3, 0.6))
@@ -1635,8 +1673,8 @@ func _venue(c: Vector2i, b: int) -> bool:
 			for i in 18:
 				var a := i / 18.0 * TAU
 				_plant_at("fence", at + Vector3(sin(a), 0, cos(a)) * 8.5, a + PI / 2)
-			_prop("bleachers", at + basis * Vector3(0, 0, -12.5), turn + PI)
-			_prop("bleachers", at + basis * Vector3(0, 0, 12.5), turn)
+			_prop("bleachers", at + basis * Vector3(0, 0, -12.5), turn)
+			_prop("bleachers", at + basis * Vector3(0, 0, 12.5), turn + PI)
 			_herd("rider", at, _rng.randi_range(2, 3), 4.0)
 			_herd("longhorn", at, 1, 3.0)
 			_prop("cooler", at + basis * Vector3(4, 0, 14.5), turn, 1.8)
@@ -1710,7 +1748,10 @@ func nearest_road(p: Vector3) -> Array:
 # painted for it (the green of `_biome_img`, see shaders/ground.gdshader), and a field of a crop
 # has rows of it right across (see `_crops`).
 
-enum Field { NONE, PASTURE, WHEAT, CORN, PUMPKIN, PLOUGHED, GREEN }
+enum Field { NONE, PASTURE, WHEAT, CORN, PUMPKIN, PLOUGHED, GREEN, SUNFLOWER, CABBAGE, MELON, PEPPER }
+## How the fields out in farm country are shared out: [up to, field] (the rest young green crops)
+const FIELD_MIX := [[0.25, Field.PASTURE], [0.38, Field.WHEAT], [0.5, Field.CORN], [0.58, Field.PUMPKIN], [0.65, Field.SUNFLOWER],
+	[0.71, Field.CABBAGE], [0.77, Field.MELON], [0.83, Field.PEPPER], [0.92, Field.PLOUGHED]]
 
 
 static func field(c: Vector2i) -> int:
@@ -1719,20 +1760,13 @@ static func field(c: Vector2i) -> int:
 	# (a crop under the ship where the game starts, wheat, corn or pumpkins as the country has it, and
 	# pasture round it, for a farm to be seen at once)
 	if c == chunk_of(START):
-		return [Field.WHEAT, Field.CORN, Field.PUMPKIN][mini(int(hash3(c.x, c.y, 152) * 3.0), 2)]
+		return [Field.WHEAT, Field.CORN, Field.PUMPKIN, Field.SUNFLOWER, Field.CABBAGE, Field.MELON, Field.PEPPER][mini(int(hash3(c.x, c.y, 152) * 7.0), 6)]
 	if maxi(absi(c.x), absi(c.y)) <= 1:
 		return Field.PASTURE
 	var h := hash3(c.x, c.y, 151)
-	if h < 0.3:
-		return Field.PASTURE
-	if h < 0.5:
-		return Field.WHEAT
-	if h < 0.65:
-		return Field.CORN
-	if h < 0.75:
-		return Field.PUMPKIN
-	if h < 0.9:
-		return Field.PLOUGHED
+	for band: Array in FIELD_MIX:
+		if h < float(band[0]):
+			return int(band[1])
 	return Field.GREEN
 
 
@@ -1748,11 +1782,11 @@ func _country_folk(c: Vector2i, b: int) -> void:
 	if not wild:
 		return
 	# (cowboys out on horseback; and now and then a true believer, waiting to be taken)
-	if b in [Biome.MOUNTAIN, Biome.PLAINS] and _rng.randf() < 0.25:
+	if b in [Biome.MOUNTAIN, Biome.PLAINS] and _rng.randf() < 0.15:
 		_herd("hunter", _spot(2.0), _rng.randi_range(1, 2), 5.0)
 	if b in [Biome.PLAINS, Biome.MESA] and _rng.randf() < 0.3:
 		_herd("rider", _spot(2.0), _rng.randi_range(1, 2), 7.0)
-	if _rng.randf() < 0.08:
+	if _rng.randf() < 0.05:
 		_spawn("believer", _spot(1.0))
 	if b != Biome.FARM and hash3(c.x, c.y, 161) < 0.09:
 		var at := _spot(6.0)

@@ -41,14 +41,14 @@ vec3 farm(vec2 p, float speck, int kind, bool across) {
 	if (kind == 2 || kind == 3) {
 		// wheat and corn: gold stubble in fine rows
 		c = mix(vec3(0.62, 0.5, 0.2), vec3(0.75, 0.62, 0.28), step(0.4, fine)) * (0.92 + 0.12 * speck);
-	} else if (kind == 4) {
-		// pumpkins: vines along rows of earth
+	} else if (kind == 4 || kind == 8 || kind == 9 || kind == 10) {
+		// pumpkins, cabbages, melons and peppers: green along rows of earth
 		c = mix(vec3(0.28, 0.18, 0.1), vec3(0.16, 0.3, 0.1), step(0.6, row)) * (0.9 + 0.15 * speck);
 	} else if (kind == 5) {
 		// ploughed earth
 		c = mix(vec3(0.27, 0.17, 0.1), vec3(0.36, 0.24, 0.14), step(0.5, row)) * (0.9 + 0.15 * speck);
-	} else if (kind == 6) {
-		// young green crops
+	} else if (kind == 6 || kind == 7) {
+		// young green crops, and sunflowers
 		c = mix(vec3(0.12, 0.26, 0.08), vec3(0.22, 0.38, 0.12), step(0.45, row)) * (0.9 + 0.15 * speck);
 	} else {
 		c = mix(vec3(0.3, 0.42, 0.18), vec3(0.36, 0.46, 0.2), speck);

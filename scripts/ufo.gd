@@ -91,6 +91,9 @@ var lift_rate := 1.0
 ## How strong the beam is: what it can take (see Thing.tier); 4 takes the land itself
 var tier := 2
 var hull_max := 100.0
+## ARMOR stacks (each takes an eighth off a hit), and SECOND WINDs left (each shrugs off a fatal shot)
+var armor := 0
+var second_winds := 0
 var altitude := 8.0
 var radius := 2.8
 var _shadow: MeshInstance3D
@@ -859,11 +862,17 @@ func hurt(amount: float, from := Vector3.INF) -> void:
 	var toward := from - bubble.global_position if from != Vector3.INF else Vector3(randf_range(-1, 1), randf_range(-0.5, 0.5), randf_range(-1, 1))
 	_bubble_mat.set_shader_parameter("hit_dir", (bubble.global_basis.inverse() * toward).normalized())
 	if hull > 0.0:
-		# The shield takes it
-		hull -= amount
+		# The shield takes it (less of it with ARMOR, an eighth less a stack)
+		hull -= amount * pow(0.88, armor)
 		if hull <= 0.0:
 			hull = 0.0
 			shield_broke = true
+		return
+	# (a SECOND WIND: the fatal shot shrugged off, the shield back to two fifths)
+	if second_winds > 0:
+		second_winds -= 1
+		hull = hull_max * 0.4
+		sparkle()
 		return
 	# Nothing left to take it: one shot is enough
 	if true:

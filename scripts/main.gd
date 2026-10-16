@@ -109,7 +109,7 @@ var _circle_time := 0.0
 var _circle_done := false
 ## The traders parked about the country, and what has been bought from them this run
 var shops: Array[Shop] = []
-var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "fleet": 0}
+var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "fleet": 0}
 var _hot_wait := 0.0
 ## The level reached this run (see `_levels`), levels still to pick for, and the picker
 var level := 0
@@ -127,7 +127,7 @@ const SPAWN_A_FRAME := 6
 ## What traders sell, one pod each: three of these are set out in front of each trader
 ## The beam's colours as BEAM items stack: green, blue, purple
 const BEAM_COLOURS := [Color(0.55, 1.0, 0.65), Color(0.4, 0.7, 1.0), Color(0.78, 0.45, 1.0)]
-const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "fleet"]
+const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "fleet"]
 const UPGRADES := {
 	"engine": {"title": "ENGINE", "about": "faster", "price": 300, "colour": Color(1.0, 0.55, 0.15)},
 	"beam": {"title": "BEAM", "about": "lifts faster, then heavier things", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
@@ -146,6 +146,9 @@ const UPGRADES := {
 	"nanobots": {"title": "NANOBOTS", "about": "the shield mends itself", "price": 450, "colour": Color(0.4, 0.75, 1.0)},
 	"gold": {"title": "GOLD", "about": "everything taken is worth more", "price": 500, "colour": Color(1.0, 0.82, 0.25)},
 	"emp": {"title": "EMP", "about": "dashing stuns the police and army near", "price": 450, "colour": Color(0.55, 0.85, 1.0)},
+	"lucky": {"title": "LUCKY CHARM", "about": "power-ups turn up more often", "price": 300, "colour": Color(0.35, 0.95, 0.4)},
+	"armor": {"title": "ARMOR", "about": "the ship takes less damage", "price": 450, "colour": Color(0.7, 0.72, 0.78)},
+	"second_wind": {"title": "SECOND WIND", "about": "shrug off one fatal hit", "price": 600, "colour": Color(1.0, 0.55, 0.25)},
 	"fleet": {"title": "FLEET", "about": "a little helper saucer", "price": 450, "colour": Color(1.0, 0.9, 0.3)},
 }
 ## Upgrades are items that stack, as in Risk of Rain: each pick one more of it, up to this many
@@ -250,6 +253,10 @@ var _title_drop: Control
 var _log_box: Control
 ## The log's list, scrolled by a finger (see `_input`)
 var _log_scroll: ScrollContainer
+## The log tossed: how fast it was going as the finger let go, and whether it is still running on
+var _log_speed := 0.0
+var _log_flinging := false
+var _log_dragged_at := 0.0
 var _log_list: VBoxContainer
 var _log_head: Label
 var _log_back: Button
@@ -535,7 +542,7 @@ func start(from_launch := false) -> void:
 	_clear_wreck()
 	if not from_launch:
 		alien_seed = randi()
-	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "fleet": 0}
+	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "fleet": 0}
 	level = 0
 	_levels_due = 0
 	_picker.visible = false
@@ -578,6 +585,7 @@ func start(from_launch := false) -> void:
 		_run_taken = (_saved_run["taken"] as Dictionary).duplicate(true)
 		_run_killed = (_saved_run["killed"] as Dictionary).duplicate()
 		_apply_upgrades()
+		ufo.second_winds = upgrades["second_wind"]
 		_saved_run = {}
 		_save_best()
 		_heat_note("RUN CONTINUED", 2.5)
@@ -645,7 +653,18 @@ func multiplier() -> int:
 	return (1 + heat_level()) * (2 if boosts.has("double") else 1)
 
 
+## The log, tossed, running on and slowing to a stop
+func _fling_log(delta: float) -> void:
+	if not _log_flinging or _log_scroll == null:
+		return
+	_log_scroll.scroll_vertical += int(_log_speed * delta)
+	_log_speed *= exp(-2.6 * delta)
+	if absf(_log_speed) < 30.0:
+		_log_flinging = false
+
+
 func _process(delta: float) -> void:
+	_fling_log(delta)
 	if Input.is_action_just_pressed("pause") and mode == "play" and not autopilot:
 		set_paused(not get_tree().paused)
 	_choose_music()
@@ -1328,6 +1347,7 @@ func _apply_upgrades() -> void:
 	_ship_stats()
 	ufo.hull_max = float(spec["hull"]) + 15.0 * upgrades["shield"]
 	ufo.dash_level = upgrades["dash"]
+	ufo.armor = upgrades["armor"]
 	# (the beam green, blue from the second BEAM, purple from the fourth)
 	ufo.colour_beam(BEAM_COLOURS[mini(upgrades["beam"] / 2, BEAM_COLOURS.size() - 1)])
 	# (WIDE BEAM: a seventh broader a stack, its light with it)
@@ -1380,12 +1400,12 @@ func _boosts(delta: float) -> void:
 	_boost_wait -= delta
 	if _boost_wait > 0.0:
 		return
-	_boost_wait = randf_range(BOOST_EVERY.x, BOOST_EVERY.y)
+	_boost_wait = randf_range(BOOST_EVERY.x, BOOST_EVERY.y) / (1.0 + 0.35 * upgrades["lucky"])
 	var about := 0
 	for t: Thing in things:
 		if t.kind == "canister" and t.state == "walk":
 			about += 1
-	if about >= BOOST_MOST:
+	if about >= BOOST_MOST + upgrades["lucky"]:
 		return
 	var what: String = BOOSTS.keys().pick_random()
 	var a := randf() * TAU
@@ -1444,8 +1464,8 @@ func _levels() -> void:
 const RARITY_COLOURS: Array[Color] = [Color(0.4, 1.0, 0.5), Color(0.35, 0.65, 1.0), Color(1.0, 0.3, 0.3)]
 const RARITY_NAMES: Array[String] = ["COMMON", "UNCOMMON", "RARE"]
 const RARITY_ODDS: Array[float] = [6.0, 2.5, 0.8]
-const UNCOMMON: Array[String] = ["laser", "turret", "cloak", "nanobots", "gold"]
-const RARE: Array[String] = ["missiles", "emp", "fleet"]
+const UNCOMMON: Array[String] = ["laser", "turret", "cloak", "nanobots", "gold", "armor"]
+const RARE: Array[String] = ["missiles", "emp", "fleet", "second_wind"]
 
 
 func rarity(what: String) -> int:
@@ -1543,6 +1563,8 @@ func buy(what: String) -> bool:
 		_log_items.append(what)
 	_apply_upgrades()
 	_heat_note("%s x%d" % [UPGRADES[what]["title"], upgrades[what]], 2.5)
+	if what == "second_wind":
+		ufo.second_winds += 1
 	if what == "shield":
 		ufo.hull = minf(ufo.hull + 15.0, ufo.hull_max)
 	if what == "turret" and upgrades[what] == 1:
@@ -1910,6 +1932,45 @@ func laser_burns() -> float:
 
 
 ## Burnt down by the laser: a blast as big as it was, smoke and sparks, a scorch where it stood
+## A prison broken (taken, burnt or blown up): the inmates near it run free, and the police near
+## break off to go after them (and the heat drops a star)
+func _prison_break(at: Vector3) -> void:
+	var freed := 0
+	for th: Thing in things:
+		if th.state != "walk":
+			continue
+		if th.kind == "inmate" and th.ground().distance_to(at) < 40.0:
+			th.set_meta("free", at)
+			freed += 1
+		elif th.info.get("police", false) and th.ground().distance_to(ufo.ground()) < 150.0:
+			th.leaving = true
+	heat = maxf(heat - 1.0, 0.0)
+	_heat_note("PRISON BREAK! THE COPS ARE BUSY", 3.0)
+	sfx.play("ring", 0.8)
+
+
+## Where the ship comes down shot: whatever it lands on is wrecked with it (buildings and things
+## gone in a blast, the scenery under it flattened)
+func _crush_under_wreck() -> void:
+	var at := ufo.ground()
+	var reach: float = ufo.radius + 1.5
+	for th: Thing in things.duplicate():
+		if th.state != "walk" or th.is_enemy() or th.info["move"] != "still":
+			continue
+		if th.ground().distance_to(at) > reach + th.size() * 0.5:
+			continue
+		boom(th.position + Vector3(0, 1.0, 0), 1.0 + th.size())
+		for i in 4:
+			ufo.puffs.puff(th.position + Vector3(randf_range(-1, 1), 0.6, randf_range(-1, 1)) * th.size(), Color(0.3, 0.27, 0.24, 0.7), 0.6 + th.size() * 0.3, Vector3(0, 1.5, 0), 1.5)
+		if th.kind == "prison":
+			_prison_break(th.position)
+		_remove(th)
+	# (trees, crops and the like under it)
+	for i in 40:
+		if world.pull(at, reach, 4).is_empty():
+			break
+
+
 func _vaporise(t: Thing) -> void:
 	var at := t.position
 	var big := t.size()
@@ -1928,6 +1989,8 @@ func _vaporise(t: Thing) -> void:
 	add_heat(0.05 + 0.04 * big)
 	calm = 0.0
 	log_line("%s BURNT DOWN" % Thing.alien_name(t.kind), points, t.kind)
+	if t.kind == "prison":
+		_prison_break(at)
 	_remove(t)
 
 
@@ -2719,6 +2782,8 @@ func _remove(t: Thing) -> void:
 
 ## Something reached the saucer
 func abducted(t: Thing) -> void:
+	if t.kind == "prison":
+		_prison_break(t.home)
 	if t.kind == "canister":
 		_boost(str(t.get_meta("boost", "double")))
 		ufo.alien.feel("cheer", 0.9)
@@ -2804,6 +2869,8 @@ const BLAST_REACH := 7.0
 ## `t` blows up where it lies: a fireball, the police and army near it destroyed (scored), people
 ## and animals running for it, and the heat up a little
 func explode(t: Thing) -> void:
+	if t.kind == "prison":
+		_prison_break(t.position)
 	coop.tell("boom", t.position, "", 4.5)
 	var at := t.position
 	boom(at + Vector3(0, 0.8, 0), 4.5)
@@ -2910,6 +2977,7 @@ func _crash(delta: float) -> void:
 	sfx.play("boom", 0.7, 4.0)
 	_shake = 0.6
 	_wreck_site()
+	_crush_under_wreck()
 	mode = "over"
 	_over_wait = 2.6
 	var is_best := score > best
@@ -5479,8 +5547,23 @@ func _input(event: InputEvent) -> void:
 				_debug_label.visible = _touch_debug
 			_debug_line("touch readout on")
 	# (the log and the saucers scrolled by a finger dragged anywhere over them, as a phone's lists are)
-	if event is InputEventScreenDrag and _log_box != null and _log_box.visible and _log_scroll != null:
-		_log_scroll.scroll_vertical -= int((event as InputEventScreenDrag).relative.y / hud.scale.y)
+	# and tossed: let go mid-swipe and it runs on, slowing (see `_fling_log`)
+	if _log_box != null and _log_box.visible and _log_scroll != null:
+		if event is InputEventScreenDrag:
+			var moved := (event as InputEventScreenDrag).relative.y / hud.scale.y
+			_log_scroll.scroll_vertical -= int(moved)
+			var now := Time.get_ticks_msec() / 1000.0
+			var dt := clampf(now - _log_dragged_at, 1.0 / 120.0, 0.1)
+			_log_dragged_at = now
+			_log_speed = lerpf(_log_speed, -moved / dt, 0.5)
+			_log_flinging = false
+		elif event is InputEventScreenTouch:
+			if (event as InputEventScreenTouch).pressed:
+				_log_speed = 0.0
+				_log_flinging = false
+			else:
+				# (a finger still moving as it lets go tosses the list on)
+				_log_flinging = Time.get_ticks_msec() / 1000.0 - _log_dragged_at < 0.08
 	if mode != "play" or autopilot:
 		return
 	if get_tree().paused:
@@ -6240,7 +6323,7 @@ class CloakButton extends Control:
 ## how many are stacked in its corner (from the second on)
 class ItemBar extends Control:
 	## The items, in the order they show
-	const ORDER := ["engine", "beam", "shield", "dash", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "fleet"]
+	const ORDER := ["engine", "beam", "shield", "dash", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "fleet"]
 	const TILE := 40.0
 	## How many rows of items there are (the heat's news goes under them)
 	var rows := 0

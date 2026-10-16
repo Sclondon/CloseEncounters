@@ -96,6 +96,10 @@ const KINDS := {
 	"wheat": {"points": 8, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
 	"corn": {"points": 10, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
 	"pumpkin": {"points": 15, "weight": 0.6, "heat": 0.01, "move": "still", "size": 0.8},
+	"sunflower": {"points": 12, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
+	"cabbage": {"points": 10, "weight": 0.4, "heat": 0.01, "move": "still", "size": 0.6},
+	"melon": {"points": 18, "weight": 0.6, "heat": 0.01, "move": "still", "size": 0.8},
+	"pepper": {"points": 14, "weight": 0.4, "heat": 0.01, "move": "still", "size": 0.6},
 	# A low rolling hill (the land itself)
 	"hill": {"points": 1500, "weight": 9.0, "heat": 0.5, "move": "still", "size": 8.0, "tier": 4},
 	"barn": {"points": 350, "weight": 5.0, "heat": 0.5, "move": "still", "size": 3.0, "tier": 3, "voice": "moo"},
@@ -176,6 +180,14 @@ const KINDS := {
 	"highway_sign": {"points": 60, "weight": 2.0, "heat": 0.2, "move": "still", "size": 2.0, "tier": 2},
 	"trash_can": {"points": 10, "weight": 0.4, "heat": 0.02, "move": "still", "size": 0.5},
 	"bush": {"points": 8, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
+	# Fire trucks and ambulances on the roads; hospitals and fire stations in town; prisons out in the
+	# country, the inmates in orange in the yard
+	"fire_truck": {"points": 420, "weight": 4.0, "heat": 0.5, "move": "road", "speed": 9.0, "size": 3.0, "tier": 2},
+	"ambulance": {"points": 320, "weight": 3.0, "heat": 0.5, "move": "road", "speed": 10.0, "size": 2.6},
+	"hospital": {"points": 900, "weight": 7.0, "heat": 0.8, "move": "still", "size": 6.0, "tier": 3, "voice": "scream"},
+	"fire_station": {"points": 700, "weight": 6.0, "heat": 0.6, "move": "still", "size": 5.0, "tier": 3},
+	"prison": {"points": 2500, "weight": 12.0, "heat": 1.0, "move": "still", "size": 12.0, "tier": 4, "voice": "scream"},
+	"inmate": {"model": "person", "tints": {"shirt": Color(1.0, 0.5, 0.1), "denim": Color(1.0, 0.5, 0.1)}, "points": 150, "weight": 1.3, "heat": 0.3, "move": "graze", "speed": 2.2, "size": 0.7, "voice": "scream"},
 	# Motorcycles (one model, painted for who rides it): riders on the roads, biker gangs riding in packs,
 	# and motorcycle cops, quick, who chase and fire
 	"motorcycle": {"tints": {"paint": Color(0.75, 0.12, 0.1)}, "points": 130, "weight": 1.6, "heat": 0.35, "move": "road", "speed": 12.0, "size": 1.2},
@@ -599,7 +611,12 @@ func _walk(delta: float, ufo: Ufo) -> void:
 		"still":
 			pace = 0.0
 		"peck", "graze":
-			if near < 6.0 and ufo.beaming or panic > 0.0:
+			# (set free, a prison broken: away from it as fast as they can go)
+			if has_meta("free"):
+				var from: Vector3 = get_meta("free")
+				want = (here - Vector3(from.x, here.y, from.z)).normalized()
+				pace *= 2.8
+			elif near < 6.0 and ufo.beaming or panic > 0.0:
 				# (startled by the light: off it goes)
 				want = -to_ufo.normalized() if near > 0.01 else Vector3.FORWARD
 				pace *= 2.2
@@ -1513,9 +1530,9 @@ static func category(of: String) -> String:
 	var info: Dictionary = KINDS[of]
 	if info.get("rare", false) or of in ["golden_cow", "jackalope", "sasquatch", "meteorite", "satellite", "crash_site"]:
 		return "RARE FINDS"
-	if info.get("caller", false) or info.get("enemy", false) and info["move"] == "guard" or of in ["scarecrow", "believer", "hunter", "player", "cultist"]:
+	if info.get("caller", false) or info.get("enemy", false) and info["move"] == "guard" or of in ["scarecrow", "believer", "hunter", "player", "cultist", "inmate"]:
 		return "EARTHLINGS"
-	if of in ["wheat", "corn", "pumpkin", "hay_bale", "hay_pile"]:
+	if of in ["wheat", "corn", "pumpkin", "sunflower", "cabbage", "melon", "pepper", "hay_bale", "hay_pile"]:
 		return "CROPS"
 	if info["move"] in ["graze", "peck", "flee", "fly"]:
 		return "BEASTS"
