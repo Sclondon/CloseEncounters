@@ -34,7 +34,7 @@ const FORCES: Array[Dictionary] = [
 const NEW_STAR := 8.0
 var _new_star := 0.0
 ## How many of each thing the farm keeps about (taken ones are replaced, somewhere else)
-const CAMERA_OFFSET := Vector3(0, 25.8, 19.8)
+const CAMERA_OFFSET := Vector3(0, 20.5, 24.5)
 const WIDE_OFFSET := Vector3(0, 14.5, 30.0)
 ## (tests try others)
 var camera_offset := CAMERA_OFFSET
@@ -107,7 +107,7 @@ var _circle_time := 0.0
 var _circle_done := false
 ## The traders parked about the country, and what has been bought from them this run
 var shops: Array[Shop] = []
-var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "fleet": 0}
+var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "fleet": 0}
 var _hot_wait := 0.0
 ## The level reached this run (see `_levels`), levels still to pick for, and the picker
 var level := 0
@@ -116,21 +116,34 @@ var _picker: VBoxContainer
 var _picker_dim: ColorRect
 var _picker_title: Label
 var _picks: VBoxContainer
+var _pick_one: Label
+## The Moon Market's trading saucer, while the market is open (see MarketShip)
+var _market: MarketShip
 ## Things the world has asked for, waiting to be put down: [kind, where, extra]
 var _to_spawn: Array = []
 const SPAWN_A_FRAME := 6
 ## What traders sell, one pod each: three of these are set out in front of each trader
-const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "missiles", "cloak", "fleet"]
+## The beam's colours as BEAM items stack: green, blue, purple
+const BEAM_COLOURS := [Color(0.55, 1.0, 0.65), Color(0.4, 0.7, 1.0), Color(0.78, 0.45, 1.0)]
+const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "fleet"]
 const UPGRADES := {
 	"engine": {"title": "ENGINE", "about": "faster", "price": 300, "colour": Color(1.0, 0.55, 0.15)},
 	"beam": {"title": "BEAM", "about": "lifts faster, then heavier things", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
 	"shield": {"title": "SHIELD", "about": "more shield", "price": 300, "colour": Color(0.3, 0.6, 1.0)},
 	"patch": {"title": "PATCH", "about": "shield refilled", "price": 0, "colour": Color(0.4, 1.0, 1.0)},
-	"dash": {"title": "DASH", "about": "recharges faster", "price": 250, "colour": Color(0.75, 0.4, 1.0)},
-	"laser": {"title": "LASER", "about": "fire a cutting ray", "price": 500, "colour": Color(1.0, 0.3, 0.45)},
+	"dash": {"title": "DASH", "about": "an extra dash charge", "price": 250, "colour": Color(0.75, 0.4, 1.0)},
+	"laser": {"title": "LASER", "about": "a ray that burns things down", "price": 500, "colour": Color(1.0, 0.3, 0.45)},
 	"turret": {"title": "AUTO TURRET", "about": "shoots by itself", "price": 500, "colour": Color(1.0, 0.5, 0.3)},
 	"missiles": {"title": "MISSILES", "about": "homing missiles, from the fleet too", "price": 600, "colour": Color(1.0, 0.75, 0.25)},
 	"cloak": {"title": "CLOAK", "about": "vanish for a few seconds", "price": 550, "colour": Color(0.6, 0.6, 1.0)},
+	"magnet": {"title": "MAGNET", "about": "small things drift to the beam", "price": 400, "colour": Color(0.9, 0.3, 0.3)},
+	"wide": {"title": "WIDE BEAM", "about": "a broader beam", "price": 400, "colour": Color(0.5, 1.0, 0.8)},
+	"scanner": {"title": "SCANNER", "about": "the radar sees further", "price": 300, "colour": Color(0.3, 0.9, 0.6)},
+	"jammer": {"title": "JAMMER", "about": "they stop looking sooner", "price": 450, "colour": Color(0.9, 0.85, 0.3)},
+	"coolant": {"title": "COOLANT", "about": "the heat cools quicker", "price": 450, "colour": Color(0.6, 1.0, 0.98)},
+	"nanobots": {"title": "NANOBOTS", "about": "the shield mends itself", "price": 450, "colour": Color(0.4, 0.75, 1.0)},
+	"gold": {"title": "GOLD", "about": "everything taken is worth more", "price": 500, "colour": Color(1.0, 0.82, 0.25)},
+	"emp": {"title": "EMP", "about": "dashing stuns the police and army near", "price": 450, "colour": Color(0.55, 0.85, 1.0)},
 	"fleet": {"title": "FLEET", "about": "a little helper saucer", "price": 450, "colour": Color(1.0, 0.9, 0.3)},
 }
 ## Upgrades are items that stack, as in Risk of Rain: each pick one more of it, up to this many
@@ -208,6 +221,11 @@ var heat_note_time := 0.0
 var title_box: Control
 var over_box: Control
 var _again: Button
+## OK and REPLAY under the results
+var _over_row: HBoxContainer
+var _replay_button: Button
+## REPLAY pressed: the flight up off the wreck goes on into a new run, not home to the moon
+var _replay := false
 ## The results typing out (see _wreck_burning)
 var _over_typing := 0.0
 ## The wrecked ship left lying while the camera pulls away from it to the moon (see quit_to_menu)
@@ -232,6 +250,8 @@ var _log_back: Button
 var _log_taken := {}
 ## This run's takings by kind: [how many, points], for the results (see _results)
 var _run_taken := {}
+## The police and army destroyed this run, by kind: {kind: how many}
+var _run_killed := {}
 var _log_met: Array[String] = []
 ## The items (upgrades) ever had, for the log
 var _log_items: Array[String] = []
@@ -342,8 +362,11 @@ func _ready() -> void:
 	net.failed.connect(func(why: String) -> void: _lobby_say(why))
 	net.closed.connect(_coop_closed)
 	holograms = Holograms.new()
+	for what: String in UPGRADES:
+		holograms.item_colours[what] = (UPGRADES[what]["colour"] as Color).lerp(Color.WHITE, 0.2)
 	add_child(holograms)
 	_build_hud()
+	_apply_options()
 	if start_mode == "play":
 		start()
 	else:
@@ -432,10 +455,10 @@ func _build_view() -> void:
 	add_child(screen)
 
 
-## The picture is always LINES high (or wide, held upright), whatever the shape of the screen
+## The picture is always PICTURES[picture] lines high (or wide, held upright), whatever the shape of the screen
 func _fit() -> void:
 	var size := get_viewport().get_visible_rect().size
-	view.size = Vector2i((size * Ps1.LINES / minf(size.x, size.y)).round())
+	view.size = Vector2i((size * float(PICTURES[picture]) / minf(size.x, size.y)).round())
 	# (an upright phone sees more of the world above and below, not less to the sides)
 	camera.keep_aspect = Camera3D.KEEP_WIDTH if size.x < size.y else Camera3D.KEEP_HEIGHT
 	camera.fov = _fov()
@@ -472,8 +495,11 @@ func start(from_launch := false) -> void:
 		if t.is_enemy() or t.kind == "rival":
 			_remove(t)
 	_rival_wait = 50.0
+	boosts.clear()
+	_boost_wait = 20.0
 	coop.clear()
 	_run_taken.clear()
+	_run_killed.clear()
 	laser_mode = false
 	_five_for = 0.0
 	_nuke_wait = 0.0
@@ -497,7 +523,7 @@ func start(from_launch := false) -> void:
 	_clear_wreck()
 	if not from_launch:
 		alien_seed = randi()
-	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "fleet": 0}
+	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "fleet": 0}
 	level = 0
 	_levels_due = 0
 	_picker.visible = false
@@ -573,7 +599,7 @@ func heat_level() -> int:
 
 
 func multiplier() -> int:
-	return 1 + heat_level()
+	return (1 + heat_level()) * (2 if boosts.has("double") else 1)
 
 
 func _process(delta: float) -> void:
@@ -632,7 +658,8 @@ func _process(delta: float) -> void:
 			if ufo.hull < was:
 				sfx.play("boom", 1.6)
 				_shake = maxf(_shake, 0.5)
-	ufo.mend_rate = 2.0 if heat_level() == 0 else 0.0
+	# (NANOBOTS mend it always, a little, more the more stacked)
+	ufo.mend_rate = (2.0 if heat_level() == 0 else 0.0) + 0.7 * upgrades["nanobots"]
 	if ufo.shield_broke:
 		ufo.shield_broke = false
 		_banner("SHIELD DOWN: ONE MORE HIT AND YOU'RE FINISHED", 2.5)
@@ -664,7 +691,7 @@ func _process(delta: float) -> void:
 				t.rattle()
 				if _hot_wait <= 0.0:
 					_hot_wait = 2.5
-					log_line(why_not(t), 0)
+					_heat_note(why_not(t), 2.5)
 				continue
 			if t.power > 0.0 and t.state == "walk":
 				_drain(t, delta)
@@ -696,11 +723,14 @@ func _process(delta: float) -> void:
 	_nuking(delta)
 	_surface_fx(delta)
 	_launch_missiles(delta)
+	_magnet(delta)
+	_boosts(delta)
 	_watchers(delta)
 	_crop_circles(delta)
 	for s in shots:
 		s.tick(delta, ufo, self)
 	_laser(delta)
+	_cool_scorches(delta)
 	_fleet(delta)
 	for s in shots:
 		if s.done:
@@ -737,7 +767,7 @@ func _process(delta: float) -> void:
 		_wreck_burning(delta)
 	if ufo.dead and mode == "play":
 		_crash(delta)
-	if mode == "over" and Input.is_action_just_pressed("start") and _over_wait <= 0.0 and _again.visible:
+	if mode == "over" and Input.is_action_just_pressed("start") and _over_wait <= 0.0 and _over_row.visible:
 		quit_to_menu()
 	if mode == "title" and Input.is_action_just_pressed("start"):
 		_play_pressed()
@@ -753,7 +783,16 @@ func _process(delta: float) -> void:
 func _dodge(way: Vector2) -> void:
 	if ufo.dodge(way.normalized()):
 		sfx.play("whoosh", 1.7, -2.0)
-		puff(ufo.position, Color(0.6, 0.9, 0.7), 1.2)
+		_emp()
+	elif not ufo.dead and mode == "play":
+		# (no charge left: the engine fizzles, the ship shudders, smokes and spits sparks)
+		_shake = maxf(_shake, 0.25)
+		ufo._kick = 0.6
+		sfx.play("static", 0.7, -6.0)
+		for i in 3:
+			ufo.puffs.puff(ufo.global_position + Vector3(randf_range(-1.5, 1.5), -0.3, randf_range(-1.5, 1.5)), Color(0.2, 0.2, 0.22, 0.7), randf_range(0.5, 0.8), Vector3(0, 1.8, 0), 0.9)
+		for i in 6:
+			ufo.puffs.spark(ufo.global_position + Vector3(0, -0.2, 0), Vector3(randf_range(-1, 1), randf_range(0.3, 1.2), randf_range(-1, 1)) * randf_range(3.0, 5.0))
 
 
 func _read_steer() -> Vector2:
@@ -768,6 +807,9 @@ func _read_steer() -> Vector2:
 ## than the last), and little for a while after a new star, so that each is a stage of its own
 ## rather than a rush from one to five
 func add_heat(amount: float) -> void:
+	# (a HEAT FREEZE: none of it while it lasts)
+	if boosts.has("freeze"):
+		return
 	# (each star harder to reach than the last, steeply: five stars takes a long, hot run)
 	var l := float(heat_level())
 	var damp := 1.0 / (1.0 + 0.9 * l + 0.3 * l * l)
@@ -779,12 +821,15 @@ func _heat(delta: float) -> void:
 	_new_star = maxf(_new_star - delta, 0.0)
 	calm += delta
 	# (the more the ship has taken, the longer it takes them to give up looking)
-	if calm > COOL_AFTER * sqrt(danger()) and heat > 0.0:
-		heat = maxf(heat - COOL_RATE / danger() * delta, 0.0)
+	# (a JAMMER: they give up looking sooner; COOLANT: the heat drains away quicker)
+	var jam: float = 1.0 + 0.35 * upgrades["jammer"]
+	var cool: float = 1.0 + 0.4 * upgrades["coolant"]
+	if calm > COOL_AFTER * sqrt(danger()) / jam and heat > 0.0:
+		heat = maxf(heat - COOL_RATE * cool / danger() * delta, 0.0)
 	var threat := int((danger() - 1.0) * 2.0)
 	if threat > _threat:
 		_threat = threat
-		log_line("THREAT LEVEL RAISED: THEY ARE TAKING YOU SERIOUSLY", 0)
+		_heat_note("THREAT LEVEL RAISED: THEY ARE TAKING YOU SERIOUSLY", 2.5)
 		sfx.play("star", 0.8)
 	var level := heat_level()
 	if level != _last_level:
@@ -858,7 +903,7 @@ func _drain(t: Thing, delta: float) -> void:
 		sfx.play("static", 2.0, -12.0)
 	if t.power <= 0.0:
 		Ps1.flash(t.model, Color(-0.5, -0.5, -0.5))
-		log_line("POWER SIPHONED: SUBSTATION DARK", 0)
+		_heat_note("POWER SIPHONED: SUBSTATION DARK", 2.5)
 		sfx.play("cool", 0.7)
 
 
@@ -1072,7 +1117,7 @@ func _bought(pod: Thing) -> void:
 	buy(what)
 	buy(what)
 	if is_instance_valid(shop):
-		log_line("TRADED WITH %s" % shop.keeper_name.to_upper(), 0)
+		_heat_note("TRADED WITH %s" % shop.keeper_name.to_upper(), 2.5)
 		_pack_up(shop)
 		shop.leave(true)
 
@@ -1097,15 +1142,87 @@ func trader_fled(s: Shop) -> void:
 ## laser under it and the fleet round it
 func _apply_upgrades() -> void:
 	var spec: Dictionary = Ufo.SHIPS[ship]
-	# (each a little at first: a level of anything is felt, and the fourth makes it strong)
-	ufo.speed = float(spec["speed"]) * (1.0 + 0.07 * upgrades["engine"])
-	ufo.lift_rate = float(spec["lift"]) * (1.0 + 0.12 * upgrades["beam"])
-	ufo.tier = mini(int(spec["tier"]) + int(upgrades["beam"]) / 2, 4)
+	_ship_stats()
 	ufo.hull_max = float(spec["hull"]) + 15.0 * upgrades["shield"]
 	ufo.dash_level = upgrades["dash"]
+	# (the beam green, blue from the second BEAM, purple from the fourth)
+	ufo.colour_beam(BEAM_COLOURS[mini(upgrades["beam"] / 2, BEAM_COLOURS.size() - 1)])
+	# (WIDE BEAM: a seventh broader a stack, its light with it)
+	var wide: float = 1.0 + 0.15 * upgrades["wide"]
+	ufo.beam_foot = float(spec["beam_foot"]) * wide
+	ufo.beam.scale = Vector3(wide, 1.0, wide)
 	if upgrades["turret"] > 0:
 		ufo.arm_laser()
 	_build_fleet()
+
+
+## The ship's speed and beam from its items, and any boost under way
+func _ship_stats() -> void:
+	var spec: Dictionary = Ufo.SHIPS[ship]
+	# (each a little at first: a level of anything is felt, and the fourth makes it strong)
+	ufo.speed = float(spec["speed"]) * (1.0 + 0.07 * upgrades["engine"]) * (1.5 if boosts.has("overdrive") else 1.0)
+	ufo.lift_rate = float(spec["lift"]) * (1.0 + 0.12 * upgrades["beam"]) * (1.8 if boosts.has("super") else 1.0)
+	ufo.tier = mini(int(spec["tier"]) + int(upgrades["beam"]) / 2 + (1 if boosts.has("super") else 0), 4)
+
+
+# ------------------------------------------------------------------ boosts
+
+## Power-ups lying about the country, glowing canisters to beam up, each for a while (seconds; none
+## for one that works at once)
+const BOOSTS := {
+	"double": {"title": "DOUBLE POINTS", "colour": Color(1.0, 0.82, 0.25), "time": 15.0},
+	"overdrive": {"title": "OVERDRIVE", "colour": Color(1.0, 0.45, 0.2), "time": 15.0},
+	"freeze": {"title": "HEAT FREEZE", "colour": Color(0.55, 0.95, 1.0), "time": 12.0},
+	"super": {"title": "SUPER BEAM", "colour": Color(0.85, 0.4, 1.0), "time": 12.0},
+	"repair": {"title": "SHIELD CELL", "colour": Color(0.35, 0.6, 1.0), "time": 0.0},
+}
+## Those under way: {name: seconds left}
+var boosts := {}
+var _boost_wait := 20.0
+var boost_label: Label
+## A canister put down somewhere near every so often, while there are few about
+const BOOST_EVERY := Vector2(22.0, 40.0)
+const BOOST_MOST := 2
+
+
+func _boosts(delta: float) -> void:
+	for b: String in boosts.keys():
+		boosts[b] -= delta
+		if boosts[b] <= 0.0:
+			boosts.erase(b)
+			_ship_stats()
+			_heat_note("%s OVER" % BOOSTS[b]["title"], 1.2)
+	if mode != "play" or intro > 0.0:
+		return
+	_boost_wait -= delta
+	if _boost_wait > 0.0:
+		return
+	_boost_wait = randf_range(BOOST_EVERY.x, BOOST_EVERY.y)
+	var about := 0
+	for t: Thing in things:
+		if t.kind == "canister" and t.state == "walk":
+			about += 1
+	if about >= BOOST_MOST:
+		return
+	var what: String = BOOSTS.keys().pick_random()
+	var a := randf() * TAU
+	var at: Vector3 = world.off_road(ufo.ground() + Vector3(cos(a), 0, sin(a)) * randf_range(16.0, 28.0), 1.0)
+	var c := spawn("canister", at, {"tints": {"pod_glow": BOOSTS[what]["colour"]}})
+	if c != null:
+		c.set_meta("boost", what)
+
+
+## A canister beamed up: its boost on (or, taken again, on for longer)
+func _boost(what: String) -> void:
+	var spec: Dictionary = BOOSTS[what]
+	if what == "repair":
+		ufo.hull = ufo.hull_max
+	else:
+		boosts[what] = float(boosts.get(what, 0.0)) + float(spec["time"])
+		_ship_stats()
+	_heat_note("%s!" % spec["title"], 1.6)
+	sfx.play("fanfare", 1.3, -6.0)
+	ufo.sparkle()
 
 
 # ------------------------------------------------------------------ levelling up
@@ -1156,20 +1273,32 @@ func _level_up() -> void:
 	sfx.play("fanfare", 1.2, -2.0)
 	for b in _picks.get_children():
 		b.queue_free()
-	_picker_title.text = "LEVEL %d" % level
+	_picker_title.text = "MOON MARKET"
+	# (the market's trading saucer coming down out of the sky behind it)
+	if not is_instance_valid(_market):
+		_market = MarketShip.new()
+		_market.main = self
+		view.add_child(_market)
+	_picker_title.add_theme_font_size_override("font_size", 110 if _upright() else 56)
+	_pick_one.add_theme_font_size_override("font_size", 50 if _upright() else 26)
+	_picks.add_theme_constant_override("separation", 50 if _upright() else 30)
+	_picker.custom_minimum_size = Vector2(1200 if _upright() else 660, 0)
 	for what: String in offers:
 		var spec: Dictionary = UPGRADES[what]
 		var heading := "%s" % spec["title"] if what == "patch" else "%s  x%d" % [spec["title"], upgrades[what] + 1]
 		var b := _button("%s\n%s" % [heading, spec["about"]], func() -> void: _pick(what))
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		b.custom_minimum_size = Vector2(560, 96)
-		b.add_theme_font_size_override("font_size", 32)
+		# (big for thumbs, an upright phone's the biggest)
+		var big := _upright()
+		b.custom_minimum_size = Vector2(1180, 250) if big else Vector2(600, 118)
+		b.add_theme_font_size_override("font_size", 70 if big else 34)
 		b.add_theme_color_override("font_color", (spec["colour"] as Color).lerp(Color.WHITE, 0.35))
 		# (the item itself beside its name, a little 3D model of it)
 		b.icon = holograms.item(what)
 		b.expand_icon = true
-		b.add_theme_constant_override("icon_max_width", 80)
+		b.add_theme_constant_override("icon_max_width", 210 if big else 96)
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.add_theme_constant_override("h_separation", 30 if big else 18)
 		_picks.add_child(b)
 	_forget_fingers()
 	_picker.visible = true
@@ -1182,6 +1311,8 @@ func _pick(what: String) -> void:
 		repair()
 	else:
 		buy(what)
+	if is_instance_valid(_market):
+		_market.leave()
 	_picker.visible = false
 	if _picker_dim != null:
 		_picker_dim.visible = false
@@ -1195,7 +1326,7 @@ func buy(what: String) -> bool:
 	if not what in _log_items:
 		_log_items.append(what)
 	_apply_upgrades()
-	log_line("%s x%d" % [UPGRADES[what]["title"], upgrades[what]], 0)
+	_heat_note("%s x%d" % [UPGRADES[what]["title"], upgrades[what]], 2.5)
 	if what == "shield":
 		ufo.hull = minf(ufo.hull + 15.0, ufo.hull_max)
 	if what == "turret" and upgrades[what] == 1:
@@ -1218,7 +1349,7 @@ func repair() -> void:
 	if mend <= 0:
 		return
 	ufo.hull = ufo.hull_max
-	log_line("SHIELD PATCHED", 0)
+	_heat_note("SHIELD PATCHED", 2.5)
 	sfx.play("bloop", 1.2)
 
 
@@ -1273,6 +1404,7 @@ func _laser(delta: float) -> void:
 		add_heat(0.25)
 		calm = 0.0
 		log_line("JET SHOT DOWN", points)
+		_count_kill("jet")
 
 
 
@@ -1288,6 +1420,7 @@ func _laser_hit(t: Thing, at: Vector3) -> void:
 		boom(at, 2.2)
 		sfx.play("boom", 1.3, _near_db(t))
 		log_line("%s BLOWN UP" % Thing.alien_name(t.kind), points, t.kind)
+		_count_kill(t.kind)
 		_remove(t)
 		return
 	t.set_meta("zapped", hits)
@@ -1304,6 +1437,44 @@ func _laser_hit(t: Thing, at: Vector3) -> void:
 
 
 
+
+
+# ------------------------------------------------------------------ the newer items' effects
+
+## SCANNER: the radar's reach, a third further a stack
+func radar_range() -> float:
+	return Radar.RANGE * (1.0 + 0.33 * upgrades["scanner"])
+
+
+## MAGNET: while beaming, small things near the beam's foot drift into it (wider and quicker a stack)
+func _magnet(delta: float) -> void:
+	var n: int = upgrades["magnet"]
+	if n <= 0 or not ufo.beaming or ufo.dead:
+		return
+	var foot := ufo.beam_axis(0.0)
+	var reach := ufo.beam_foot + 3.0 + 2.0 * n
+	for t in things:
+		if t.state != "walk" or t.is_enemy() or t.fixed() and t.info["move"] == "still" or float(t.info["weight"]) > 2.0:
+			continue
+		var off := Vector3(foot.x - t.position.x, 0, foot.z - t.position.z)
+		var d := off.length()
+		if d < reach and d > ufo.beam_foot * 0.5:
+			t.position += off / d * minf((1.0 + 0.8 * n) * delta, d)
+
+
+## EMP: a dash stuns the police and army near (further a stack)
+func _emp() -> void:
+	var n: int = upgrades["emp"]
+	if n <= 0:
+		return
+	var reach := 10.0 + 3.0 * n
+	ufo.puffs.puff(ufo.global_position, Color(0.55, 0.85, 1.0, 0.5), reach * 0.5, Vector3.ZERO, 0.4)
+	for t in things:
+		if t.is_enemy() and t.state == "walk" and t.position.distance_to(ufo.position) < reach:
+			t.reload = maxf(t.reload, 0.0) + 2.5
+			t.burst = 0
+			for i in 3:
+				ufo.puffs.spark(t.global_position + Vector3(0, 1.0, 0), Vector3(randf_range(-2, 2), randf_range(1, 3), randf_range(-2, 2)), Color(0.55, 0.85, 1.0))
 
 # ------------------------------------------------------------------ the cloak
 
@@ -1454,6 +1625,7 @@ func _cut(delta: float, firing: bool) -> void:
 		view.add_child(_cut_ray)
 	_cut_ray.visible = firing and not ufo.dead
 	if not _cut_ray.visible:
+		_last_scorch = Vector3.INF
 		return
 	var aim := _beam_aim()
 	var from := ufo.global_position + Vector3(0, -0.6, 0)
@@ -1462,6 +1634,10 @@ func _cut(delta: float, firing: bool) -> void:
 	var along := foot - from
 	var wide := 0.12 + 0.05 * sin(Time.get_ticks_msec() * 0.05)
 	_cut_ray.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, along.normalized())) * Basis.from_scale(Vector3(wide, along.length(), wide)), (from + foot) * 0.5)
+	# (a trail of burns along the ground where it has been)
+	if _last_scorch == Vector3.INF or Vector2(foot.x - _last_scorch.x, foot.z - _last_scorch.z).length() > 0.4:
+		_scorch(foot, randf_range(1.2, 1.6))
+		_last_scorch = foot
 	if randf() < delta * 30.0:
 		ufo.puffs.spark(foot + Vector3(0, 0.1, 0), Vector3(randf_range(-3, 3), randf_range(2, 5), randf_range(-3, 3)), Color(1.0, 0.5, 0.4))
 	if randf() < delta * 8.0:
@@ -1480,8 +1656,105 @@ func _cut(delta: float, firing: bool) -> void:
 			_laser_hit(t, t.global_position + Vector3(0, 1.0, 0))
 		elif t.info.get("explosive", false) or t.kind in VEHICLES:
 			explode(t)
-		elif t.info["move"] in ["flee", "graze", "peck"]:
-			t.panic = 2.5
+		else:
+			_burn(t)
+
+
+## What the laser cannot burn: the land itself
+const FIREPROOF := ["hill", "butte", "mesa", "peak", "devils_tower", "runway", "pod", "canister", "rival"]
+
+
+## The laser on something: it burns, a LASER's worth a cut (more for each LASER item), until it has
+## taken as much as its size (its size squared) and goes up in smoke. Only things up to a size the
+## laser's level allows: bigger ones are only scorched (a house wants a second LASER, a church a third)
+func _burn(t: Thing) -> void:
+	if t.kind in FIREPROOF:
+		return
+	var level: int = upgrades["laser"]
+	if t.info["move"] in ["flee", "graze", "peck"]:
+		t.panic = 2.5
+	if t.size() > laser_burns():
+		return
+	var burnt: float = float(t.get_meta("burnt", 0.0)) + level
+	if burnt < ceilf(t.size() * t.size()):
+		t.set_meta("burnt", burnt)
+		Ps1.flash(t.model, Color(1.0, 0.35, 0.1))
+		var held: WeakRef = weakref(t)
+		create_tween().tween_callback(func() -> void:
+			var still: Thing = held.get_ref()
+			if still != null:
+				Ps1.flash(still.model, Color.BLACK)).set_delay(0.12)
+		return
+	_vaporise(t)
+
+
+## The biggest thing the laser can burn down, at its level
+func laser_burns() -> float:
+	return 1.5 + upgrades["laser"]
+
+
+## Burnt down by the laser: a blast as big as it was, smoke and sparks, a scorch where it stood
+func _vaporise(t: Thing) -> void:
+	var at := t.position
+	var big := t.size()
+	coop.tell("boom", at, "", 1.5 + big)
+	boom(at + Vector3(0, 0.3 + big * 0.3, 0), 1.5 + big)
+	for i in 3 + int(big * 2.0):
+		var off := Vector3(randf_range(-1, 1), 0.0, randf_range(-1, 1)) * big * 0.5
+		ufo.puffs.puff(at + off + Vector3(0, 0.4, 0), Color(0.14, 0.12, 0.11, 0.6), 0.35 + big * 0.2, Vector3(0, randf_range(1.0, 2.2), 0), 1.4)
+	for i in 4 + int(big * 3.0):
+		ufo.puffs.spark(at + Vector3(0, 0.6, 0), Vector3(randf_range(-1, 1), randf_range(0.6, 1.6), randf_range(-1, 1)) * randf_range(3.0, 7.0), Color(1.0, 0.6, 0.25))
+	_scorch(at, 0.8 + big * 0.8)
+	sfx.play("boom", clampf(1.8 - big * 0.25, 0.7, 1.6), _near_db(t) - 2.0)
+	_shake = maxf(_shake, 0.08 * big)
+	var points := maxi(t.points() / 2, 5) * multiplier()
+	score += points
+	add_heat(0.05 + 0.04 * big)
+	calm = 0.0
+	log_line("%s BURNT DOWN" % Thing.alien_name(t.kind), points, t.kind)
+	_remove(t)
+
+
+# The laser's trail: burns on the ground where its foot has passed, glowing, cooling to soot and
+# fading away
+const SCORCH_HOT := 1.8
+const SCORCH_KEEP := 7.0
+const SCORCH_FADE := 2.5
+const SCORCH_MOST := 140
+## [mark, its material, its age]
+var _scorches: Array = []
+var _scorch_mesh: QuadMesh
+var _last_scorch := Vector3.INF
+const SCORCH_SHADER := preload("res://shaders/scorch.gdshader")
+
+
+func _scorch(at: Vector3, across: float) -> void:
+	if _scorch_mesh == null:
+		_scorch_mesh = QuadMesh.new()
+		_scorch_mesh.orientation = PlaneMesh.FACE_Y
+	if _scorches.size() >= SCORCH_MOST:
+		var oldest: Array = _scorches.pop_front()
+		(oldest[0] as Node).queue_free()
+	var m := ShaderMaterial.new()
+	m.shader = SCORCH_SHADER
+	var mi := Ps1.part(view, _scorch_mesh, m, Vector3(at.x, 0.04 + randf() * 0.02, at.z), Vector3(across, 1.0, across), Vector3(0, randf() * TAU, 0))
+	_scorches.append([mi, m, 0.0])
+
+
+func _cool_scorches(delta: float) -> void:
+	var keep: Array = []
+	for s: Array in _scorches:
+		s[2] += delta
+		var age: float = s[2]
+		if age > SCORCH_KEEP + SCORCH_FADE:
+			(s[0] as Node).queue_free()
+			continue
+		var hot := 1.0 - smoothstep(0.0, SCORCH_HOT, age)
+		var c := Color(0.07, 0.055, 0.05).lerp(Color(1.0, 0.45, 0.15), hot)
+		c.a = 0.85 * (1.0 - smoothstep(SCORCH_KEEP, SCORCH_KEEP + SCORCH_FADE, age))
+		(s[1] as ShaderMaterial).set_shader_parameter("tint", c)
+		keep.append(s)
+	_scorches = keep
 
 ## Seconds between the laser's shots, at its level
 func laser_reload() -> float:
@@ -1711,7 +1984,7 @@ func _nuking(delta: float) -> void:
 		var at := ufo.ground() + Vector3(ufo.velocity.x, 0, ufo.velocity.z) * 2.0
 		_nukes.append([at, NUKE_FUSE, _nuke_ring(at), null])
 		_heat_note("NUCLEAR STRIKE INBOUND!", 3.0)
-		log_line("NUCLEAR STRIKE AUTHORISED", 0)
+		_heat_note("NUCLEAR STRIKE AUTHORISED", 2.5)
 		sfx.play("star", 0.6, 4.0)
 	for n: Array in _nukes.duplicate():
 		n[1] -= delta
@@ -1954,7 +2227,6 @@ func spawn_rival(at: Vector3) -> Thing:
 	# (down out of the sky)
 	r.position.y = 30.0
 	_heat_note("A RIVAL SAUCER!", 2.5)
-	log_line("RIVAL SAUCER SIGHTED", 0)
 	return r
 
 
@@ -2166,6 +2438,12 @@ func _remove(t: Thing) -> void:
 
 ## Something reached the saucer
 func abducted(t: Thing) -> void:
+	if t.kind == "canister":
+		_boost(str(t.get_meta("boost", "double")))
+		ufo.alien.feel("cheer", 0.9)
+		t.state = "gone"
+		t.queue_free()
+		return
 	if t.kind == "pod":
 		_bought(t)
 		sfx.play("bloop", 1.3)
@@ -2179,7 +2457,8 @@ func abducted(t: Thing) -> void:
 	# (everything taken mends the shield a little, the heavier the more: a chicken a point, a barn a few)
 	ufo.hull = minf(ufo.hull + 1.0 + float(t.info["weight"]) * 0.5, ufo.hull_max)
 	(_sparks as ScoreSparks).burst(score_label.position + Vector2(score_label.size.x - 40.0, score_label.size.y * 0.5), 14)
-	var points := t.points() * multiplier()
+	# (GOLD: everything taken worth a tenth more a stack)
+	var points := int(t.points() * multiplier() * (1.0 + 0.1 * upgrades["gold"]))
 	if mode == "play":
 		score += points
 		taken += 1
@@ -2230,6 +2509,7 @@ func landed(t: Thing, height: float, thrown := 0.0) -> void:
 			calm = 0.0
 			boom(other.position + Vector3(0, 1, 0), 2.0)
 			log_line("%s CRUSHED" % other.kind.replace("_", " ").to_upper(), points)
+			_count_kill(other.kind)
 			_remove(other)
 			break
 
@@ -2254,6 +2534,8 @@ func explode(t: Thing) -> void:
 	var points := t.points() * multiplier()
 	score += points
 	log_line("%s BLOWN UP" % t.kind.replace("_", " ").to_upper(), points)
+	if t.is_enemy():
+		_count_kill(t.kind)
 	add_heat(0.3)
 	calm = 0.0
 	_remove(t)
@@ -2266,6 +2548,7 @@ func explode(t: Thing) -> void:
 			score += got
 			boom(other.position + Vector3(0, 1, 0), 2.5)
 			log_line("%s CAUGHT IN THE BLAST" % other.kind.replace("_", " ").to_upper(), got)
+			_count_kill(other.kind)
 			_remove(other)
 		elif d < BLAST_REACH * 1.6:
 			other.panic = 6.0
@@ -2350,6 +2633,12 @@ func _crash(delta: float) -> void:
 
 
 
+## One of the police or army (or a jet) destroyed, for the results
+func _count_kill(kind: String) -> void:
+	if mode == "play":
+		_run_killed[kind] = int(_run_killed.get(kind, 0)) + 1
+
+
 ## The results: what was taken, category by category (in the log's order), how many and for how
 ## much; then the total
 func _results(is_best: bool) -> String:
@@ -2359,6 +2648,23 @@ func _results(is_best: bool) -> String:
 			lines.append("%s x%d  %d" % [group, int(_run_taken[group][0]), int(_run_taken[group][1])])
 	if lines.is_empty():
 		lines.append("NOTHING TAKEN")
+	# (the hunters destroyed, kind by kind)
+	if not _run_killed.is_empty():
+		lines.append("")
+		lines.append("DESTROYED")
+		for kind: String in _run_killed:
+			lines.append("%s x%d" % [HUNTERS.get(kind, kind.replace("_", " ").to_upper()), int(_run_killed[kind])])
+	# (the items had, with how many of each)
+	var had: Array[String] = []
+	for what: String in ItemBar.ORDER:
+		if upgrades.get(what, 0) > 0:
+			had.append("%s x%d" % [UPGRADES[what]["title"], int(upgrades[what])])
+	if not had.is_empty():
+		lines.append("")
+		lines.append("ITEMS")
+		# (two to a line, to fit an upright phone)
+		for i in range(0, had.size(), 2):
+			lines.append("  ".join(had.slice(i, i + 2)))
 	lines.append("")
 	lines.append("TOTAL  %d" % score)
 	lines.append("BEST  %d%s" % [best, "  (NEW!)" if is_best and score > 0 else ""])
@@ -2392,13 +2698,184 @@ func _wreck_site() -> void:
 	tw.tween_interval(1.2)
 	tw.tween_property(_wreck_pilot, "rotation", Vector3(0, PI * 0.25, 0), 0.4)
 	tw.tween_callback(func() -> void: _wreck_pilot.feel("hurt", 6.0))
+	_dirt_mound()
+	_dirt_mound()
 
+
+
+## The ground heaped up where the ship went in: a ring of dirt round its rim (piled highest on the side
+## it dug into), clods thrown out, and a dark scar under it
+func _dirt_mound() -> void:
+	var r: float = ufo.radius
+	var dirt := Color(0.3, 0.22, 0.14)
+	var dark := Color(0.17, 0.12, 0.08)
+	_wreck_bits.append(Ps1.part(view, Ps1.ball(), Ps1.flat(dark), wreck + Vector3(0, -0.15, 0), Vector3(r * 2.6, 0.35, r * 2.6)))
+	# (the low side: where the tilt puts the rim into the ground)
+	var low := (ufo.body.global_basis.y * Vector3(1, 0, 1)).normalized() * -1.0
+	for i in 16:
+		var a := TAU * i / 16.0 + randf_range(-0.1, 0.1)
+		var way := Vector3(cos(a), 0, sin(a))
+		var deep := 0.5 + 0.5 * maxf(way.dot(low), 0.0)
+		var at := wreck + way * r * randf_range(0.85, 1.05)
+		var size := Vector3(randf_range(1.1, 1.6), randf_range(0.5, 0.9) * deep * 1.6, randf_range(1.1, 1.6)) * (0.6 + 0.4 * deep)
+		_wreck_bits.append(Ps1.part(view, Ps1.ball(), Ps1.flat(dirt.lerp(dark, randf() * 0.4)), at, size, Vector3(0, randf() * TAU, 0)))
+	for i in 10:
+		var a := randf() * TAU
+		var at := wreck + Vector3(cos(a), 0, sin(a)) * r * randf_range(1.4, 2.6)
+		_wreck_bits.append(Ps1.part(view, Ps1.ball(), Ps1.flat(dirt), at + Vector3(0, 0.05, 0), Vector3.ONE * randf_range(0.2, 0.45), Vector3(randf(), randf(), randf()) * TAU))
+
+
+# The men in black: if the crash is watched long enough, a black car comes in; one agent bags the
+# pilot and carries it off to the car, the other walks to the crowd and flashes them with the
+# memory eraser (they forget and wander off); then they drive away
+const MIB_COME := 10.0
+var _wreck_bits: Array[Node3D] = []
+var _mib_car: Node3D
+var _mib_a: Node3D
+var _mib_b: Node3D
+var _mib_bag: Node3D
+var _mib_stop := Vector3.ZERO
+var _mib_from := Vector3.ZERO
+var _mib_crowd := Vector3.INF
+var _mib_flashed := false
+
+
+func _men_in_black() -> void:
+	var t := _wreck_t - MIB_COME
+	if t < 0.0 or not is_instance_valid(_wreck_pilot):
+		return
+	var body := _wreck_pilot.position
+	if _mib_car == null:
+		# (in from off to the side, stopping beside the pilot's body)
+		var side := Vector3(-_pilot_way.z, 0, _pilot_way.x) if _pilot_way != Vector3.ZERO else Vector3.RIGHT
+		_mib_stop = Vector3(body.x, 0, body.z) + side * 5.0
+		_mib_from = _mib_stop + side * 55.0 + Vector3(0, 0, -20)
+		_mib_car = Ps1.model("car", Thing.KINDS["agent_car"]["tints"])
+		view.add_child(_mib_car)
+		_wreck_bits.append(_mib_car)
+		var suit: Dictionary = Thing.KINDS["agent"]["tints"]
+		_mib_a = Ps1.model("person", suit)
+		_mib_b = Ps1.model("person", suit)
+		for n in [_mib_a, _mib_b]:
+			n.visible = false
+			view.add_child(n)
+			_wreck_bits.append(n)
+		# (the crowd come to look: where they stand together)
+		var sum := Vector3.ZERO
+		var n_crowd := 0
+		for th: Thing in things:
+			if th.state == "walk" and th.info.get("caller", false) and th.ground().distance_to(wreck) < 25.0:
+				sum += th.ground()
+				n_crowd += 1
+		_mib_crowd = sum / n_crowd if n_crowd > 0 else Vector3.INF
+		sfx.play("whoosh", 0.6, -4.0)
+	# In: the car slowing to a stop
+	if t < 3.0:
+		var k := 1.0 - pow(1.0 - t / 3.0, 3.0)
+		_place(_mib_car, _mib_from.lerp(_mib_stop, k), _mib_stop - _mib_from)
+		return
+	var door_a := _mib_stop + (body - _mib_stop).normalized() * 1.6
+	var crowd_spot := _mib_crowd + (_mib_stop - _mib_crowd).normalized() * 3.0 if _mib_crowd != Vector3.INF else door_a + Vector3(2, 0, 0)
+	# Out of the car, to the body and to the crowd
+	if t >= 3.3 and not _mib_a.visible and t < 10.0:
+		_mib_a.visible = true
+		_mib_b.visible = true
+		sfx.play("thud", 1.4, -8.0)
+	if t >= 3.3 and t < 5.6:
+		var k := (t - 3.3) / 2.3
+		_walk_to(_mib_a, door_a, body + (door_a - body).normalized() * 0.9, k, t)
+		_walk_to(_mib_b, door_a + Vector3(0.8, 0, 0.4), crowd_spot, k, t)
+	# The bag: up over the body from the feet, zipped shut
+	if t >= 5.6 and t < 7.0:
+		if _mib_bag == null:
+			_mib_bag = Ps1.part(view, Ps1.ball(), Ps1.flat(Color(0.04, 0.04, 0.05)), Vector3.ZERO, Vector3.ONE)
+			_wreck_bits.append(_mib_bag)
+			sfx.play("whoosh", 2.0, -8.0)
+		var k := smoothstep(0.0, 1.0, (t - 5.6) / 1.2)
+		var along := _pilot_way if _pilot_way != Vector3.ZERO else Vector3.FORWARD
+		_mib_bag.position = Vector3(body.x, 0.25, body.z)
+		_mib_bag.rotation = Vector3(0, atan2(along.x, along.z), 0)
+		_mib_bag.scale = Vector3(0.42, 0.32, 1.05 * maxf(k, 0.05)) * _wreck_pilot.scale.x
+		if k > 0.9:
+			_wreck_pilot.visible = false
+	# The flash: the crowd's memories gone
+	if t >= 6.0 and not _mib_flashed:
+		_mib_flashed = true
+		_neuralyze(_mib_b.position + Vector3(0, 1.6, 0))
+	# Back to the car with the bag on a shoulder
+	if t >= 7.2 and t < 9.6:
+		var k := (t - 7.2) / 2.4
+		_walk_to(_mib_a, body + (door_a - body).normalized() * 0.9, door_a, k, t)
+		_walk_to(_mib_b, crowd_spot, door_a + Vector3(0.8, 0, 0.4), k, t)
+		if _mib_bag != null:
+			_mib_bag.position = _mib_a.position + Vector3(0, 1.5, 0)
+			_mib_bag.rotation = Vector3(0, _mib_a.rotation.y + PI / 2, 0)
+	if t >= 9.8 and _mib_a.visible:
+		_mib_a.visible = false
+		_mib_b.visible = false
+		if _mib_bag != null:
+			_mib_bag.visible = false
+		sfx.play("thud", 1.4, -8.0)
+	# Away, on the way they were going
+	if t >= 10.4 and t < 14.0:
+		var k := pow((t - 10.4) / 3.6, 2.0)
+		var away := _mib_stop + (_mib_stop - _mib_from).normalized() * 70.0
+		_place(_mib_car, _mib_stop.lerp(away, k), away - _mib_stop)
+	elif t >= 14.0:
+		_mib_car.visible = false
+
+
+## A model put at `at` (on the ground), facing `way`
+func _place(n: Node3D, at: Vector3, way: Vector3) -> void:
+	n.position = Vector3(at.x, 0, at.z)
+	if Vector2(way.x, way.z).length() > 0.01:
+		n.rotation.y = atan2(way.x, way.z)
+
+
+## A figure `k` of the way walking from one place to another, bobbing as it goes
+func _walk_to(n: Node3D, from: Vector3, to: Vector3, k: float, t: float) -> void:
+	k = clampf(k, 0.0, 1.0)
+	_place(n, from.lerp(to, smoothstep(0.0, 1.0, k)), to - from)
+	if k < 1.0:
+		n.position.y = absf(sin(t * 9.0)) * 0.08
+
+
+## The memory eraser: a white flash, and everyone come to look forgets what they saw, and wanders off
+func _neuralyze(at: Vector3) -> void:
+	_blob(at, Color(1, 1, 1), 1.4, 0.15)
+	var light := OmniLight3D.new()
+	light.light_energy = 6.0
+	light.omni_range = 20.0
+	light.position = at
+	view.add_child(light)
+	var tw := create_tween()
+	tw.tween_property(light, "light_energy", 0.0, 0.5)
+	tw.tween_callback(light.queue_free)
+	sfx.play("zap", 2.2, -2.0)
+	for th: Thing in things:
+		if th.state == "walk" and th.info.get("caller", false) and th.ground().distance_to(at) < 30.0:
+			th.set_meta("forgot", true)
+			Ps1.flash(th.model, Color(1.5, 1.5, 1.5))
+			var held: WeakRef = weakref(th)
+			create_tween().tween_callback(func() -> void:
+				var still: Thing = held.get_ref()
+				if still != null:
+					Ps1.flash(still.model, Color.BLACK)).set_delay(0.3)
 
 
 ## The wreck and its pilot gone (a new run, or back to the title)
 func _clear_wreck() -> void:
 	wreck = Vector3.INF
 	_over_show = 0.0
+	for n in _wreck_bits:
+		if is_instance_valid(n):
+			n.queue_free()
+	_wreck_bits.clear()
+	_mib_car = null
+	_mib_a = null
+	_mib_b = null
+	_mib_bag = null
+	_mib_flashed = false
 	if is_instance_valid(_wreck_pilot):
 		_wreck_pilot.queue_free()
 	_wreck_pilot = null
@@ -2479,6 +2956,7 @@ func _wreck_burning(delta: float) -> void:
 		_wreck_pilot.rotation = Vector3(0.25, atan2(_pilot_way.x, _pilot_way.z), sin(_wreck_t * 11.0) * 0.18)
 	elif _wreck_t >= PILOT_SHOT and not _pilot_down and is_instance_valid(_wreck_pilot):
 		_gun_down(_wreck_pilot)
+	_men_in_black()
 	if _over_show > 0.0:
 		_over_show -= delta
 		if _over_show <= 0.0:
@@ -2496,7 +2974,8 @@ func _wreck_burning(delta: float) -> void:
 				sfx.play("ding", 1.0, -10.0)
 			elif ch != " ":
 				sfx.play("key", randf_range(0.9, 1.15), -8.0)
-		_again.visible = over_label.visible_characters >= over_label.text.length()
+		_over_row.visible = over_label.visible_characters >= over_label.text.length()
+		_replay_button.visible = not coop.active()
 
 
 
@@ -2671,7 +3150,7 @@ func _intro_camera() -> void:
 	var away := _away()
 	var normal_from := _camera_offset() - Vector3(0, ufo.altitude, 0)
 	camera.position = ufo.position + _chase(away).slerp(normal_from, settle)
-	var normal_way := (Vector3(0, -ufo.altitude * (1.0 if _upright() else 0.55), 0) - normal_from).normalized()
+	var normal_way := (Vector3(0, -ufo.altitude * (1.0 - _look_up()), 0) - normal_from).normalized()
 	var way := away.slerp(normal_way, settle)
 	camera.look_at(camera.position + way, Vector3.UP if absf(way.y) < 0.99 else Vector3.FORWARD)
 	RenderingServer.global_shader_parameter_set("bend_focus", Vector3(ufo.position.x, 0.0, ufo.position.z - 1.0))
@@ -2713,6 +3192,17 @@ func _place_moon(_delta: float) -> void:
 		_moon_ball.material_override = m
 		_moon_ball.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		view.add_child(_moon_ball)
+		# (a soft glow round it, on a square just behind it, turned to the camera with it)
+		var glow := MeshInstance3D.new()
+		var square := QuadMesh.new()
+		square.size = Vector2.ONE * ball.radius * 6.0
+		glow.mesh = square
+		var gm := ShaderMaterial.new()
+		gm.shader = load("res://shaders/moon_glow.gdshader")
+		glow.material_override = gm
+		glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		glow.position = Vector3(0, 0, -ball.radius * 1.05)
+		_moon_ball.add_child(glow)
 	_moon_ball.visible = true
 	# (turned round with the stars through the trip from the moon: see _sky_spin)
 	var way := Basis(Vector3.UP, -PI * (1.0 - _sky_spin())) * _moon_dir
@@ -2795,7 +3285,7 @@ func _moon_in_play(at := Vector2.ZERO) -> Vector3:
 	var was := camera.global_transform
 	var was_fov := camera.fov
 	var off := _camera_offset()
-	var look := Vector3(0, 0.0 if _upright() else ufo.altitude * 0.45, 0)
+	var look := Vector3(0, ufo.altitude * _look_up(), 0)
 	camera.global_transform = Transform3D(Basis.IDENTITY, off).looking_at(look, Vector3.UP)
 	camera.fov = _fov()
 	var v := camera.get_viewport().get_visible_rect().size
@@ -2927,6 +3417,13 @@ func _layout_title(size: Vector2) -> void:
 		b.add_theme_font_size_override("font_size", 64 if upright else 40)
 	_play_button.custom_minimum_size = Vector2(340, 130) if upright else Vector2(260, 70)
 	_play_button.add_theme_font_size_override("font_size", 76 if upright else 40)
+	if _gear_button != null:
+		var gear := Vector2(100, 90) if upright else Vector2(64, 56)
+		_gear_button.custom_minimum_size = gear
+		_gear_button.offset_left = -gear.x - 16.0
+		_gear_button.offset_right = -16.0
+		_gear_button.offset_top = 14.0
+		_gear_button.offset_bottom = 14.0 + gear.y
 	for b in _title_row.get_children():
 		(b as Button).custom_minimum_size = Vector2(250, 110) if upright else Vector2(170, 60)
 		(b as Button).add_theme_font_size_override("font_size", 52 if upright else 32)
@@ -3241,7 +3738,7 @@ func _fill_log() -> void:
 	var have := 0
 	for kind: String in Thing.KINDS:
 		var info: Dictionary = Thing.KINDS[kind]
-		if kind == "pod" or info.get("enemy", false) or info.has("unlock") or HUNTERS.has(kind):
+		if kind in ["pod", "canister"] or info.get("enemy", false) or info.has("unlock") or HUNTERS.has(kind):
 			continue
 		var count := int(_log_taken.get(kind, 0))
 		have += 1 if count > 0 else 0
@@ -3317,6 +3814,12 @@ func quit_game() -> void:
 		get_tree().quit()
 
 
+## How far up toward the ship the camera looks in play, from the ground under it (a fraction of its
+## height)
+func _look_up() -> float:
+	return 0.3 if _upright() else 0.45
+
+
 ## Further up and back for a ship that flies higher
 func _camera_offset() -> Vector3:
 	# (on a wide screen, lower and further back, looking out more than down, for the curve of the
@@ -3354,15 +3857,14 @@ func _camera(delta: float) -> void:
 	# (looking at the ground under the ship, where the beam will fall and the reticle shows, the ship
 	# itself a little above the middle of the picture)
 	var look_at_point := camera.position - _camera_offset()
-	if not _upright():
-		# (a wide screen's lower camera looks partway up to the ship, for it not to sit up under the
-		# score)
-		look_at_point.y += ufo.altitude * 0.45
+	# (looking partway up to the ship, for the night sky and the moon to show over the curve of the
+	# world, a wide screen's lower camera the more)
+	look_at_point.y += ufo.altitude * _look_up()
 	if mode == "title":
 		look_at_point = camera.position - Vector3(0, 11.0, 15.0) + Vector3(0, 4.0, -6.0)
 	camera.look_at(look_at_point)
 	_shake = maxf(_shake - delta, 0.0)
-	if _shake > 0.0:
+	if _shake > 0.0 and screen_shake:
 		camera.position += Vector3(randf_range(-1, 1), randf_range(-1, 1), 0) * _shake
 	# The world bends away from the ground under the camera's middle
 	var under := camera.position - _camera_offset() if mode != "title" else camera.position - Vector3(0, 11.0, 15.0)
@@ -3474,6 +3976,14 @@ func _build_hud() -> void:
 	heat_note.size = Vector2(520, 40)
 	_glow(heat_note, Color(1.0, 0.4, 0.2, 0.45))
 	root.add_child(heat_note)
+	# (the boosts under way, each with the seconds it has left, under the heat's news)
+	boost_label = _label(26, Color(0.85, 0.95, 1.0))
+	boost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	boost_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	boost_label.position = Vector2(-260, 172)
+	boost_label.size = Vector2(520, 36)
+	boost_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(boost_label)
 
 	stick_ring = StickRing.new()
 	stick_ring.main = self
@@ -3579,12 +4089,14 @@ func _build_hud() -> void:
 	_picker_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_glow(_picker_title, Color(0.3, 1.0, 0.45, 0.55))
 	_picker.add_child(_picker_title)
-	var pick_one := _label(26, Color(0.6, 1.0, 0.65))
-	pick_one.text = "PICK AN UPGRADE"
+	_pick_one = _label(26, Color(0.6, 1.0, 0.65))
+	var pick_one := _pick_one
+	pick_one.text = ""
+	pick_one.visible = false
 	pick_one.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_picker.add_child(pick_one)
 	_picks = VBoxContainer.new()
-	_picks.add_theme_constant_override("separation", 14)
+	_picks.add_theme_constant_override("separation", 30)
 	_picks.alignment = BoxContainer.ALIGNMENT_CENTER
 	_picker.add_child(_picks)
 	_build_log(root)
@@ -3611,8 +4123,10 @@ func _build_hud() -> void:
 	_pause_box.add_child(paused)
 	_resume_button = _button("RESUME", func() -> void: set_paused(false))
 	_pause_box.add_child(_resume_button)
+	_pause_box.add_child(_button("OPTIONS", open_options))
 	_pause_box.add_child(_button("QUIT TO MENU", quit_to_menu))
 	_pause_box.visible = false
+	_build_options(root)
 
 	over_box = _panel(root)
 	# (it grows upward from just above the middle of the screen, so it sits over the wreck, not on it)
@@ -3621,10 +4135,20 @@ func _build_hud() -> void:
 	over_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_glow(over_label, Color(0.25, 1.0, 0.4, 0.5))
 	over_box.add_child(over_label)
-	_again = _button("OK", func() -> void:
+	_over_row = HBoxContainer.new()
+	_over_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_over_row.add_theme_constant_override("separation", 20)
+	over_box.add_child(_over_row)
+	_again = _button("TO THE MOON", func() -> void:
 		if _over_wait <= 0.0:
 			quit_to_menu())
-	over_box.add_child(_again)
+	_over_row.add_child(_again)
+	# (straight into another run: up off the wreck into the stars, and down onto a new country)
+	_replay_button = _button("REPLAY", func() -> void:
+		if _over_wait <= 0.0 and mode == "over":
+			_replay = true
+			quit_to_menu())
+	_over_row.add_child(_replay_button)
 	over_box.visible = false
 
 	_cover = ColorRect.new()
@@ -3774,6 +4298,10 @@ func quit_to_menu() -> void:
 	_banner("", 0.0)
 	if testing and not intro_in_tests:
 		_clear_wreck()
+		if _replay:
+			_replay = false
+			start(true)
+			return
 		_show_title()
 		return
 	if ufo.dead:
@@ -3800,6 +4328,20 @@ func _going_home(delta: float) -> void:
 	_descend(k)
 	ufo.hull_model.rotation.y += delta * 6.0 * (1.0 - k) * (1.0 - k)
 	if _return_t < RETURN_UP:
+		return
+	if _replay:
+		# (REPLAY: up in the stars, where the climb off the moon would have stopped, and so down
+		# again from here as from a launch, onto a new country)
+		_replay = false
+		_from_wreck = false
+		_clear_wreck()
+		_new_world(false)
+		start(true)
+		# (the new ship warping in out of the stars, in a burst of sparkles)
+		ufo.stars.burst(ufo.global_position, 40, Vector3.ZERO)
+		ufo.stars.burst(ufo.global_position + Vector3(0, 1.0, 0), 30, Vector3.ZERO)
+		sfx.play("whoosh", 1.8, -2.0)
+		sfx.play("star", 1.2, -4.0)
 		return
 	intro = 0.0
 	dust.fade = 0.0
@@ -3930,11 +4472,218 @@ func _forget_fingers() -> void:
 	_touch_frame_seen = true
 
 
+# ------------------------------------------------------------------ options
+
+## The options, kept with the bests: the music's and the sounds' loudness (0 to 10), how sharp the
+## picture is (see PICTURES), the PlayStation's dither, the screen shaking, and the frame rate
+var music_volume := 8
+var effects_volume := 8
+var picture := 1
+## How many lines the picture is drawn in (see `_fit`) for LOW, MEDIUM and HIGH
+const PICTURES := [220.0, Ps1.LINES, 420.0]
+const PICTURE_NAMES := ["LOW", "MEDIUM", "HIGH"]
+var dither := true
+var screen_shake := true
+var frame_rate := 0
+## (0: as fast as the screen goes)
+const FRAME_RATES := [30, 60, 0]
+var _options_box: Control
+var _options_list: GridContainer
+var _options_head: Label
+var _options_back: Button
+## Where OPTIONS was opened from: the title ("title") or the pause ("pause")
+var _options_from := "title"
+var _gear_button: Button
+## Each option's row: [its name's label, what changes it (a slider or a button)], for `_fit_options`
+var _option_rows: Array = []
+
+
+func _build_options(root: Control) -> void:
+	# (a cog in the corner of the title, where the pause button is in play)
+	_gear_button = _button("", func() -> void: open_options())
+	var cog := Cog.new()
+	cog.set_anchors_preset(Control.PRESET_FULL_RECT)
+	cog.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_gear_button.add_child(cog)
+	_gear_button.custom_minimum_size = Vector2(64, 56)
+	_gear_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_gear_button.position = Vector2(-80, 14)
+	_gear_button.focus_mode = Control.FOCUS_NONE
+	root.add_child(_gear_button)
+	var dim := ColorRect.new()
+	dim.color = Color(0.01, 0.04, 0.02, 0.88)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.visible = false
+	root.add_child(dim)
+	_options_box = dim
+	var middle := CenterContainer.new()
+	middle.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.add_child(middle)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 24)
+	middle.add_child(box)
+	_options_head = _label(56, Color(0.7, 1.0, 0.72))
+	_options_head.text = "OPTIONS"
+	_options_head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_glow(_options_head, Color(0.3, 1.0, 0.45, 0.55))
+	box.add_child(_options_head)
+	_options_list = GridContainer.new()
+	_options_list.columns = 2
+	_options_list.add_theme_constant_override("h_separation", 28)
+	_options_list.add_theme_constant_override("v_separation", 16)
+	box.add_child(_options_list)
+	_slider_row("MUSIC", func() -> int: return music_volume, func(v: int) -> void: music_volume = v)
+	_slider_row("EFFECTS", func() -> int: return effects_volume, func(v: int) -> void:
+		effects_volume = v
+		sfx.play("click", 1.0))
+	_choice_row("PICTURE", func() -> String: return PICTURE_NAMES[picture], func() -> void: picture = (picture + 1) % PICTURES.size())
+	_choice_row("DITHER", func() -> String: return "ON" if dither else "OFF", func() -> void: dither = not dither)
+	_choice_row("SHAKE", func() -> String: return "ON" if screen_shake else "OFF", func() -> void: screen_shake = not screen_shake)
+	_choice_row("FRAMES", func() -> String: return "%d FPS" % frame_rate if frame_rate > 0 else "MAX", func() -> void:
+		frame_rate = FRAME_RATES[(FRAME_RATES.find(frame_rate) + 1) % FRAME_RATES.size()])
+	_options_back = _button("BACK", close_options)
+	box.add_child(_options_back)
+
+
+func _option_name(text: String) -> Label:
+	var l := _label(40, Color(0.75, 1.0, 0.78))
+	l.text = text
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_options_list.add_child(l)
+	return l
+
+
+## A loudness, 0 to 10, on a slider
+func _slider_row(text: String, now: Callable, set_to: Callable) -> void:
+	var l := _option_name(text)
+	var s := HSlider.new()
+	s.min_value = 0
+	s.max_value = 10
+	s.step = 1
+	s.value = now.call()
+	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(0.1, 0.25, 0.14, 0.85)
+	track.border_color = Color(0.55, 1.0, 0.6)
+	track.set_border_width_all(3)
+	track.set_corner_radius_all(8)
+	track.content_margin_top = 10
+	track.content_margin_bottom = 10
+	var filled := track.duplicate() as StyleBoxFlat
+	filled.bg_color = Color(0.35, 0.9, 0.45, 0.9)
+	s.add_theme_stylebox_override("slider", track)
+	s.add_theme_stylebox_override("grabber_area", filled)
+	s.add_theme_stylebox_override("grabber_area_highlight", filled)
+	var knob := _knob(40)
+	s.add_theme_icon_override("grabber", knob)
+	s.add_theme_icon_override("grabber_highlight", knob)
+	s.value_changed.connect(func(v: float) -> void:
+		set_to.call(int(v))
+		_apply_options())
+	s.set_meta("now", now)
+	_options_list.add_child(s)
+	_option_rows.append([l, s])
+
+
+## A choice between a few, stepped through by pressing it
+func _choice_row(text: String, now: Callable, step: Callable) -> void:
+	var l := _option_name(text)
+	var b := _button(now.call(), func() -> void: pass)
+	b.pressed.connect(func() -> void:
+		step.call()
+		b.text = now.call()
+		_apply_options())
+	b.size_flags_horizontal = Control.SIZE_FILL
+	b.set_meta("now", now)
+	_options_list.add_child(b)
+	_option_rows.append([l, b])
+
+
+## A round knob for the sliders
+func _knob(across: int) -> ImageTexture:
+	var img := Image.create(across, across, false, Image.FORMAT_RGBA8)
+	var c := (across - 1) * 0.5
+	for y in across:
+		for x in across:
+			var d := Vector2(x - c, y - c).length()
+			if d <= c:
+				img.set_pixel(x, y, Color(0.55, 1.0, 0.6) if d > c - 4.0 else Color(0.85, 1.0, 0.86))
+	return ImageTexture.create_from_image(img)
+
+
+func open_options() -> void:
+	if mode == "title":
+		if not title_box.visible:
+			return
+		_options_from = "title"
+		title_box.visible = false
+	elif get_tree().paused and _pause_box.visible:
+		_options_from = "pause"
+		_pause_box.visible = false
+	else:
+		return
+	for row: Array in _option_rows:
+		var c: Control = row[1]
+		if c is HSlider:
+			(c as HSlider).set_value_no_signal((c.get_meta("now") as Callable).call())
+		else:
+			(c as Button).text = (c.get_meta("now") as Callable).call()
+	_fit_options()
+	_options_box.visible = true
+	_options_back.call_deferred("grab_focus")
+	_forget_fingers()
+
+
+func close_options() -> void:
+	if not _options_box.visible:
+		return
+	_options_box.visible = false
+	if _options_from == "pause":
+		_pause_box.visible = get_tree().paused
+		if _pause_box.visible:
+			_resume_button.call_deferred("grab_focus")
+	else:
+		title_box.visible = mode == "title"
+	_save_best()
+
+
+## The options sized for thumbs on an upright phone, smaller across a wide screen
+func _fit_options() -> void:
+	var big := _upright()
+	_options_head.add_theme_font_size_override("font_size", 130 if big else 56)
+	for row: Array in _option_rows:
+		(row[0] as Label).add_theme_font_size_override("font_size", 72 if big else 36)
+		var c: Control = row[1]
+		c.custom_minimum_size = Vector2(620, 130) if big else Vector2(300, 60)
+		if c is Button:
+			c.add_theme_font_size_override("font_size", 66 if big else 32)
+	_options_back.custom_minimum_size = Vector2(560, 150) if big else Vector2(260, 70)
+	_options_back.add_theme_font_size_override("font_size", 80 if big else 40)
+
+
+## The options put into effect: the loudness of the music's and the sounds' buses, the picture's
+## lines, the dither and the frame rate (the shaking is read where the camera shakes)
+func _apply_options() -> void:
+	for bus: Array in [[Music.BUS, music_volume], [Sfx.BUS, effects_volume]]:
+		var i := AudioServer.get_bus_index(bus[0])
+		if i < 0:
+			continue
+		AudioServer.set_bus_volume_db(i, linear_to_db(maxf(int(bus[1]) / 10.0, 0.001)))
+		AudioServer.set_bus_mute(i, int(bus[1]) == 0)
+	if view != null:
+		_fit()
+	if screen_mat != null:
+		screen_mat.set_shader_parameter("dither", dither)
+	Engine.max_fps = frame_rate
+
+
 func set_paused(on: bool) -> void:
 	if mode != "play" or (_picker != null and _picker.visible):
 		return
 	get_tree().paused = on
 	_pause_box.visible = on
+	if not on and _options_box != null:
+		_options_box.visible = false
 	if on:
 		_resume_button.call_deferred("grab_focus")
 		_forget_fingers()
@@ -3964,6 +4713,14 @@ func _hud(delta: float) -> void:
 	stars.visible = playing
 	item_bar.visible = playing
 	item_bar.queue_redraw()
+	heat_note.position.y = 80.0 + maxf((item_bar as ItemBar).rows, 1) * 48.0 + 4.0
+	boost_label.position.y = heat_note.position.y + 40.0
+	boost_label.visible = playing and not boosts.is_empty()
+	if boost_label.visible:
+		var parts: Array[String] = []
+		for b: String in boosts:
+			parts.append("%s %d" % [BOOSTS[b]["title"], ceili(boosts[b])])
+		boost_label.text = "   ".join(parts)
 	_layout_touch()
 	shield_bar.visible = playing
 	radar.visible = playing
@@ -4009,6 +4766,7 @@ func _hud(delta: float) -> void:
 		cloak_button.position = (_beam_home() + Vector2(-rc * 1.85, -rc * 0.35)) / hud.scale.x - cloak_button.size * 0.5
 		cloak_button.queue_redraw()
 	_pause_button.visible = playing and not autopilot
+	_gear_button.visible = mode == "title" and title_box.visible and not _options_box.visible
 	heat_note.visible = playing
 	if heat_note_time > 0.0:
 		heat_note_time -= delta
@@ -4257,6 +5015,10 @@ func _load_best() -> void:
 		for had: String in cfg.get_value("log", "items", []):
 			if UPGRADES.has(had) and not had in _log_items:
 				_log_items.append(had)
+		for key: String in ["music_volume", "effects_volume", "picture", "dither", "screen_shake", "frame_rate"]:
+			if cfg.has_section_key("options", key):
+				set(key, cfg.get_value("options", key))
+		picture = clampi(picture, 0, PICTURES.size() - 1)
 		for met: String in cfg.get_value("log", "met", []):
 			if HUNTERS.has(met) and not met in _log_met:
 				_log_met.append(met)
@@ -4271,6 +5033,8 @@ func _save_best() -> void:
 	cfg.set_value("log", "taken", _log_taken)
 	cfg.set_value("log", "met", _log_met)
 	cfg.set_value("log", "items", _log_items)
+	for key: String in ["music_volume", "effects_volume", "picture", "dither", "screen_shake", "frame_rate"]:
+		cfg.set_value("options", key, get(key))
 	cfg.save("user://best.cfg")
 
 
@@ -4336,9 +5100,9 @@ func radar_marks() -> Array:
 			nearest = _keep_nearest(nearest, "power", t.position)
 		elif t.info.get("rare", false) and not t.info.has("unlock"):
 			nearest = _keep_nearest(nearest, "rare", t.position)
-		elif t.kind == "rival" and t.ground().distance_to(here) < Radar.RANGE:
+		elif t.kind == "rival" and t.ground().distance_to(here) < radar_range():
 			marks.append([t.ground(), Color(1.0, 0.4, 0.9), 5.0])
-		elif t.is_enemy() and t.ground().distance_to(here) < Radar.RANGE:
+		elif t.is_enemy() and t.ground().distance_to(here) < radar_range():
 			marks.append([t.ground(), Color(1.0, 0.3, 0.25), 3.0])
 	var colours := {"trader": Color(0.5, 1.0, 0.55), "facility": Color(1.0, 0.8, 0.25), "power": Color(0.4, 0.75, 1.0), "rare": Color(1.0, 1.0, 0.5)}
 	for kind: String in nearest:
@@ -4376,7 +5140,7 @@ class Radar extends Control:
 		var here: Vector3 = main.ufo.ground()
 		for mark: Array in main.radar_marks():
 			var off: Vector3 = mark[0] - here
-			var flat := Vector2(off.x, off.z) / RANGE * r
+			var flat: Vector2 = Vector2(off.x, off.z) / main.radar_range() * r
 			var edge := flat.length() > r - 4.0
 			if edge:
 				flat = flat.normalized() * (r - 4.0)
@@ -4577,6 +5341,74 @@ class BeamButton extends Control:
 
 
 ## The pause sign on the pause button: two upright bars, in the middle of it
+## A cog, for the OPTIONS button on the title
+class Cog extends Control:
+	func _draw() -> void:
+		var c := size * 0.5
+		var r := minf(size.x, size.y) * 0.3
+		var colour := Color(0.75, 1.0, 0.78)
+		var points := PackedVector2Array()
+		for i in 32:
+			var a := TAU * i / 32.0
+			var tooth := r * (1.35 if (i / 2) % 2 == 0 else 1.0)
+			points.append(c + Vector2(cos(a), sin(a)) * tooth)
+		draw_colored_polygon(points, colour)
+		draw_circle(c, r * 0.42, Color(0.1, 0.25, 0.14))
+
+
+## The Moon Market's trading saucer, painted like a carnival: down out of the sky behind the market
+## while it is open, bobbing and turning there (the game paused all the while), and away up again
+## after the pick. Held at a place in the picture, the top middle, a way off
+class MarketShip extends Node3D:
+	var main: Node
+	var _t := 0.0
+	var _leaving := -1.0
+	var _model: Node3D
+	const DROP := 1.1
+	const AWAY := 30.0
+
+	func _ready() -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		_model = Ps1.model("market")
+		_model.scale = Vector3.ONE * 1.4
+		add_child(_model)
+		_place()
+
+	func leave() -> void:
+		if _leaving < 0.0:
+			_leaving = 0.0
+			main.sfx.play("whoosh", 1.2, -4.0)
+
+	func _process(delta: float) -> void:
+		_t += delta
+		if _leaving >= 0.0:
+			_leaving += delta
+			if _leaving > 1.2:
+				queue_free()
+				return
+		_place()
+
+	func _place() -> void:
+		var cam: Camera3D = main.camera
+		var size := Vector2(main.view.size)
+		var at := cam.project_position(size * Vector2(0.5, 0.17 if main._upright() else 0.12), AWAY)
+		# (down from high above, slowing and settling with a little bounce; bobbing; and at the end
+		# up and away the quicker)
+		var k := clampf(_t / DROP, 0.0, 1.0)
+		var drop := (1.0 - k) * (1.0 - k) * 22.0 - sin(k * PI) * 0.8
+		var rise := _leaving * _leaving * 30.0 if _leaving > 0.0 else 0.0
+		at.y += drop + rise + sin(_t * 2.2) * 0.35
+		# (lifted by as much as the world's bend would drop it: see bend.gdshaderinc)
+		var focus: Vector3 = cam.position - main._camera_offset() + Vector3(0, 0, -1.0)
+		var bend: float = ProjectSettings.get_setting("shader_globals/bend_k")["value"]
+		var d := at.z - focus.z
+		d = d if d < 0.0 else d * 0.45
+		var s := at.x - focus.x
+		at.y += bend * (d * d + 0.3 * s * s)
+		global_position = at
+		_model.rotation = Vector3(0.18, _t * 0.9, 0.0)
+
+
 class PauseBars extends Control:
 	func _draw() -> void:
 		var bar := Vector2(size.x * 0.13, size.y * 0.44)
@@ -4660,8 +5492,10 @@ class CloakButton extends Control:
 ## how many are stacked in its corner (from the second on)
 class ItemBar extends Control:
 	## The items, in the order they show
-	const ORDER := ["engine", "beam", "shield", "dash", "laser", "turret", "missiles", "cloak", "fleet"]
+	const ORDER := ["engine", "beam", "shield", "dash", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "fleet"]
 	const TILE := 40.0
+	## How many rows of items there are (the heat's news goes under them)
+	var rows := 0
 	var main: Node
 
 	func _draw() -> void:
@@ -4669,10 +5503,18 @@ class ItemBar extends Control:
 		for what: String in ORDER:
 			if int(main.upgrades.get(what, 0)) > 0:
 				had.append(what)
-		var x := (size.x - had.size() * (TILE + 6.0) + 6.0) * 0.5
-		for what: String in had:
+		# (as many to a row as fit the width, rows centred, wrapping onto the next)
+		var step := TILE + 6.0
+		var per := maxi(int((size.x + 6.0) / step), 1)
+		rows = ceili(had.size() / float(per))
+		for i in had.size():
+			var what: String = had[i]
+			var row := i / per
+			var in_row := mini(had.size() - row * per, per)
+			var x := (size.x - in_row * step + 6.0) * 0.5 + (i % per) * step
+			var y := row * (TILE + 8.0)
 			var colour: Color = main.UPGRADES[what]["colour"]
-			var box := Rect2(x, 0, TILE, TILE)
+			var box := Rect2(x, y, TILE, TILE)
 			draw_rect(box, Color(0.02, 0.06, 0.04, 0.8))
 			draw_rect(box.grow(-3.0), colour * Color(1, 1, 1, 0.18))
 			draw_rect(box, colour, false, 2.0)
@@ -4680,9 +5522,8 @@ class ItemBar extends Control:
 			draw_texture_rect(main.holograms.item(what), box.grow(-1.0), false)
 			var n: int = main.upgrades[what]
 			if n > 1:
-				draw_string_outline(main.font, Vector2(x + TILE * 0.45, TILE + 2.0), "x%d" % n, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.9))
-				draw_string(main.font, Vector2(x + TILE * 0.45, TILE + 2.0), "x%d" % n, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1))
-			x += TILE + 6.0
+				draw_string_outline(main.font, Vector2(x + TILE * 0.45, y + TILE + 2.0), "x%d" % n, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.9))
+				draw_string(main.font, Vector2(x + TILE * 0.45, y + TILE + 2.0), "x%d" % n, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1))
 
 
 ## The name on the title: its letters spread wide and each bobbing on its own, glowing green (see
@@ -4720,8 +5561,8 @@ class TitleArt extends Control:
 			x += adv + extra
 
 
-## The dash, under the radar and the same size as it and the shield: a glass orb holding three
-## arrows, one for each dash, lit green once charged and filling as it charges
+## The dash, under the radar and the same size as it and the shield: a glass orb holding an
+## arrow for each charge (one, and one for each DASH item), lit green once charged and filling as it charges
 class DashOrb extends Control:
 	var main: Node
 
@@ -4730,12 +5571,15 @@ class DashOrb extends Control:
 		var r := size.x * 0.5 - 4.0
 		draw_circle(c, r + 4.0, Color(0.6, 1.0, 0.7, 0.18))
 		draw_circle(c, r, Color(0.02, 0.08, 0.04, 0.8))
-		var ready: float = main.ufo.dodge_ready()
-		var k := r / 46.0
-		for i in 3:
-			var ax := c.x + (-30.0 + i * 22.0) * k
+		var n: int = main.ufo.charges()
+		var charge: float = main.ufo.charge
+		# (smaller arrows, the more there are, all in the orb)
+		var k := r / 46.0 * minf(3.0 / n, 1.0)
+		var across := 22.0 * (n - 1) + 23.0
+		for i in n:
+			var ax := c.x + (-across * 0.5 + i * 22.0) * k
 			var ay := c.y
-			var fill := clampf(ready * 3.0 - i, 0.0, 1.0)
+			var fill := clampf(charge - i, 0.0, 1.0)
 			var tip := [Vector2(ax, ay - 16 * k), Vector2(ax + 16 * k, ay), Vector2(ax, ay + 16 * k), Vector2(ax + 7 * k, ay + 16 * k), Vector2(ax + 23 * k, ay), Vector2(ax + 7 * k, ay - 16 * k)]
 			var lit := Color(0.45, 1.0, 0.55) if fill >= 1.0 else Color(0.25, 0.3, 0.28).lerp(Color(0.35, 0.6, 0.4), fill)
 			if fill >= 1.0:

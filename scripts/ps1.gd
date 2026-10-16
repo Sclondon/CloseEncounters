@@ -135,7 +135,7 @@ static func _grown_pine(own_mats: bool) -> Node3D:
 	return n
 
 ## Models whose surfaces stay apart
-const KEEP_SURFACES: Array[String] = ["ufo", "orb", "triangle", "foo", "cigar", "bell"]
+const KEEP_SURFACES: Array[String] = ["ufo", "orb", "triangle", "foo", "cigar", "bell", "tictac", "saturn", "diamond"]
 ## How far off anything is drawn, and how far past the edge of the view (the bend drops far things
 ## into view after Godot has decided what is on screen)
 const DRAW_TO := 115.0

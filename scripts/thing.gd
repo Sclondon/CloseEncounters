@@ -61,6 +61,7 @@ const KINDS := {
 	"sasquatch": {"title": "BIGFOOT!", "points": 3000, "weight": 2.2, "heat": 0.3, "move": "flee", "speed": 4.6, "size": 1.0, "voice": "growl", "rare": true},
 	"meteorite": {"title": "A METEORITE", "points": 2500, "weight": 2.5, "heat": 0.2, "move": "still", "size": 1.4, "rare": true},
 	"satellite": {"title": "A FALLEN SATELLITE", "points": 2000, "weight": 2.0, "heat": 0.3, "move": "still", "size": 2.0, "rare": true},
+	"crash_site": {"title": "A CRASHED SAUCER", "points": 3500, "weight": 3.5, "heat": 0.3, "move": "still", "size": 2.6, "rare": true},
 	"saguaro": {"points": 30, "weight": 1.3, "heat": 0.03, "move": "still", "size": 0.8},
 	"pumpjack": {"points": 160, "weight": 3.0, "heat": 0.25, "move": "still", "size": 2.0},
 	"rv": {"points": 220, "weight": 3.2, "heat": 0.4, "move": "road", "speed": 7.0, "size": 2.6},
@@ -123,14 +124,18 @@ const KINDS := {
 	"observatory": {"points": 900, "weight": 6.0, "heat": 0.6, "move": "still", "size": 4.0, "tier": 3, "watch": 45.0, "why": "THE OBSERVATORY SAW YOU"},
 	"seti_dish": {"points": 600, "weight": 5.0, "heat": 0.5, "move": "still", "size": 3.0, "tier": 3, "watch": 55.0, "why": "SIGNAL DETECTED"},
 	# Ships held in secret government facilities: take one and it is yours to fly
-	"captured_orb": {"title": "YOU FOUND THE ORB: IT'S YOURS", "model": "orb", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "orb", "rest_y": 1.5},
-	"captured_triangle": {"title": "YOU FOUND THE TRIANGLE: IT'S YOURS", "model": "triangle", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "triangle", "rest_y": 0.6},
-	"captured_foo": {"title": "YOU FOUND THE FOO: IT'S YOURS", "model": "foo", "points": 3000, "weight": 2.0, "heat": 1.5, "move": "still", "size": 1.5, "rare": true, "unlock": "foo", "rest_y": 0.9},
-	"captured_cigar": {"title": "YOU FOUND THE CIGAR: IT'S YOURS", "model": "cigar", "points": 3000, "weight": 3.5, "heat": 1.5, "move": "still", "size": 3.5, "rare": true, "unlock": "cigar", "rest_y": 1.05},
-	"captured_bell": {"title": "YOU FOUND THE BELL: IT'S YOURS", "model": "bell", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.8, "rare": true, "unlock": "bell", "rest_y": 0.72},
+	"captured_orb": {"title": "YOU FOUND THE GLORBULON: IT'S YOURS", "model": "orb", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "orb", "rest_y": 1.5},
+	"captured_triangle": {"title": "YOU FOUND THE XELETRON-22: IT'S YOURS", "model": "triangle", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "triangle", "rest_y": 0.6},
+	"captured_foo": {"title": "YOU FOUND THE FIZZWIGGLER: IT'S YOURS", "model": "foo", "points": 3000, "weight": 2.0, "heat": 1.5, "move": "still", "size": 1.5, "rare": true, "unlock": "foo", "rest_y": 0.9},
+	"captured_cigar": {"title": "YOU FOUND THE BLORPMOTHER: IT'S YOURS", "model": "cigar", "points": 3000, "weight": 3.5, "heat": 1.5, "move": "still", "size": 3.5, "rare": true, "unlock": "cigar", "rest_y": 1.05},
+	"captured_bell": {"title": "YOU FOUND THE DINGDONGULUS: IT'S YOURS", "model": "bell", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.8, "rare": true, "unlock": "bell", "rest_y": 0.72},
+	"captured_tictac": {"title": "YOU FOUND THE TIKTAKKORAX: IT'S YOURS", "model": "tictac", "points": 3000, "weight": 2.5, "heat": 1.5, "move": "still", "size": 2.3, "rare": true, "unlock": "tictac", "rest_y": 0.7},
+	"captured_saturn": {"title": "YOU FOUND THE STARZOID: IT'S YOURS", "model": "saturn", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.9, "rare": true, "unlock": "saturn", "rest_y": 1.25},
+	"captured_diamond": {"title": "YOU FOUND THE KRYSTALLIX-9: IT'S YOURS", "model": "diamond", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.2, "rare": true, "unlock": "diamond", "rest_y": 1.7},
 	"floodlight": {"points": 150, "weight": 2.5, "heat": 0.3, "move": "still", "size": 1.2, "tier": 3},
 	# A trader's goods (see main.gd spawn_shop): beam one up to buy it
 	"pod": {"points": 0, "weight": 0.9, "heat": 0.0, "move": "still", "size": 1.0},
+	"canister": {"points": 0, "weight": 0.5, "heat": 0.0, "move": "still", "size": 0.8},
 	# (the police cannot shoot from the car: they pull up and an officer gets out, see `_police`)
 	"police_car": {"points": 300, "weight": 3.0, "heat": 0.6, "move": "police", "speed": 7.5, "size": 2.2, "keep": 10.0, "enemy": true, "police": true},
 	"officer": {"model": "person", "tints": {"shirt": Color(0.15, 0.25, 0.55)}, "points": 150, "weight": 1.3, "heat": 0.5, "move": "guard", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "pistol", "enemy": true, "crew": true},
@@ -508,7 +513,7 @@ func _walk(delta: float, ufo: Ufo) -> void:
 			var gun: String = info.get("gun", "")
 			var armed: bool = gun != "" and game.heat_level() >= 1 and not leaving
 			var to_wreck := Vector3(game.wreck.x, here.y, game.wreck.z) - here if game.wreck != Vector3.INF else Vector3.INF
-			if info.get("caller", false) and not hiding and to_wreck != Vector3.INF and to_wreck.length() < 80.0:
+			if info.get("caller", false) and not hiding and to_wreck != Vector3.INF and to_wreck.length() < 80.0 and not has_meta("forgot"):
 				# (the saucer down: out they come to have a look, edging up and standing round it)
 				var gap := to_wreck.length()
 				heading = lerp_angle(heading, atan2(to_wreck.x, to_wreck.z), minf(delta * 4.0, 1.0))
@@ -1220,7 +1225,7 @@ const ALIEN_NAMES := {
 	"floodlight": "LIGHT STALK", "police_car": "LAW POD", "officer": "LAW EARTHLING", "agent_car": "SHADOW POD",
 	"agent": "SHADOW EARTHLING", "helicopter": "WHIRL POD", "chinook": "DOUBLE WHIRL POD", "jeep": "WAR CRAWLER",
 	"tank": "SHELL CRAWLER", "jet": "FAST SKY POD", "golden_cow": "GOLDEN MILK BEAST", "jackalope": "HORNED LONG-EAR",
-	"sasquatch": "COUSIN", "meteorite": "SPACE PEBBLE", "satellite": "PRIMITIVE PROBE", "rival": "RIVAL SAUCER",
+	"sasquatch": "COUSIN", "meteorite": "SPACE PEBBLE", "satellite": "PRIMITIVE PROBE", "crash_site": "LOST COUSIN SHIP", "rival": "RIVAL SAUCER",
 }
 
 
@@ -1270,7 +1275,7 @@ static func category(of: String) -> String:
 	if not KINDS.has(of):
 		return "OTHER"
 	var info: Dictionary = KINDS[of]
-	if info.get("rare", false) or of in ["golden_cow", "jackalope", "sasquatch", "meteorite", "satellite"]:
+	if info.get("rare", false) or of in ["golden_cow", "jackalope", "sasquatch", "meteorite", "satellite", "crash_site"]:
 		return "RARE FINDS"
 	if info.get("caller", false) or info.get("enemy", false) and info["move"] == "guard" or of in ["scarecrow"]:
 		return "EARTHLINGS"

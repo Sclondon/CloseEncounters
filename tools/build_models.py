@@ -63,7 +63,7 @@ GLOWS = {
     "lights_under": ((0.5, 1.0, 0.6), 3.0), "headlight": ((1.0, 0.95, 0.8), 2.0),
     "flame": ((1.0, 0.55, 0.15), 3.0), "neon": ((1.0, 0.35, 0.6), 3.0),
     "light_red": ((1.0, 0.2, 0.15), 3.0), "light_blue": ((0.3, 0.5, 1.0), 3.0), "light_white": ((1.0, 1.0, 0.95), 3.0),
-    "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "pod_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0),
+    "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "pod_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0), "crystal": ((0.5, 0.28, 0.85), 0.55),
     "foo_glow": ((0.85, 0.22, 0.03), 2.5), "booth_sign": ((0.75, 0.88, 1.0), 2.0), "clock_face": ((1.0, 0.95, 0.8), 1.3),
     "sign": ((1.0, 0.85, 0.55), 1.2),
 }
@@ -960,6 +960,68 @@ def bell():
     dome.parent = body
     return body
 
+def market():
+    """The Moon Market's trading saucer, that comes down for a level's shopping: a saucer painted like
+    a carnival, red and yellow bands, a striped circus-tent top with a flag, ringed with bulbs of
+    every colour"""
+    p = [ball((6.0, 6.0, 1.1), (0, 0, 0), "red", 18, 6), drum(3.02, 0.16, (0, 0, 0), "yellow", 20),
+         drum(2.2, 0.12, (0, 0, 0.42), "white", 18), drum(1.4, 0.3, (0, 0, -0.5), "lights_under", 14),
+         cone(1.7, 1.5, (0, 0, 1.2), "red", 12), drum(0.05, 0.9, (0, 0, 2.3), "metal", 4),
+         box((0.5, 0.04, 0.3), (0.26, 0, 2.6), "yellow")]
+    for i in range(12):
+        a = i / 12 * math.tau
+        p.append(box((0.16, 1.75, 0.04), (0.85 * math.cos(a), 0.85 * math.sin(a), 1.2), "white" if i % 2 else "yellow", (0.72, 0, a + math.pi / 2)))
+    bulbs = ["light_red", "light_amber", "light_blue", "light_white"]
+    for i in range(20):
+        a = i / 20 * math.tau
+        p.append(ball((0.26, 0.26, 0.2), (3.0 * math.cos(a), 3.0 * math.sin(a), 0), bulbs[i % 4], 6, 3))
+    return join("market", p)
+
+
+def tictac():
+    """The tic tac the Navy pilots filmed off the Nimitz in 2004: a smooth white capsule, no wings, no
+    windows, a faint glow along its belly, the pilot under a little glass on top"""
+    p = [ball((1.5, 4.4, 1.3), (0, 0, 0), "white", 14, 8),
+         ball((0.7, 3.0, 0.2), (0, 0, -0.56), "lights_under", 8, 3),
+         ball((1.52, 4.0, 0.1), (0, 0, 0.0), "hull_edge", 14, 3)]
+    body = join("tictac", p)
+    dome = _dome(0.42, 0.5, 1.0)
+    dome.parent = body
+    return body
+
+
+def saturn():
+    """A ball in a tilted ring, like a little Saturn: the ring set with blue and white lights, glowing
+    from underneath, the pilot under glass on top"""
+    tilt = 0.32
+    p = [ball((2.5, 2.5, 2.4), (0, 0, 0), "orb_shell", 16, 8),
+         drum(2.9, 0.08, (0, 0, 0), "hull_edge", 24, (tilt, 0, 0)),
+         drum(2.0, 0.1, (0, 0, 0), "metal_dark", 20, (tilt, 0, 0)),
+         drum(0.6, 0.1, (0, 0, -1.18), "lights_under", 12)]
+    for i in range(16):
+        a = i / 16 * math.tau
+        x, y = 2.7 * math.cos(a), 2.7 * math.sin(a)
+        p.append(ball((0.22, 0.22, 0.16), (x, y * math.cos(tilt), y * math.sin(tilt)), "light_blue" if i % 2 else "light_white", 5, 3))
+    body = join("saturn", p)
+    dome = _dome(0.62, 1.05, 1.0)
+    dome.parent = body
+    return body
+
+
+def diamond():
+    """A crystal of light: two six-sided pyramids point to point, glowing violet, a ring of white
+    lights round its widest, the pilot under glass in its top"""
+    p = [lathe("diamond_hull", [(0.02, -1.7), (2.1, 0.0), (0.7, 1.2), (0.02, 1.25)],
+               ["crystal", "crystal", "hull_edge", "hull_edge"], sides=6),
+         drum(2.12, 0.08, (0, 0, 0), "hull_edge", 6)]
+    for i in range(6):
+        a = i / 6 * math.tau
+        p.append(ball((0.3, 0.3, 0.24), (2.1 * math.cos(a), 2.1 * math.sin(a), 0), "light_white", 6, 3))
+    body = join("diamond", p)
+    dome = _dome(0.6, 1.2, 1.0)
+    dome.parent = body
+    return body
+
 # ---------------------------------------------------------------- wildlife
 
 def quadruped(name, body, leg, head_at, head, colour, dark=None, tail=None):
@@ -1190,6 +1252,31 @@ def meteorite():
     return join("meteorite", [roughen(ball((1.3, 1.1, 0.9), (0, 0, 0.4), "black", 7, 4), 0.15, 5),
                               roughen(ball((0.7, 0.7, 0.6), (0.2, -0.1, 0.7), "meteor_glow", 6, 4), 0.08, 6),
                               roughen(ball((2.6, 2.6, 0.3), (0, 0, 0.0), "talus", 8, 3), 0.1, 7)])
+
+
+def crash_site():
+    """Another saucer, come down long ago: tipped up, half in the ground in a ring of heaped dirt on a
+    dark scar, its dome cracked and a few of its lights still glowing"""
+    tilt = (0.42, 0.25, 0)
+    p = [ball((6.2, 6.2, 0.25), (0, 0, 0.02), "spot", 12, 3),
+         ball((4.4, 4.4, 0.8), (0, 0, 0.55), "metal_dark", 14, 6, tilt),
+         drum(2.25, 0.12, (0, 0, 0.55), "rock", 14, tilt),
+         ball((1.7, 1.7, 1.2), (0.25, -0.35, 1.05), "glass", 10, 5, tilt),
+         box((0.9, 0.08, 0.5), (0.5, -0.6, 1.45), "black", (0.4, 0.6, 0.2))]
+    for i in range(5):
+        a = (i * 0.9 + 0.4)
+        p.append(ball((0.22, 0.22, 0.16), (2.1 * math.cos(a), 2.1 * math.sin(a), 0.75 + 0.5 * math.sin(a)), "light_amber", 6, 3))
+    rnd = random.Random(7)
+    for i in range(14):
+        a = i / 14 * math.tau + rnd.uniform(-0.1, 0.1)
+        deep = 0.5 + 0.5 * max(math.cos(a - 4.4), 0.0)
+        r = 2.3 * rnd.uniform(0.9, 1.08)
+        p.append(roughen(ball((1.4 * rnd.uniform(0.8, 1.2), 1.4 * rnd.uniform(0.8, 1.2), 1.1 * deep), (r * math.cos(a), r * math.sin(a), 0.1), "boot", 7, 4), 0.08, 30 + i))
+    for i in range(8):
+        a = rnd.uniform(0, math.tau)
+        r = rnd.uniform(3.4, 4.8)
+        p.append(ball((0.4, 0.35, 0.25), (r * math.cos(a), r * math.sin(a), 0.08), "boot", 5, 3))
+    return join("crash_site", p)
 
 
 def satellite():
@@ -1488,15 +1575,94 @@ def item_cloak():
     return join("item_cloak", p)
 
 
+def item_magnet():
+    """MAGNET: a horseshoe magnet, red with steel tips"""
+    p = [box((0.12, 0.14, 0.5), (-0.22, 0, 0.55), "chili"), box((0.12, 0.14, 0.5), (0.22, 0, 0.55), "chili"),
+         box((0.56, 0.14, 0.12), (0, 0, 0.84), "chili"), box((0.13, 0.15, 0.14), (-0.22, 0, 0.24), "metal"),
+         box((0.13, 0.15, 0.14), (0.22, 0, 0.24), "metal")]
+    return join("item_magnet", p)
+
+
+def item_wide():
+    """WIDE BEAM: a little emitter throwing a broad cone of light"""
+    p = [drum(0.16, 0.12, (0, 0, 0.9), "metal", 10), drum(0.1, 0.06, (0, 0, 0.82), "pod_glow", 10),
+         drum(0.1, 0.7, (0, 0, 0.45), "pod_glow", 12, top=0.5), drum(0.5, 0.04, (0, 0, 0.08), "pod_glow", 16)]
+    return join("item_wide", p)
+
+
+def item_scanner():
+    """SCANNER: a radar dish on a stand"""
+    p = [drum(0.25, 0.08, (0, 0, 0.04), "metal_dark", 10), drum(0.05, 0.4, (0, 0, 0.28), "metal", 6),
+         drum(0.38, 0.08, (0, -0.04, 0.6), "metal", 14, (1.1, 0, 0), top=0.3), drum(0.03, 0.3, (0, -0.16, 0.66), "metal_dark", 6, (1.1, 0, 0)),
+         ball((0.08, 0.08, 0.08), (0, -0.3, 0.7), "pod_glow")]
+    return join("item_scanner", p)
+
+
+def item_jammer():
+    """JAMMER: a box of electronics with a tall aerial and a blinking light"""
+    p = [box((0.5, 0.3, 0.32), (0, 0, 0.18), "metal_dark"), box((0.4, 0.04, 0.18), (0, -0.16, 0.2), "metal"),
+         drum(0.02, 0.6, (0.15, 0, 0.62), "metal", 6), ball((0.08, 0.08, 0.08), (0.15, 0, 0.94), "chili")]
+    for i in range(3):
+        p.append(box((0.07, 0.02, 0.05), (-0.14 + i * 0.1, -0.19, 0.24), "light_amber"))
+    return join("item_jammer", p)
+
+
+def canister():
+    """A power-up to beam up (see main.gd BOOSTS): a glowing capsule of something, capped in metal
+    (its glow tinted by the game for what it does)"""
+    p = [drum(0.26, 0.62, (0, 0, 0.5), "pod_glow", 10), drum(0.31, 0.1, (0, 0, 0.17), "metal", 10),
+         drum(0.31, 0.1, (0, 0, 0.83), "metal", 10), drum(0.12, 0.12, (0, 0, 0.94), "metal_dark", 8),
+         drum(0.42, 0.06, (0, 0, 0.03), "metal_dark", 10)]
+    for i in range(3):
+        a = i * math.tau / 3
+        p.append(box((0.05, 0.05, 0.6), (math.cos(a) * 0.29, math.sin(a) * 0.29, 0.5), "metal"))
+    return join("canister", p)
+
+
+def item_coolant():
+    """COOLANT: a frosted canister of coolant, ringed with cooling fins, a pipe out of its cap"""
+    p = [drum(0.2, 0.62, (0, 0, 0.36), "ice", 12), drum(0.22, 0.06, (0, 0, 0.06), "metal", 12),
+         drum(0.12, 0.08, (0, 0, 0.71), "metal", 10), drum(0.035, 0.24, (0.12, 0, 0.82), "metal_dark", 6, (0, 1.2, 0)),
+         box((0.06, 0.06, 0.4), (0, -0.2, 0.36), "spark")]
+    for i in range(4):
+        p.append(drum(0.27, 0.025, (0, 0, 0.18 + i * 0.12), "metal", 12))
+    return join("item_coolant", p)
+
+
+def item_nanobots():
+    """NANOBOTS: a cluster of little glowing hexagonal cells"""
+    p = []
+    for i, (x, z) in enumerate(((0, 0.5), (0.24, 0.36), (-0.24, 0.36), (0, 0.22), (0.24, 0.64), (-0.24, 0.64), (0, 0.78))):
+        p.append(drum(0.13, 0.12, (x, 0, z), "spark" if i % 2 == 0 else "metal", 6, (math.pi / 2, 0, 0)))
+    return join("item_nanobots", p)
+
+
+def item_gold():
+    """GOLD: a stack of gold coins"""
+    p = []
+    for i in range(5):
+        p.append(drum(0.26, 0.07, (0.02 * (i % 2), 0.02 * ((i + 1) % 2), 0.05 + i * 0.075), "gold", 14))
+    p.append(drum(0.26, 0.07, (0.3, -0.05, 0.25), "gold", 14, (1.3, 0, 0.4)))
+    return join("item_gold", p)
+
+
+def item_emp():
+    """EMP: a coil around a crackling sphere"""
+    p = [ball((0.36, 0.36, 0.36), (0, 0, 0.5), "spark", 10, 6), drum(0.3, 0.05, (0, 0, 0.5), "metal", 14),
+         drum(0.3, 0.05, (0, 0, 0.5), "metal", 14, (math.pi / 2, 0, 0)), drum(0.18, 0.12, (0, 0, 0.08), "metal_dark", 10)]
+    return join("item_emp", p)
+
+
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
-            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell,
+            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, market,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
-            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite,
+            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,
-            item_engine, item_beam, item_shield, item_dash, item_laser, item_turret, item_missiles, item_cloak]
+            item_engine, item_beam, item_shield, item_dash, item_laser, item_turret, item_missiles, item_cloak,
+            item_magnet, item_wide, item_scanner, item_jammer, item_coolant, canister, item_nanobots, item_gold, item_emp]
 
 
 def main():

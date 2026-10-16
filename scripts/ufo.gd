@@ -21,35 +21,45 @@ extends Node3D
 ## of buttons in front of it (see `panel`), mashing the buttons while the beam is on.
 
 const SHIPS := {
-	"saucer": {"title": "SAUCER", "model": "ufo", "speed": 12.0, "lift": 1.0, "hull": 50.0, "tier": 2, "altitude": 8.0,
+	"saucer": {"title": "ZEEBZER", "model": "ufo", "speed": 12.0, "lift": 1.0, "hull": 50.0, "tier": 2, "altitude": 8.0,
 		"radius": 2.8, "beam_foot": 2.7, "alien_y": 0.3, "alien_size": 0.9, "spin": true,
 		"about": "The all-rounder. Its beam pulls up trees and rocks.", "ghost": Color(0.5, 1.0, 0.65)},
-	"orb": {"title": "ORB", "model": "orb", "speed": 9.5, "lift": 1.5, "hull": 80.0, "tier": 3, "altitude": 6.0,
+	"orb": {"title": "GLORBULON", "model": "orb", "speed": 9.5, "lift": 1.5, "hull": 80.0, "tier": 3, "altitude": 6.0,
 		"radius": 2.2, "beam_foot": 3.2, "alien_y": 1.2, "alien_size": 0.72, "spin": true,
 		"about": "Slow and low, but tough. Its beam lifts buildings.", "ghost": Color(1.0, 0.7, 0.3)},
-	"triangle": {"title": "TRIANGLE", "model": "triangle", "speed": 15.0, "lift": 0.6, "hull": 35.0, "tier": 1, "altitude": 10.5,
+	"triangle": {"title": "XELETRON-22", "model": "triangle", "speed": 15.0, "lift": 0.6, "hull": 35.0, "tier": 1, "altitude": 10.5,
 		"radius": 2.3, "beam_foot": 2.3, "alien_y": 0.14, "alien_size": 0.46, "spin": false, "scale": 0.7,
 		"about": "High and fast. Thin shield; a slow beam for small things.", "ghost": Color(0.6, 0.8, 1.0)},
-	"foo": {"title": "FOO", "model": "foo", "speed": 16.0, "lift": 1.3, "hull": 25.0, "tier": 1, "altitude": 5.0,
+	"foo": {"title": "FIZZWIGGLER", "model": "foo", "speed": 16.0, "lift": 1.3, "hull": 25.0, "tier": 1, "altitude": 5.0,
 		"radius": 1.2, "beam_foot": 1.8, "alien_y": 0.66, "alien_size": 0.42, "spin": true,
 		"about": "Tiny, quick, hard to hit. Hardly any shield; small things.", "ghost": Color(1.0, 0.55, 0.25)},
-	"cigar": {"title": "CIGAR", "model": "cigar", "speed": 8.5, "lift": 0.9, "hull": 120.0, "tier": 2, "altitude": 11.0,
+	"cigar": {"title": "BLORPMOTHER", "model": "cigar", "speed": 8.5, "lift": 0.9, "hull": 120.0, "tier": 2, "altitude": 11.0,
 		"radius": 3.8, "beam_foot": 4.2, "alien_y": 0.66, "alien_size": 0.66, "spin": false,
 		"about": "Huge and slow. The toughest shield and the widest beam.", "ghost": Color(0.85, 0.9, 1.0)},
-	"bell": {"title": "BELL", "model": "bell", "speed": 10.5, "lift": 0.7, "hull": 40.0, "tier": 4, "altitude": 9.0,
+	"bell": {"title": "DINGDONGULUS", "model": "bell", "speed": 10.5, "lift": 0.7, "hull": 40.0, "tier": 4, "altitude": 9.0,
 		"radius": 2.7, "beam_foot": 2.6, "alien_y": 1.12, "alien_size": 0.72, "spin": true,
 		"about": "Its beam takes the land itself, slowly. A thin shield.", "ghost": Color(1.0, 0.85, 0.5)},
+	"tictac": {"title": "TIKTAKKORAX", "model": "tictac", "speed": 18.0, "lift": 0.75, "hull": 30.0, "tier": 1, "altitude": 7.0,
+		"radius": 2.3, "beam_foot": 2.0, "alien_y": 0.45, "alien_size": 0.38, "spin": false,
+		"about": "The fastest of all. A small, weak beam; a thin shield.", "ghost": Color(0.95, 0.97, 1.0)},
+	"saturn": {"title": "STARZOID", "model": "saturn", "speed": 10.5, "lift": 1.6, "hull": 55.0, "tier": 2, "altitude": 8.5,
+		"radius": 2.9, "beam_foot": 2.8, "alien_y": 1.05, "alien_size": 0.55, "spin": true,
+		"about": "A ball in a ring. The strongest pull of any beam.", "ghost": Color(0.5, 0.75, 1.0)},
+	"diamond": {"title": "KRYSTALLIX-9", "model": "diamond", "speed": 11.0, "lift": 0.9, "hull": 75.0, "tier": 3, "altitude": 9.0,
+		"radius": 2.2, "beam_foot": 3.0, "alien_y": 1.2, "alien_size": 0.5, "spin": true,
+		"about": "A crystal of light. Lifts buildings; a strong shield.", "ghost": Color(0.75, 0.45, 1.0)},
 }
-const ORDER: Array[String] = ["saucer", "orb", "triangle", "foo", "cigar", "bell"]
+const ORDER: Array[String] = ["saucer", "orb", "triangle", "foo", "cigar", "bell", "tictac", "saturn", "diamond"]
 const BEAM_SLOW := 0.6
 ## The dodge: a dash this fast for this long, untouchable while it lasts, then a wait before the next
 const DASH_SPEED := 34.0
 const DASH_TIME := 0.22
 const DASH_SAFE := 0.35
-const DASH_WAIT := 7.5
-## The dodge has three charges (the arrows), each refilling in a third of DASH_WAIT (2.5 s at first); a dodge
-## spends every charge that is full, and goes further, and leaves more afterimages, the more it spends
-const CHARGES := 3
+const DASH_WAIT := 6.0
+## The dodge has one charge (an arrow) to begin with, a charge more for each DASH item, up to CHARGES;
+## each refills in DASH_WAIT (a little less with each DASH), one after another
+## (a dodge spends one)
+const CHARGES := 5
 ## Afterimages a dodge leaves, before upgrades (the DASH upgrade adds two a level)
 const GHOSTS := 3
 ## The beam's radius up under the ship
@@ -87,8 +97,8 @@ var dead := false
 var crashed := false
 var since_hit := 10.0
 var dash_left := 0.0
-## Charges of the dodge, 0 to CHARGES (the pistons)
-var charge := 3.0
+## Charges of the dodge, 0 to `charges()`
+var charge := 1.0
 var _safe := 0.0
 var _ghosts_left := 0
 var _dash_dir := Vector3.ZERO
@@ -176,6 +186,8 @@ var beam_pivot: Node3D
 var beam_aim := Vector2.ZERO
 var _aim := Vector3.ZERO
 var beam_mat: ShaderMaterial
+## The beam's colour: green, blue with more BEAM items, then purple (see `colour_beam`)
+var beam_colour := Color(0.55, 1.0, 0.65)
 var spot: SpotLight3D
 var beam_light: SpotLight3D
 ## Where the beam will fall, on the ground under the ship, until the beam comes on (reticle.gdshader)
@@ -482,7 +494,7 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 				alien.position = seat
 		_flash_lights()
 		return
-	charge = minf(charge + delta * CHARGES / dash_wait_max(), CHARGES)
+	charge = minf(charge + delta / dash_wait_max(), charges())
 	_safe -= delta
 	dash_left -= delta
 	# (no beam while dashing: whatever was in it drops)
@@ -541,7 +553,7 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	# (the beam's light throws shadows of whatever is in it)
 	beam_light.visible = _power > 0.05
 	beam_light.light_energy = _power * 2.6
-	spot.light_color = Color(0.75, 0.85, 1.0).lerp(Color(0.5, 1.0, 0.6), _power)
+	spot.light_color = Color(0.75, 0.85, 1.0).lerp(beam_colour.lerp(Color.WHITE, 0.1), _power)
 	spot.light_energy = 2.2
 	# (the reticle on the ground where the beam will fall, giving way to the beam itself)
 	reticle.visible = _power < 0.99 and descent < 2.0
@@ -599,14 +611,19 @@ func _throw_pilot(delta: float) -> void:
 		alien.rotation = alien.rotation.lerp(Vector3.ZERO, minf(delta * 10.0, 1.0))
 
 
-## How ready the next dodge is, 0 (just used) to 1
+## How many charges the dodge holds: one, and one more for each DASH item
+func charges() -> int:
+	return mini(1 + dash_level, CHARGES)
+
+
+## How full the dodge's charges are, 0 (all spent) to 1
 func dodge_ready() -> float:
-	return clampf(charge / CHARGES, 0.0, 1.0)
+	return clampf(charge / charges(), 0.0, 1.0)
 
 
-## The wait between dodges, shorter with each DASH upgrade
+## The wait for a charge to fill, a little shorter with each DASH item
 func dash_wait_max() -> float:
-	return maxf(DASH_WAIT - 0.6 * dash_level, 2.5)
+	return maxf(DASH_WAIT - 0.4 * dash_level, 4.5)
 
 
 ## The lights apart from the plates of the hull: what is drawn glowing is a light
@@ -897,3 +914,11 @@ func _cloaking(delta: float, beam_on: bool) -> void:
 	elif _was_cloaked:
 		_was_cloaked = false
 		body.visible = true
+
+
+## The beam in this colour: its glow, its core (paler) and the light it throws
+func colour_beam(c: Color) -> void:
+	beam_colour = c
+	beam_mat.set_shader_parameter("tint", c)
+	_core_mat.set_shader_parameter("tint", c.lerp(Color.WHITE, 0.45))
+	beam_light.light_color = c

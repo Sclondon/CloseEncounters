@@ -3,10 +3,13 @@ shader_type spatial;
 // its edges, its own shading kept faintly from its colours, in fine scanlines
 render_mode unshaded, cull_disabled, shadows_disabled, fog_disabled;
 
+// (green for the things in the log; the items each in their own colour)
+uniform vec3 tint = vec3(0.35, 1.0, 0.55);
+
 void fragment() {
 	float rim = pow(1.0 - abs(dot(NORMAL, VIEW)), 2.0);
 	float lum = dot(COLOR.rgb, vec3(0.3, 0.59, 0.11));
 	float lines = 0.75 + 0.25 * step(0.5, fract(FRAGCOORD.y / 3.0));
-	ALBEDO = vec3(0.35, 1.0, 0.55) * (0.35 + lum * 0.9 + rim * 0.9) * lines;
+	ALBEDO = tint * (0.35 + lum * 0.9 + rim * 0.9) * lines;
 	ALPHA = clamp(0.55 + rim * 0.45, 0.0, 1.0) * lines;
 }

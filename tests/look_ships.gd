@@ -2,7 +2,7 @@ extends SceneTree
 ## Pictures of the newer ships and upgrades to look over (needs a window; try a phone's shape too,
 ## --resolution 390x844 or 844x390):
 ##   godot --path . --fixed-fps 60 --resolution 1280x720 -s res://tests/look_ships.gd -- <out dir>
-## fly_<ship> and close_<ship> for the foo, the cigar and the bell; laser (a bolt at the police);
+## fly_<ship> and close_<ship> for the tic tac, saturn and diamond; laser (a bolt at the police);
 ## fleet (the little saucers beaming up chickens); captured (a ship held in a secret facility)
 
 var main: Node
@@ -25,7 +25,7 @@ func _initialize() -> void:
 	main.testing = true
 	main.start_mode = "play"
 	root.add_child(main)
-	for s: String in ["foo", "cigar", "bell"]:
+	for s: String in ["tictac", "saturn", "diamond"]:
 		plan.append(func() -> String:
 			close = false
 			main.hold_camera = false

@@ -12,6 +12,8 @@ var hum: AudioStreamPlayer
 var siren: AudioStreamPlayer
 var engine: AudioStreamPlayer
 var next := 0
+## The bus every sound plays on (its loudness is the EFFECTS option)
+const BUS := &"Effects"
 var muted := false:
 	set(value):
 		muted = value
@@ -48,8 +50,10 @@ func _ready() -> void:
 	sounds["ding"] = _voice(0.45, PackedFloat32Array([2100.0, 2100.0, 2080.0]), 0.3, 0.004, 0.0)
 	# The defence laser: a ray-gun's falling whine, as in the pictures
 	sounds["zap"] = _voice(0.22, PackedFloat32Array([2600.0, 1500.0, 700.0, 350.0]), 0.4, 0.08, 0.1)
+	make_bus(BUS)
 	for i in 10:
 		var p := AudioStreamPlayer.new()
+		p.bus = BUS
 		add_child(p)
 		players.append(p)
 	hum = _looper(_theremin(), -19.0)
@@ -93,8 +97,19 @@ func _looper(stream: AudioStreamWAV, volume_db: float) -> AudioStreamPlayer:
 	var p := AudioStreamPlayer.new()
 	p.stream = stream
 	p.volume_db = volume_db
+	p.bus = BUS
 	add_child(p)
 	return p
+
+
+## A bus of this name into the master one, if there is none yet
+static func make_bus(name: StringName) -> void:
+	if AudioServer.get_bus_index(name) >= 0:
+		return
+	AudioServer.add_bus()
+	var i := AudioServer.bus_count - 1
+	AudioServer.set_bus_name(i, name)
+	AudioServer.set_bus_send(i, &"Master")
 
 
 # A short voiced sweep through `freqs`, with optional vibrato (a fraction of the pitch) and noise

@@ -1213,6 +1213,9 @@ func _wildlife(b: int) -> void:
 
 ## Now and then something worth a great deal: a golden cow, a jackalope, Bigfoot, a meteorite, a satellite
 func _rare(c: Vector2i, b: int) -> void:
+	# (and, rarer, another saucer that came down long ago, to be found and taken home)
+	if hash3(c.x, c.y, 58) < 0.012:
+		_spawn("crash_site", _spot(5.0))
 	if hash3(c.x, c.y, 55) > 0.03:
 		return
 	var kind: String = {Biome.FARM: "golden_cow", Biome.PLAINS: "jackalope", Biome.MOUNTAIN: "sasquatch",

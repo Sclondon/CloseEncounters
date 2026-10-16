@@ -13,6 +13,8 @@ extends Node
 const SONGS := ["lounge", "visitors", "chase"]
 const FADE := 1.2
 const LOUD := -7.0
+## The bus the songs play on (its loudness is the MUSIC option)
+const BUS := &"Music"
 
 var players := {}
 var song := ""
@@ -22,7 +24,9 @@ var muted := false
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	for name: String in SONGS:
+		Sfx.make_bus(BUS)
 		var p := AudioStreamPlayer.new()
+		p.bus = BUS
 		p.stream = load("res://music/%s.wav" % name)
 		p.volume_db = -80.0
 		add_child(p)

@@ -32,12 +32,25 @@ and while on the moon the world stays loaded round where the run starts (no stut
   The beam is on only while held. The ship slows while the beam is on. Things rise slowly (the heavier, the slower) and are taken when they reach the ship.
   Let go early and they fall. Drop something from high enough onto the police or the army and it crushes them.
 - **Dodge**: Shift (or X, K), gamepad B / left shoulder, or a quick swipe: a dash that spins the ship like a
-  top and leaves afterimages, untouchable while it lasts, each of its three charges then 2.5 s to refill (the DODGE bar). It drops
-  whatever is in the beam, and throws the pilot about.
-- **Pause**: Esc / P / Start, or the pause button in the top right; from there, RESUME or QUIT TO MENU (the run is given up).
+  top and leaves afterimages, untouchable while it lasts. It starts with **one charge** (6 s to refill), and each
+  DASH item adds another. It drops whatever is in the beam, and throws the pilot about. Dash with no charge and
+  the engine fizzles: the ship shudders, smokes and spits sparks.
+- **Pause**: Esc / P / Start, or the pause button in the top right; from there, RESUME, OPTIONS or QUIT TO MENU (the run is given up).
+
+**OPTIONS** (the cog in the top right of the title, or from the pause), kept with the bests in user://best.cfg:
+MUSIC and EFFECTS loudness (sliders, each its own audio bus), PICTURE (LOW / MEDIUM / HIGH: 220, 300 or 420
+lines), DITHER (the PlayStation dither and 15-bit colour, on or off), SHAKE (screen shake on or off) and FRAMES
+(30, 60 or as fast as the screen goes).
+
+**After a crash**: the wreck lies half in the ground in a ring of heaped dirt, burning; the pilot runs for it and
+is gunned down. The results (left-justified, typed out) give what was taken by category, the police and army
+**destroyed** by kind, and the **items** had. TO THE MOON flies home; **REPLAY** flies straight up off the wreck
+into the stars and down again onto a new country, the new ship warping in with a burst of sparkles. Watch long
+enough and the **men in black** drive up: one zips the pilot into a body bag and carries it off to their car, the
+other flashes the crowd with a memory eraser (they forget and wander away), and they drive off.
 
 The HUD: down the top left, three glass orbs the same size: the shield (blue energy), the round **radar**, and
-the dash (three arrows that light up as it recharges, one for each dash; every dash is a full one).
+the dash (an arrow for each charge, lit once charged, filling as it charges).
 The heat's news (the police coming, spotted, a nuke) shows just under the stars. Top right, beside the pause button, the score in alien money and its multiplier,
 and under them a log of everything taken, typed out in glowing green. Left of the cash, the **level orb** (the size of the shield's) fills with little hologram balls of what was taken, dropping in, toward the next level-up.
 The radar shows the nearest trader, secret facility, substation and rare
@@ -48,7 +61,7 @@ The pilot works a stick and a panel of buttons in front of it, mashes the button
 thrown about the cockpit in a dodge. The ship's
 lights flash with the beam, a dodge and a hit.
 
-**Only the saucer can be flown at first.** The other five are held in **secret government facilities** out
+**Only the Zeebzer can be flown at first.** The other eight are held in **secret government facilities** out
 in the country (fenced compounds, four searchlight towers, a gold beacon over the captured ship): beam the ship
 up to make it yours, for good. A facility whose ship has already been found holds one not yet found instead
 (`captive` in main.gd). A locked ship says so on the title screen.
@@ -65,12 +78,17 @@ Chosen on the title screen (left / right, or the arrows), and remembered.
 
 | Ship | Speed | Beam | Shield | Flies | Beam strength |
 | --- | --- | --- | --- | --- | --- |
-| SAUCER, the classic | 12 | x1 | 50 | 8 m | 2: trees and rocks |
-| ORB (after the scout ships of *Close Encounters of the Third Kind*) | 9.5 | x1.5, wide | 80 | 6 m (low) | 3: buildings |
-| TRIANGLE, the black triangle | 15 | x0.6, narrow | 35 | 10.5 m (high) | 1: small things only |
-| FOO, a foo fighter (the balls of light pilots saw in the war): tiny, so hard to hit | 16 | x1.3, narrow | 25 | 5 m (lowest) | 1: small things only |
-| CIGAR, the cigar-shaped mother ship of the 1950s: huge, so hard to miss | 8.5 | x0.9, widest | 120 | 11 m (highest) | 2: trees and rocks |
-| BELL, the bell-shaped scout ship of the 1952 photographs | 10.5 | x0.7 | 40 | 9 m | 4: the land itself |
+| ZEEBZER (`saucer`), the classic | 12 | x1 | 50 | 8 m | 2: trees and rocks |
+| GLORBULON (`orb`, after the scout ships of *Close Encounters of the Third Kind*) | 9.5 | x1.5, wide | 80 | 6 m (low) | 3: buildings |
+| XELETRON-22 (`triangle`), the black triangle | 15 | x0.6, narrow | 35 | 10.5 m (high) | 1: small things only |
+| FIZZWIGGLER (`foo`), a foo fighter (the balls of light pilots saw in the war): tiny, so hard to hit | 16 | x1.3, narrow | 25 | 5 m (lowest) | 1: small things only |
+| BLORPMOTHER (`cigar`), the cigar-shaped mother ship of the 1950s: huge, so hard to miss | 8.5 | x0.9, widest | 120 | 11 m (highest) | 2: trees and rocks |
+| DINGDONGULUS (`bell`), the bell-shaped scout ship of the 1952 photographs | 10.5 | x0.7 | 40 | 9 m | 4: the land itself |
+| TIKTAKKORAX (`tictac`), the Nimitz tic tac of 2004: the fastest | 18 | x0.75, narrow | 30 | 7 m | 1: small things only |
+| STARZOID (`saturn`), a ball in a ring of lights | 10.5 | x1.6 (strongest pull) | 55 | 8.5 m | 2: trees and rocks |
+| KRYSTALLIX-9 (`diamond`), a violet crystal | 11 | x0.9 | 75 | 9 m | 3: buildings |
+
+The beam is green, turns **blue** from the second BEAM item and **purple** from the fourth.
 
 ### What the beam can take
 
@@ -81,7 +99,13 @@ heavy, it only rattles (and a roof sheds tiles up the beam). Taking a mesa or a 
 
 **Crop circles**: hold the beam still over a field of crops and a circle presses into it (60 points), joined by a pressed line to its nearest neighbours (two lines at most to a circle, never through another).
 **Rare finds**, each under a shaft of gold light: the golden cow, a jackalope, Bigfoot, a meteorite, a fallen
-satellite (900 to 3000 points).
+satellite (900 to 3000 points), and, rarer, **crash sites**: another saucer that came down long ago, tipped up in a
+ring of heaped dirt, a few lights still glowing (3500 points).
+
+**Power-ups**: every 22 to 40 s a glowing canister turns up somewhere near (two about at most). Beam it up for a
+boost: DOUBLE POINTS (15 s), OVERDRIVE (half as fast again, 15 s), HEAT FREEZE (no heat, 12 s), SUPER BEAM
+(lifts far faster and one tier stronger, 12 s) or a SHIELD CELL (the shield full at once). What is under way
+shows under the heat's news with its seconds left.
 
 ### Heat
 
@@ -120,12 +144,15 @@ it holds you. Once there is heat, the patrols lock their lights on and join in.
 
 ### Level-ups and traders
 
-**Level-ups come with the score** (`level_at`: 600, 2400, 5400, 9600... points): the game pauses and offers a choice
-of upgrades. They are items that stack, as in Risk of Rain: each pick is one more of it (up to ten), small at first and growing with the stack (the fleet up to six saucers, rates with floors). The items had show as a row of little tiles under the heat's stars, each a small 3D model of the item (built in Blender, `item_*` in tools/build_models.py) with its stack count, as in Risk of Rain 2; the level-up choices show them too:
-ENGINE (+7% speed), BEAM (lifts faster, and every second level one tier stronger), SHIELD (+15), DASH (each charge refills in 2.5 s at first; recharges 0.6 s
-faster, two more afterimages), and:
+**Level-ups come with the score** (`level_at`: 600, 2400, 5400, 9600... points): the game pauses and the **MOON
+MARKET** opens, its carnival-painted trading saucer dropping out of the sky behind it (`MarketShip`), with a choice
+of upgrades (sized for thumbs, biggest on an upright phone). They are items that stack, as in Risk of Rain: each pick is one more of it (up to ten), small at first and growing with the stack (the fleet up to six saucers, rates with floors). The items had show as a row of little tiles under the heat's stars, each a small 3D model of the item (built in Blender, `item_*` in tools/build_models.py) with its stack count, as in Risk of Rain 2; the level-up choices show them too:
+ENGINE (+7% speed), BEAM (lifts faster, and every second level one tier stronger), SHIELD (+15), DASH (one more
+dash charge, refilling a little sooner, two more afterimages), MAGNET (small things drift to the beam), WIDE BEAM,
+SCANNER (the radar sees further), JAMMER (they stop looking sooner), COOLANT (the heat cools quicker), NANOBOTS
+(the shield mends itself), GOLD (everything taken worth a tenth more), EMP (a dash stuns the police and army near), CLOAK, MISSILES, and:
 
-- **LASER**: a cutting ray of your own. Switch the beam over to it (L, Tab or C; gamepad Y; or the red bolt button over the beam's mark on a touch screen) and the beam's button fires it, where the beam would fall: the police and army there are hit (a few hits blow them up), cars and oil drums blow up, anyone else runs. Hotter each level.
+- **LASER**: a ray of your own. Switch the beam over to it (L, Tab or C; gamepad Y; or the red bolt button over the beam's mark on a touch screen) and the beam's button fires it, where the beam would fall, leaving a trail of glowing burns on the ground that cool to soot and fade. The police and army there are hit (a few hits blow them up), cars and oil drums blow up, and **anything else burns down** (people, animals, trees, houses...: hits up to its size squared, a LASER's worth a cut each), up to a size the laser's level allows (`laser_burns`: a house wants a second LASER, a church a third); the land itself never burns.
 - **AUTO TURRET**: a turret under the hull that fires by itself, a pink bolt every 4.0 s (0.6 s sooner a level,
   down to 2.2 s) out to 9.5 m (2.5 m further a level). It shoots down shells and missiles coming at the ship
   first, then jets, then, once there is heat, the nearest police or army: a hit stuns one (it holds its fire
@@ -276,4 +303,4 @@ Way and the real constellations, the same sky on the moon, in space and over Ear
 twinkling; over Earth the night's blue and a horizon haze are laid on it (`shaders/sky.gdshader`). The
 moon over Earth is NASA's LRO map of it (`textures/moon_lroc.jpg`), hung at one place in the sky like Earth
 over the moon: top left in play on a wide screen, top right on a phone, out of the picture where the
-descent starts and gone again before the ship is home.
+descent starts and gone again before the ship is home, with a soft glow round it (`shaders/moon_glow.gdshader`). On a phone the camera in play sits lower and looks a little up (`_look_up`), so the sky and the moon show over the fields as on a wide screen.

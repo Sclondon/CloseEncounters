@@ -139,7 +139,7 @@ func _look(ufo: Ufo) -> Thing:
 	var best: Thing
 	var best_d := REACH
 	for t: Thing in game.things:
-		if t.state != "walk" or t.is_enemy() or t.kind == "pod" or t.tier() > 1 or t.info["move"] == "road":
+		if t.state != "walk" or t.is_enemy() or t.kind in ["pod", "canister"] or t.tier() > 1 or t.info["move"] == "road":
 			continue
 		if float(t.info["weight"]) > MOST_WEIGHT or float(t.info["heat"]) > MOST_HEAT or t.info.get("rare", false):
 			continue

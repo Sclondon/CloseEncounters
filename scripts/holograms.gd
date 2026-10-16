@@ -7,6 +7,7 @@ extends Node
 const SIZE := 96
 const SHADER := preload("res://shaders/hologram.gdshader")
 const FLICKER := preload("res://shaders/hologram_flicker.gdshader")
+const GREEN := Color(0.35, 1.0, 0.55)
 
 var _view: SubViewport
 var _camera: Camera3D
@@ -86,7 +87,7 @@ func _process(_delta: float) -> void:
 		_drawing = Ps1.model(model_name)
 		_drawing.set_meta("kind", kind)
 		_view.add_child(_drawing)
-		_frame(_drawing, false)
+		_frame(_drawing, true, item_colours.get(kind.trim_prefix("item:"), GREEN))
 		return
 	# (a kind of thing, or one of the ships, by its name in Ufo.SHIPS)
 	var info: Dictionary = Thing.KINDS.get(kind, Ufo.SHIPS.get(kind, Thing.KINDS.get("fighter_" + kind, {})))
@@ -104,12 +105,16 @@ func _process(_delta: float) -> void:
 
 ## The camera on a model to be drawn: seen from the front and a little to its right and above, all of
 ## it in the picture; as a hologram (green light) or in its own colours
-func _frame(model: Node3D, hologram: bool) -> void:
+func _frame(model: Node3D, hologram: bool, tint := GREEN) -> void:
 	model.rotation.y = -0.6
 	var box := AABB()
+	var light := _material
+	if tint != GREEN:
+		light = _material.duplicate() as ShaderMaterial
+		light.set_shader_parameter("tint", Vector3(tint.r, tint.g, tint.b))
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		if hologram:
-			mi.material_override = _material
+			mi.material_override = light
 			mi.set_surface_override_material(0, null)
 		else:
 			# (its own colours, in a plain lit material: the game's own bends with the world, which
@@ -125,10 +130,15 @@ func _frame(model: Node3D, hologram: bool) -> void:
 	_view.render_target_update_mode = SubViewport.UPDATE_ONCE
 	_waiting = 2
 
-## An item (an upgrade) as a little 3D model in its own colours, lit, as Risk of Rain 2 shows its
-## items; by the upgrade's name (see main.gd UPGRADES)
+## An item (an upgrade) as a little 3D model, as Risk of Rain 2 shows its items: a hologram in the
+## item's own colour (`item_colours`, filled in from main.gd UPGRADES); by the upgrade's name
 const ITEM_MODELS := {"engine": "item_engine", "beam": "item_beam", "shield": "item_shield", "dash": "item_dash",
-	"laser": "item_laser", "turret": "item_turret", "missiles": "item_missiles", "cloak": "item_cloak", "fleet": "ufo", "patch": "item_shield"}
+	"laser": "item_laser", "turret": "item_turret", "missiles": "item_missiles", "cloak": "item_cloak", "fleet": "ufo", "patch": "item_shield",
+	"magnet": "item_magnet", "wide": "item_wide", "scanner": "item_scanner", "jammer": "item_jammer", "coolant": "item_coolant", "nanobots": "item_nanobots", "gold": "item_gold", "emp": "item_emp"}
+
+
+## Each item's colour, by its name
+var item_colours := {}
 
 
 func item(what: String) -> Texture2D:
