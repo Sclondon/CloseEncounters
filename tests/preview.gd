@@ -5,8 +5,8 @@ extends SceneTree
 ##   godot --path . --fixed-fps 30 --resolution 1280x720 --write-movie <out.avi> -s res://tests/preview.gd
 
 ## Frames on the moon before PLAY, and of the run after the descent
-const ON_MOON := 80
-const FLYING := 480
+const ON_MOON := 8
+const FLYING := 560
 
 var main: Node
 var frame := 0
@@ -28,22 +28,20 @@ func _process(_delta: float) -> bool:
 	frame += 1
 	if frame == ON_MOON:
 		main.begin_launch()
+	# (the stretch out in space, between the moon and the farm, hurried through)
+	var in_space: bool = main.mode == "launch" and main._launch_t > 3.6 or main.mode == "play" and main.intro > 2.0
+	Engine.time_scale = 3.0 if in_space else 1.0
+	# (no level-ups in the film: the ship as a new run has it)
+	main.level = 99
 	if began < 0:
 		if main.mode == "play":
 			began = frame
 			main.autopilot = true
 		return false
 	main.ufo.hull = maxf(main.ufo.hull, 60.0)
-	# (the heat climbing once the descent is over: 4.5 s, 135 frames; and a laser and two little
-	# saucers of the fleet bought, to be seen at work)
+	# (the heat climbing once the descent is over, and a rival saucer at work nearby; no upgrades,
+	# just the ship as a new run has it)
 	match frame - began:
-		140:
-			main.score = 5000
-			main.buy("laser")
-			main.buy("laser")
-			main.buy("fleet")
-			main.buy("fleet")
-			main.score = 0
 		200:
 			# (a rival saucer at work nearby)
 			var r: Thing = main.spawn_rival(main.ufo.ground() + Vector3(16, 0, -12))

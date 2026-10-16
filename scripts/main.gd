@@ -181,8 +181,6 @@ const LOG_FOR := 5.0
 var _typing := 0.0
 var stars: Control
 var shield_bar: Control
-var banner: Label
-var banner_time := 0.0
 var heat_note: Label
 var heat_note_time := 0.0
 var title_box: Control
@@ -2567,13 +2565,6 @@ func _build_hud() -> void:
 	_glow(heat_note, Color(1.0, 0.4, 0.2, 0.45))
 	root.add_child(heat_note)
 
-	banner = _label(40, Color(1.0, 0.85, 0.4))
-	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	banner.set_anchors_preset(Control.PRESET_CENTER)
-	banner.position = Vector2(-400, -150)
-	banner.size = Vector2(800, 60)
-	root.add_child(banner)
-
 	stick_ring = StickRing.new()
 	stick_ring.main = self
 	stick_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -2965,9 +2956,9 @@ func set_paused(on: bool) -> void:
 		_forget_fingers()
 
 
+## An announcement: never in the middle of the screen, always the line under the stars ("" clears it)
 func _banner(text: String, seconds: float) -> void:
-	banner.text = text
-	banner_time = seconds
+	_heat_note(text, seconds)
 
 
 ## A line of the heat's news under the stars, for `seconds`
@@ -3015,11 +3006,6 @@ func _hud(delta: float) -> void:
 	stick_ring.visible = playing and stick_finger != NO_FINGER
 	beam_button.queue_redraw()
 	_pause_button.visible = playing and not autopilot
-	if banner_time > 0.0:
-		banner_time -= delta
-		banner.modulate.a = clampf(banner_time * 2.0, 0.0, 1.0)
-	else:
-		banner.text = ""
 	heat_note.visible = playing
 	if heat_note_time > 0.0:
 		heat_note_time -= delta

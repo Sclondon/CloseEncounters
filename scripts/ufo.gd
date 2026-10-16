@@ -480,9 +480,10 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	knock = knock.lerp(Vector3.ZERO, minf(delta * 3.0, 1.0))
 	position.y = altitude + descent + sin(_t * 1.7) * 0.15
 	# Banks into the way it is going
-	# (tilted back while beaming, its underside and the beam toward the camera)
-	body.rotation.x = lerpf(body.rotation.x, velocity.z / speed * 0.25 - (BEAM_TILT if beaming else 0.0), minf(delta * 5.0, 1.0))
-	body.rotation.z = lerpf(body.rotation.z, -velocity.x / speed * 0.25, minf(delta * 5.0, 1.0))
+	# (leaning into the way it goes, never more than a little, a dash being far faster than flying;
+	# tilted back while beaming, its underside and the beam toward the camera)
+	body.rotation.x = lerpf(body.rotation.x, clampf(velocity.z / speed * 0.25, -0.3, 0.3) - (BEAM_TILT if beaming else 0.0), minf(delta * 5.0, 1.0))
+	body.rotation.z = lerpf(body.rotation.z, clampf(-velocity.x / speed * 0.25, -0.3, 0.3), minf(delta * 5.0, 1.0))
 	_steer = steer
 	if _spin > 0.0:
 		# A dodge spins the hull like a top, and leaves afterimages behind it
