@@ -605,6 +605,7 @@ func _process(delta: float) -> void:
 				t.tick(delta, ufo)
 				if t.state == "walk":
 					t.rattle()
+					_shake_loose(t, delta)
 				continue
 			if t.state == "walk" or t.state == "falling":
 				if t.state == "walk" and t.info.has("voice") and randf() < 0.6:
@@ -622,6 +623,7 @@ func _process(delta: float) -> void:
 	_rivals(delta)
 	_rival_bumps()
 	_nuking(delta)
+	_surface_fx(delta)
 	_watchers(delta)
 	_crop_circles(delta)
 	for s in shots:
@@ -1032,9 +1034,9 @@ func _apply_upgrades() -> void:
 
 # ------------------------------------------------------------------ levelling up
 
-## The score that brings level `n`: each further off than the last
+## The score that brings level `n`: each further off than the last (600, 2400, 5400, 9600...)
 static func level_at(n: int) -> int:
-	return int(round(250.0 * pow(float(n), 1.6) / 50.0)) * 50
+	return int(round(600.0 * pow(float(n), 2.0) / 50.0)) * 50
 
 
 ## A level for every LEVEL_AT reached: one at a time, a pick of three upgrades
@@ -1562,6 +1564,70 @@ func _title_flybys(delta: float) -> void:
 	view.add_child(node)
 	_flybys.append([node, from, to, 0.0, randf_range(3.0, 5.5)])
 	sfx.play("whoosh", randf_range(1.2, 1.6), -10.0)
+
+
+# ------------------------------------------------------------------ what the beam kicks up
+
+## The colour of each kind of ground's bits (see World.surface_at)
+const SURFACE := {"water": Color(0.6, 0.8, 1.0, 0.8), "road": Color(0.55, 0.55, 0.56), "crop": Color(0.85, 0.74, 0.4),
+	"grass": Color(0.42, 0.7, 0.32), "sand": Color(0.86, 0.62, 0.42), "dirt": Color(0.58, 0.43, 0.3), "rock": Color(0.62, 0.62, 0.65)}
+var _surface := "grass"
+var _surface_wait := 0.0
+var _kick_wait := 0.0
+
+
+## Small and subtle: under the beam, bits of whatever the ground is (blades of grass, clods, chaff,
+## sand, grit, drops of water) jump up and fall back, and the swirl up the beam takes their colour;
+## and power lines near the beam spark
+func _surface_fx(delta: float) -> void:
+	if not ufo.beaming or ufo.dead or mode != "play":
+		return
+	var foot := ufo.beam_axis(0.0)
+	_surface_wait -= delta
+	if _surface_wait <= 0.0:
+		_surface_wait = 0.3
+		_surface = world.surface_at(foot)
+		ufo.tornado.tint = (SURFACE[_surface] as Color).lerp(Color(0.75, 1.0, 0.8), 0.25)
+	_kick_wait -= delta
+	if _kick_wait <= 0.0:
+		_kick_wait = 0.07
+		var a := randf() * TAU
+		var at := foot + Vector3(cos(a), 0.05, sin(a)) * randf() * ufo.beam_foot * 0.8
+		var c: Color = SURFACE[_surface]
+		if _surface == "water":
+			ufo.puffs.chip(at, Vector3(randf_range(-0.6, 0.6), randf_range(2.5, 4.0), randf_range(-0.6, 0.6)), c, 0.06, 7.0, 0.7)
+		else:
+			ufo.puffs.chip(at, Vector3(randf_range(-0.8, 0.8), randf_range(1.5, 3.2), randf_range(-0.8, 0.8)), c.darkened(randf() * 0.25), randf_range(0.07, 0.12), 5.0, 0.9)
+	# (the wires of the phone line, where they pass near the beam: sparks off them)
+	for t in things:
+		if t.kind != "phone_pole" or t.state != "walk" or t.wire_to == Vector3.INF:
+			continue
+		var a := Vector2(t.position.x, t.position.z)
+		if a.distance_to(Vector2(foot.x, foot.z)) > 30.0:
+			continue
+		var b := Vector2(t.wire_to.x, t.wire_to.z)
+		var ab := b - a
+		var k := clampf((Vector2(foot.x, foot.z) - a).dot(ab) / maxf(ab.length_squared(), 0.01), 0.0, 1.0)
+		var near := a + ab * k
+		if near.distance_to(Vector2(foot.x, foot.z)) < ufo.beam_foot + 1.0 and randf() < delta * 10.0:
+			ufo.puffs.spark(Vector3(near.x, 6.9, near.y), Vector3(randf_range(-2, 2), randf_range(0.5, 3), randf_range(-2, 2)), Color(0.6, 0.85, 1.0))
+
+
+## Roofs that shed tiles when the beam cannot lift the building (see _shake_loose)
+const TILED := ["house", "farmhouse", "storefront", "diner", "cabin", "police_station", "barn", "church", "city_hall"]
+
+
+## Too heavy for the beam and rattling in it: a little dust off its foot, and from a roof, now and
+## then a tile, torn off and pulled up the beam a way before it falls
+func _shake_loose(t: Thing, delta: float) -> void:
+	var top := t.size() * t.base_size
+	if randf() < delta * 3.0:
+		var a := randf() * TAU
+		ufo.puffs.puff(t.position + Vector3(cos(a), 0.2, sin(a)) * top * 0.4, Color(0.55, 0.5, 0.45, 0.35), 0.5, Vector3(0, 0.6, 0), 0.9)
+	if t.kind in TILED and randf() < delta * 4.0:
+		var at := t.position + Vector3(randf_range(-0.3, 0.3) * top, top * 0.9, randf_range(-0.3, 0.3) * top)
+		var up := (ufo.position - at).normalized()
+		ufo.puffs.chip(at, up * randf_range(3.0, 5.0) + Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)), Color(0.3, 0.3, 0.34), 0.22, 4.0, 1.4)
 # ------------------------------------------------------------------ rival saucers
 
 ## Seconds till the next rival saucer turns up (see _rivals)

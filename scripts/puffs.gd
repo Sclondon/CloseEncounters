@@ -1,12 +1,14 @@
 class_name Puffs
 extends Node3D
 ## Short-lived bits in the world: puffs of smoke that rise, swell and fade, and sparks that fly off
-## and fall. Placed in the world wherever its parent is (it sits at the world's origin).
+## and fall, and little chips (a roof tile, a clod, a blade of grass) that tumble up and fall back.
+## Placed in the world wherever its parent is (it sits at the world's origin).
 
 ## Each bit: {node, age, life, velocity, grow, gravity, alpha}
 var _bits: Array[Dictionary] = []
 var _ball: SphereMesh
 var _streak: BoxMesh
+var _chip: BoxMesh
 
 
 func _ready() -> void:
@@ -19,6 +21,8 @@ func _ready() -> void:
 	_ball.rings = 4
 	_streak = BoxMesh.new()
 	_streak.size = Vector3(0.1, 0.1, 0.4)
+	_chip = BoxMesh.new()
+	_chip.size = Vector3(1.0, 0.35, 0.7)
 
 
 ## A puff of smoke at `at`, `size` across, drifting by `drift`
@@ -36,6 +40,15 @@ func spark(at: Vector3, velocity: Vector3, c := Color(1.0, 0.85, 0.4)) -> void:
 	_bits.append({"node": n, "age": 0.0, "life": 0.45, "velocity": velocity, "grow": 0.0, "gravity": 9.0, "alpha": 1.0})
 
 
+## A little chip of something (`size` across) flung off along `velocity`, tumbling, falling back
+func chip(at: Vector3, velocity: Vector3, c: Color, size := 0.18, gravity := 6.0, life := 1.1) -> void:
+	var n := _piece(_chip, c, false)
+	n.position = at
+	n.scale = Vector3.ONE * size
+	n.rotation = Vector3(randf() * TAU, randf() * TAU, 0)
+	_bits.append({"node": n, "age": 0.0, "life": life, "velocity": velocity, "grow": 0.0, "gravity": gravity, "alpha": c.a, "spin": Vector3(randf_range(-8, 8), randf_range(-8, 8), 0)})
+
+
 func _process(delta: float) -> void:
 	for b in _bits.duplicate():
 		var n: MeshInstance3D = b["node"]
@@ -47,7 +60,9 @@ func _process(delta: float) -> void:
 			continue
 		b["velocity"] += Vector3.DOWN * b["gravity"] * delta
 		n.position += b["velocity"] * delta
-		if b["grow"] > 0.0:
+		if b.has("spin"):
+			n.rotation += (b["spin"] as Vector3) * delta
+		elif b["grow"] > 0.0:
 			n.scale += Vector3.ONE * b["grow"] * delta
 		elif (b["velocity"] as Vector3).length() > 0.1:
 			var v: Vector3 = b["velocity"]

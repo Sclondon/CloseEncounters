@@ -439,6 +439,26 @@ func grow_circle(radius: float) -> void:
 	_ground_mat.set_shader_parameter("circles", _circles)
 
 
+
+## What the ground is at `p`, for what the beam kicks up there: "water", "road", "crop", "grass",
+## "sand", "dirt" or "rock"
+func surface_at(p: Vector3) -> String:
+	var lake: Vector3 = lakes.get(chunk_of(p), Vector3(0, 0, -1))
+	if Vector2(p.x - lake.x, p.z - lake.y).length() < lake.z:
+		return "water"
+	if on_road(p, 0.0):
+		return "road"
+	match biome_at(p):
+		Biome.FARM:
+			return "crop" if field(chunk_of(p)) in [Field.WHEAT, Field.CORN] else "grass"
+		Biome.PLAINS:
+			return "grass"
+		Biome.DESERT:
+			return "sand"
+		Biome.MESA:
+			return "dirt"
+	return "rock"
+
 ## Whether a crop circle can be pressed at `p`: anywhere in the farm country off the roads
 func crops_at(p: Vector3) -> bool:
 	if biome_at(p) != Biome.FARM or on_road(p, 2.0):
@@ -828,17 +848,19 @@ func _crops(kind: int) -> void:
 	var across := rows_across(_chunk)
 	var crop: String = {Field.WHEAT: "wheat", Field.CORN: "corn", Field.PUMPKIN: "pumpkin"}.get(kind, "")
 	if crop != "":
-		var gap := 2.6 if crop == "pumpkin" else 2.2
+		# (corn packed close, row on row; wheat and pumpkins sparser)
+		var gap: float = {"pumpkin": 2.6, "corn": 1.3}.get(crop, 2.2)
+		var rows: float = 1.8 if crop == "corn" else 3.0
 		var row := -CHUNK * 0.5 + 1.5
 		while row < CHUNK * 0.5:
 			var along := -CHUNK * 0.5 + 1.0
 			while along < CHUNK * 0.5:
 				var p := base + (Vector3(row, 0, along) if across else Vector3(along, 0, row))
-				p += Vector3(_rng.randf_range(-0.25, 0.25), 0, _rng.randf_range(-0.25, 0.25))
+				p += Vector3(_rng.randf_range(-0.2, 0.2), 0, _rng.randf_range(-0.2, 0.2))
 				if not on_road(p, 1.5):
 					_plant_at(crop, p, _rng.randf() * TAU)
 				along += gap
-			row += 3.0
+			row += rows
 	match kind:
 		Field.WHEAT:
 			if _rng.randf() < 0.4:

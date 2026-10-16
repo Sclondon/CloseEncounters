@@ -4,6 +4,9 @@ class_name Ps1
 ## dressed in them. Materials of one colour are shared.
 
 const LIT: Shader = preload("res://shaders/ps1.gdshader")
+## The simple textures some materials are drawn with, by name (see ps1.gdshader `pattern`): carried
+## on each corner of a merged model in its second UV
+const PATTERNS := {"walls": 1, "roof": 2, "brick": 3, "wood": 4}
 const FLAT: Shader = preload("res://shaders/ps1_flat.gdshader")
 const GLASS: Shader = preload("res://shaders/glass.gdshader")
 # The world is drawn this many pixels high and blown up
@@ -187,6 +190,7 @@ static func _merged(mesh: Mesh, paints: Array) -> ArrayMesh:
 	var normals := PackedVector3Array()
 	var colours := PackedColorArray()
 	var uvs := PackedVector2Array()
+	var kinds := PackedVector2Array()
 	var indices := PackedInt32Array()
 	for i in mesh.get_surface_count():
 		var arrays := mesh.surface_get_arrays(i)
@@ -203,6 +207,7 @@ static func _merged(mesh: Mesh, paints: Array) -> ArrayMesh:
 		for k in v.size():
 			colours.append(lin)
 			uvs.append(uv[k] if uv is PackedVector2Array and k < uv.size() else Vector2.ZERO)
+			kinds.append(Vector2(PATTERNS.get(paints[i][2], 0), 0))
 		if idx is PackedInt32Array and idx.size() > 0:
 			for k in idx:
 				indices.append(base + k)
@@ -215,6 +220,7 @@ static func _merged(mesh: Mesh, paints: Array) -> ArrayMesh:
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_COLOR] = colours
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = kinds
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var out := ArrayMesh.new()
 	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)

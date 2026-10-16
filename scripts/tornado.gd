@@ -21,6 +21,8 @@ var _wait := PackedFloat32Array()
 var _at := PackedVector3Array()
 var _v := PackedVector3Array()
 var _was_on := false
+## The colour of what is being swirled up: dust, grass, water... (see Main._surface_fx)
+var tint := Color(0.75, 1.0, 0.8)
 
 
 func _ready() -> void:
@@ -33,7 +35,6 @@ func _ready() -> void:
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.disable_fog = true
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	m.vertex_color_use_as_albedo = true
 	mote.material = m
 	multimesh = MultiMesh.new()
@@ -99,7 +100,7 @@ func follow(top: Vector3, foot: float, neck: float, delta: float, lean := Vector
 					continue
 				var fade := smoothstep(0.0, 0.1, _h[i]) * (1.0 - smoothstep(0.85, 1.0, _h[i]))
 				multimesh.set_instance_transform(i, Transform3D(Basis.IDENTITY, _at[i]))
-				multimesh.set_instance_color(i, Color(0.75, 1.0, 0.8, 0.75 * fade))
+				multimesh.set_instance_color(i, Color(tint, 0.75 * fade))
 				any = true
 			2:
 				_wait[i] -= delta
@@ -110,7 +111,7 @@ func follow(top: Vector3, foot: float, neck: float, delta: float, lean := Vector
 					multimesh.set_instance_color(i, Color(0, 0, 0, 0))
 					continue
 				multimesh.set_instance_transform(i, Transform3D(Basis.IDENTITY, _at[i]))
-				multimesh.set_instance_color(i, Color(0.75, 1.0, 0.8, 0.6 * minf(_wait[i], 1.0)))
+				multimesh.set_instance_color(i, Color(tint, 0.6 * minf(_wait[i], 1.0)))
 				any = true
 	visible = any
 

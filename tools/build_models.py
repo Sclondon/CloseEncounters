@@ -492,10 +492,37 @@ def runway():
 
 
 def house():
-    p = [box((6.0, 6.0, 3.0), (0, 0, 1.5), "walls"), gable(6.6, 6.6, 2.2, (0, 0, 3.0), "roof"),
-         box((1.0, 0.1, 2.0), (0, -3.0, 1.0), "door")]
-    for x in (-1.8, 1.8):
-        p.append(box((0.9, 0.1, 0.9), (x, -3.02, 1.7), "window"))
+    """A little town house, proportioned like a doll's house (tall for its size, like the farmhouse):
+    a storey and a half of clapboard on a foundation, a steep shingled roof with eaves, a brick
+    chimney, a stoop at the door under its own little roof, and framed windows with shutters"""
+    w, d, h = 5.2, 4.4, 4.2
+    front = -d / 2
+    p = [box((w + 0.2, d + 0.2, 0.35), (0, 0, 0.17), "concrete"),
+         box((w, d, h), (0, 0, 0.35 + h / 2), "walls"),
+         gable(w + 0.7, d + 0.7, 3.0, (0, 0, 0.35 + h), "roof"),
+         box((0.6, 0.6, 2.4), (1.5, 0.7, h + 2.3), "brick"),
+         box((0.95, 0.12, 2.0), (0, front - 0.02, 1.35), "door"),
+         # the stoop: a step, its deck, two posts and a little roof over it
+         box((1.8, 0.5, 0.18), (0, front - 1.3, 0.09), "concrete"),
+         box((2.2, 1.0, 0.3), (0, front - 0.55, 0.15), "wood"),
+         box((2.4, 1.3, 0.12), (0, front - 0.6, 2.75), "roof")]
+    for x in (-1.0, 1.0):
+        p.append(box((0.14, 0.14, 2.45), (x, front - 1.1, 1.5), "trim"))
+    # windows: two down, two up, one in each side, one in the gable; each in a white frame, the
+    # downstairs ones with shutters
+    def window(x, z, ww, wh, shutters):
+        p.append(box((ww + 0.24, 0.08, wh + 0.24), (x, front - 0.03, z), "trim"))
+        p.append(box((ww, 0.1, wh), (x, front - 0.06, z), "window"))
+        if shutters:
+            for s in (-1, 1):
+                p.append(box((0.32, 0.08, wh + 0.1), (x + s * (ww / 2 + 0.32), front - 0.04, z), "door"))
+    for x in (-1.6, 1.6):
+        window(x, 1.65, 0.85, 1.05, True)
+        window(x, 3.45, 0.75, 0.8, False)
+    window(0, 5.25, 0.55, 0.55, False)
+    for s in (-1, 1):
+        p.append(box((0.08, 1.0, 1.15), (s * (w / 2 + 0.03), 0, 1.65), "trim"))
+        p.append(box((0.1, 0.8, 0.95), (s * (w / 2 + 0.06), 0, 1.65), "window"))
     return join("house", p)
 
 

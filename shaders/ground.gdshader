@@ -36,12 +36,11 @@ vec3 farm(vec2 p, float speck, int kind, bool across) {
 	float row = fract((across ? p.x : p.y) / 3.0);
 	vec3 grass = mix(vec3(0.2, 0.36, 0.14), vec3(0.26, 0.42, 0.16), speck);
 	vec3 c = grass;
-	if (kind == 2) {
-		// wheat: gold, in rows
-		c = mix(vec3(0.62, 0.5, 0.2), vec3(0.75, 0.62, 0.28), smoothstep(0.3, 0.5, row)) * (0.92 + 0.12 * speck);
-	} else if (kind == 3) {
-		// corn: green rows over dark earth
-		c = mix(vec3(0.2, 0.14, 0.08), vec3(0.18, 0.34, 0.12), smoothstep(0.35, 0.55, row)) * (0.9 + 0.15 * speck);
+	// (the fine golden rows of a wheat stubble, under the wheat and the corn both)
+	float fine = fract((across ? p.x : p.y) * 0.8);
+	if (kind == 2 || kind == 3) {
+		// wheat and corn: gold stubble in fine rows
+		c = mix(vec3(0.62, 0.5, 0.2), vec3(0.75, 0.62, 0.28), step(0.4, fine)) * (0.92 + 0.12 * speck);
 	} else if (kind == 4) {
 		// pumpkins: vines along rows of earth
 		c = mix(vec3(0.28, 0.18, 0.1), vec3(0.16, 0.3, 0.1), step(0.6, row)) * (0.9 + 0.15 * speck);

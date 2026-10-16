@@ -77,7 +77,7 @@ Chosen on the title screen (left / right, or the arrows), and remembered.
 The beam's strength (its tier) says what it can lift: **1** animals, people, vehicles, bushes, fences, hay,
 cacti; **2** trees, rocks, tents; **3** houses, barns, silos, windmills, water towers, diners, adobes,
 cabins; **4** the land itself: buttes, mesas, peaks and Devils Tower (up to 5000 points). Over something too
-heavy, it only rattles. Taking a mesa or a peak clears it out of the way.
+heavy, it only rattles (and a roof sheds tiles up the beam). Taking a mesa or a peak clears it out of the way. Under the beam, bits of the ground jump up (grass, clods, chaff, sand, drops over a lake) and the swirl up the beam takes their colour; phone wires near it spark.
 
 **Crop circles**: hold the beam still over a field of crops and a circle presses into it (60 points), joined by a pressed line to its nearest neighbours (two lines at most to a circle, never through another).
 **Rare finds**, each under a shaft of gold light: the golden cow, a jackalope, Bigfoot, a meteorite, a fallen
@@ -120,7 +120,7 @@ it holds you. Once there is heat, the patrols lock their lights on and join in.
 
 ### Level-ups and traders
 
-**Level-ups come with the score** (`level_at`: 250, 750, 1450... points): the game pauses and offers a choice
+**Level-ups come with the score** (`level_at`: 600, 2400, 5400, 9600... points): the game pauses and offers a choice
 of upgrades, each lasting the run, each up to four times:
 ENGINE (+12% speed), BEAM (lifts faster, and one tier stronger), SHIELD (+25), DASH (recharges 0.35 s
 faster, two more afterimages), and:

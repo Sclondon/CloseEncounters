@@ -1151,6 +1151,6 @@ func _roof_dish() -> void:
 		var part := (model.global_transform.affine_inverse() * mi.global_transform) * mi.get_aabb() if mi.is_inside_tree() else mi.transform * mi.get_aabb()
 		box = part if box.size == Vector3.ZERO else box.merge(part)
 	var dish := Ps1.model("seti_dish")
-	dish.scale = Vector3.ONE * 0.12
+	dish.scale = Vector3.ONE * 0.07
 	dish.position = Vector3(box.get_center().x, box.end.y - 0.2, box.get_center().z)
 	model.add_child(dish)

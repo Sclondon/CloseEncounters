@@ -10,6 +10,9 @@ global uniform float bend_k;
 
 varying vec3 affine;
 varying vec3 world;
+// The point in its own model's terms, and which simple texture its material has (ps1.gd PATTERNS)
+varying vec3 local;
+varying float pattern;
 
 vec3 bent(vec3 w) {
 	float d = w.z - bend_focus.z;
@@ -21,6 +24,8 @@ vec3 bent(vec3 w) {
 
 void vertex() {
 	world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	local = VERTEX;
+	pattern = UV2.x;
 	vec4 clip = PROJECTION_MATRIX * (VIEW_MATRIX * vec4(bent(world), 1.0));
 	if (clip.w > 0.0) {
 		vec2 grid = VIEWPORT_SIZE * 0.5;
