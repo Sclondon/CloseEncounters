@@ -532,9 +532,11 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 			_ghost_wait = _spin / float(maxi(_ghosts_left, 1))
 			_afterimage()
 	elif _spins:
-		# The saucer and the orb turn slowly, faster with the beam on (and after a dodge, winding
-		# down from its spin to that)
-		_spin_rate = lerpf(_spin_rate, 0.6 + (1.8 if beaming else 0.0), minf(delta * 1.2, 1.0))
+		# The saucer and the orb turn slowly, faster on the move and with the beam on, fastest with both
+		# (and after a dodge, winding down from its spin to that)
+		var going := clampf(Vector2(velocity.x, velocity.z).length() / maxf(speed, 0.1), 0.0, 1.0)
+		var spin_to := 0.6 + 1.6 * going + (1.8 + 1.6 * going if beaming else 0.0)
+		_spin_rate = lerpf(_spin_rate, spin_to, minf(delta * 1.2, 1.0))
 		hull_model.rotation.y += delta * _spin_rate
 	elif velocity.length() > 1.0 and not _spins:
 		# The triangle points where it is going
@@ -645,7 +647,7 @@ func _sort_materials(n: Node) -> void:
 		_sort_materials(c)
 
 
-## Red on a hit (the whole hull), a white strobe in a dodge, a quick green pulse with the beam
+## Red on a hit (the whole hull), a white strobe in a dodge, every colour chasing round with the beam
 func _flash_lights() -> void:
 	var hit := maxf(0.0, 1.0 - since_hit * 4.0)
 	var light := Color.BLACK
@@ -657,7 +659,13 @@ func _flash_lights() -> void:
 		# (something swallowed: the rim lights flash yellow)
 		light = Color(1.8, 1.4, 0.15) * (1.0 if fmod(_t, 0.14) < 0.08 else 0.25) * (0.4 + 0.6 * _gulp)
 	elif beaming:
-		light = Color(0.2, 1.0, 0.35) * (0.5 + 0.5 * sin(_t * 18.0))
+		# (the beam on: the lights chasing round through every colour, each set its own)
+		for i in _lights.size():
+			var hue := fmod(_t * 1.3 + i * 0.29, 1.0)
+			_lights[i].set_shader_parameter("flash", Color.from_hsv(hue, 0.85, 1.6) * (0.6 + 0.4 * sin(_t * 14.0 + i * 1.7)))
+		for m in _plates:
+			m.set_shader_parameter("flash", Color.BLACK)
+		return
 	for m in _lights:
 		m.set_shader_parameter("flash", light)
 	for m in _plates:

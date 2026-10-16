@@ -67,7 +67,7 @@ var _circle_next := 0
 ## The lines pressed between crop circles near each other: (x, z) to (x, z) each
 var _links: PackedVector4Array = PackedVector4Array()
 var _link_next := 0
-const LINK_REACH := 30.0
+const LINK_REACH := 14.0
 
 
 func _ready() -> void:

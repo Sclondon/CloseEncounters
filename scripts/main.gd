@@ -4201,6 +4201,10 @@ func _build_hud() -> void:
 	# (the game dimmed behind it, for the choices to read)
 	_picker_dim = ColorRect.new()
 	_picker_dim.color = Color(0, 0, 0, 0.55)
+	# (with a hole where the market's saucer hangs: see market_dim.gdshader and ProjectorBeam)
+	var dim_mat := ShaderMaterial.new()
+	dim_mat.shader = load("res://shaders/market_dim.gdshader")
+	_picker_dim.material = dim_mat
 	_picker_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_picker_dim.visible = false
 	root.add_child(_picker_dim)
@@ -5522,8 +5526,8 @@ class BeamButton extends Control:
 
 ## The Moon Market's trading saucer, painted like a carnival: down out of the sky behind the market
 ## while it is open, bobbing and turning there (the game paused all the while), and away up again
-## after the pick. Held at a place in the picture, the top middle, a way off. Lit by a stage spotlight
-## and two warm searchlights up at it from the bottom corners, a puff of confetti as it arrives, and
+## after the pick. Held at a place in the picture, the top middle, a way off. Lit from above by a stage
+## spotlight (and left out of the dark the market lays over the picture), a puff of confetti as it arrives, and
 ## its beam (drawn over the picture by ProjectorBeam) throwing the market itself onto the screen
 class MarketShip extends Node3D:
 	var main: Node
@@ -5531,8 +5535,6 @@ class MarketShip extends Node3D:
 	var _leaving := -1.0
 	var _model: Node3D
 	var _light: SpotLight3D
-	var _cones: Array[MeshInstance3D] = []
-	var _cone_mat: ShaderMaterial
 	## Where it shows in the picture (before the lift that makes up for the world's bend)
 	var seen := Vector3.ZERO
 	var _landed := false
@@ -5553,27 +5555,8 @@ class MarketShip extends Node3D:
 		_light.spot_angle = 16.0
 		_light.spot_range = 24.0
 		_light.light_energy = 0.0
+		_light.spot_angle = 22.0
 		add_child(_light)
-		_cone_mat = ShaderMaterial.new()
-		_cone_mat.shader = load("res://shaders/beam.gdshader")
-		_cone_mat.set_shader_parameter("tint", Color(1.0, 0.85, 0.55))
-		_cone_mat.set_shader_parameter("power", 0.0)
-		for i in 2:
-			var cone := MeshInstance3D.new()
-			var mesh := CylinderMesh.new()
-			mesh.top_radius = 1.8
-			mesh.bottom_radius = 0.2
-			mesh.height = 1.0
-			mesh.radial_segments = 10
-			mesh.rings = 1
-			mesh.cap_top = false
-			mesh.cap_bottom = false
-			cone.mesh = mesh
-			cone.material_override = _cone_mat
-			cone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			cone.top_level = true
-			add_child(cone)
-			_cones.append(cone)
 		_place()
 
 	func leave() -> void:
@@ -5625,21 +5608,11 @@ class MarketShip extends Node3D:
 		global_position = at
 		_model.rotation = Vector3(0.18, _t * 0.9, 0.0)
 		var on := lit()
-		# The spotlight, from between it and the camera, a little below
+		# The spotlight, straight down on it from above, a little toward the camera
 		var toward := (cam.global_position - at).normalized()
-		_light.global_position = at + toward * 10.0 + Vector3(0, -3.0, 0)
-		_light.look_at(at)
-		_light.light_energy = 9.0 * on
-		# The searchlights, from the bottom corners of the picture up to it, swaying
-		_cone_mat.set_shader_parameter("power", 0.55 * on)
-		for i in 2:
-			var corner := Vector2(0.08 if i == 0 else 0.92, 1.05)
-			var from := cam.project_position(size * corner, 18.0)
-			from.y += _sag(from)
-			var to := at + Vector3(sin(_t * 1.3 + i * 2.0) * 1.2, -0.6, 0)
-			var along := to - from
-			_cones[i].visible = on > 0.01
-			_cones[i].global_transform = Transform3D(Basis(Quaternion(Vector3.UP, along.normalized())) * Basis.from_scale(Vector3(1.0, along.length(), 1.0)), (from + to) * 0.5)
+		_light.global_position = at + Vector3(0, 12.0, 0) + toward * 3.0
+		_light.look_at(at, Vector3.FORWARD)
+		_light.light_energy = 14.0 * on
 
 	## A puff of confetti as it arrives
 	func _confetti() -> void:
@@ -5705,6 +5678,21 @@ class ProjectorBeam extends Control:
 
 	func _process(_delta: float) -> void:
 		queue_redraw()
+		# (the hole in the market's dark, kept round the saucer wherever it is)
+		var dim := main._picker_dim.material as ShaderMaterial
+		var ship: MarketShip = main._market
+		var cam: Camera3D = main.camera
+		if dim == null:
+			return
+		if is_instance_valid(ship) and not cam.is_position_behind(ship.seen):
+			dim.set_shader_parameter("hole", cam.unproject_position(ship.seen) / Vector2(main.view.size) * size)
+			dim.set_shader_parameter("radius", size.x * (0.2 if main._upright() else 0.1))
+		else:
+			dim.set_shader_parameter("radius", 0.0)
+
+	## Where a point of the 3D world shows on the screen, in this control's terms
+	func _on_screen(p: Vector3) -> Vector2:
+		return main.camera.unproject_position(p) / Vector2(main.view.size) * size
 
 	func _draw() -> void:
 		var ship: MarketShip = main._market
@@ -5715,6 +5703,14 @@ class ProjectorBeam extends Control:
 		if on <= 0.01:
 			return
 		var cam: Camera3D = main.camera
+		# (the stage light on it, a soft cone from the top of the screen down onto it)
+		if not cam.is_position_behind(ship.seen):
+			var mid := _on_screen(ship.seen)
+			var wide_at := size.x * (0.17 if main._upright() else 0.08)
+			var bright := Color(1.0, 0.97, 0.88, 0.22 * on)
+			var soft := Color(1.0, 0.97, 0.88, 0.08 * on)
+			draw_polygon(PackedVector2Array([Vector2(mid.x - 18, 0), Vector2(mid.x + 18, 0), mid + Vector2(wide_at, 0), mid + Vector2(-wide_at, 0)]),
+				PackedColorArray([bright, bright, soft, soft]))
 		var under: Vector3 = ship.seen + Vector3(0, -1.0, 0)
 		if cam.is_position_behind(under):
 			return

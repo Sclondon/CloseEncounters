@@ -62,6 +62,8 @@ The radar shows the nearest trader, secret facility, substation and rare
 find (on the rim, pointing the way, when out of range), and the police and army about in red. The touch stick
 shows only while a thumb is on it.
 
+The saucer turns slowly, faster on the move and with the beam on, fastest with both; with the beam on its lights chase round through every colour.
+
 The pilot works a stick and a panel of buttons in front of it, mashes the buttons while the beam is on, and is
 thrown about the cockpit in a dodge. The ship's
 lights flash with the beam, a dodge and a hit.
@@ -103,7 +105,7 @@ cacti; **2** trees, rocks, tents; **3** houses, barns, silos, windmills, water t
 cabins; **4** the land itself: buttes, mesas, peaks and Devils Tower (up to 5000 points). Over something too
 heavy, it only rattles (and a roof sheds tiles up the beam). Taking a mesa or a peak clears it out of the way. Under the beam, bits of the ground jump up (grass, clods, chaff, sand, drops over a lake) and the swirl up the beam takes their colour; phone wires near it spark.
 
-**Crop circles**: hold the beam still over a field of crops and a circle presses into it (60 points), joined by a pressed line to its nearest neighbours (two lines at most to a circle, never through another).
+**Crop circles**: hold the beam still over a field of crops and a circle presses into it (60 points), joined by a pressed line to its nearest neighbours within 14 m (two lines at most to a circle, never through another).
 **Rare finds**, each under a shaft of gold light: the golden cow, a jackalope, Bigfoot, a meteorite, a fallen
 satellite (900 to 3000 points), and, rarer, **crash sites**: another saucer that came down long ago, tipped up in a
 ring of heaped dirt, a few lights still glowing (3500 points).
@@ -151,7 +153,7 @@ it holds you. Once there is heat, the patrols lock their lights on and join in.
 ### Level-ups and traders
 
 **Level-ups come with the score** (`level_at`: 600, 2400, 5400, 9600... points): the game pauses and the **MOON
-MARKET** opens: its carnival-painted trading saucer drops out of the sky in a puff of confetti and smoke, lit by a spotlight and two swaying searchlights (`MarketShip`), and its beam throws the market onto the screen (`ProjectorBeam`: from above on a phone, from the side on a wide screen), with a choice
+MARKET** opens: its carnival-painted trading saucer drops out of the sky in a puff of confetti and smoke, lit (`MarketShip`; from above by a stage light and left out of the dark laid over the picture, `market_dim.gdshader`), and its beam throws the market onto the screen (`ProjectorBeam`: from above on a phone, from the side on a wide screen), with a choice
 of upgrades (sized for thumbs, biggest on an upright phone). They are items that stack, as in Risk of Rain: each pick is one more of it (up to ten), small at first and growing with the stack (the fleet up to six saucers, rates with floors). The items had show as a row of little tiles under the heat's stars, each a small 3D model of the item (built in Blender, `item_*` in tools/build_models.py) with its stack count, as in Risk of Rain 2; the level-up choices show them too:
 ENGINE (+7% speed), BEAM (lifts faster, and every second level one tier stronger), SHIELD (+15), DASH (one more
 dash charge, refilling a little sooner, two more afterimages), MAGNET (small things drift to the beam), WIDE BEAM,
@@ -271,7 +273,9 @@ Every model except the aliens is built in Blender by `tools/build_models.py`, wh
 Only material colours matter: the game swaps each material for a PS1 one of the same colour. `shirt`, `walls`
 and `paint` are recoloured per copy. Models face -Y in Blender (+Z in Godot) and stand on their origin. Child
 objects the game moves: the tank's `turret`, the windmill's `fan`, the pumpjack's `beam`, and every ship's `dome`.
-The web build's loading screen (`html/head_include` in export_presets.cfg): stars streaming out of the middle, faster as itloads; the Godot logo tinted green as a hologram (glowing, scanlines, a flicker); and a spinning star just under it.
+
+The web build's loading screen (`html/head_include` in export_presets.cfg): stars streaming out of the middle, faster as it
+loads; the Godot logo tinted green as a hologram (glowing, scanlines, a flicker); and a spinning star just under it.
 
 ## Tests and build
 
