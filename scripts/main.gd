@@ -5748,9 +5748,6 @@ class BeamButton extends Control:
 		draw_arc(c, r * 0.98, 0, TAU, 48, Color(0.7, 1.0, 0.75, 0.5 if on else 0.15), 2.0)
 
 
-		draw_circle(c, r * 0.42, Color(0.1, 0.25, 0.14))
-
-
 ## The Moon Market's trading saucer, painted like a carnival: there at once behind the market in a puff of confetti
 ## while it is open, bobbing and turning there (the game paused all the while), and away up again
 ## after the pick. Held at a place in the picture, the top middle, a way off. Lit from above by a stage
