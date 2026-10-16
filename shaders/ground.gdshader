@@ -9,6 +9,9 @@ uniform sampler2D biomes : filter_nearest;
 uniform vec2 biome_corner = vec2(0.0);
 uniform float chunk = 48.0;
 uniform float road_every_chunks = 5.0;
+// From the world's seed (see world.gd reseed)
+uniform float road_phase = 0.0;
+uniform vec2 dirt_step = vec2(7.0, 11.0);
 // Crop circles: (x, z, radius, -) each, pressed into the crop fields only (see world.gd crop_circle)
 uniform vec4 circles[24];
 // Lines pressed between crop circles near each other: (x, z) to (x, z) each (see world.gd crop_circle)
@@ -113,7 +116,7 @@ float wander(float line, float t) {
 	float spacing = chunk * road_every_chunks;
 	float from_crossing = abs(t - round(t / spacing) * spacing);
 	float amount = 11.0 * smoothstep(30.0, 90.0, from_crossing);
-	return amount * (sin(t * 0.013 + line * 1.7) + 0.45 * sin(t * 0.031 + line * 2.9)) / 1.45;
+	return amount * (sin(t * 0.013 + line * 1.7 + road_phase) + 0.45 * sin(t * 0.031 + line * 2.9 + road_phase * 1.3)) / 1.45;
 }
 
 // A road's colour, `d` from its middle, `t` along it
@@ -164,8 +167,8 @@ void fragment() {
 	float m = round(p.y / spacing) * road_every_chunks;
 	float dx = abs(p.x - (n * chunk + wander(n, p.y)));
 	float dz = abs(p.y - (m * chunk + wander(m + 0.5, p.x)));
-	bool dirt_x = int(mod(floor(n / road_every_chunks + 0.5) * 7.0 + 3.0, 5.0) + 0.5) < 2;
-	bool dirt_z = int(mod(floor(m / road_every_chunks + 0.5) * 11.0 + 3.0, 5.0) + 0.5) < 2;
+	bool dirt_x = int(mod(floor(n / road_every_chunks + 0.5) * dirt_step.x + 3.0, 5.0) + 0.5) < 2;
+	bool dirt_z = int(mod(floor(m / road_every_chunks + 0.5) * dirt_step.y + 3.0, 5.0) + 0.5) < 2;
 	if (dx < (dirt_x ? 2.0 : 3.0)) {
 		c = road(dirt_x, dx, p.y, speck);
 	}

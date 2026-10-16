@@ -66,7 +66,7 @@ func _process(_delta: float) -> bool:
 			_check(seen.has("helicopter"), "a police helicopter came at three stars")
 			main.heat = 4.5
 		2600:
-			_check(seen.has("jeep"), "army jeeps came at four stars")
+			_check(seen.has("jeep") and seen.has("chinook"), "army jeeps and a Chinook came at four stars")
 			_check(hit, "the saucer was shot at and hit")
 			main.heat = 5.0
 		3000:

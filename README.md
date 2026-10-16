@@ -17,7 +17,7 @@ floating over the hull beside the cockpit, sipping a cocktail, Earth hanging in 
 `Ufo.lounge`, `shaders/earth.gdshader`). PLAY and it hops down into the cockpit, the canopy shuts, the ship
 lifts off and makes for Earth, and the run starts with it coming down from space. The title has only the
 name, the ship, PLAY, and a row of LOG, SCORES and QUIT. On an upright phone the name sits in the sky and
-the buttons on the moon. **LOG** is a field guide: every ship, every kind of thing there is to take (with how
+the buttons on the moon; now and then a saucer streaks by behind them. **LOG** is a field guide: every ship, every kind of thing there is to take (with how
 many have been taken, ever) and every hunter met, ??? until found (kept in `user://best.cfg`). **SCORES**
 and **QUIT** ask the arcade page to show this game's leaderboard or close the game (`OPEN_LEADERBOARD`,
 `QUIT_GAME`), so they show only inside it.
@@ -38,7 +38,7 @@ and while on the moon the world stays loaded round where the run starts (no stut
 
 The HUD: top left, the shield as a glass orb of blue energy, and three arrows that light up as the dodge
 recharges, one for each dash (every dash is a full one; three lamps on the front of the ship light with them);
-under them a round **radar**. Top right, beside the pause button, the score in alien money and its multiplier,
+under them a round **radar** the same size. The heat's news (the police coming, spotted, a nuke) shows just under the stars. Top right, beside the pause button, the score in alien money and its multiplier,
 and under them a log of everything taken, typed out in glowing green.
 The radar shows the nearest trader, secret facility, substation and rare
 find (on the rim, pointing the way, when out of range), and the police and army about in red. The touch stick
@@ -96,10 +96,10 @@ Searchlights are soft cones, brightest down the middle and fading to their edges
 | Heat | Who comes |
 | --- | --- |
 | 1 star | Farmers and cowboys draw their guns |
-| 2 | Police cars: they pull up and an officer gets out to shoot (take the officer, or get well away and they drive on after you); the traders flee |
+| 2 | Police cars: each has to be sure first (a "?" over it fills while it can see the ship, faster near and under the beam; full, the siren goes and it gives chase); then they pull up and an officer gets out to shoot (take the officer, or get well away and they drive on after you); the traders flee |
 | 3 | A police helicopter circling with its searchlight on you, and the men in black (a black sedan, agents in suits) |
 | 4 | The army: jeeps firing machine guns on the move |
-| 5 | Tanks, and jets fly over firing missiles |
+| 5 | Tanks, and jets fly over firing missiles. Hold five stars for 30 s and they **nuke** you: a red ring on the ground where the ship is going, five seconds, then a missile, a flash and a mushroom cloud that takes everything inside (and most of a shield); again every 20 s while it lasts |
 
 Each star takes more heat than the last, and for 8 seconds after a new one the heat comes only slowly, so the
 stars are stages rather than a rush from one to five.
@@ -118,29 +118,51 @@ fly over firing missiles at five stars.
 of them the longer you last). Fly into a beam and you are **spotted**: the heat jumps and keeps rising while
 it holds you. Once there is heat, the patrols lock their lights on and join in.
 
-### Traders
+### Level-ups and traders
 
-Saucers parked out in the country, each with its owner standing by (another alien, with a name). In front of
-each stand **three pods** of goods, each tagged with what it is and what it costs (green if it can be had):
+**Level-ups come with the score** (`level_at`: 250, 750, 1450... points): the game pauses and offers a choice
+of upgrades, each lasting the run, each up to four times:
 ENGINE (+12% speed), BEAM (lifts faster, and one tier stronger), SHIELD (+25), DASH (recharges 0.35 s
-faster, two more afterimages), PATCH (the shield filled, a point of score a point), and:
+faster, two more afterimages), and:
 
-- **LASER** (500): a turret under the hull that fires by itself, a pink bolt every 2 s (0.4 s sooner a level,
+- **LASER**: a turret under the hull that fires by itself, a pink bolt every 2 s (0.4 s sooner a level,
   down to 0.8 s) out to 16 m (2 m further a level). It shoots down shells and missiles coming at the ship
   first, then jets, then, once there is heat, the nearest police or army: a hit stuns one (it holds its fire
   for 2 s), and enough hits blow it up (a police car 2, a jeep 3, a tank 5), for half its points and a
   quarter of a star of heat, as a crush is. They are soon replaced, and it never stops the bullets.
-- **FLEET** (450): a little saucer for each level (up to four, `scripts/drone.gd`). Each keeps station round
+- **FLEET**: a little saucer for each level (up to four, `scripts/drone.gd`). Each keeps station round
   the ship and goes off by itself after the small things nearby that nobody will miss (animals, hay, bushes:
   nothing heavy, hot, rare or on the road), beaming them up slowly with a beam of its own, for the score and
   the heat as if the ship took them. Shots that meet one stop there, and the police and army sometimes aim
   at one instead of the ship; three hits bring it down, and a new one comes out of the ship 14 s later.
 
-**Beam a pod up to buy it with score**; the trader packs up the other two and leaves. With any heat, or too
-little score, a pod only rattles. At two stars the traders take off. Upgrades last the run, each up to four
-times, dearer each time (x1.8).
-When the shield is gone the ship comes down and the game is over. The score goes to the arcade page
-(`PLAYER_DIED`); the best score and the ship are kept in `user://best.cfg`.
+**Traders**: saucers parked out in the country, each with its owner standing by (another alien, with a
+name), and **one pod** set out in front: a single upgrade, tagged, worth two levels of it at once. Beam it up
+and it is yours, free. With heat, or the upgrade already at its most, the pod only rattles. At two stars the
+traders take off.
+
+### Rival saucers
+
+Now and then another saucer (purple, a pink beam) comes down out of the sky to abduct from your country:
+animals and people out in the open, a few of them, before it leaves. The log says what it took. Fly into it
+and you bounce off; **dash into it** and it spins away and drops what it had (500 points).
+
+### Knocks, tosses and bangs
+
+- Fly into something tall (a peak, a mesa, a watchtower, a water tower, a silo, a church) and the ship
+  bounces off it and the shield takes a little damage (never the last of the ship).
+- Let go of something while moving and it flies on in an arc: you can **toss** things. **Oil drums** blow up
+  when they land hard, and so do cars dropped from high enough or thrown hard; the blast takes out any police
+  or army near it.
+- **People hide**: anyone on foot near the ship runs for the nearest house, barn, store or church and goes in,
+  out of the beam's reach, and comes out once the ship has gone a while. Take the building and out they run.
+
+When the shield is gone the ship comes down and the game is over: a **crash site** where it hit, the ship half
+in the ground, burning and smoking; the pilot tumbles out, lies a moment and gets up, staggering, and people
+come out to stand round and look. The results type out above it in green: what was taken, kind by kind, and
+the total. The score goes to the arcade page (`PLAYER_DIED`); the best score and the ship are kept in
+`user://best.cfg`. **Each run is a new country** (`World.reseed`): new regions, roads and props, and Devils
+Tower somewhere else (the tests keep the first one). A run always starts over a cornfield by the first town.
 
 ## The world
 
@@ -213,6 +235,7 @@ objects the game moves: the tank's `turret`, the windmill's `fan`, the pumpjack'
     godot --path . --fixed-fps 30 --resolution <390x844|1280x720> -s res://tests/scale_look.gd -- <out dir>  # one spot drawn at a few world scales
     godot --path . --fixed-fps 30 --resolution <390x844|1280x720> -s res://tests/world_look.gd -- <out dir>  # a town, a farm, a hill, a lake, an airfield
     godot --path . --resolution 390x844 -s res://tests/log_look.gd -- <out dir>    # the title's buttons and the log
+    godot --path . --fixed-fps 30 --resolution <390x844|1280x720> -s res://tests/new_look.gd -- <out dir>    # stars, a cop's "?", a rival, hiding, a nuke, the wreck, home, a flyby
     godot --path . --resolution 1280x720 -s res://tests/aliens.gd -- <out.png>
     godot --path . --resolution 1280x720 -s res://tests/perf.gd           # frame time, draw calls, things
     godot --path . --resolution 640x360 --max-fps 60 -s res://tests/hitches.gd  # the worst frames through the lift-off and descent

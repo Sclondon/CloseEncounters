@@ -20,10 +20,18 @@ const KINDS := {
 	"cow": {"points": 50, "weight": 1.7, "heat": 0.06, "move": "graze", "speed": 1.0, "size": 1.3, "voice": "moo"},
 	"hay_bale": {"points": 15, "weight": 1.0, "heat": 0.04, "move": "still", "size": 1.0},
 	"hay_pile": {"points": 30, "weight": 1.6, "heat": 0.05, "move": "still", "size": 2.6},
+	# An oil drum: drop it (from any height) and it blows up, taking out the police and army near it
+	"barrel": {"points": 40, "weight": 0.8, "heat": 0.1, "move": "still", "size": 0.9, "explosive": true},
 	"scarecrow": {"points": 40, "weight": 1.0, "heat": 0.06, "move": "still", "size": 0.8},
 	"outhouse": {"points": 90, "weight": 2.2, "heat": 0.2, "move": "still", "size": 1.2, "voice": "scream"},
 	"farmer": {"points": 100, "weight": 1.3, "heat": 0.4, "move": "flee", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "shotgun", "caller": true},
 	"person": {"points": 100, "weight": 1.3, "heat": 0.35, "move": "flee", "speed": 3.6, "size": 0.7, "voice": "scream", "caller": true},
+	# Out in the country: campers round their tents, hikers in the hills, and stargazers at their
+	# telescopes (who, like the dishes, give the ship away if it lingers in their sky)
+	"camper": {"model": "person", "tints": {"shirt": Color(0.75, 0.2, 0.15), "denim": Color(0.35, 0.3, 0.2)}, "points": 110, "weight": 1.3, "heat": 0.35, "move": "flee", "speed": 3.4, "size": 0.7, "voice": "scream", "caller": true},
+	"hiker": {"model": "person", "tints": {"shirt": Color(0.95, 0.6, 0.15), "denim": Color(0.3, 0.32, 0.28)}, "points": 110, "weight": 1.3, "heat": 0.35, "move": "flee", "speed": 3.8, "size": 0.7, "voice": "scream", "caller": true},
+	"stargazer": {"model": "person", "tints": {"shirt": Color(0.3, 0.3, 0.6)}, "points": 150, "weight": 1.3, "heat": 0.4, "move": "flee", "speed": 3.2, "size": 0.7, "voice": "scream", "caller": true, "watch": 26.0, "why": "SEEN THROUGH A TELESCOPE!"},
+	"telescope": {"points": 60, "weight": 0.8, "heat": 0.05, "move": "still", "size": 0.9},
 	"tractor": {"points": 150, "weight": 2.6, "heat": 0.3, "move": "graze", "speed": 1.5, "size": 2.0},
 	"car": {"points": 150, "weight": 2.6, "heat": 0.4, "move": "road", "speed": 9.0, "size": 2.2},
 	"pickup": {"points": 180, "weight": 2.9, "heat": 0.4, "move": "road", "speed": 8.0, "size": 2.4},
@@ -59,7 +67,7 @@ const KINDS := {
 	# On patrol whatever the heat, sweeping a searchlight over the sky: be caught in it and the heat
 	# goes up. Once there is heat they lock the light on and come after the ship like the rest.
 	"patrol_car": {"model": "police_car", "points": 300, "weight": 3.0, "heat": 0.6, "move": "patrol", "speed": 6.0, "size": 2.2, "keep": 10.0, "enemy": true, "searchlight": true, "police": true},
-	"patrol_jeep": {"model": "jeep", "points": 400, "weight": 3.4, "heat": 0.7, "move": "patrol", "speed": 5.5, "size": 2.2, "gun": "mg", "keep": 12.0, "enemy": true, "searchlight": true},
+	"patrol_jeep": {"model": "jeep", "points": 400, "weight": 3.4, "heat": 0.7, "move": "patrol", "speed": 5.5, "size": 2.2, "gun": "mg", "keep": 12.0, "enemy": true, "searchlight": true, "lights": 2},
 	# Scenery, pulled out of the ground (tier 1 and 2)
 	"sagebrush": {"points": 5, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
 	"prickly_pear": {"points": 10, "weight": 0.6, "heat": 0.01, "move": "still", "size": 0.8},
@@ -130,7 +138,10 @@ const KINDS := {
 	"agent_car": {"model": "car", "tints": {"paint": Color(0.06, 0.06, 0.08)}, "points": 500, "weight": 3.0, "heat": 0.7, "move": "police", "speed": 8.0, "size": 2.2, "keep": 11.0, "enemy": true, "police": true, "crew_kind": "agent"},
 	"agent": {"model": "person", "tints": {"shirt": Color(0.05, 0.05, 0.06), "denim": Color(0.05, 0.05, 0.06)}, "points": 250, "weight": 1.3, "heat": 0.6, "move": "guard", "speed": 3.8, "size": 0.7, "voice": "scream", "gun": "pistol", "enemy": true, "crew": true},
 	# Over you at three stars and up, circling with a searchlight on you (it cannot be reached)
+	"rival": {"title": "RIVAL SAUCER", "model": "ufo", "tints": {"metal": Color(0.5, 0.18, 0.55), "metal_dark": Color(0.25, 0.08, 0.3), "lights": Color(1.0, 0.3, 0.85), "lights_under": Color(1.0, 0.4, 0.9)}, "points": 0, "weight": 99.0, "heat": 0.0, "move": "rival", "speed": 8.5, "size": 4.2, "tier": 99},
 	"helicopter": {"points": 900, "weight": 6.0, "heat": 0.5, "move": "hover", "speed": 9.0, "size": 2.6, "tier": 4, "enemy": true, "searchlight": true, "light_y": -0.4},
+	# The army's Chinook, at four stars and up: two rotors, two searchlights and a door gunner
+	"chinook": {"points": 1400, "weight": 8.0, "heat": 0.7, "move": "hover", "speed": 7.5, "size": 3.4, "tier": 4, "enemy": true, "searchlight": true, "lights": 2, "light_y": -0.2, "gun": "mg"},
 	"jeep": {"points": 400, "weight": 3.4, "heat": 0.7, "move": "chase", "speed": 7.0, "size": 2.2, "gun": "mg", "keep": 12.0, "enemy": true},
 	"tank": {"points": 800, "weight": 5.0, "heat": 1.0, "move": "chase", "speed": 4.0, "size": 3.0, "gun": "cannon", "keep": 16.0, "enemy": true},
 }
@@ -178,7 +189,7 @@ var obstacle := Vector4.ZERO
 var reach := 0.4
 var fan: Node3D
 ## A helicopter's rotors
-var rotor: Node3D
+var rotors: Array[Node3D] = []
 var tail_rotor: Node3D
 var wings: Array[Node3D] = []
 ## How high a bird flies
@@ -188,7 +199,20 @@ var wires: Node3D
 var wire_to := Vector3.INF
 ## A person who has seen the ship counts down to getting through to the police (see main.gd `phone_call`)
 var calling := -1.0
+## A person hiding from the ship in a building (`shelter`): out of sight, and out of the beam's reach
+var hiding := false
+var shelter: Thing
+var _hid_for := 0.0
 var _call_label: Label3D
+## A cop not yet sure of what it saw: `alert` fills (0 to 1) while the ship is in sight, shown by the
+## question mark over it (`_wonder`); full, and it gives chase
+var alert := 0.0
+var chasing := false
+var _wonder: MeshInstance3D
+var _wonder_mat: ShaderMaterial
+var _wonder_pop := 0.0
+const SIGHT := 45.0
+const WONDER := preload("res://shaders/wonder.gdshader")
 ## The phone booth a caller runs to and calls from (see `witness`), and the way to its door; a
 ## booth's aerial (see Broadcast)
 var booth: Thing
@@ -200,6 +224,10 @@ const STRIP := preload("res://shaders/searchlight.gdshader")
 ## The visual layer the beam's shadow-casting light shines on (the ground, and what is in the beam)
 const BEAM_LAYER := 2
 var _beam_lit := false
+## How it was being carried up the beam, and, let go, how it flies on and tumbles
+var _carry := Vector3.ZERO
+var _toss := Vector3.ZERO
+var _tumble := Vector3.ZERO
 ## A police car's light bar, red and blue
 var _siren: Array[MeshInstance3D] = []
 var beacon: MeshInstance3D
@@ -215,6 +243,8 @@ var _rattling := false
 var beam_arm: Node3D
 ## A patrol's searchlight: the lamp turns on `light`, whose +Y is where it points
 var light: Node3D
+## An army truck's second searchlight
+var light2: Node3D
 var _sweep := 0.0
 const LIGHT_LONG := 40.0
 const LIGHT_WIDE := 5.5
@@ -263,7 +293,7 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 	wings = [model.find_child("wing_l*", true, false) as Node3D, model.find_child("wing_r*", true, false) as Node3D]
 	if info["move"] == "hover":
 		position.y = HOVER_Y
-	rotor = model.find_child("rotor*", true, false) as Node3D
+	rotors.assign(model.find_children("rotor*", "Node3D", true, false))
 	tail_rotor = model.find_child("tail_rotor*", true, false) as Node3D
 	if info["move"] == "fly":
 		fly_y = randf_range(2.5, 6.0)
@@ -336,6 +366,9 @@ func _rise(delta: float, ufo: Ufo) -> void:
 	if not held:
 		state = "falling"
 		fall_v = 0.0
+		# (let go, it flies on the way it was carried, and tumbles: a toss)
+		_toss = Vector3(_carry.x, 0, _carry.z) * 1.4
+		_tumble = Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * minf(_toss.length() * 0.6, 8.0)
 		fall_from = position.y
 		Ps1.flash(model, Color.BLACK)
 		if _beam_lit:
@@ -361,7 +394,10 @@ func _rise(delta: float, ufo: Ufo) -> void:
 	# (up to just under the belly: it shrinks away into the ship from there, never into its hull)
 	var top := ufo.position.y - 1.6
 	var axis := ufo.beam_axis(position.y)
+	var was := position
 	position = position.lerp(axis, minf(delta * 3.0, 1.0))
+	# (how it is being carried along, for it to fly on that way if let go: see `_fall`)
+	_carry = _carry.lerp((position - was) / maxf(delta, 0.001), minf(delta * 8.0, 1.0))
 	position.y = lerpf(0.0, top, ease(clampf(lift, 0.0, 1.0), 1.6))
 	if not _beam_lit:
 		# (lit by the beam's own light, so it throws a shadow on the ground below: see Ufo.beam_light)
@@ -396,16 +432,26 @@ func _beam_layer(n: Node, on: bool) -> void:
 func _fall(delta: float) -> void:
 	fall_v -= GRAVITY * delta
 	position.y += fall_v * delta
-	model.rotation.x = lerpf(model.rotation.x, 0.0, delta * 3.0)
-	model.rotation.z = lerpf(model.rotation.z, 0.0, delta * 3.0)
+	position += _toss * delta
+	_toss *= 1.0 - minf(delta * 0.4, 1.0)
+	if _tumble.length() > 0.1:
+		model.rotation += _tumble * delta
+	else:
+		model.rotation.x = lerpf(model.rotation.x, 0.0, delta * 3.0)
+		model.rotation.z = lerpf(model.rotation.z, 0.0, delta * 3.0)
 	if position.y <= 0.0:
 		position.y = 0.0
 		state = "walk"
 		lift = 0.0
-		model.rotation = Vector3.ZERO
+		model.rotation = Vector3(0, model.rotation.y, 0)
 		model.scale = Vector3.ONE * base_size
 		panic = 6.0
-		game.landed(self, fall_from)
+		var thrown := _toss.length()
+		_toss = Vector3.ZERO
+		_tumble = Vector3.ZERO
+		position = game.world.push_out(position, size() * 0.5)
+		game.landed(self, fall_from, thrown)
+
 
 func _walk(delta: float, ufo: Ufo) -> void:
 	var here := ground()
@@ -433,7 +479,29 @@ func _walk(delta: float, ufo: Ufo) -> void:
 		"flee":
 			var gun: String = info.get("gun", "")
 			var armed: bool = gun != "" and game.heat_level() >= 1 and not leaving
-			if _to_booth():
+			var to_wreck := Vector3(game.wreck.x, here.y, game.wreck.z) - here if game.wreck != Vector3.INF else Vector3.INF
+			if info.get("caller", false) and not hiding and to_wreck != Vector3.INF and to_wreck.length() < 80.0:
+				# (the saucer down: out they come to have a look, edging up and standing round it)
+				var gap := to_wreck.length()
+				heading = lerp_angle(heading, atan2(to_wreck.x, to_wreck.z), minf(delta * 4.0, 1.0))
+				if gap > 7.0 + float(hash(get_instance_id()) % 5):
+					want = to_wreck / gap
+					pace *= 0.6
+				else:
+					pace = 0.0
+			elif hiding:
+				# (in a building, out of sight, till the ship has gone a while; out if it is taken)
+				pace = 0.0
+				if shelter == null or not is_instance_valid(shelter) or shelter.state != "walk":
+					_come_out()
+					panic = 2.0
+				elif near > 30.0:
+					_hid_for += delta
+					if _hid_for > 4.0:
+						_come_out()
+				else:
+					_hid_for = 0.0
+			elif _to_booth():
 				# (running for the phone booth, or on the phone in it)
 				want = _booth_way
 				pace *= 1.5
@@ -447,7 +515,19 @@ func _walk(delta: float, ufo: Ufo) -> void:
 				_shoot(delta, ufo, near)
 				pace = 0.0
 			elif near < 16.0 or panic > 0.0:
-				want = -to_ufo.normalized() if near > 0.01 else Vector3.FORWARD
+				# (a person makes for the nearest building to hide in it; else runs from the ship)
+				if info.get("caller", false) and (shelter == null or not is_instance_valid(shelter)):
+					shelter = game.nearest_shelter(here, 25.0)
+				if shelter != null and is_instance_valid(shelter) and shelter.state == "walk":
+					var to := shelter.position - here
+					to.y = 0.0
+					if to.length() < shelter.size() * 0.45 + 0.8:
+						_hide()
+					else:
+						want = to.normalized()
+						pace *= 1.2
+				else:
+					want = -to_ufo.normalized() if near > 0.01 else Vector3.FORWARD
 			else:
 				think -= delta
 				if think <= 0.0:
@@ -459,18 +539,32 @@ func _walk(delta: float, ufo: Ufo) -> void:
 		"road":
 			want = _along_road()
 		"police":
-			pace = _police(delta, ufo, to_ufo, near, pace)
-			want = _chase_want
+			if _noticed(delta, ufo, near):
+				pace = _police(delta, ufo, to_ufo, near, pace)
+				want = _chase_want
+			else:
+				want = _along_road()
+				pace *= 0.6
 		"guard":
 			pace = _guard(delta, ufo, to_ufo, near, pace)
+			want = _chase_want
+		"rival":
+			pace = _rival(delta, here)
 			want = _chase_want
 		"hover":
 			pace = _hover(delta, ufo, here)
 			want = _chase_want
 		"patrol":
 			# (on the look-out until the police are after the ship, two stars, then after it too)
-			if game.heat_level() >= 2 or leaving:
-				pace = _police(delta, ufo, to_ufo, near, pace) if info.get("police", false) else _chase(delta, ufo, to_ufo, near, pace)
+			if info.get("police", false) and (game.heat_level() >= 2 or leaving):
+				# (a police patrol has to be sure first, see _noticed)
+				if _noticed(delta, ufo, near):
+					pace = _police(delta, ufo, to_ufo, near, pace)
+					want = _chase_want
+				else:
+					want = _along_road()
+			elif game.heat_level() >= 2 or leaving:
+				pace = _chase(delta, ufo, to_ufo, near, pace)
 				want = _chase_want
 			else:
 				# (cruising the road it is on)
@@ -517,8 +611,8 @@ func _walk(delta: float, ufo: Ufo) -> void:
 		position = game.world.push_out(position, size() * 0.5)
 	rotation.y = heading
 	_flash_siren()
-	if rotor != null:
-		rotor.rotation.y += delta * 22.0
+	for r in rotors:
+		r.rotation.y += delta * 22.0
 	if tail_rotor != null:
 		tail_rotor.rotation.x += delta * 30.0
 	if fan != null:
@@ -608,6 +702,54 @@ func _police(delta: float, ufo: Ufo, to_ufo: Vector3, near: float, pace: float) 
 		pace *= 0.5
 	return pace
 
+
+## A cop deciding whether it saw what it thinks it saw: true once it is sure and gives chase. Until
+## then it cruises the road, a question mark over it filling while the ship is in sight (faster near,
+## under the beam, or with more heat), draining when it is not.
+func _noticed(delta: float, ufo: Ufo, near: float) -> bool:
+	if chasing or leaving:
+		_wonder_show(delta)
+		return true
+	var sight: float = SIGHT + 10.0 * game.heat_level()
+	if near < sight and not ufo.dead:
+		var rate: float = lerpf(0.75, 0.3, near / sight) * (1.6 if ufo.beaming else 1.0) * (1.0 + 0.35 * game.heat_level())
+		alert = minf(alert + rate * delta, 1.0)
+	else:
+		alert = maxf(alert - 0.2 * delta, 0.0)
+	if alert >= 1.0:
+		chasing = true
+		_wonder_pop = 1.0
+		sfx_alert()
+	_wonder_show(delta)
+	return chasing
+
+
+func sfx_alert() -> void:
+	if game.has_method("spotted"):
+		game.spotted(self, 0.0, "THE COPS ARE ON TO YOU!")
+
+
+func _wonder_show(delta: float) -> void:
+	if alert <= 0.0 and _wonder == null:
+		return
+	if _wonder == null:
+		_wonder = MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2(1.6, 2.4)
+		_wonder.mesh = q
+		_wonder_mat = ShaderMaterial.new()
+		_wonder_mat.shader = WONDER
+		_wonder_mat.render_priority = 3
+		_wonder.material_override = _wonder_mat
+		_wonder.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_wonder.position = Vector3(0, 4.2, 0)
+		add_child(_wonder)
+	_wonder_pop = maxf(_wonder_pop - delta * 2.5, 0.0)
+	_wonder_mat.set_shader_parameter("fill", alert)
+	_wonder_mat.set_shader_parameter("pop", sin(_wonder_pop * PI))
+	_wonder_mat.set_shader_parameter("lit", Color(1.0, 0.25, 0.2) if chasing else Color(1.0, 0.85, 0.2))
+	# (sure now: it shows a moment, then goes; unsure and calm again, it goes too)
+	_wonder.visible = alert > 0.02 and (not chasing or _wonder_pop > 0.0)
 ## The officer out of the driver's door (once the frame's things have all been seen to)
 func _get_out() -> void:
 	if state != "walk" or not is_instance_valid(game):
@@ -639,7 +781,7 @@ func _guard(delta: float, ufo: Ufo, to_ufo: Vector3, near: float, pace: float) -
 	_shoot(delta, ufo, near)
 	return 0.0
 
-## A helicopter: circling the ship high up, its searchlight on it
+## A helicopter (or a Chinook): circling the ship high up, its searchlight on it
 func _hover(delta: float, ufo: Ufo, here: Vector3) -> float:
 	_orbit += delta * 0.3
 	var goal := ufo.ground() + Vector3(sin(_orbit), 0, cos(_orbit)) * HOVER_OUT
@@ -647,35 +789,52 @@ func _hover(delta: float, ufo: Ufo, here: Vector3) -> float:
 		goal = here + (here - ufo.ground()).normalized() * 20.0
 	position.y = lerpf(position.y, HOVER_Y, minf(delta * 0.8, 1.0))
 	_chase_want = (goal - here).normalized() if here.distance_to(goal) > 1.0 else Vector3.ZERO
+	# (an army Chinook's door gunner fires on the ship)
+	if info.has("gun") and not leaving:
+		_shoot(delta, ufo, Vector2(ufo.position.x - here.x, ufo.position.z - here.z).length())
 	return float(info["speed"]) * clampf(here.distance_to(goal) / 6.0, 0.3, 1.0)
 
 func _build_searchlight() -> void:
-	light = Node3D.new()
-	light.position = Vector3(0, info.get("light_y", 2.3), 0)
-	add_child(light)
-	Ps1.part(light, BoxMesh.new(), Ps1.flat(Color(1.0, 0.97, 0.85)), Vector3.ZERO, Vector3(0.45, 0.25, 0.45))
-	# (the beam: a strip of light along the lamp's +Y, see searchlight.gdshader)
-	light_strip(light, Color(1.0, 0.95, 0.75), 0.75, LIGHT_LONG, 0.3, LIGHT_WIDE, 0.85)
+	# (an army truck has two, one either side, sweeping a little apart)
+	var pair: bool = info.get("lights", 1) == 2
+	for i in (2 if pair else 1):
+		var lamp := Node3D.new()
+		lamp.position = Vector3((-0.55 if i == 0 else 0.55) if pair else 0.0, info.get("light_y", 2.3), 0)
+		add_child(lamp)
+		Ps1.part(lamp, BoxMesh.new(), Ps1.flat(Color(1.0, 0.97, 0.85)), Vector3.ZERO, Vector3(0.45, 0.25, 0.45))
+		# (the beam: a strip of light along the lamp's +Y, see searchlight.gdshader)
+		light_strip(lamp, Color(1.0, 0.95, 0.75), 0.75, LIGHT_LONG, 0.3, LIGHT_WIDE, 0.85)
+		if i == 0:
+			light = lamp
+		else:
+			light2 = lamp
 	_sweep = randf() * TAU
-
 ## Sweeps the sky with no heat; locks on to the ship with heat. Tells the game when the ship is in it.
 func _aim_light(delta: float, ufo: Ufo) -> void:
+	_sweep += delta * 0.7
+	_aim_lamp(light, delta, ufo, 0.0)
+	if light2 != null:
+		_aim_lamp(light2, delta, ufo, 0.9)
+
+
+## One searchlight: sweeping (the sky, or a guard tower's ground), or locked on to the ship once
+## there is heat and it is near; the ship in its beam is spotted
+func _aim_lamp(lamp: Node3D, delta: float, ufo: Ufo, apart: float) -> void:
 	var yaw: float
 	var tilt: float
-	var to := ufo.position - light.global_position
+	var to := ufo.position - lamp.global_position
 	var guard: bool = info.get("guard", false)
 	if (game.heat_level() >= 1 or guard) and not leaving and to.length() < LIGHT_LOCK:
-		yaw = atan2(to.x, to.z)
+		yaw = atan2(to.x, to.z) + apart * 0.08
 		tilt = acos(clampf(to.normalized().y, -1.0, 1.0))
 	else:
-		_sweep += delta * 0.7
-		yaw = _sweep
+		yaw = _sweep + apart
 		# (a guard tower sweeps the ground round the base; the rest sweep the sky)
-		tilt = (1.95 + 0.3 * sin(_t * 0.37)) if guard else 0.55 + 0.35 * sin(_t * 0.37)
+		tilt = (1.95 + 0.3 * sin(_t * 0.37 + apart)) if guard else 0.55 + 0.35 * sin(_t * 0.37 + apart)
 	# (the light is the world's way up, not the car's: the car turns under it)
 	var want := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, tilt)
-	light.global_basis = light.global_basis.slerp(want.orthonormalized(), minf(delta * 4.0, 1.0)).orthonormalized()
-	var axis := light.global_basis.y.normalized()
+	lamp.global_basis = lamp.global_basis.slerp(want.orthonormalized(), minf(delta * 4.0, 1.0)).orthonormalized()
+	var axis := lamp.global_basis.y.normalized()
 	var along := to.dot(axis)
 	if along > 0.0 and along < LIGHT_LONG and not ufo.dead:
 		var off := (to - axis * along).length()
@@ -859,7 +1018,7 @@ func _along_road() -> Vector3:
 func _flash_siren() -> void:
 	if _siren.is_empty():
 		return
-	var on: bool = not leaving and (game.heat_level() >= 2 or info["move"] == "police" and speed > 1.0)
+	var on: bool = not leaving and chasing
 	var red := fmod(_t, 0.5) < 0.25
 	_siren[0].visible = on and red
 	_siren[1].visible = on and not red
@@ -871,3 +1030,108 @@ func shade(on: bool) -> void:
 		return
 	_beam_lit = on
 	_beam_layer(model, on)
+
+
+func _hide() -> void:
+	hiding = true
+	_hid_for = 0.0
+	visible = false
+	if _call_label != null:
+		_call_label.visible = false
+
+
+func _come_out() -> void:
+	hiding = false
+	visible = true
+	if shelter != null and is_instance_valid(shelter):
+		var a := randf() * TAU
+		position = shelter.position + Vector3(cos(a), 0, sin(a)) * (shelter.size() * 0.45 + 1.0)
+		position.y = 0.0
+	shelter = null
+
+
+# ------------------------------------------------------------------ a rival saucer
+# Another ship out abducting: it drifts over the country after small game (animals, people), takes
+# them up its own pink beam, and after a few, or a while, goes. Fly into it and you bounce off; dash
+# into it and it spins away and drops what it had.
+
+const RIVAL_Y := 8.5
+const RIVAL_TAKES := 4
+var _prey: Thing
+var _taken_by_rival := 0
+var _rival_beam: Node3D
+var _rival_life := 0.0
+var _rival_spin := 1.0
+var knock := Vector3.ZERO
+
+
+func _rival(delta: float, here: Vector3) -> float:
+	_rival_life += delta
+	if _rival_beam == null:
+		_rival_beam = Node3D.new()
+		_rival_beam.rotation.x = PI
+		_rival_beam.position.y = -0.4
+		add_child(_rival_beam)
+		light_strip(_rival_beam, Color(1.0, 0.35, 0.85), 0.9, RIVAL_Y, 1.2, 3.2, 0.95)
+	position += knock * delta
+	knock = knock.lerp(Vector3.ZERO, minf(delta * 2.0, 1.0))
+	_rival_spin = lerpf(_rival_spin, 1.0, minf(delta * 0.8, 1.0))
+	model.rotation.y += delta * 2.5 * _rival_spin
+	if _taken_by_rival >= RIVAL_TAKES or _rival_life > 60.0:
+		leaving = true
+	if leaving:
+		_drop_prey()
+		_rival_beam.visible = false
+		position.y += delta * 6.0
+		_chase_want = Vector3(sin(heading), 0, cos(heading))
+		if position.y > 45.0:
+			game.remove_thing(self)
+		return float(info["speed"]) * 1.5
+	position.y = lerpf(position.y, RIVAL_Y + sin(_t * 1.4) * 0.3, minf(delta * 1.2, 1.0))
+	if _prey != null and (not is_instance_valid(_prey) or not _prey.state in ["walk", "stolen"]):
+		_prey = null
+	if _prey == null:
+		_rival_beam.visible = false
+		_prey = game.rival_prey(here, 45.0)
+		if _prey == null:
+			# (nothing about: off it drifts)
+			think -= delta
+			if think <= 0.0:
+				think = 3.0
+				goal = here + Vector3(randf_range(-40, 40), 0, randf_range(-40, 40))
+			_chase_want = (goal - here).normalized()
+			return float(info["speed"]) * 0.6
+	var to := _prey.position - here
+	to.y = 0.0
+	if _prey.state == "walk" and to.length() > 1.2:
+		_rival_beam.visible = false
+		_chase_want = to.normalized()
+		return float(info["speed"]) * clampf(to.length() / 6.0, 0.3, 1.0)
+	# (over it: the beam on, up it goes, and it is gone)
+	_chase_want = Vector3.ZERO
+	_rival_beam.visible = true
+	_prey.state = "stolen"
+	_prey.position = _prey.position.move_toward(Vector3(here.x, position.y - 1.0, here.z), delta * 3.5)
+	_prey.rotation.y += delta * 3.0
+	if _prey.position.y > position.y - 1.6:
+		game.stolen_by_rival(_prey)
+		_prey = null
+		_taken_by_rival += 1
+	return 0.0
+
+
+## Rammed by the player's dash: knocked away spinning, letting go of what it had in its beam
+func rammed(away: Vector3) -> void:
+	knock = away * 18.0
+	_rival_spin = 6.0
+	_drop_prey()
+
+
+func _drop_prey() -> void:
+	if _prey != null and is_instance_valid(_prey) and _prey.state == "stolen":
+		_prey.state = "falling"
+		_prey.fall_v = 0.0
+		_prey.fall_from = _prey.position.y
+	_prey = null
+	if _rival_beam != null:
+		_rival_beam.visible = false

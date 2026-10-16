@@ -91,12 +91,22 @@ const CULL_MARGIN := 32.0
 static var _merges := {}
 
 
-## The mesh of a model alone (its first mesh), dressed, for a MultiMesh of scenery
+## The mesh of a model alone (its first mesh), dressed, for a MultiMesh of scenery: placed as it
+## stands in the model (a joined model's mesh sits about its first part, off the ground; without
+## this the scenery sank into the ground by as much)
 static func model_mesh(name: String, tints := {}) -> Mesh:
 	var n := model(name, tints)
 	var mi := _first_mesh(n)
-	var mesh: Mesh = mi.mesh.duplicate()
-	for i in mesh.get_surface_count():
+	var xf := Transform3D.IDENTITY
+	var up: Node = mi
+	while up != n and up is Node3D:
+		xf = (up as Node3D).transform * xf
+		up = up.get_parent()
+	var mesh := ArrayMesh.new()
+	for i in mi.mesh.get_surface_count():
+		var st := SurfaceTool.new()
+		st.append_from(mi.mesh, i, xf)
+		st.commit(mesh)
 		mesh.surface_set_material(i, mi.material_override if mi.material_override != null else mi.get_surface_override_material(i))
 	n.free()
 	return mesh

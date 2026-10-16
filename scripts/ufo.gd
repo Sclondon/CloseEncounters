@@ -73,6 +73,9 @@ var altitude := 8.0
 var radius := 2.8
 var beam_foot := 2.7
 var velocity := Vector3.ZERO
+## A shove off something it flew into (see bump), dying away
+var knock := Vector3.ZERO
+var _bumped := 0.0
 var beaming := false
 var hull := 100.0
 var dead := false
@@ -107,6 +110,9 @@ var _drink: Node3D
 var chair: Node3D
 var _hop := 0.0
 const HOP := 0.6
+## Seconds of climbing out of the cockpit into the chair, home again (see `climb_out`)
+const HOP_OUT := 1.4
+var _hop_out := 0.0
 ## Seconds since the pilot landed in the cockpit, the ship rocking on its legs (-1 when still)
 var _rock := -1.0
 ## A swallow going (1 just taken, down to 0), how big, and the hull's own size to bulge from
@@ -116,8 +122,12 @@ var _hull_scale := Vector3.ONE
 ## The bounce as the beam comes on (1 just on, down to 0), and how far back it tilts while beaming
 var _kick := 0.0
 const BEAM_TILT := 0.28
+## How fast the hull spins in a dodge, and how fast it spins now (winding down after one)
+const DASH_SPIN := 30.0
+var _spin_rate := 0.6
 ## Smoke and sparks off the ship (with its shield gone), and the beam's whirl of dust
 var puffs: Puffs
+var stars: Starfall
 var _smoke_wait := 0.0
 ## Where the chair floats over the hull, for a ship of the saucer's size (to the left of the cockpit
 ## as the camera sees it), how high above it, how far it bobs, and how high the pilot sits in it
@@ -321,6 +331,8 @@ func _ready() -> void:
 	add_child(reticle)
 	puffs = Puffs.new()
 	add_child(puffs)
+	stars = Starfall.new()
+	add_child(stars)
 	glow = OmniLight3D.new()
 	# (only the ship itself: lighting anything else, whose wide cull margin had it "lit" from far off,
 	# made a shader for it at that moment, which stalled the game in the descent; see `_ship_layer`)
@@ -363,6 +375,19 @@ func lounge(on: bool) -> void:
 		if _drink != null:
 			_drink.queue_free()
 			_drink = null
+
+
+## Home on the moon: the canopy opens and the pilot climbs out of the cockpit and up into the chair,
+## to lounge (see `lounge`)
+func climb_out() -> void:
+	if chair == null:
+		chair = Ps1.model("lounge_chair")
+		chair.scale = Vector3.ONE * pilot_size
+		_chair_y = _hull_top() + CHAIR_FLOAT * pilot_size
+		chair.position = Vector3(CHAIR_AT.x * radius / 2.8, _chair_y, CHAIR_AT.z * radius / 2.8)
+		body.add_child(chair)
+	alien.feel("cheer", HOP_OUT)
+	_hop_out = HOP_OUT
 
 
 ## The chair, left behind as the ship lifts off (for the blast to blow away, see MoonSet.blast), or
@@ -409,7 +434,7 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 				_rock = -1.0
 				body.position.y = 0.0
 				body.rotation = Vector3.ZERO
-		_canopy = move_toward(_canopy, 1.0 if lounging or _hop > 0.0 else 0.0, delta * 2.2)
+		_canopy = move_toward(_canopy, 1.0 if lounging or _hop > 0.0 or _hop_out > 0.0 else 0.0, delta * 2.2)
 		if _canopy_hinge != null:
 			_canopy_hinge.rotation.x = -1.75 * smoothstep(0.0, 1.0, _canopy)
 		if chair != null:
@@ -420,6 +445,13 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 			if lounging:
 				alien.position = in_chair
 				alien.rotation.z = chair.rotation.z
+			elif _hop_out > 0.0:
+				# (the canopy opening, then up out of the cockpit and into the chair)
+				_hop_out = maxf(_hop_out - delta, 0.0)
+				var k := clampf((1.0 - _hop_out / HOP_OUT - 0.4) / 0.6, 0.0, 1.0)
+				alien.position = seat.lerp(in_chair, k) + Vector3(0, sin(k * PI) * 1.1, 0)
+				if _hop_out <= 0.0:
+					lounge(true)
 			elif _hop > 0.0:
 				# (up out of the chair and down into the cockpit)
 				var k := 1.0 - _hop / HOP
@@ -444,7 +476,8 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 		velocity = _dash_dir * DASH_SPEED
 	else:
 		velocity = velocity.lerp(want, minf(delta * (4.0 if want.length() > 0.1 else 2.5), 1.0))
-	position += velocity * delta
+	position += (velocity + knock) * delta
+	knock = knock.lerp(Vector3.ZERO, minf(delta * 3.0, 1.0))
 	position.y = altitude + descent + sin(_t * 1.7) * 0.15
 	# Banks into the way it is going
 	# (tilted back while beaming, its underside and the beam toward the camera)
@@ -454,15 +487,18 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	if _spin > 0.0:
 		# A dodge spins the hull like a top, and leaves afterimages behind it
 		_spin -= delta
-		hull_model.rotation.y += delta * 30.0
+		_spin_rate = DASH_SPIN
+		hull_model.rotation.y += delta * _spin_rate
 		_ghost_wait -= delta
 		if _ghost_wait <= 0.0 and _ghosts_left > 0:
 			_ghosts_left -= 1
 			_ghost_wait = _spin / float(maxi(_ghosts_left, 1))
 			_afterimage()
 	elif _spins:
-		# The saucer and the orb turn slowly, faster with the beam on
-		hull_model.rotation.y += delta * (0.6 + (1.8 if beaming else 0.0))
+		# The saucer and the orb turn slowly, faster with the beam on (and after a dodge, winding
+		# down from its spin to that)
+		_spin_rate = lerpf(_spin_rate, 0.6 + (1.8 if beaming else 0.0), minf(delta * 1.2, 1.0))
+		hull_model.rotation.y += delta * _spin_rate
 	elif velocity.length() > 1.0 and not _spins:
 		# The triangle points where it is going
 		hull_model.rotation.y = lerp_angle(hull_model.rotation.y, atan2(velocity.x, velocity.z), minf(delta * 6.0, 1.0))
@@ -581,8 +617,8 @@ func _flash_lights() -> void:
 	elif dodging():
 		light = Color(1.4, 1.4, 1.4) if fmod(_t, 0.08) < 0.04 else Color.BLACK
 	elif _gulp > 0.0:
-		# (something swallowed: a bright flash running through the lights)
-		light = Color(1.6, 1.6, 1.3).lerp(Color(0.3, 1.4, 0.5), 1.0 - _gulp) * (1.0 if fmod(_t, 0.12) < 0.07 else 0.4)
+		# (something swallowed: the rim lights flash yellow)
+		light = Color(1.8, 1.4, 0.15) * (1.0 if fmod(_t, 0.14) < 0.08 else 0.25) * (0.4 + 0.6 * _gulp)
 	elif beaming:
 		light = Color(0.2, 1.0, 0.35) * (0.5 + 0.5 * sin(_t * 18.0))
 	for m in _lights:
@@ -603,11 +639,8 @@ func gulp(size := 1.0) -> void:
 
 ## Something swallowed: a burst of sparkles popping out of the ship's belly
 func sparkle() -> void:
-	var belly := global_position + Vector3(0, -0.6, 0)
-	for i in 16:
-		var a := randf() * TAU
-		var c := Color(0.7, 1.0, 0.75) if i % 3 else Color(1.0, 1.0, 0.85)
-		puffs.spark(belly, Vector3(cos(a), randf_range(0.2, 1.4), sin(a)) * randf_range(3.0, 7.0), c)
+	# (little stars out of the bottom of the ship, falling away in arcs)
+	stars.burst(global_position + Vector3(0, -1.0, 0), 14, velocity)
 
 
 func _gulping(delta: float) -> void:
@@ -790,3 +823,21 @@ func _ship_layer(n: Node) -> void:
 		(n as VisualInstance3D).set_layer_mask_value(SHIP_LAYER, true)
 	for c in n.get_children():
 		_ship_layer(c)
+
+
+## Flew into something tall (a peak, a tower) and was pushed `out` of it: knocked back off it with a
+## jolt and a bit of damage (not again for a moment, so grinding along a cliff does not drain it)
+func bump(out: Vector3) -> void:
+	var flat := Vector3(out.x, 0, out.z)
+	if flat.length() < 0.01 or dead:
+		return
+	var into := -velocity.dot(flat.normalized())
+	velocity -= flat.normalized() * maxf(into, 0.0)
+	if Time.get_ticks_msec() / 1000.0 - _bumped < 0.6 or into < 2.0:
+		return
+	_bumped = Time.get_ticks_msec() / 1000.0
+	knock = flat.normalized() * clampf(into * 1.6, 8.0, 22.0)
+	_kick = 1.0
+	if hull > 0.0:
+		# (it takes the shield, never the last of the ship)
+		hurt(minf(clampf(into * 0.6, 3.0, 8.0), hull))

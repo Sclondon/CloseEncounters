@@ -1064,6 +1064,40 @@ def hay_pile():
     """A haystack: a big rounded pile of loose hay, a little pole through its top"""
     return join("hay_pile", [ball((4.2, 4.2, 3.6), (0, 0, 1.0), "hay", 10, 6), drum(0.06, 1.0, (0, 0, 3.0), "wood", 4)])
 
+
+def chinook():
+    """An army Chinook: a long olive body with a rotor at each end (the back one up on a pylon), a
+    glass nose (-Y), wheels, and a ramp at the back. The game spins "rotor_front" and "rotor_back"."""
+    body = join("chinook", [
+        box((2.6, 10.0, 2.6), (0, 0, 2.2), "olive"), ball((2.6, 2.4, 2.6), (0, -5.0, 2.2), "olive", 10, 6),
+        box((2.4, 1.2, 1.0), (0, -5.6, 2.9), "glass"), box((1.6, 2.4, 1.6), (0, 4.0, 3.9), "olive_dark"),
+        box((2.0, 1.0, 1.4), (0, 0.0, 3.8), "olive_dark"), box((2.4, 0.15, 1.8), (0, 5.05, 1.6), "olive_dark", (0.5, 0, 0)),
+        box((2.65, 6.0, 0.25), (0, 0, 1.35), "olive_dark")]
+        + [box((0.12, 0.6, 0.5), (x, y, 2.6), "glass") for x in (-1.32, 1.32) for y in (-3.0, -1.5, 0.0, 1.5)]
+        + [drum(0.38, 0.3, (x, y, 0.38), "tyre", 8, (0, math.pi / 2, 0)) for x in (-1.1, 1.1) for y in (-3.5, 2.5)])
+    for name, y, z in (("rotor_front", -4.6, 3.9), ("rotor_back", 4.0, 5.0)):
+        rotor = join(name, [box((11.0, 0.35, 0.06), (0, y, z), "metal_dark"), box((0.35, 11.0, 0.06), (0, y, z), "metal_dark"),
+                            drum(0.25, 0.4, (0, y, z - 0.25), "metal_dark", 6)])
+        attach(rotor, body)
+    return body
+
+
+def telescope():
+    """A stargazer's telescope: a white tube tilted up at the sky on a tripod"""
+    p = [drum(0.16, 1.5, (0, 0.25, 1.65), "white", 8, (-0.75, 0, 0)), drum(0.2, 0.25, (0, 0.78, 2.12), "black", 8, (-0.75, 0, 0)),
+         box((0.18, 0.18, 0.18), (0, 0, 1.35), "metal_dark")]
+    for i in range(3):
+        a = i / 3 * math.tau
+        p.append(box((0.05, 0.05, 1.45), (math.cos(a) * 0.3, math.sin(a) * 0.3, 0.68), "metal_dark", (math.sin(a) * 0.22, -math.cos(a) * 0.22, 0)))
+    return join("telescope", p)
+
+
+def barrel():
+    """An oil drum: red, with dark ribs and a yellow hazard band"""
+    p = [drum(0.42, 1.2, (0, 0, 0.6), "red", 10), drum(0.44, 0.08, (0, 0, 0.3), "black", 10), drum(0.44, 0.08, (0, 0, 0.9), "black", 10),
+         drum(0.43, 0.22, (0, 0, 0.62), "yellow", 10), drum(0.08, 0.06, (0.18, 0, 1.22), "metal_dark", 6)]
+    return join("barrel", p)
+
 def phone_booth():
     """A roadside phone booth: glass on three sides, the door to the road, a lit TELEPHONE sign on
     the roof and an aerial above it (the game sends radio waves out of its tip, BOOTH_TIP, while
@@ -1310,7 +1344,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
             diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
-            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, sasquatch, meteorite, satellite,
+            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox]
 
 

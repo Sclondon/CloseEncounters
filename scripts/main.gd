@@ -20,14 +20,15 @@ const COOL_RATE := 0.07
 ## Who comes for you at each level of heat, each a stage of its own: one star, only the farmers
 ## with their guns (see Thing "flee"); two, police cars, who must pull up and get out to shoot (see
 ## Thing "police"); three, a police helicopter keeping its searchlight on you and the men in black;
-## four, the army's jeeps, firing on the move; five, tanks, and fighter jets overhead (see `_jets`)
+## four, the army's jeeps, firing on the move, and a Chinook; five, tanks, and fighter jets overhead
+## (see `_jets`)
 const FORCES: Array[Dictionary] = [
 	{},
 	{},
 	{"police_car": 2},
 	{"helicopter": 1, "police_car": 2, "agent_car": 1},
-	{"helicopter": 1, "jeep": 2, "police_car": 1},
-	{"helicopter": 1, "tank": 2, "jeep": 2},
+	{"chinook": 1, "jeep": 2, "police_car": 1},
+	{"chinook": 1, "tank": 2, "jeep": 2},
 ]
 ## How long after a new star the heat goes up only slowly (see `add_heat`)
 const NEW_STAR := 8.0
@@ -70,7 +71,12 @@ var motes: Dust
 var clouds: Clouds
 ## How far into the flight off the moon
 var _launch_t := 0.0
-const LAUNCH := 4.2
+const LAUNCH := 6.4
+## When in the flight off the moon the engine starts up, the blast throws everything about, and the
+## ship lifts off
+const ENGINE := 0.9
+const BLAST := 1.8
+const LIFT := 2.5
 ## How high the ship climbs off the moon before the run starts (Earth well below the picture by then)
 const CLIMB := 400.0
 ## How long the ship takes climbing off the farm into the stars on its way home (see `quit_to_menu`)
@@ -127,7 +133,7 @@ const MAX_UPGRADE := 4
 ## The defence laser (see `_laser`): how far it reaches before upgrades (+2 m a level), and the hits
 ## that blow each of the police and army up (one less is only a moment's stun)
 const LASER_REACH := 14.0
-const LASER_HITS := {"police_car": 2, "patrol_car": 2, "jeep": 3, "patrol_jeep": 3, "tank": 5}
+const LASER_HITS := {"police_car": 2, "patrol_car": 2, "jeep": 3, "patrol_jeep": 3, "tank": 5, "helicopter": 4, "chinook": 6, "agent_car": 3}
 var _laser_wait := 0.0
 ## The mini fleet: a little saucer for each level of FLEET (see Drone)
 var fleet: Array[Drone] = []
@@ -139,6 +145,12 @@ var _spotted_for := 0.0
 const CULL := 216.0
 var _jet_wait := 8.0
 var _shake := 0.0
+## The wreck of the ship, shot down (INF while flying), how long it has burned, its pilot, and when the
+## score panel comes up
+var wreck := Vector3.INF
+var _wreck_t := 0.0
+var _wreck_pilot: Node3D
+var _over_show := 0.0
 var _hurt := 0.0
 var _over_wait := 0.0
 var _last_level := 0
@@ -152,6 +164,9 @@ var mult_label: Label
 var coin: Control
 ## How wide the score's box is, right-aligned beside the pause button
 const SCORE_WIDTH := 360.0
+## The score's bounce when something is swallowed (1 just then, down to 0), and its sparkles
+var _score_pop := 0.0
+var _sparks: Control
 ## How wide the log of what was taken is, right-aligned under the score
 const LOG_WIDTH := 640.0
 var radar: Control
@@ -168,8 +183,16 @@ var stars: Control
 var shield_bar: Control
 var banner: Label
 var banner_time := 0.0
+var heat_note: Label
+var heat_note_time := 0.0
 var title_box: Control
 var over_box: Control
+var _again: Button
+## The results typing out (see _wreck_burning)
+var _over_typing := 0.0
+## The wrecked ship left lying while the camera pulls away from it to the moon (see quit_to_menu)
+var _wreck_ship: Ufo
+const RESULTS_SPEED := 45.0
 var over_label: Label
 ## The title screen's parts, laid out for the screen's shape (`_layout_title`)
 var _title_label: Label
@@ -185,12 +208,14 @@ var _log_list: VBoxContainer
 var _log_head: Label
 var _log_back: Button
 var _log_taken := {}
+## This run's takings by kind: [how many, points], for the results (see _results)
+var _run_taken := {}
 var _log_met: Array[String] = []
 ## The hunters, as the log names them (the jets are not things: they are only flown over)
 const HUNTERS := {
 	"police_car": "POLICE CAR", "patrol_car": "POLICE PATROL", "jeep": "ARMY JEEP",
 	"patrol_jeep": "ARMY PATROL", "tank": "TANK", "jet": "FIGHTER JET", "officer": "POLICE OFFICER",
-	"helicopter": "POLICE HELICOPTER", "agent_car": "MEN IN BLACK", "agent": "AGENT",
+	"helicopter": "POLICE HELICOPTER", "agent_car": "MEN IN BLACK", "agent": "AGENT", "chinook": "ARMY CHINOOK",
 }
 ## The first few frames draw the farm under a black cover, so its shaders are ready before the
 ## ship comes down to it (else the arrival stutters while they are made)
@@ -278,7 +303,7 @@ func _ready() -> void:
 	view.add_child(motes)
 	view.add_child(dust)
 	_make_ufo(Vector3.ZERO)
-	world.update(ufo.position, 0.0, true)
+	world.update(World.START, 0.0, true)
 	_spawn_some(true)
 	_warm_models()
 	_warm_effects()
@@ -387,12 +412,26 @@ func _fov() -> float:
 # ------------------------------------------------------------------ the run
 
 func start(from_launch := false) -> void:
+	var again := mode == "over"
 	if not ship in unlocked:
 		return
+	if again:
+		_new_world(true)
 	mode = "play"
 	for t in things.duplicate():
-		if t.is_enemy():
+		if t.is_enemy() or t.kind == "rival":
 			_remove(t)
+	_rival_wait = 50.0
+	_run_taken.clear()
+	_five_for = 0.0
+	_nuke_wait = 0.0
+	for n: Array in _nukes:
+		(n[2] as Node3D).queue_free()
+		if n[3] != null:
+			(n[3] as Node3D).queue_free()
+	_nukes.clear()
+	if _nuke_flash != null:
+		_nuke_flash.visible = false
 	for s in shots:
 		s.queue_free()
 	shots.clear()
@@ -400,6 +439,7 @@ func start(from_launch := false) -> void:
 		j.queue_free()
 	jets.clear()
 	ufo.queue_free()
+	_clear_wreck()
 	if not from_launch:
 		alien_seed = randi()
 	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "fleet": 0}
@@ -411,7 +451,7 @@ func start(from_launch := false) -> void:
 	_cuts.clear()
 	_forget_fingers()
 	var heading := ufo.rotation.y + ufo.hull_model.rotation.y
-	_make_ufo(Vector3.ZERO)
+	_make_ufo(World.START)
 	heat = 0.0
 	calm = 0.0
 	score = 0
@@ -433,6 +473,22 @@ func start(from_launch := false) -> void:
 		ufo.hull_model.rotation.y = heading - ufo.rotation.y
 	sfx.play("whoosh", 0.6, 2.0)
 
+
+
+## A new country for a new run (not in the tests, which want the same one each time): everything
+## made so far forgotten, and the world made again round where the run starts. `now` makes it all at
+## once; otherwise a chunk a frame, as on the way down from the moon.
+func _new_world(now: bool) -> void:
+	if testing:
+		return
+	_to_spawn.clear()
+	for t in things.duplicate():
+		if t.state != "walk" and not t.is_enemy():
+			_remove(t)
+	world.reseed(randi_range(1, 1 << 30))
+	_facility_wait = 0.0
+	if now:
+		world.update(World.START, 0.0, true)
 
 ## Coming down from space, `k` of the way (0 to 1): out of the stars until the planet is under the
 ## ship, the shield coming up on the way, the pilot facing the camera as it swings round (see
@@ -499,6 +555,12 @@ func _process(delta: float) -> void:
 		var held := ufo.position
 		ufo.position = world.push_out(ufo.position, 2.6)
 		ufo.position.y = held.y
+		if mode == "play" and ufo.position.distance_to(held) > 0.01:
+			var was := ufo.hull
+			ufo.bump(ufo.position - held)
+			if ufo.hull < was:
+				sfx.play("boom", 1.6)
+				_shake = maxf(_shake, 0.5)
 	ufo.mend_rate = 2.0 if heat_level() == 0 else 0.0
 	if ufo.shield_broke:
 		ufo.shield_broke = false
@@ -525,7 +587,7 @@ func _process(delta: float) -> void:
 					continue
 				t.tick(delta * 4.0, ufo)
 				continue
-		if ufo.in_beam(t.position, t.reach):
+		if not t.hiding and t.kind != "rival" and ufo.in_beam(t.position, t.reach):
 			if t.kind == "pod" and t.state == "walk" and why_not(t) != "":
 				t.tick(delta, ufo)
 				t.rattle()
@@ -556,6 +618,9 @@ func _process(delta: float) -> void:
 	_pull_scenery(delta)
 	_beam_shadows()
 	_shops(delta)
+	_rivals(delta)
+	_rival_bumps()
+	_nuking(delta)
 	_watchers(delta)
 	_crop_circles(delta)
 	for s in shots:
@@ -576,7 +641,7 @@ func _process(delta: float) -> void:
 		_patrols(delta)
 	# (on the moon and on the way off it, the world stays ready round where the run starts,
 	# rather than loading chunks under a ship flying off across the sky)
-	world.update(Vector3.ZERO if mode in ["title", "launch", "landing"] else ufo.position, delta)
+	world.update(World.START if mode in ["title", "launch", "landing"] else ufo.position, delta)
 	_spawn_some()
 	if mode == "play" and not autopilot and not get_tree().paused:
 		_pending_fingers()
@@ -592,10 +657,13 @@ func _process(delta: float) -> void:
 	clouds.follow(ufo.position, camera.position, delta)
 	_camera(delta)
 	_hud(delta)
+	_title_flybys(delta)
+	if mode == "over":
+		_wreck_burning(delta)
 	if ufo.dead and mode == "play":
 		_crash(delta)
-	if mode == "over" and Input.is_action_just_pressed("start") and _over_wait <= 0.0:
-		start()
+	if mode == "over" and Input.is_action_just_pressed("start") and _over_wait <= 0.0 and _again.visible:
+		quit_to_menu()
 	if mode == "title" and Input.is_action_just_pressed("start"):
 		begin_launch()
 	elif mode == "title" and Input.is_action_just_pressed("left"):
@@ -644,11 +712,11 @@ func _heat(delta: float) -> void:
 	var level := heat_level()
 	if level != _last_level:
 		if level > _last_level:
-			_banner(["", "THE FARMERS ARE ARMED", "THE POLICE ARE COMING", "POLICE HELICOPTER!", "THE ARMY IS HERE", "TANKS AND THE AIR FORCE"][level], 2.5)
+			_heat_note(["", "THE FARMERS ARE ARMED", "THE POLICE ARE COMING", "POLICE HELICOPTER!", "THE ARMY IS HERE", "TANKS AND THE AIR FORCE"][level], 2.5)
 			_new_star = NEW_STAR
 			sfx.play("star", 1.0 + level * 0.06)
 		else:
-			_banner("COOLING OFF", 1.5)
+			_heat_note("COOLING OFF", 1.5)
 			sfx.play("cool")
 			# (those no longer wanted at this heat drive off)
 		_last_level = level
@@ -692,7 +760,7 @@ func spotted(_by: Thing, delta: float, why := "SPOTTED!") -> void:
 	if mode != "play":
 		return
 	if _spotted_for <= 0.0:
-		_banner(why, 1.4)
+		_heat_note(why, 1.4)
 		sfx.play("star", 1.3)
 		add_heat(0.35)
 	_spotted_for = 0.6
@@ -813,7 +881,7 @@ func _forces(delta: float) -> void:
 			t.heading = atan2(ufo.position.x - at.x, ufo.position.z - at.z)
 			_spawn_wait = 2.5
 			if kind == "police_car" and have == 0:
-				_banner("SIRENS!", 1.2)
+				_heat_note("SIRENS!", 1.2)
 			return
 
 
@@ -1286,7 +1354,7 @@ func phone_call(t: Thing) -> void:
 	add_heat(0.9 if now - _last_call > 6.0 else 0.2)
 	_last_call = now
 	calm = 0.0
-	_banner("SOMEONE CALLED THE POLICE", 1.8)
+	_heat_note("SOMEONE CALLED THE POLICE", 1.8)
 	sfx.play("ring", 0.8)
 
 
@@ -1306,6 +1374,283 @@ func lines_down_near(p: Vector3) -> bool:
 	return false
 
 
+
+
+
+
+
+# ------------------------------------------------------------------ the bomb
+# Five stars for too long and they give up on catching you: a nuclear strike on where the ship is
+# going. A red ring marks the ground, a countdown, a missile out of the sky, then a white flash, a
+# fireball and a mushroom cloud. Everything inside is gone; the ship inside takes a terrible blow,
+# fatal without a full shield. Again and again, while the five stars last.
+
+const NUKE_AFTER := 30.0
+const NUKE_EVERY := 20.0
+const NUKE_FUSE := 5.0
+const NUKE_REACH := 30.0
+var _five_for := 0.0
+var _nuke_wait := 0.0
+## Each strike on its way: [where, seconds left, its ring, its missile]
+var _nukes: Array = []
+var _nuke_flash: ColorRect
+
+
+func _nuking(delta: float) -> void:
+	if mode != "play" or intro > 0.0:
+		return
+	if heat_level() >= 5:
+		_five_for += delta
+	else:
+		_five_for = 0.0
+	_nuke_wait -= delta
+	if _five_for > NUKE_AFTER and _nuke_wait <= 0.0 and not ufo.dead:
+		_nuke_wait = NUKE_EVERY / sqrt(danger())
+		var at := ufo.ground() + Vector3(ufo.velocity.x, 0, ufo.velocity.z) * 2.0
+		_nukes.append([at, NUKE_FUSE, _nuke_ring(at), null])
+		_heat_note("NUCLEAR STRIKE INBOUND!", 3.0)
+		log_line("NUCLEAR STRIKE AUTHORISED", 0)
+		sfx.play("star", 0.6, 4.0)
+	for n: Array in _nukes.duplicate():
+		n[1] -= delta
+		var ring: MeshInstance3D = n[2]
+		ring.visible = fmod(n[1], 0.5) < 0.3 or n[1] < 1.0
+		ring.scale = Vector3.ONE * (1.0 + 0.04 * sin(n[1] * 12.0))
+		if n[1] < 1.4 and n[3] == null:
+			n[3] = _nuke_missile()
+		if n[3] != null:
+			var k := clampf(1.0 - n[1] / 1.4, 0.0, 1.0)
+			(n[3] as Node3D).position = (n[0] as Vector3) + Vector3(0, 90.0 * (1.0 - k * k), 0)
+		if n[1] <= 0.0:
+			_nukes.erase(n)
+			ring.queue_free()
+			if n[3] != null:
+				(n[3] as Node3D).queue_free()
+			_detonate(n[0])
+	if _nuke_flash != null and _nuke_flash.visible:
+		_nuke_flash.color.a = maxf(_nuke_flash.color.a - delta * 1.6, 0.0)
+		_nuke_flash.visible = _nuke_flash.color.a > 0.0
+
+
+func _nuke_ring(at: Vector3) -> MeshInstance3D:
+	var ring := MeshInstance3D.new()
+	var t := TorusMesh.new()
+	t.inner_radius = NUKE_REACH - 0.8
+	t.outer_radius = NUKE_REACH
+	t.rings = 48
+	ring.mesh = t
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = Color(1.0, 0.15, 0.1)
+	m.disable_fog = true
+	ring.material_override = m
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ring.position = at + Vector3(0, 0.2, 0)
+	ring.scale = Vector3(1, 0.1, 1)
+	# (and the ground inside it washed faintly red)
+	var disc := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = NUKE_REACH
+	cyl.bottom_radius = NUKE_REACH
+	cyl.height = 0.05
+	cyl.radial_segments = 48
+	disc.mesh = cyl
+	var dm := StandardMaterial3D.new()
+	dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dm.albedo_color = Color(1.0, 0.1, 0.05, 0.14)
+	disc.material_override = dm
+	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	disc.position = Vector3(0, -1.0, 0)
+	ring.add_child(disc)
+	view.add_child(ring)
+	return ring
+
+
+func _nuke_missile() -> Node3D:
+	var mi := MeshInstance3D.new()
+	var c := CapsuleMesh.new()
+	c.radius = 0.5
+	c.height = 4.0
+	mi.mesh = c
+	mi.material_override = Ps1.flat(Color(0.85, 0.85, 0.8))
+	view.add_child(mi)
+	return mi
+
+
+func _detonate(at: Vector3) -> void:
+	sfx.play("boom", 0.4, 8.0)
+	sfx.play("boom", 0.6, 6.0)
+	_shake = 1.6
+	if _nuke_flash == null:
+		_nuke_flash = ColorRect.new()
+		_nuke_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_nuke_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		hud.add_child(_nuke_flash)
+	_nuke_flash.color = Color(1.0, 0.97, 0.88, 1.0)
+	_nuke_flash.visible = true
+	# the fireball, the ring of dust running out along the ground, the stem and the cap
+	for i in 10:
+		var a := i * TAU / 10.0
+		boom(at + Vector3(cos(a), 0.5, sin(a)) * randf_range(4.0, 14.0), 8.0)
+	boom(at, 18.0)
+	for i in 24:
+		var a := i * TAU / 24.0
+		ufo.puffs.puff(at + Vector3(cos(a), 0.6, sin(a)) * 6.0, Color(0.45, 0.38, 0.32, 0.9), 3.0, Vector3(cos(a), 0.15, sin(a)) * 22.0, 2.4)
+	for i in 14:
+		ufo.puffs.puff(at + Vector3(randf_range(-2, 2), i * 2.2, randf_range(-2, 2)), Color(0.55, 0.42, 0.34, 0.75), 2.2 + i * 0.08, Vector3(0, 6.0, 0), 3.0)
+	for i in 16:
+		var a := i * TAU / 16.0
+		ufo.puffs.puff(at + Vector3(cos(a) * 9.0, 32.0, sin(a) * 9.0), Color(0.9, 0.45, 0.2, 0.9), 7.0, Vector3(cos(a) * 3.0, 4.0, sin(a) * 3.0), 4.5)
+	# everything in it gone (all but the land itself)
+	for t in things.duplicate():
+		if t.state != "walk" or t.obstacle != Vector4.ZERO and not t.kind in World.TALL:
+			continue
+		if Vector2(t.position.x - at.x, t.position.z - at.z).length() < NUKE_REACH:
+			if t.obstacle != Vector4.ZERO:
+				world.remove_obstacle(t.chunk, t.obstacle)
+			_remove(t)
+	var d := Vector2(ufo.position.x - at.x, ufo.position.z - at.z).length()
+	if d < NUKE_REACH and not ufo.dead and not ufo.dodging():
+		ufo.hurt(lerpf(90.0, 25.0, d / NUKE_REACH))
+		var away := Vector3(ufo.position.x - at.x, 0, ufo.position.z - at.z)
+		ufo.knock = (away.normalized() if away.length() > 0.1 else Vector3.RIGHT) * 20.0
+
+
+# ------------------------------------------------------------------ saucers going by on the title
+
+## Seconds till the next saucer streaks across the moon's sky behind the title, and those going by:
+## [node, from, to, seconds in, seconds it takes]
+var _flyby_wait := 6.0
+var _flybys: Array = []
+const FLYBY_SHIPS := ["ufo", "orb", "triangle", "cigar", "bell"]
+
+
+func _title_flybys(delta: float) -> void:
+	for f: Array in _flybys.duplicate():
+		f[3] += delta
+		var k: float = f[3] / f[4]
+		var node: Node3D = f[0]
+		if k >= 1.0 or mode != "title":
+			node.queue_free()
+			_flybys.erase(f)
+			continue
+		var from: Vector3 = f[1]
+		var to: Vector3 = f[2]
+		node.position = from.lerp(to, k) + Vector3(0, sin(k * PI) * 3.0, 0)
+		node.rotation.y += delta * 4.0
+		node.rotation.z = (to - from).normalized().x * -0.25
+	if mode != "title" or testing:
+		return
+	_flyby_wait -= delta
+	if _flyby_wait > 0.0:
+		return
+	_flyby_wait = randf_range(7.0, 16.0)
+	var basis := camera.global_basis
+	var across := 1.0 if randf() < 0.5 else -1.0
+	var far := randf_range(22.0, 34.0)
+	var high := randf_range(3.0, 8.0)
+	var from := camera.global_position + basis * Vector3(-across * far * 0.9, high, -far)
+	var to := camera.global_position + basis * Vector3(across * far * 0.9, high + randf_range(-2.0, 3.0), -far * randf_range(0.8, 1.2))
+	var tints := {"lights": Color.from_hsv(randf(), 0.6, 1.0), "lights_under": Color.from_hsv(randf(), 0.5, 1.0)}
+	var node := Ps1.model(FLYBY_SHIPS[randi() % FLYBY_SHIPS.size()], tints)
+	node.scale = Vector3.ONE * randf_range(0.8, 1.3)
+	view.add_child(node)
+	_flybys.append([node, from, to, 0.0, randf_range(3.0, 5.5)])
+	sfx.play("whoosh", randf_range(1.2, 1.6), -10.0)
+# ------------------------------------------------------------------ rival saucers
+
+## Seconds till the next rival saucer turns up (see _rivals)
+var _rival_wait := 50.0
+
+## Now and then another saucer comes down out of the sky to abduct from your country
+func _rivals(delta: float) -> void:
+	if mode != "play" or intro > 0.0 or testing:
+		return
+	_rival_wait -= delta
+	if _rival_wait > 0.0:
+		return
+	_rival_wait = randf_range(70.0, 130.0)
+	var a := randf() * TAU
+	var at := ufo.ground() + Vector3(cos(a), 0, sin(a)) * 70.0
+	spawn_rival(at)
+
+
+func spawn_rival(at: Vector3) -> Thing:
+	var r := spawn("rival", at)
+	# (down out of the sky)
+	r.position.y = 30.0
+	_heat_note("A RIVAL SAUCER!", 2.5)
+	log_line("RIVAL SAUCER SIGHTED", 0)
+	return r
+
+
+## Small game near `p` for a rival saucer: an animal or a person out in the open, or null
+func rival_prey(p: Vector3, reach: float) -> Thing:
+	var best: Thing = null
+	for t in things:
+		if t.state != "walk" or t.hiding or t.is_enemy() or float(t.info["weight"]) > 3.0:
+			continue
+		if not t.info["move"] in ["flee", "graze", "peck"]:
+			continue
+		var d := Vector2(t.position.x - p.x, t.position.z - p.z).length()
+		if d < reach:
+			reach = d
+			best = t
+	return best
+
+
+## A rival saucer got something up its beam: gone, and it is noted
+func stolen_by_rival(t: Thing) -> void:
+	var title: String = t.info.get("title", t.kind.replace("_", " ").to_upper())
+	log_line("RIVAL TOOK " + title, 0)
+	_remove(t)
+
+
+func remove_thing(t: Thing) -> void:
+	_remove(t)
+
+
+## The ship against a rival saucer: bounced off it; or, dashing, the rival knocked flying
+func _rival_bumps() -> void:
+	if ufo.dead or mode != "play":
+		return
+	for t in things:
+		if t.kind != "rival" or t.state != "walk":
+			continue
+		var off := ufo.position - t.position
+		off.y = 0.0
+		var reach := ufo.radius + 2.4
+		if off.length() < reach and absf(ufo.position.y - t.position.y) < 3.0:
+			var out := off.normalized() if off.length() > 0.01 else Vector3.RIGHT
+			ufo.position += out * (reach - off.length())
+			if ufo.dodging():
+				t.rammed(-out)
+				ufo.knock = out * 4.0
+				sfx.play("boom", 1.3)
+				_shake = maxf(_shake, 0.4)
+				score += 500 * multiplier()
+				log_line("RIVAL RAMMED", 500)
+			else:
+				var was := ufo.hull
+				ufo.bump(out * 0.5)
+				t.knock = -out * 6.0
+				if ufo.hull < was:
+					sfx.play("boom", 1.6)
+					_shake = maxf(_shake, 0.5)
+## Buildings people run into and hide in when the ship comes (see Thing.hiding)
+const SHELTERS := ["house", "farmhouse", "storefront", "church", "barn", "diner", "cabin", "city_hall"]
+
+## The nearest building still standing within `reach` of `p` that people can hide in, or null
+func nearest_shelter(p: Vector3, reach: float) -> Thing:
+	var best: Thing = null
+	for t in things:
+		if t.kind in SHELTERS and t.state == "walk":
+			var d := Vector2(t.position.x - p.x, t.position.z - p.z).length()
+			if d < reach:
+				reach = d
+				best = t
+	return best
 
 ## The nearest phone booth still standing within `reach` of `p`, or null
 func nearest_booth(p: Vector3, reach: float) -> Thing:
@@ -1443,6 +1788,8 @@ func abducted(t: Thing) -> void:
 		t.queue_free()
 		return
 	ufo.gulp(t.size() * t.base_size * 0.7)
+	_score_pop = 1.0
+	(_sparks as ScoreSparks).burst(score_label.position + Vector2(score_label.size.x - 40.0, score_label.size.y * 0.5), 14)
 	var points := t.points() * multiplier()
 	if mode == "play":
 		score += points
@@ -1460,17 +1807,27 @@ func abducted(t: Thing) -> void:
 		_save_best()
 	if mode == "play":
 		var title: String = t.info.get("title", t.kind.replace("_", " ").to_upper())
-		log_line("SPECIMEN %03d  %s" % [taken, title], points)
+		log_line(title, points)
 		_log_taken[t.kind] = int(_log_taken.get(t.kind, 0)) + 1
+		var had: Array = _run_taken.get(title, [0, 0])
+		_run_taken[title] = [int(had[0]) + 1, int(had[1]) + points]
 	t.state = "gone"
 	t.queue_free()
 
 
-## Something let go of hit the ground: dropped from high enough on the police or army, it crushes them
-func landed(t: Thing, height: float) -> void:
+## Something let go of hit the ground (dropped from `height`, thrown at `thrown` m/s): an oil drum,
+## or a car dropped from high enough or thrown hard, blows up; anything else dropped from high enough
+## on the police or army crushes them
+func landed(t: Thing, height: float, thrown := 0.0) -> void:
 	sfx.play("thud", 1.0, -6.0 + minf(height, 6.0))
 	puff(t.position, Color(0.4, 0.35, 0.28), 0.8)
-	if height < 3.0 or mode != "play":
+	if mode != "play":
+		return
+	if t.info.get("explosive", false) and (height >= 1.5 or thrown > 3.0) \
+			or t.kind in VEHICLES and (height >= 3.0 or thrown > 6.0):
+		explode(t)
+		return
+	if height < 3.0:
 		return
 	for other in things:
 		if other == t or not other.is_enemy() or other.state != "walk":
@@ -1484,6 +1841,42 @@ func landed(t: Thing, height: float) -> void:
 			log_line("%s CRUSHED" % other.kind.replace("_", " ").to_upper(), points)
 			_remove(other)
 			break
+
+
+## Everything on wheels or tracks (it blows up if dropped hard: see `landed`)
+const VEHICLES: Array[String] = ["car", "pickup", "rv", "tractor", "police_car", "patrol_car", "agent_car", "jeep", "patrol_jeep", "tank"]
+## How far an explosion reaches: the police and army in it are destroyed, and everyone else runs
+const BLAST_REACH := 7.0
+
+
+## `t` blows up where it lies: a fireball, the police and army near it destroyed (scored), people
+## and animals running for it, and the heat up a little
+func explode(t: Thing) -> void:
+	var at := t.position
+	boom(at + Vector3(0, 0.8, 0), 4.5)
+	boom(at + Vector3(randf_range(-1, 1), 1.8, randf_range(-1, 1)), 3.0)
+	for i in 10:
+		ufo.puffs.spark(at + Vector3(0, 1, 0), Vector3(randf_range(-1, 1), randf_range(0.6, 1.6), randf_range(-1, 1)) * randf_range(5.0, 11.0), Color(1.0, 0.7, 0.3))
+	sfx.play("boom", 0.8, 2.0)
+	_shake = 0.35
+	var points := t.points() * multiplier()
+	score += points
+	log_line("%s BLOWN UP" % t.kind.replace("_", " ").to_upper(), points)
+	add_heat(0.3)
+	calm = 0.0
+	_remove(t)
+	for other: Thing in things.duplicate():
+		if other.state != "walk":
+			continue
+		var d := other.ground().distance_to(Vector3(at.x, 0, at.z))
+		if d < BLAST_REACH and other.is_enemy() and not other.fixed():
+			var got := other.points() / 2 * multiplier()
+			score += got
+			boom(other.position + Vector3(0, 1, 0), 2.5)
+			log_line("%s CAUGHT IN THE BLAST" % other.kind.replace("_", " ").to_upper(), got)
+			_remove(other)
+		elif d < BLAST_REACH * 1.6:
+			other.panic = 6.0
 
 
 func fire(from: Thing, gun: String, target: Ufo) -> void:
@@ -1544,18 +1937,115 @@ func _crash(delta: float) -> void:
 	boom(ufo.position, 4.0)
 	sfx.play("boom", 0.7, 4.0)
 	_shake = 0.6
-	ufo.visible = false
+	_wreck_site()
 	mode = "over"
-	_over_wait = 1.2
+	_over_wait = 2.6
 	var is_best := score > best
 	if is_best:
 		best = score
 		_save_best()
 	_report(score)
-	over_label.text = "THE SAUCER IS DOWN\n\nSCORE  %d\nTAKEN  %d\nBEST  %d%s" % [score, taken, best, "  (NEW!)" if is_best and score > 0 else ""]
-	over_box.visible = true
+	over_label.text = _results(is_best)
+	over_label.visible_characters = 0
+	_over_typing = 0.0
+	# (the panel up once the wreck has been seen to, see `_wreck_burning`)
+	_over_show = 2.2
 	_banner("", 0.0)
 
+
+
+
+## The results, line by line: what was taken, kind by kind (most points first), then the total
+func _results(is_best: bool) -> String:
+	var kinds: Array = _run_taken.keys()
+	kinds.sort_custom(func(a: String, b: String) -> bool: return int(_run_taken[a][1]) > int(_run_taken[b][1]))
+	var lines: Array[String] = []
+	for kind: String in kinds.slice(0, 8):
+		lines.append("%s x%d  %d" % [kind, int(_run_taken[kind][0]), int(_run_taken[kind][1])])
+	if kinds.size() > 8:
+		var rest := 0
+		for kind: String in kinds.slice(8):
+			rest += int(_run_taken[kind][1])
+		lines.append("AND %d MORE  %d" % [kinds.size() - 8, rest])
+	if lines.is_empty():
+		lines.append("NOTHING TAKEN")
+	lines.append("")
+	lines.append("TOTAL  %d" % score)
+	lines.append("BEST  %d%s" % [best, "  (NEW!)" if is_best and score > 0 else ""])
+	return "\n".join(lines)
+
+## Shot down: the ship stays where it hit, half in the ground and tipped over, burning and smoking;
+## the pilot tumbles out beside it, lies a moment, and gets up; and everyone about on foot comes to
+## have a look (see Thing._investigate)
+func _wreck_site() -> void:
+	wreck = ufo.ground()
+	_wreck_t = 0.0
+	ufo.position.y = 0.6
+	ufo.body.rotation = Vector3(0.5, ufo.body.rotation.y, 0.35)
+	ufo.beam.visible = false
+	ufo.reticle.visible = false
+	ufo.bubble.visible = false
+	ufo.spot.visible = false
+	ufo.beam_light.visible = false
+	# (the pilot out over the rim, to the ground beside it)
+	_wreck_pilot = ufo.alien
+	var from := _wreck_pilot.global_transform
+	_wreck_pilot.get_parent().remove_child(_wreck_pilot)
+	view.add_child(_wreck_pilot)
+	_wreck_pilot.global_transform = from
+	_wreck_pilot.feel("tossed", 2.0)
+	var to := wreck + Vector3(ufo.radius + 1.2, 0.25, 1.0)
+	var tw := _wreck_pilot.create_tween()
+	tw.tween_method(func(k: float) -> void:
+		_wreck_pilot.position = from.origin.lerp(to, k) + Vector3(0, sin(k * PI) * 1.6, 0)
+		_wreck_pilot.rotation = Vector3(-PI / 2 * k, k * 2.5, 0), 0.0, 1.0, 0.7)
+	tw.tween_interval(1.2)
+	tw.tween_property(_wreck_pilot, "rotation", Vector3(0, PI * 0.25, 0), 0.4)
+	tw.tween_callback(func() -> void: _wreck_pilot.feel("hurt", 6.0))
+
+
+
+## The wreck and its pilot gone (a new run, or back to the title)
+func _clear_wreck() -> void:
+	wreck = Vector3.INF
+	_over_show = 0.0
+	if is_instance_valid(_wreck_pilot):
+		_wreck_pilot.queue_free()
+	_wreck_pilot = null
+	if is_instance_valid(_wreck_ship):
+		_wreck_ship.queue_free()
+	_wreck_ship = null
+
+## The wreck burning: smoke and fire off it, sparks now and then, the pilot staggering about by it;
+## and the score panel up after a moment
+func _wreck_burning(delta: float) -> void:
+	if wreck == Vector3.INF:
+		return
+	_wreck_t += delta
+	if randf() < delta * 9.0:
+		ufo.puffs.puff(wreck + Vector3(randf_range(-1.5, 1.5), 1.2, randf_range(-1.5, 1.5)), Color(0.15, 0.15, 0.17, 0.8), randf_range(0.8, 1.4), Vector3(0.3, 2.5, 0.1), 2.2)
+	if randf() < delta * 5.0:
+		ufo.puffs.puff(wreck + Vector3(randf_range(-1.2, 1.2), 0.9, randf_range(-1.2, 1.2)), Color(1.0, 0.5, 0.12, 0.85), randf_range(0.5, 0.9), Vector3(0, 2.0, 0), 0.5)
+	if randf() < delta * 1.5:
+		for i in 4:
+			ufo.puffs.spark(wreck + Vector3(0, 1.0, 0), Vector3(randf_range(-1, 1), randf_range(0.5, 1.4), randf_range(-1, 1)) * randf_range(3.0, 6.0))
+	if _wreck_t > 2.6 and is_instance_valid(_wreck_pilot):
+		_wreck_pilot.position.y = 0.25 + absf(sin(_wreck_t * 5.0)) * 0.1
+		_wreck_pilot.rotation.z = sin(_wreck_t * 2.3) * 0.25
+	if _over_show > 0.0:
+		_over_show -= delta
+		if _over_show <= 0.0:
+			over_box.visible = true
+	# (the results typed out a letter at a time, with the log's ticking key)
+	if over_box.visible and over_label.visible_characters >= 0 and over_label.visible_characters < over_label.text.length():
+		_over_typing += delta * RESULTS_SPEED
+		var more := int(_over_typing)
+		_over_typing -= more
+		if more > 0:
+			over_label.visible_characters = mini(over_label.visible_characters + more, over_label.text.length())
+			if over_label.text[over_label.visible_characters - 1] != " ":
+				sfx.play("click", 1.6, -16.0)
+		_again.visible = over_label.visible_characters >= over_label.text.length()
 
 ## A line for the log under the score: typed out a letter at a time (`points` after it, if any)
 func log_line(text: String, points: int) -> void:
@@ -1717,10 +2207,10 @@ func _moon_camera(delta: float) -> void:
 		at = site + Vector3(0.13, 2.0, 2.31)
 		look = site + Vector3(6.15, 2.0, -5.68)
 	var focus := Vector3(site.x + 1.0, 0.0, site.z)
-	if (mode == "launch" or mode == "landing") and _launch_t > 0.9:
+	if (mode == "launch" or mode == "landing") and _launch_t > LIFT - 0.2:
 		# (rising with the ship from the title's picture of it and swinging round it, not across it,
 		# to behind it: the ship slides from where it stood in the picture to where it rides)
-		var k := smoothstep(0.9, 2.6, _launch_t)
+		var k := smoothstep(LIFT - 0.2, LIFT + 1.6, _launch_t)
 		var away := _away()
 		var from := at - (site + MoonSet.SHIP_AT)
 		var way := (look - at).normalized().slerp(away, k)
@@ -1729,14 +2219,14 @@ func _moon_camera(delta: float) -> void:
 		look = at + way + (ufo.position - at).normalized() * sin(k * PI) * 0.5
 		# (the bend goes with the ship as it leaves, or it would pull the ship down out of the
 		# picture as it flew away from the moon; the moon rolls away below instead)
-		focus = focus.lerp(Vector3(ufo.position.x, 0.0, ufo.position.z), smoothstep(0.9, 2.1, _launch_t))
+		focus = focus.lerp(Vector3(ufo.position.x, 0.0, ufo.position.z), smoothstep(LIFT - 0.2, LIFT + 1.0, _launch_t))
 	camera.position = at
 	camera.look_at(look, Vector3.UP)
 	# (wider on a wide screen, for the ground and its cooler and Earth high above both to be seen;
 	# the game's own once the ship is away, as the descent has it)
 	camera.fov = _fov() if _upright() else 52.0
 	if mode == "launch" or mode == "landing":
-		camera.fov = lerpf(camera.fov, _fov(), smoothstep(0.9, 2.6, _launch_t))
+		camera.fov = lerpf(camera.fov, _fov(), smoothstep(LIFT - 0.2, LIFT + 1.6, _launch_t))
 	RenderingServer.global_shader_parameter_set("bend_focus", focus)
 	RenderingServer.global_shader_parameter_set("saucer_pos", Vector3(0, -9999, 0))
 	_sky_mat.set_shader_parameter("space", 1.0)
@@ -1777,6 +2267,10 @@ func _layout_title(size: Vector2) -> void:
 	if title_box == null:
 		return
 	var upright := size.x < size.y
+	if over_box != null:
+		# (the results sit just above the wreck in the middle of the screen, never over it)
+		over_box.offset_top = -size.y * 0.1
+		over_box.offset_bottom = -size.y * 0.1
 	if upright:
 		title_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		title_box.offset_left = 40.0
@@ -2017,8 +2511,9 @@ func _build_hud() -> void:
 	root.add_child(shield_bar)
 	radar = Radar.new()
 	radar.main = self
-	radar.position = Vector2(14, 170)
-	radar.size = Vector2(152, 152)
+	# (the same width as the shield glass, 104 x 1.4, and lined up under it)
+	radar.position = Vector2(6, 164)
+	radar.size = Vector2(146, 146)
 	radar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(radar)
 
@@ -2044,6 +2539,10 @@ func _build_hud() -> void:
 	log_box.add_theme_constant_override("separation", 2)
 	log_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(log_box)
+	_sparks = ScoreSparks.new()
+	_sparks.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sparks.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(_sparks)
 	coin = Coin.new()
 	coin.font = font
 	coin.size = Vector2(46, 46)
@@ -2057,6 +2556,16 @@ func _build_hud() -> void:
 	stars.size = Vector2(300, 64)
 	stars.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(stars)
+
+	# (the heat's news, just under the stars: the farmers armed, the police coming, spotted...)
+	heat_note = _label(28, Color(1.0, 0.6, 0.4))
+	heat_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heat_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	heat_note.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	heat_note.position = Vector2(-260, 80)
+	heat_note.size = Vector2(520, 40)
+	_glow(heat_note, Color(1.0, 0.4, 0.2, 0.45))
+	root.add_child(heat_note)
 
 	banner = _label(40, Color(1.0, 0.85, 0.4))
 	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -2168,12 +2677,16 @@ func _build_hud() -> void:
 	_pause_box.visible = false
 
 	over_box = _panel(root)
-	over_label = _label(38)
+	# (it grows upward from just above the middle of the screen, so it sits over the wreck, not on it)
+	over_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	over_label = _label(34, Color(0.55, 1.0, 0.62))
 	over_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_glow(over_label, Color(0.25, 1.0, 0.4, 0.5))
 	over_box.add_child(over_label)
-	over_box.add_child(_button("AGAIN", func() -> void:
+	_again = _button("OK", func() -> void:
 		if _over_wait <= 0.0:
-			start()))
+			quit_to_menu())
+	over_box.add_child(_again)
 	over_box.visible = false
 
 	_cover = ColorRect.new()
@@ -2253,6 +2766,7 @@ func begin_launch() -> void:
 	if mode != "title" or not ship in unlocked:
 		return
 	mode = "launch"
+	_new_world(false)
 	_launch_t = 0.0
 	title_box.visible = false
 	ufo.lounge(false)
@@ -2265,23 +2779,32 @@ func _launch(delta: float) -> void:
 	var back := mode == "landing"
 	_launch_t += -delta if back else delta
 	var site := MoonSet.SITE + MoonSet.SHIP_AT
-	if not back and _launch_t >= 0.9 and ufo.alien.mood != "cheer" and _launch_t - delta < 0.9:
+	if not back and _launch_t >= BLAST and _launch_t - delta < BLAST:
+		# (the engine at full: the chair, the cooler and the radio blown away in a cloud of dust)
 		ufo.alien.feel("cheer", 1.0)
 		moon_set.blast(ufo.leave_chair())
-		sfx.play("bloop", 1.2)
-	if _launch_t < 0.9:
+		sfx.play("whoosh", 0.7, 2.0)
+	if not back and _launch_t >= ENGINE and _launch_t - delta < ENGINE:
+		sfx.play("bloop", 0.6)
+	if _launch_t < ENGINE:
 		if back:
 			_home()
 		return
-	# straight up off the moon, legs folding away, up to speed and slowing to a stop at the top (where
-	# the descent starts from) once the moon and Earth have sunk out of the bottom of the picture
-	ufo.position = site + Vector3.UP * CLIMB * smoothstep(0.0, 1.0, (_launch_t - 0.9) / (LAUNCH - 0.9))
-	ufo._legs.visible = _launch_t < 1.2
+	# The engine starting up: the ship humming and shaking on its legs, harder and harder, until it
+	# lifts
+	var shake := smoothstep(ENGINE, LIFT, _launch_t) * (1.0 - smoothstep(LIFT, LIFT + 0.8, _launch_t)) * 0.07
+	var rise := 0.0
+	if _launch_t > LIFT:
+		# then up off the moon, slowly at first, up to speed and slowing to a stop at the top (where
+		# the descent starts from) once the moon and Earth have sunk out of the bottom of the picture
+		var u := clampf((_launch_t - LIFT) / (LAUNCH - LIFT), 0.0, 1.0)
+		rise = CLIMB * u * u * u * (u * (u * 6.0 - 15.0) + 10.0)
+	ufo.position = site + Vector3(randf_range(-1, 1) * shake, rise + absf(randf_range(-1, 1)) * shake, randf_range(-1, 1) * shake)
+	ufo._legs.visible = _launch_t < LIFT + 0.5
 	# (the pilot turned to face the camera as it swings round behind the ship, see `_moon_camera`)
-	ufo.rotation.y = lerp_angle(MoonSet.SHIP_TURN, _facing(_away()), smoothstep(0.9, 2.6, _launch_t))
-	dust.fade = smoothstep(1.2, 2.0, _launch_t)
-	if _launch_t > 2.1:
-		ufo.hull_model.rotation.y += delta * 6.0
+	ufo.rotation.y = lerp_angle(MoonSet.SHIP_TURN, _facing(_away()), smoothstep(LIFT - 0.2, LIFT + 1.6, _launch_t))
+	dust.fade = smoothstep(LIFT + 0.5, LIFT + 1.4, _launch_t)
+	ufo.hull_model.rotation.y += delta * 6.0 * smoothstep(ENGINE, LIFT + 1.0, _launch_t)
 	if not back and _launch_t >= LAUNCH:
 		start(true)
 
@@ -2307,8 +2830,17 @@ func quit_to_menu() -> void:
 	intro = 0.0
 	_banner("", 0.0)
 	if testing and not intro_in_tests:
+		_clear_wreck()
 		_show_title()
 		return
+	if ufo.dead:
+		# (from a wreck: the camera pulls up away from the crash site, out into space, and on to the
+		# moon, where a new ship comes in to land; the wreck stays lying where it is till then)
+		_wreck_ship = ufo
+		over_box.visible = false
+		_make_ufo(Vector3(wreck.x, _wreck_ship.altitude, wreck.z))
+		ufo.visible = false
+		ufo.bubble_fade = 0.0
 	mode = "return"
 	_return_t = 0.0
 	ufo.velocity = Vector3.ZERO
@@ -2330,17 +2862,19 @@ func _going_home(delta: float) -> void:
 	ufo.queue_free()
 	_make_ufo(Vector3.ZERO)
 	_park_ufo(false)
+	_clear_wreck()
 	mode = "landing"
 	_launch_t = LAUNCH
 
 
-## Down on the moon again: on its legs, the canopy opening and the pilot back up in the chair
+## Down on the moon again: on its legs, the canopy opening and the pilot climbing out and back up
+## into the chair
 func _home() -> void:
 	mode = "title"
 	ufo.position = MoonSet.SITE + MoonSet.SHIP_AT
 	ufo.rotation.y = MoonSet.SHIP_TURN
 	ufo._legs.visible = true
-	ufo.lounge(true)
+	ufo.climb_out()
 	_show_ship()
 	title_box.visible = true
 	over_box.visible = false
@@ -2389,6 +2923,7 @@ func _show_title() -> void:
 	mode = "title"
 	alien_seed = randi()
 	ufo.queue_free()
+	_clear_wreck()
 	_make_ufo(Vector3.ZERO)
 	_park_ufo()
 	_show_ship()
@@ -2435,6 +2970,12 @@ func _banner(text: String, seconds: float) -> void:
 	banner_time = seconds
 
 
+## A line of the heat's news under the stars, for `seconds`
+func _heat_note(text: String, seconds: float) -> void:
+	heat_note.text = text
+	heat_note_time = seconds
+
+
 func _hud(delta: float) -> void:
 	# (nothing on the screen while the ship comes down from space)
 	var playing := mode == "play" and intro <= 0.0
@@ -2455,6 +2996,11 @@ func _hud(delta: float) -> void:
 		_find_facilities()
 	score_label.text = "%d" % score
 	mult_label.text = "x%d" % multiplier()
+	# (the score bouncing, swelling and settling, when something is swallowed)
+	_score_pop = maxf(_score_pop - get_process_delta_time() * 2.5, 0.0)
+	var t := 1.0 - _score_pop
+	score_label.pivot_offset = Vector2(score_label.size.x, score_label.size.y * 0.5)
+	score_label.scale = Vector2.ONE * (1.0 + sin(t * 9.0) * exp(-4.0 * t) * 0.35 * float(_score_pop > 0.0))
 	# (the coin just before the score, however long it has grown)
 	var width := font.get_string_size(score_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 54).x
 	coin.position = Vector2(score_label.position.x + score_label.size.x - width - 52.0, score_label.position.y + 14.0)
@@ -2474,6 +3020,12 @@ func _hud(delta: float) -> void:
 		banner.modulate.a = clampf(banner_time * 2.0, 0.0, 1.0)
 	else:
 		banner.text = ""
+	heat_note.visible = playing
+	if heat_note_time > 0.0:
+		heat_note_time -= delta
+		heat_note.modulate.a = clampf(heat_note_time * 2.0, 0.0, 1.0)
+	else:
+		heat_note.text = ""
 
 
 ## A mouse press with no touch with it, two frames on: its finger's coming down was lost, so the
@@ -2779,6 +3331,8 @@ func radar_marks() -> Array:
 			nearest = _keep_nearest(nearest, "power", t.position)
 		elif t.info.get("rare", false) and not t.info.has("unlock"):
 			nearest = _keep_nearest(nearest, "rare", t.position)
+		elif t.kind == "rival" and t.ground().distance_to(here) < Radar.RANGE:
+			marks.append([t.ground(), Color(1.0, 0.4, 0.9), 5.0])
 		elif t.is_enemy() and t.ground().distance_to(here) < Radar.RANGE:
 			marks.append([t.ground(), Color(1.0, 0.3, 0.25), 3.0])
 	var colours := {"trader": Color(0.5, 1.0, 0.55), "facility": Color(1.0, 0.8, 0.25), "power": Color(0.4, 0.75, 1.0), "rare": Color(1.0, 1.0, 0.5)}
@@ -2952,3 +3506,27 @@ class PauseBars extends Control:
 		for side: float in [-1.0, 1.0]:
 			var x := c.x + side * (gap * 0.5 + bar.x * 0.5) - bar.x * 0.5
 			draw_rect(Rect2(x, c.y - bar.y * 0.5, bar.x, bar.y), Color(0.75, 1.0, 0.78))
+
+
+## Sparkles bursting off the score when something is swallowed (see `abducted`)
+class ScoreSparks extends Control:
+	## Each: [where, velocity, age]
+	var sparks: Array = []
+
+	func burst(at: Vector2, count: int) -> void:
+		for i in count:
+			var a := randf_range(PI * 0.6, PI * 2.1)
+			sparks.append([at, Vector2(cos(a), sin(a)) * randf_range(80.0, 220.0), 0.0])
+
+	func _process(delta: float) -> void:
+		for s: Array in sparks:
+			s[2] += delta
+			s[1] = (s[1] as Vector2) * (1.0 - minf(delta * 2.5, 1.0)) + Vector2(0, 160.0 * delta)
+			s[0] = (s[0] as Vector2) + (s[1] as Vector2) * delta
+		sparks = sparks.filter(func(s: Array) -> bool: return s[2] < 0.7)
+		queue_redraw()
+
+	func _draw() -> void:
+		for s: Array in sparks:
+			var k: float = 1.0 - s[2] / 0.7
+			draw_circle(s[0], 3.0 + 3.0 * k, Color(0.6, 1.0, 0.65, k))

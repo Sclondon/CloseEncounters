@@ -36,12 +36,12 @@ func play(name: String) -> void:
 	song = name
 	for other: String in players:
 		var p: AudioStreamPlayer = players[other]
-		var tw := create_tween()
 		if other == name and not muted:
 			if not p.playing:
 				p.volume_db = -40.0
 				p.play()
-			tw.tween_property(p, "volume_db", LOUD, FADE * 0.5)
+			create_tween().tween_property(p, "volume_db", LOUD, FADE * 0.5)
 		elif p.playing:
+			var tw := create_tween()
 			tw.tween_property(p, "volume_db", -60.0, FADE)
 			tw.tween_callback(p.stop)

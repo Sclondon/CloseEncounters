@@ -22,6 +22,10 @@ extends Node3D
 
 enum Biome { FARM, PLAINS, DESERT, MESA, MOUNTAIN }
 const CHUNK := 48.0
+## Where a run starts: over a cornfield, the chunk off the corner of the first town
+const START := Vector3(48, 0, 48)
+## Props tall enough for the saucer to fly into
+const TALL := ["watchtower", "water_tower", "silo", "clock_tower", "control_tower", "radio_tower", "church"]
 ## Chunks are made out to this many from the saucer's, and dropped beyond FAR
 const NEAR := 3
 const FAR := 4
@@ -29,7 +33,14 @@ const FAR := 4
 const ROAD_EVERY := 5
 ## Devils Tower: one of it, about a kilometre out from where the game starts, well away from the
 ## roads, in a forest of pines
-const TOWER := Vector3(-624, 0, -864)
+## Where Devils Tower stands (moved by `reseed`)
+static var TOWER := Vector3(-624, 0, -864)
+## The world's seed: a new one each run makes a new country (see `reseed`); 0 is the first one
+static var world_seed := 0
+## The roads' wandering and which of them are dirt, from the seed (see `reseed`)
+static var _road_phase := 0.0
+static var _dirt_step_x := 7
+static var _dirt_step_z := 11
 const BIOME_SPAN := 13
 
 var game: Node
@@ -83,6 +94,45 @@ func _ready() -> void:
 	add_child(ground)
 
 
+
+## A new country from `s`: its regions, roads and props all change, and Devils Tower moves. Forgets
+## every chunk made so far (and all that was in them); they are made again round the ship as it goes.
+func reseed(s: int) -> void:
+	world_seed = s
+	var r := RandomNumberGenerator.new()
+	r.seed = s
+	_road_phase = r.randf() * TAU if s != 0 else 0.0
+	_dirt_step_x = [7, 6, 9, 8][r.randi() % 4] if s != 0 else 7
+	_dirt_step_z = [11, 12, 13, 14][r.randi() % 4] if s != 0 else 11
+	if s != 0:
+		# (out somewhere 15 to 22 chunks off, never on a road line)
+		var a := r.randf() * TAU
+		var d := r.randf_range(15.0, 22.0)
+		var c := Vector2i(roundi(cos(a) * d), roundi(sin(a) * d))
+		c.x += posmod(2 - c.x, ROAD_EVERY)
+		c.y += posmod(2 - c.y, ROAD_EVERY)
+		TOWER = centre_of(c)
+	else:
+		TOWER = Vector3(-624, 0, -864)
+	_ground_mat.set_shader_parameter("road_phase", _road_phase)
+	_ground_mat.set_shader_parameter("dirt_step", Vector2(_dirt_step_x, _dirt_step_z))
+	for c: Vector2i in chunks.keys():
+		chunks[c].queue_free()
+		if game != null:
+			game.forget_chunk(c)
+	chunks.clear()
+	obstacles.clear()
+	loose.clear()
+	lakes.clear()
+	_queue.clear()
+	_centre = Vector2i(99999, 99999)
+	_circles.fill(Vector4.ZERO)
+	_links.fill(Vector4.ZERO)
+	_circle_next = 0
+	_link_next = 0
+	_ground_mat.set_shader_parameter("circles", _circles)
+	_ground_mat.set_shader_parameter("links", _links)
+
 # ------------------------------------------------------------------ where things are
 
 static func chunk_of(p: Vector3) -> Vector2i:
@@ -95,7 +145,7 @@ static func centre_of(c: Vector2i) -> Vector3:
 
 ## A number from 0 to 1 that only depends on the three it is given
 static func hash3(x: int, z: int, s: int) -> float:
-	var h := (x * 374761393 + z * 668265263 + s * 1442695041) & 0x7fffffff
+	var h := (x * 374761393 + z * 668265263 + s * 1442695041 + world_seed * 2654435761) & 0x7fffffff
 	h = ((h ^ (h >> 13)) * 1274126177) & 0x7fffffff
 	h = h ^ (h >> 16)
 	return float(h & 0xffff) / 65535.0
@@ -167,16 +217,16 @@ static func _wander(line: float, t: float) -> float:
 	var spacing := CHUNK * ROAD_EVERY
 	var from_crossing := absf(t - roundf(t / spacing) * spacing)
 	var amount := MEANDER * smoothstep(30.0, 90.0, from_crossing)
-	return amount * (sin(t * 0.013 + line * 1.7) + 0.45 * sin(t * 0.031 + line * 2.9)) / 1.45
+	return amount * (sin(t * 0.013 + line * 1.7 + _road_phase) + 0.45 * sin(t * 0.031 + line * 2.9 + _road_phase * 1.3)) / 1.45
 
 
 ## Whether the road along column `n` / row `m` is a dirt road
 static func dirt_x(n: int) -> bool:
-	return posmod(floori(n / float(ROAD_EVERY)) * 7 + 3, 5) < 2
+	return posmod(floori(n / float(ROAD_EVERY)) * _dirt_step_x + 3, 5) < 2
 
 
 static func dirt_z(m: int) -> bool:
-	return posmod(floori(m / float(ROAD_EVERY)) * 11 + 3, 5) < 2
+	return posmod(floori(m / float(ROAD_EVERY)) * _dirt_step_z + 3, 5) < 2
 
 
 ## How wide either side of its middle a road is
@@ -498,11 +548,7 @@ func _make(c: Vector2i) -> void:
 			Biome.MOUNTAIN:
 				_mountain()
 		_watchers(c, b)
-		if not road_x and not road_z and b != Biome.MOUNTAIN and hash3(c.x, c.y, 81) < 0.07:
-			var at := _spot(8.0)
-			if at != Vector3.INF:
-				_take(at, 8.0)
-				_prop("substation", at, _rng.randi_range(0, 3) * PI / 2)
+		_country_folk(c, b)
 	if road_x:
 		_phone_line(c, "z")
 	if road_z:
@@ -615,6 +661,10 @@ func _prop(name: String, at: Vector3, turn := 0.0, size := 1.0, tints := {}, blo
 	if game == null:
 		_put(name, at, turn, size, tints)
 		return
+	if block == Vector4.ZERO and name in TALL:
+		# (tall enough to fly into: the saucer bounces off it, see push_out)
+		block = Vector4(at.x, at.z, float(Thing.KINDS[name]["size"]) * size * 0.6, 12.0)
+		(obstacles[_chunk] as Array).append(block)
 	game.spawn_later(name, at, {"turn": turn, "size": size, "tints": tints, "chunk": _chunk, "obstacle": block})
 
 
@@ -711,6 +761,8 @@ func _farm() -> void:
 			_spawn("tractor", at + basis * Vector3(12, 0, 6))
 		_prop("hay_pile", at + basis * Vector3(-13, 0, 3), _rng.randf() * TAU, _rng.randf_range(0.8, 1.1))
 		_herd("hay_bale", at + basis * Vector3(-12, 0, 8), _rng.randi_range(2, 4), 3.0)
+		if _rng.randf() < 0.6:
+			_herd("barrel", at + basis * Vector3(-3, 0, -12), _rng.randi_range(2, 3), 1.5)
 		if _rng.randf() < 0.4:
 			_spawn("outhouse", at + basis * Vector3(14, 0, -2))
 	elif _rng.randf() < 0.15:
@@ -825,11 +877,13 @@ func _plains() -> void:
 				if jack != Vector3.INF:
 					_take(jack, 3.0)
 					_spawn("pumpjack", jack)
+			if _rng.randf() < 0.6:
+				_herd("barrel", _near(at, 6.0, 1.0), 2, 1.5)
 
 
 func _desert() -> void:
 	for i in _rng.randi_range(6, 12):
-		_plant("saguaro", 0.7, 1.15, Vector3.INF, 1.0)
+		_plant("saguaro", 0.45, 0.7, Vector3.INF, 1.0)
 	for i in _rng.randi_range(4, 8):
 		_plant("prickly_pear", 0.7, 1.2, Vector3.INF, 0.6)
 	for i in _rng.randi_range(3, 6):
@@ -952,6 +1006,7 @@ func _base() -> void:
 			if absf(along) > 4.0 or side < 0.0:
 				_plant_at("fence", base + Vector3(side * 21.0, 0, along), PI / 2)
 	_herd("person", base + Vector3(0, 0, 8), 2, 8.0)
+	_herd("barrel", base + Vector3(-15, 0, 4), _rng.randi_range(4, 6), 2.0)
 
 
 ## A secret government facility: a captured ship on a pad in the middle, under searchlights from four
@@ -1123,6 +1178,20 @@ func _phone_line(c: Vector2i, axis: String) -> void:
 		if has_road(c.x) and has_road(c.y) and (absf(at.x - base.x) < 5.0 and absf(at.z - base.z) < 5.0):
 			continue
 		game.spawn_later("phone_pole", at, {"turn": 0.0, "chunk": c, "wire_to": next})
+	# Now and then a substation beside the road, off the poles' side, a pole wired across to it
+	if not (has_road(c.x) and has_road(c.y)) and hash3(c.x, c.y, 81 if axis == "z" else 82) < 0.14:
+		var yard: Vector3
+		var feed: Vector3
+		if axis == "z":
+			yard = Vector3(road_x(c.x, base.z + 8.0) + 12.0, 0, base.z + 8.0)
+			feed = Vector3(road_x(c.x, base.z + 8.0) + 4.5, 0, base.z + 8.0)
+		else:
+			yard = Vector3(base.x + 8.0, 0, road_z(c.y, base.x + 8.0) - 12.0)
+			feed = Vector3(base.x + 8.0, 0, road_z(c.y, base.x + 8.0) - 4.5)
+		if _clear(yard, 5.0):
+			_take(yard, 6.0)
+			_prop("substation", yard, PI / 2 if axis == "z" else 0.0)
+			game.spawn_later("phone_pole", feed, {"turn": 0.0, "chunk": c, "wire_to": yard})
 	# A phone booth across the road from the poles, mostly, its door to the road
 	if hash3(c.x, c.y, 133 if axis == "z" else 134) < 0.6:
 		if axis == "z":
@@ -1172,6 +1241,7 @@ func _airfield() -> void:
 			_prop("plane", at, turn + PI / 2 + _rng.randf_range(-0.3, 0.3))
 			_take(at, 4.5)
 	_herd("person", base + basis * Vector3(10, 0, 0), _rng.randi_range(1, 3), 6.0)
+	_herd("barrel", base + basis * Vector3(13, 0, -4), _rng.randi_range(3, 5), 2.0)
 
 
 ## A lake, dark under the moon, with reeds and trees round its shore
@@ -1225,7 +1295,9 @@ enum Field { NONE, PASTURE, WHEAT, CORN, PUMPKIN, PLOUGHED, GREEN }
 static func field(c: Vector2i) -> int:
 	if biome(c) != Biome.FARM or is_town(c) or is_edge_of_town(c) or facility(c) != "" or is_base(c) or airfield(c):
 		return Field.NONE
-	# (always pasture right round where the game starts, for a farm to be seen at once)
+	# (corn under the ship where the game starts, and pasture round it, for a farm to be seen at once)
+	if c == chunk_of(START):
+		return Field.CORN
 	if maxi(absi(c.x), absi(c.y)) <= 1:
 		return Field.PASTURE
 	var h := hash3(c.x, c.y, 151)
@@ -1245,3 +1317,28 @@ static func field(c: Vector2i) -> int:
 ## Which way a field's rows run: across x (true) or along z
 static func rows_across(c: Vector2i) -> bool:
 	return hash3(c.x, c.y, 152) < 0.5
+
+
+## People out in the country at night: campers round their tents, hikers in the hills, and now
+## and then a stargazer at a telescope (who gives the ship away if it lingers in their sky)
+func _country_folk(c: Vector2i, b: int) -> void:
+	var wild := b != Biome.FARM or field(c) == Field.PASTURE
+	if not wild:
+		return
+	if b != Biome.FARM and hash3(c.x, c.y, 161) < 0.09:
+		var at := _spot(6.0)
+		if at != Vector3.INF:
+			_take(at, 6.0)
+			_prop("camp_tent", at, _rng.randf() * TAU)
+			if _rng.randf() < 0.5:
+				_prop("camp_tent", at + Vector3(3.5, 0, 1.5), _rng.randf() * TAU)
+			_herd("camper", at + Vector3(0, 0, 3.0), _rng.randi_range(2, 3), 3.0)
+	if b == Biome.MOUNTAIN and _rng.randf() < 0.4 or b == Biome.PLAINS and _rng.randf() < 0.12:
+		_herd("hiker", _spot(2.0), _rng.randi_range(1, 2), 4.0)
+	if hash3(c.x, c.y, 162) < 0.07:
+		var at := _spot(3.0)
+		if at != Vector3.INF:
+			_take(at, 3.0)
+			var turn := _rng.randf() * TAU
+			_prop("telescope", at, turn)
+			_spawn("stargazer", at + Basis(Vector3.UP, turn) * Vector3(0.8, 0, -0.6))
