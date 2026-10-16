@@ -165,6 +165,23 @@ the total. The score goes to the arcade page (`PLAYER_DIED`); the best score and
 `user://best.cfg`. **Each run is a new country** (`World.reseed`): new regions, roads and props, and Devils
 Tower somewhere else (the tests keep the first one). A run always starts over a cornfield by the first town.
 
+### Multiplayer
+
+On the title the arrows pick **SINGLE PLAYER** or **MULTIPLAYER**, and **SAUCERS** shows every ship as a
+hologram to pick from (those not yet found greyed out). PLAY in MULTIPLAYER opens the lobby: **HOST A ROOM**
+(a four-letter code to give friends) or type a code and **JOIN**; up to four saucers. The one who made the
+room presses START, and everyone lifts off for the same country: the leader's start carries the world's seed
+(as the room's "stage").
+
+It runs on the Scareathon server's rooms, the same as 8 Bit Evil Returns V2 and October Valley
+(`server/routes/closeEncounters.js` in scareathon-v3, at `/close-encounters/ws`; `scripts/net.gd` is October
+Valley's client). Each device flies its own saucer and has its own heat, police and score. Shared
+(`scripts/coop.gd`): each saucer's place, heading, beam and score, 15 times a second, drawn for the others
+as a `RemoteSaucer` with its pilot, its beam and P2/P3/P4 and its score over it; and what happens: anything
+taken up a beam is gone for everyone, crop circles are pressed for everyone, blasts are seen by everyone.
+Guests' packets reach only the host, which passes everything on. `--server=<url>` (or `?server=` on the page)
+points it at another server.
+
 ## The world
 
 Endless, made in 48 m chunks round the ship as it flies (`scripts/world.gd`) and dropped behind it; the same
@@ -241,6 +258,7 @@ objects the game moves: the tank's `turret`, the windmill's `fan`, the pumpjack'
     godot --path . --resolution 1280x720 -s res://tests/perf.gd           # frame time, draw calls, things
     godot --path . --resolution 640x360 --max-fps 60 -s res://tests/hitches.gd  # the worst frames through the lift-off and descent
     godot --path . --resolution 640x360 --max-fps 60 -s res://tests/beam_hitch.gd  # the worst frames round the first press of the beam
+    sh tools/coop_test.sh <scareathon-v3/server, with node_modules>   # multiplayer: a local relay of the site's rooms, a host and a guest
 
 Performance: each model is merged into one surface at load (colours on its corners, see `Ps1._merged`), so a
 thing is one draw call; nothing is drawn past 115 m (`Ps1.DRAW_TO`); far still things are not ticked and far

@@ -165,6 +165,10 @@ var hud: CanvasLayer
 var _hud_root: Control
 ## The log's little holograms of the models (see Holograms)
 var holograms: Holograms
+## Multiplayer: the room (Net), the other saucers (Coop), and the seed of the world shared in it
+var net: Net
+var coop: Coop
+var coop_seed := 0
 ## Where the moon is in the sky in a run (see _camera)
 var _moon_dir := Vector3.ZERO
 const DESKTOP_HUD := 0.78
@@ -316,6 +320,16 @@ func _ready() -> void:
 	_spawn_some(true)
 	_warm_models()
 	_warm_effects()
+	net = Net.new()
+	add_child(net)
+	coop = Coop.new()
+	coop.game = self
+	coop.net = net
+	add_child(coop)
+	net.room_changed.connect(_show_lobby)
+	net.started.connect(_coop_started)
+	net.failed.connect(func(why: String) -> void: _lobby_say(why))
+	net.closed.connect(_coop_closed)
 	holograms = Holograms.new()
 	add_child(holograms)
 	_build_hud()
@@ -442,6 +456,7 @@ func start(from_launch := false) -> void:
 		if t.is_enemy() or t.kind == "rival":
 			_remove(t)
 	_rival_wait = 50.0
+	coop.clear()
 	_run_taken.clear()
 	laser_mode = false
 	_five_for = 0.0
@@ -502,13 +517,14 @@ func start(from_launch := false) -> void:
 ## made so far forgotten, and the world made again round where the run starts. `now` makes it all at
 ## once; otherwise a chunk a frame, as on the way down from the moon.
 func _new_world(now: bool) -> void:
-	if testing:
+	if testing and coop_seed == 0:
 		return
 	_to_spawn.clear()
 	for t in things.duplicate():
 		if t.state != "walk" and not t.is_enemy():
 			_remove(t)
-	world.reseed(randi_range(1, 1 << 30))
+	# (in a multiplayer game, the country everyone shares: the seed the leader started with)
+	world.reseed(coop_seed if coop_seed != 0 else randi_range(1, 1 << 30))
 	_facility_wait = 0.0
 	if now:
 		world.update(World.START, 0.0, true)
@@ -642,6 +658,7 @@ func _process(delta: float) -> void:
 					sfx.play(t.info["voice"], randf_range(0.9, 1.1), -4.0)
 				if t.state == "walk":
 					_witnessed(t)
+					coop.tell("take", t.position, t.kind)
 				t.state = "lifted"
 				t.lift = clampf(t.position.y / (ufo.altitude - 0.9), 0.0, 1.0)
 			t.held = true
@@ -698,11 +715,11 @@ func _process(delta: float) -> void:
 	if mode == "over" and Input.is_action_just_pressed("start") and _over_wait <= 0.0 and _again.visible:
 		quit_to_menu()
 	if mode == "title" and Input.is_action_just_pressed("start"):
-		begin_launch()
+		_play_pressed()
 	elif mode == "title" and Input.is_action_just_pressed("left"):
-		_pick_ship(-1)
+		_pick_mode(-1)
 	elif mode == "title" and Input.is_action_just_pressed("right"):
-		_pick_ship(1)
+		_pick_mode(1)
 	if _over_wait > 0.0:
 		_over_wait -= delta
 
@@ -859,6 +876,7 @@ func _crop_circles(delta: float) -> void:
 	var r := minf(1.0 + (_circle_time - 0.05) * 1.0, full)
 	world.grow_circle(r)
 	if r >= full and not _circle_done and mode == "play":
+		coop.tell("circle", _circle_at, "", full)
 		_circle_done = true
 		var points := 60 * multiplier()
 		score += points
@@ -1441,6 +1459,7 @@ func _pull_scenery(delta: float) -> void:
 		return
 	var xf: Transform3D = found[1]
 	var t := spawn(found[0], xf.origin, {"turn": xf.basis.get_euler().y, "size": xf.basis.get_scale().x, "tints": found[2]})
+	coop.tell("pull", xf.origin, found[0])
 	t.state = "lifted"
 
 
@@ -2055,6 +2074,7 @@ const BLAST_REACH := 7.0
 ## `t` blows up where it lies: a fireball, the police and army near it destroyed (scored), people
 ## and animals running for it, and the heat up a little
 func explode(t: Thing) -> void:
+	coop.tell("boom", t.position, "", 4.5)
 	var at := t.position
 	boom(at + Vector3(0, 0.8, 0), 4.5)
 	boom(at + Vector3(randf_range(-1, 1), 1.8, randf_range(-1, 1)), 3.0)
@@ -2579,12 +2599,240 @@ func close_log() -> void:
 	title_box.visible = mode == "title"
 
 
+
+# ------------------------------------------------------------------ modes and the saucers
+
+## How the next run is played: alone, or with others (see Net); picked with the arrows by PLAY
+const MODES := ["single", "multi"]
+const MODE_TITLES := {"single": "SINGLE PLAYER", "multi": "MULTIPLAYER"}
+var play_mode := "single"
+
+
+func _pick_mode(step: int) -> void:
+	play_mode = MODES[posmod(MODES.find(play_mode) + step, MODES.size())]
+	sfx.play("click", 1.2, -6.0)
+	_show_ship()
+
+
+## The saucers: a hologram of each, to pick from (those not yet found greyed out, LOCKED)
+func open_saucers() -> void:
+	if mode != "title":
+		return
+	for old in _log_list.get_children():
+		old.queue_free()
+	var big := _upright()
+	_log_head.text = "SAUCERS"
+	_log_head.add_theme_font_size_override("font_size", 110 if big else 56)
+	_log_back.custom_minimum_size = Vector2(420, 140) if big else Vector2(260, 70)
+	_log_back.add_theme_font_size_override("font_size", 72 if big else 40)
+	var grid := GridContainer.new()
+	grid.columns = 2 if big else 3
+	grid.add_theme_constant_override("h_separation", 18)
+	grid.add_theme_constant_override("v_separation", 18)
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_log_list.add_child(grid)
+	for s: String in Ufo.ORDER:
+		var spec: Dictionary = Ufo.SHIPS[s]
+		var have := s in unlocked
+		var b := _button(spec["title"] if have else "%s\nLOCKED" % spec["title"], func() -> void: _choose_ship(s))
+		b.icon = holograms.icon(s)
+		b.expand_icon = true
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		b.custom_minimum_size = Vector2(300, 300) if big else Vector2(220, 200)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.add_theme_font_size_override("font_size", 40 if big else 26)
+		if s == ship:
+			b.add_theme_color_override("font_color", Color(1.0, 0.95, 0.5))
+		if not have:
+			b.disabled = true
+			b.modulate = Color(0.45, 0.45, 0.45)
+		grid.add_child(b)
+	title_box.visible = false
+	_log_box.visible = true
+
+
+func _choose_ship(s: String) -> void:
+	if not s in unlocked:
+		return
+	ship = s
+	var at := ufo.ground()
+	ufo.queue_free()
+	_make_ufo(at)
+	_park_ufo()
+	_show_ship()
+	_save_best()
+	close_log()
+
+
+# ------------------------------------------------------------------ the multiplayer lobby
+
+var _lobby_box: VBoxContainer
+var _lobby_dim: ColorRect
+var _lobby_text: Label
+var _lobby_code: LineEdit
+var _lobby_host: Button
+var _lobby_join: Button
+var _lobby_start: Button
+var _lobby_leave: Button
+
+
+## PLAY on the title: off at once alone, or into the lobby for a multiplayer game
+func _play_pressed() -> void:
+	if mode != "title" or (_lobby_box != null and _lobby_box.visible):
+		return
+	if play_mode == "multi":
+		open_lobby()
+	else:
+		begin_launch()
+
+
+func _build_lobby(root: Control) -> void:
+	_lobby_dim = ColorRect.new()
+	_lobby_dim.color = Color(0.01, 0.04, 0.02, 0.8)
+	_lobby_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_lobby_dim.visible = false
+	root.add_child(_lobby_dim)
+	_lobby_box = _panel(root)
+	_lobby_box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_lobby_box.offset_top = 0.0
+	_lobby_box.offset_bottom = 0.0
+	_lobby_box.custom_minimum_size = Vector2(620, 0)
+	_lobby_box.offset_left = -310.0
+	_lobby_box.offset_right = 310.0
+	var head := _label(56, Color(0.75, 1.0, 0.78))
+	head.text = "MULTIPLAYER"
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_glow(head, Color(0.25, 1.0, 0.4, 0.4))
+	_lobby_box.add_child(head)
+	_lobby_text = _label(30, Color(0.85, 1.0, 0.86))
+	_lobby_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_lobby_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_lobby_box.add_child(_lobby_text)
+	_lobby_host = _button("HOST A ROOM", func() -> void:
+		_lobby_say("Making a room...")
+		net.create(ship))
+	_lobby_box.add_child(_lobby_host)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	_lobby_code = LineEdit.new()
+	_lobby_code.placeholder_text = "CODE"
+	_lobby_code.max_length = 4
+	_lobby_code.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_lobby_code.custom_minimum_size = Vector2(220, 70)
+	_lobby_code.add_theme_font_override("font", font)
+	_lobby_code.add_theme_font_size_override("font_size", 40)
+	_lobby_code.text_changed.connect(func(t: String) -> void:
+		var up := t.to_upper()
+		if up != t:
+			_lobby_code.text = up
+			_lobby_code.caret_column = up.length())
+	row.add_child(_lobby_code)
+	_lobby_join = _button("JOIN", func() -> void:
+		if _lobby_code.text.length() == 4:
+			_lobby_say("Joining %s..." % _lobby_code.text)
+			net.join(_lobby_code.text, ship))
+	row.add_child(_lobby_join)
+	_lobby_box.add_child(row)
+	_lobby_start = _button("START", func() -> void:
+		# (the country everyone will share: its seed goes out as the room's stage)
+		net.pick_stage("s%d" % randi_range(1, 1 << 30))
+		net.start_game())
+	_lobby_box.add_child(_lobby_start)
+	_lobby_leave = _button("BACK", close_lobby)
+	_lobby_box.add_child(_lobby_leave)
+	_lobby_box.visible = false
+
+
+func open_lobby() -> void:
+	title_box.visible = false
+	_lobby_box.visible = true
+	_lobby_dim.visible = true
+	_show_lobby()
+
+
+## Out of the lobby (and out of any room) and back to the title
+func close_lobby() -> void:
+	if net.active():
+		net.leave()
+	_lobby_box.visible = false
+	_lobby_dim.visible = false
+	title_box.visible = mode == "title"
+
+
+func _lobby_say(text: String) -> void:
+	if _lobby_text != null:
+		_lobby_text.text = text
+
+
+## The lobby as it stands: not in a room yet (host or join), or in one (its code, who is in it,
+## and START for whoever made it)
+func _show_lobby() -> void:
+	if _lobby_box == null:
+		return
+	var inside := net.active()
+	_lobby_host.visible = not inside
+	_lobby_code.get_parent().visible = not inside
+	_lobby_start.visible = inside and net.slot == 0
+	_lobby_leave.text = "LEAVE" if inside else "BACK"
+	if not inside:
+		_lobby_say("Fly together: up to four saucers over the same country.\nHost a room, or type a friend's code.")
+		return
+	var names: Array[String] = []
+	for p: Dictionary in net.players:
+		names.append("P%d  %s%s" % [int(p["slot"]) + 1, Ufo.SHIPS.get(str(p.get("hero", "saucer")), Ufo.SHIPS["saucer"])["title"], "  (away)" if p.get("away", false) else ""])
+	var waiting := "Press START when everyone is in." if net.slot == 0 else "Waiting for P1 to start..."
+	_lobby_say("ROOM  %s\n\n%s\n\n%s" % [net.code, "\n".join(names), waiting])
+
+
+## The leader started: off everyone goes, over the same country
+func _coop_started(_players: Array, stage: String) -> void:
+	coop_seed = int(stage.trim_prefix("s")) if stage.begins_with("s") else 1
+	_lobby_box.visible = false
+	_lobby_dim.visible = false
+	coop.clear()
+	begin_launch()
+
+
+## The room gone from under us (the host left, it idled out, or the connection never came back)
+func _coop_closed(_reason: String) -> void:
+	coop.clear()
+	coop_seed = 0
+	if mode == "play":
+		_heat_note("THE OTHERS ARE GONE", 2.5)
+	elif _lobby_box != null and _lobby_box.visible:
+		_show_lobby()
+		_lobby_say("The room closed.")
+
+
+## Something that happened on another player's device (see Coop.tell)
+func coop_event(what: String, at: Vector3, kind: String, size: float) -> void:
+	match what:
+		"take":
+			var best: Thing = null
+			var near := 5.0
+			for t in things:
+				if t.kind == kind and t.state == "walk" and t.position.distance_to(at) < near:
+					near = t.position.distance_to(at)
+					best = t
+			if best != null:
+				ufo.puffs.puff(best.position + Vector3(0, 0.5, 0), Color(0.6, 1.0, 0.7, 0.6), 0.6, Vector3(0, 3.0, 0), 0.6)
+				_remove(best)
+		"pull":
+			world.pull(at, 1.2, 9)
+		"circle":
+			world.crop_circle(at, size)
+		"boom":
+			boom(at + Vector3(0, 0.8, 0), size)
+
 ## The log written out afresh: the ships, then everything there is to take, then the hunters; what
 ## has not been come across yet is ???
 func _fill_log() -> void:
 	for old in _log_list.get_children():
 		old.queue_free()
 	var big := _upright()
+	_log_head.text = "LOG"
 	_log_head.add_theme_font_size_override("font_size", 110 if big else 56)
 	_log_back.custom_minimum_size = Vector2(420, 140) if big else Vector2(260, 70)
 	_log_back.add_theme_font_size_override("font_size", 72 if big else 40)
@@ -2859,8 +3107,8 @@ func _build_hud() -> void:
 	var picker := HBoxContainer.new()
 	picker.alignment = BoxContainer.ALIGNMENT_CENTER
 	picker.add_theme_constant_override("separation", 16)
-	_arrows = [_button("<", func() -> void: _pick_ship(-1)), _button(">", func() -> void: _pick_ship(1))]
-	_play_button = _button("PLAY", begin_launch)
+	_arrows = [_button("<", func() -> void: _pick_mode(-1)), _button(">", func() -> void: _pick_mode(1))]
+	_play_button = _button("PLAY", _play_pressed)
 	picker.add_child(_arrows[0])
 	picker.add_child(_play_button)
 	picker.add_child(_arrows[1])
@@ -2871,6 +3119,7 @@ func _build_hud() -> void:
 	_title_row = HBoxContainer.new()
 	_title_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_title_row.add_theme_constant_override("separation", 20)
+	_title_row.add_child(_button("SAUCERS", open_saucers))
 	_title_row.add_child(_button("LOG", open_log))
 	# (the scores and QUIT are the arcade's: only inside it, or for QUIT, off the web)
 	if _in_arcade():
@@ -2910,6 +3159,7 @@ func _build_hud() -> void:
 	_picks.alignment = BoxContainer.ALIGNMENT_CENTER
 	_picker.add_child(_picks)
 	_build_log(root)
+	_build_lobby(root)
 
 
 	# A pause button in the corner, and what pausing shows
@@ -3072,6 +3322,11 @@ func _launch(delta: float) -> void:
 ## the stars (the descent backwards, see `_going_home`), then down onto the moon (the flight off it
 ## backwards), and the pilot back in the chair on the title
 func quit_to_menu() -> void:
+	# (out of any multiplayer room: the others fly on without us)
+	if net != null and net.active():
+		net.leave()
+	coop.clear()
+	coop_seed = 0
 	set_paused(false)
 	_forget_fingers()
 	for t in things.duplicate():
@@ -3173,14 +3428,14 @@ func _pick_ship(step: int) -> void:
 	_save_best()
 
 
+## Over PLAY: the mode the arrows pick, and the saucer it is played in
 func _show_ship() -> void:
 	var spec: Dictionary = Ufo.SHIPS[ship]
+	ship_label.text = "%s  ·  %s" % [MODE_TITLES[play_mode], spec["title"]]
 	if ship in unlocked:
-		ship_label.text = spec["title"]
 		_play_button.text = "PLAY"
 		_play_button.disabled = false
 	else:
-		ship_label.text = spec["title"]
 		_play_button.text = "LOCKED"
 		_play_button.disabled = true
 

@@ -552,7 +552,7 @@ func _walk(delta: float, ufo: Ufo) -> void:
 			if _noticed(delta, ufo, near):
 				pace = _police(delta, ufo, to_ufo, near, pace)
 				want = _chase_want
-			elif game.heat_level() >= 2 and near > 25.0:
+			elif game.heat_level() >= 2:
 				# (sent out after a report: making for where the ship was seen, looking for it)
 				want = to_ufo.normalized()
 				pace *= 0.7
@@ -726,7 +726,7 @@ func _noticed(delta: float, ufo: Ufo, near: float) -> bool:
 		return true
 	var sight: float = SIGHT + 10.0 * game.heat_level()
 	if near < sight and not ufo.dead:
-		var rate: float = lerpf(0.75, 0.3, near / sight) * (1.6 if ufo.beaming else 1.0) * (1.0 + 0.35 * game.heat_level())
+		var rate: float = lerpf(0.75, 0.3, near / sight) * (1.6 if ufo.beaming else 1.0) * (1.0 + 0.6 * game.heat_level())
 		alert = minf(alert + rate * delta, 1.0)
 	else:
 		alert = maxf(alert - 0.2 * delta, 0.0)

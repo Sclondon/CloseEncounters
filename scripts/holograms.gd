@@ -70,9 +70,10 @@ func _process(_delta: float) -> void:
 	if _queue.is_empty():
 		return
 	var kind: String = _queue.pop_front()
-	if not Thing.KINDS.has(kind):
+	# (a kind of thing, or one of the ships, by its name in Ufo.SHIPS)
+	var info: Dictionary = Thing.KINDS.get(kind, Ufo.SHIPS.get(kind, {}))
+	if info.is_empty():
 		return
-	var info: Dictionary = Thing.KINDS[kind]
 	var name: String = info.get("model", kind)
 	if name != "pine" and not ResourceLoader.exists("res://models/%s.glb" % name):
 		return
