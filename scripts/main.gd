@@ -713,7 +713,7 @@ func _process(delta: float) -> void:
 		_stand_in.tick(delta, Vector2.ZERO, false)
 	if not ufo.dead:
 		var held := ufo.position
-		ufo.position = world.push_out(ufo.position, 2.6, ufo.altitude)
+		ufo.position = world.push_out(ufo.position, 2.6, ufo.altitude - 1.0)
 		ufo.position.y = held.y
 		if mode == "play" and ufo.position.distance_to(held) > 0.01:
 			var was := ufo.hull
@@ -2423,7 +2423,7 @@ func _detonate(at: Vector3) -> void:
 		ufo.puffs.puff(at + Vector3(cos(a) * 9.0, 32.0, sin(a) * 9.0), Color(0.9, 0.45, 0.2, 0.9), 7.0, Vector3(cos(a) * 3.0, 4.0, sin(a) * 3.0), 4.5)
 	# everything in it gone (all but the land itself)
 	for t in things.duplicate():
-		if t.state != "walk" or t.obstacle != Vector4.ZERO and not t.kind in World.TALL:
+		if t.state != "walk" or t.kind in World.LANDFORMS:
 			continue
 		if Vector2(t.position.x - at.x, t.position.z - at.z).length() < NUKE_REACH:
 			if t.obstacle != Vector4.ZERO:
@@ -2776,6 +2776,10 @@ func spawn_car(kind: String, at: Vector3, axis: String, dir: float) -> Thing:
 
 func _remove(t: Thing) -> void:
 	t.state = "gone"
+	# (gone, it no longer stands in the way)
+	if t.obstacle != Vector4.ZERO:
+		world.remove_obstacle(t.chunk, t.obstacle)
+		t.obstacle = Vector4.ZERO
 	things.erase(t)
 	t.queue_free()
 

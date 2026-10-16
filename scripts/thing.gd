@@ -180,6 +180,11 @@ const KINDS := {
 	"highway_sign": {"points": 60, "weight": 2.0, "heat": 0.2, "move": "still", "size": 2.0, "tier": 2},
 	"trash_can": {"points": 10, "weight": 0.4, "heat": 0.02, "move": "still", "size": 0.5},
 	"bush": {"points": 8, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
+	# Farming: grain elevators by the railway, coops, center-pivot irrigation over the fields, feed bins
+	"grain_elevator": {"points": 1300, "weight": 8.0, "heat": 0.6, "move": "still", "size": 6.0, "tier": 4},
+	"chicken_coop": {"points": 90, "weight": 1.5, "heat": 0.1, "move": "still", "size": 1.6, "tier": 2},
+	"irrigation": {"points": 160, "weight": 3.0, "heat": 0.1, "move": "still", "size": 3.0, "tier": 2},
+	"feed_bin": {"points": 140, "weight": 2.5, "heat": 0.1, "move": "still", "size": 1.8, "tier": 2},
 	# Fire trucks and ambulances on the roads; hospitals and fire stations in town; prisons out in the
 	# country, the inmates in orange in the yard
 	"fire_truck": {"points": 420, "weight": 4.0, "heat": 0.5, "move": "road", "speed": 9.0, "size": 3.0, "tier": 2},
@@ -1540,7 +1545,7 @@ static func category(of: String) -> String:
 		return "PLANTS"
 	if of in ["butte", "mesa", "peak", "devils_tower", "hill", "rock"]:
 		return "THE LAND"
-	if info["move"] in ["road", "police", "patrol", "hover", "rail"] or info.get("enemy", false) or of in ["tractor", "pumpjack", "windmill", "plane", "telescope", "barrel", "phone_booth", "phone_pole", "lot_car", "junk_car", "excavator", "mixer", "crane", "tube_man", "balloon"]:
+	if info["move"] in ["road", "police", "patrol", "hover", "rail"] or info.get("enemy", false) or of in ["tractor", "pumpjack", "windmill", "plane", "telescope", "barrel", "phone_booth", "phone_pole", "irrigation", "lot_car", "junk_car", "excavator", "mixer", "crane", "tube_man", "balloon"]:
 		return "MACHINES"
 	if int(info.get("tier", 1)) >= 3:
 		return "BUILDINGS"

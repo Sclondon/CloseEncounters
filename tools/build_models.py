@@ -2349,11 +2349,52 @@ def prison():
     return join("prison", p)
 
 
+def grain_elevator():
+    """A grain elevator: a row of tall concrete bins, the head house up on top, and the spout down to
+    the loading track"""
+    p = []
+    for i in range(4):
+        p.append(drum(1.6, 16.0, (-4.8 + i * 3.2, 0, 8.0), "concrete", 12))
+        p.append(drum(1.65, 0.3, (-4.8 + i * 3.2, 0, 16.1), "metal_dark", 12))
+    p += [box((12.0, 3.0, 0.4), (0, 0, 16.4), "concrete"), box((4.0, 3.0, 4.0), (-1.5, 0, 18.6), "concrete"),
+          box((4.2, 3.2, 0.3), (-1.5, 0, 20.7), "roof"), box((2.0, 0.1, 0.8), (-1.5, -1.55, 19.2), "window"),
+          box((0.3, 0.3, 9.0), (6.4, -1.0, 12.0), "metal_dark", (0, -0.5, 0)), box((3.0, 4.0, 3.0), (-8.0, 0, 1.5), "metal")]
+    return join("grain_elevator", p)
+
+
+def chicken_coop():
+    """A chicken coop: a little red shed up on legs, its ramp down and a wire run beside it"""
+    p = [box((2.0, 1.6, 1.2), (0, 0, 1.2), "barn"), box((2.2, 1.0, 0.1), (0, -0.45, 1.95), "roof", (0.4, 0, 0)),
+         box((2.2, 1.0, 0.1), (0, 0.45, 1.95), "roof", (-0.4, 0, 0)), box((0.4, 1.4, 0.06), (0.4, -1.3, 0.35), "wood", (0.55, 0, 0)),
+         box((2.6, 2.4, 1.0), (0, -2.6, 0.5), "metal"), box((0.36, 0.06, 0.36), (0.4, -0.82, 1.1), "black")]
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.append(box((0.1, 0.1, 0.6), (0.9 * sx, 0.7 * sy, 0.3), "wood_dark"))
+    return join("chicken_coop", p)
+
+
+def irrigation():
+    """A center-pivot irrigation line: a long low truss of pipe across the field on wheeled towers"""
+    p = [box((30.0, 0.2, 0.2), (0, 0, 3.0), "metal"), drum(0.5, 3.0, (-15.0, 0, 1.5), "metal_dark", 8)]
+    for i in range(5):
+        x = -9.0 + i * 6.0
+        p += [box((0.12, 0.12, 3.0), (x - 0.6, 0, 1.5), "metal", (0, -0.2, 0)), box((0.12, 0.12, 3.0), (x + 0.6, 0, 1.5), "metal", (0, 0.2, 0))]
+        p += wheel(0.5, 0.2, (x, 0, 0.5))
+        p.append(drum(0.4, 0.08, (x + 3.0, 0, 2.6), "metal_dark", 6))
+    return join("irrigation", p)
+
+
+def feed_bin():
+    """A small round grain bin of corrugated steel with its cone roof"""
+    return join("feed_bin", [drum(1.6, 3.2, (0, 0, 1.6), "chrome", 14), cone(1.7, 1.2, (0, 0, 3.8), "metal", 14),
+                             drum(0.25, 0.3, (0, 0, 4.5), "metal_dark", 6)])
+
+
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
-            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek, sunflower, cabbage, melon, pepper, motorcycle, cult_altar, helicarrier, railgun, laser_truck, fire_truck, ambulance, hospital, fire_station, prison,
+            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek, sunflower, cabbage, melon, pepper, motorcycle, cult_altar, helicarrier, railgun, laser_truck, fire_truck, ambulance, hospital, fire_station, prison, grain_elevator, chicken_coop, irrigation, feed_bin,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,

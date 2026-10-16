@@ -25,7 +25,23 @@ const CHUNK := 48.0
 ## Where a run starts: over a cornfield, the chunk off the corner of the first town
 const START := Vector3(48, 0, 48)
 ## Props tall enough for the saucer to fly into
-const TALL := ["watchtower", "water_tower", "silo", "clock_tower", "control_tower", "radio_tower", "church"]
+## The land itself (not buildings): what a nuke leaves standing
+const LANDFORMS := ["butte", "mesa", "peak", "devils_tower", "hill"]
+## Props this tall (at their size) or taller stand in the ship's way (see `_prop`, `push_out`)
+const OBSTACLE_FROM := 5.0
+## Each model's height and the radius of its footprint, measured once from its mesh
+static var _measured := {}
+
+
+static func model_size(kind: String) -> Vector2:
+	if _measured.has(kind):
+		return _measured[kind]
+	var info: Dictionary = Thing.KINDS.get(kind, {})
+	var mesh := Ps1.model_mesh(info.get("model", kind))
+	var box := mesh.get_aabb() if mesh != null else AABB()
+	var size := Vector2(box.end.y + float(info.get("rest_y", 0.0)), (box.size.x + box.size.z) * 0.25 * 0.85)
+	_measured[kind] = size
+	return size
 ## Chunks are made out to this many from the saucer's, and dropped beyond FAR
 const NEAR := 3
 const FAR := 4
@@ -604,6 +620,12 @@ func _make(c: Vector2i) -> void:
 	if has_rail(c.y):
 		_taken.append(Vector3(0, -4.0, rail_z(c.y)))
 		_rail_line(c)
+		# (now and then a grain elevator by the line, in farm and plains country)
+		if b in [Biome.FARM, Biome.PLAINS] and not road_x and hash3(c.x, c.y, 221) < 0.35:
+			var elevator := Vector3(c.x * CHUNK + _rng.randf_range(-12.0, 12.0), 0, rail_z(c.y) + 8.5)
+			if _clear(elevator, 8.0):
+				_prop("grain_elevator", elevator, PI)
+				_take(elevator, 9.0)
 	# The landforms come first, this chunk's and its neighbours' (which may reach over into it),
 	# so that nothing is put down on top of them
 	for x in range(-1, 2):
@@ -815,10 +837,13 @@ func _prop(name: String, at: Vector3, turn := 0.0, size := 1.0, tints := {}, blo
 	if game == null:
 		_put(name, at, turn, size, tints)
 		return
-	if block == Vector4.ZERO and name in TALL:
-		# (tall enough to fly into: the saucer bounces off it, see push_out)
-		block = Vector4(at.x, at.z, float(Thing.KINDS[name]["size"]) * size * 0.6, 12.0)
-		(obstacles[_chunk] as Array).append(block)
+	if block == Vector4.ZERO and not name in LANDFORMS:
+		# (tall enough to fly into: the saucer bounces off it, see push_out; as tall as the model is,
+		# and about as wide, whatever it is)
+		var measured := model_size(name)
+		if measured.x * size >= OBSTACLE_FROM:
+			block = Vector4(at.x, at.z, measured.y * size, measured.x * size)
+			(obstacles[_chunk] as Array).append(block)
 	game.spawn_later(name, at, {"turn": turn, "size": size, "tints": tints, "chunk": _chunk, "obstacle": block})
 
 
@@ -906,12 +931,22 @@ func _farm() -> void:
 		_prop("silo", at + basis * Vector3(-12, 0, -12), 0.0, 0.48)
 		if _rng.randf() < 0.45:
 			_prop("silo", at + basis * Vector3(-15.5, 0, -9), 0.0, 0.42)
-		_take(at, 17.0)
+		elif _rng.randf() < 0.5:
+			_prop("feed_bin", at + basis * Vector3(-15.5, 0, -9), 0.0, 0.9)
 		var pen := at + basis * Vector3(-2, 0, 10)
 		_pen(pen, turn, 6, 4)
-		_herd("cow", pen, _rng.randi_range(2, 4), 6.0)
-		_herd(["sheep", "pig"][_rng.randi() % 2], pen, _rng.randi_range(1, 3), 5.0)
-		_herd("chicken", at + basis * Vector3(2, 0, -2), _rng.randi_range(2, 5), 5.0)
+		_herd("cow", pen, _rng.randi_range(2, 3), 6.0)
+		# (a pig pen beside it: a muddy wallow in a little pen, a trough, the pigs)
+		var sty := at + basis * Vector3(10, 0, 9)
+		Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.3, 0.2, 0.12)), sty + Vector3(0, 0.1, 0), Vector3(6.5, 0.14, 4.5), Vector3(0, turn, 0))
+		_pen(sty, turn, 2, 2)
+		Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.45, 0.3, 0.18)), sty + basis * Vector3(0, 0.3, -1.2), Vector3(1.8, 0.4, 0.5), Vector3(0, turn, 0))
+		_herd("pig", sty, _rng.randi_range(2, 3), 2.0)
+		if _rng.randf() < 0.5:
+			_herd("sheep", pen, _rng.randi_range(1, 2), 5.0)
+		# (the chickens round their coop)
+		_prop("chicken_coop", at + basis * Vector3(2, 0, -3), turn)
+		_herd("chicken", at + basis * Vector3(2, 0, -1), _rng.randi_range(2, 4), 4.0)
 		_spawn("farmer", at + basis * Vector3(4, 0, 2))
 		if _rng.randf() < 0.5:
 			_spawn("tractor", at + basis * Vector3(12, 0, 6))
@@ -921,6 +956,7 @@ func _farm() -> void:
 			_herd("barrel", at + basis * Vector3(-3, 0, -12), _rng.randi_range(2, 3), 1.5)
 		if _rng.randf() < 0.4:
 			_spawn("outhouse", at + basis * Vector3(14, 0, -2))
+		_take(at, 17.0)
 	elif _rng.randf() < 0.15:
 		# (a country church on its own)
 		var at := _spot(9.0)
@@ -957,6 +993,9 @@ func _crops(kind: int) -> void:
 					_plant_at(crop, p, _rng.randf() * TAU)
 				along += gap
 			row += rows
+	# (now and then a center-pivot irrigation line over the crop)
+	if crop != "" and _rng.randf() < 0.25:
+		_prop("irrigation", base + Vector3(_rng.randf_range(-8, 8), 0, _rng.randf_range(-8, 8)), _rng.randf() * TAU)
 	match kind:
 		Field.WHEAT:
 			if _rng.randf() < 0.4:
