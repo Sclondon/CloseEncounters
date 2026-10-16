@@ -877,7 +877,7 @@ func add_heat(amount: float) -> void:
 		return
 	# (each star harder to reach than the last, steeply: five stars takes a long, hot run)
 	var l := float(heat_level())
-	var damp := 0.75 / (1.0 + 1.6 * l + 0.8 * l * l)
+	var damp := 0.6 / (1.0 + 1.8 * l + 0.9 * l * l)
 	if _new_star > 0.0:
 		damp *= 0.25
 	heat = minf(heat + amount * damp, MAX_HEAT)
