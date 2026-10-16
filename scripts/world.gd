@@ -732,9 +732,9 @@ static func landforms(c: Vector2i) -> Array[Dictionary]:
 		# through for anything on the ground)
 		for i in HAVEN_PEAKS:
 			var a := i * TAU / HAVEN_PEAKS + rng.randf_range(-0.05, 0.05)
-			var size := rng.randf_range(0.21, 0.24)
+			var size := rng.randf_range(0.15, 0.17)
 			found.append({"name": "peak", "at": centre_of(c) + Vector3(sin(a), 0, cos(a)) * HAVEN_RING, "turn": rng.randf() * TAU,
-				"size": size, "radius": 20.0 * size, "skirt": 24.0 * size, "height": 22.0 * size})
+				"size": size, "radius": 20.0 * size, "skirt": 24.0 * size, "height": 35.0 * size})
 		return found
 	var b := biome(c)
 	var r := rng.randf()
@@ -753,7 +753,7 @@ static func landforms(c: Vector2i) -> Array[Dictionary]:
 		return found
 	# [radius it blocks, skirt on the ground, height] at size 1, and the sizes it comes in
 	var spec: Array = {"devils_tower": [11.0, 19.0, 26.0, 1.0, 1.0], "butte": [7.0, 10.0, 16.0, 0.85, 1.25],
-		"mesa": [14.5, 19.0, 12.0, 0.8, 1.1], "peak": [20.0, 24.0, 22.0, 0.75, 1.0]}[pick]
+		"mesa": [14.5, 19.0, 12.0, 0.8, 1.1], "peak": [20.0, 24.0, 35.0, 0.8, 1.05]}[pick]
 	var size := rng.randf_range(spec[3], spec[4])
 	var skirt: float = spec[1] * size
 	var room := maxf(CHUNK * 0.5 - skirt, 0.0)

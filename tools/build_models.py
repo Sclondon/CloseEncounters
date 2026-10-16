@@ -700,14 +700,14 @@ def devils_tower():
 
 
 def peak():
-    """A Rocky Mountain peak: craggy and lower than it was, its main summit with two shoulders, rock
+    """A Rocky Mountain peak: craggy and towering over the mesas, its main summit with two shoulders, rock
     outcrops on its flanks, snow only on its top"""
-    main = lathe("peak", [(24, 0), (20.5, 3.5), (16, 8), (11.5, 12.5), (7, 16.5), (3.2, 20), (0.4, 22)],
+    main = lathe("peak", [(24, 0), (20.5, 5.5), (16, 12.5), (11.5, 20), (7, 26.5), (3.2, 32), (0.4, 35)],
                  ["mountain", "mountain", "mountain", "mountain", "snow", "snow", "snow"], 14, 2.4, seed=11)
-    left = lathe("peak_l", [(11, 0), (8.5, 4), (5.5, 8.5), (2.4, 12), (0.3, 13.5)],
+    left = lathe("peak_l", [(11, 0), (8.5, 6.5), (5.5, 13.5), (2.4, 19), (0.3, 21.5)],
                  ["mountain", "mountain", "mountain", "snow", "snow"], 10, 1.5, seed=12)
     left.location = (12.5, 6.0, 0)
-    right = lathe("peak_r", [(9, 0), (7, 3.5), (4.4, 7), (1.8, 9.5), (0.3, 10.5)],
+    right = lathe("peak_r", [(9, 0), (7, 5.5), (4.4, 11), (1.8, 15), (0.3, 17)],
                   ["mountain", "mountain", "mountain", "snow", "snow"], 9, 1.3, seed=13)
     right.location = (-11.0, -9.0, 0)
     p = [main, left, right]
@@ -715,7 +715,7 @@ def peak():
     for i in range(8):
         a = rnd.uniform(0, math.tau)
         r = rnd.uniform(9.0, 17.0)
-        z = max(0.5, 16.0 - r * 0.9)
+        z = max(0.5, 26.0 - r * 1.45)
         p.append(roughen(ball((rnd.uniform(3.5, 6.0), rnd.uniform(3.0, 5.0), rnd.uniform(2.0, 3.5)), (r * math.cos(a), r * math.sin(a), z), "rock", 7, 4), 0.35, 60 + i))
     return join("peak", p)
 
