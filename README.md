@@ -43,7 +43,7 @@ lines), DITHER (the PlayStation dither and 15-bit colour, on or off), SHAKE (scr
 (30, 60 or as fast as the screen goes).
 
 **After a crash**: the wreck lies half in the ground in a ring of heaped dirt, burning; the pilot runs for it and
-is gunned down. The results (left-justified, typed out) give what was **analyzed** (taken) by category, the police
+is gunned down. The score and level orb leave the corner and the **RESULTS** (left-justified under a centred heading, typed out) give the **threat level** they had reached (LOW, GUARDED, ELEVATED, HIGH or SEVERE), what was **analyzed** (taken) by category, the police
 and army **destroyed** by kind (each section's lines indented under it), the total and best, and the **items**
 had as their holograms with their counts. TO THE MOON flies home; **REPLAY** flies straight up off the wreck into
 the stars and down again onto a new country, the new ship dropping into the picture from above. Watch long enough
@@ -67,6 +67,8 @@ The saucer turns slowly, faster on the move and with the beam on, fastest with b
 The pilot works a stick and a panel of buttons in front of it, mashes the buttons while the beam is on, and is
 thrown about the cockpit in a dodge. The ship's
 lights flash with the beam, a dodge and a hit.
+
+At start-up the game comes down out of the stars onto the moon, as it does after a crash, to the title.
 
 **Only the Zeebzer can be flown at first.** The other nine are held in **secret government facilities** out
 in the country (fenced compounds, four searchlight towers, a gold beacon over the captured ship): beam the ship

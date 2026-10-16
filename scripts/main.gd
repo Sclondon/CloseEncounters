@@ -98,6 +98,8 @@ var time_alive := 0.0
 var _spawn_wait := 0.0
 var _cull_wait := 0.0
 var _threat := 0
+## The threat levels, by `_threat` (how seriously they take the ship), for the results
+const THREATS := ["LOW", "GUARDED", "ELEVATED", "HIGH", "SEVERE"]
 var _last_call := -100.0
 var _patrol_wait := 1.0
 var _pull_wait := 0.0
@@ -373,6 +375,8 @@ func _ready() -> void:
 		start()
 	else:
 		_show_title()
+		if not testing:
+			_boot_landing()
 	get_viewport().size_changed.connect(_fit)
 	_fit()
 
@@ -2658,11 +2662,12 @@ func _count_kill(kind: String) -> void:
 ## The results: what was taken, category by category (in the log's order), how many and for how
 ## much; then the total
 func _results(is_best: bool) -> String:
-	var lines: Array[String] = ["ANALYZED"]
+	# (how seriously they had come to take the ship: see `danger`)
+	var lines: Array[String] = ["THREAT LEVEL  %s" % THREATS[clampi(_threat, 0, THREATS.size() - 1)], "", "ANALYZED"]
 	for group: String in Thing.CATEGORIES:
 		if _run_taken.has(group):
 			lines.append("   %s x%d  %d" % [group, int(_run_taken[group][0]), int(_run_taken[group][1])])
-	if lines.size() == 1:
+	if lines.size() == 3:
 		lines.append("   NOTHING")
 	# (the hunters destroyed, kind by kind)
 	if not _run_killed.is_empty():
@@ -2678,6 +2683,8 @@ func _results(is_best: bool) -> String:
 
 ## The items had this run, under the results: each its hologram and how many
 var _over_items: VBoxContainer
+## The results' heading
+var _over_head: Label
 var _over_items_head: Label
 var _over_icons: HFlowContainer
 
@@ -3506,6 +3513,7 @@ func _layout_title(size: Vector2) -> void:
 	# (the results' text and buttons sized for thumbs on an upright phone)
 	if over_label != null:
 		over_label.add_theme_font_size_override("font_size", 62 if upright else 34)
+		_over_head.add_theme_font_size_override("font_size", 110 if upright else 60)
 		over_label.add_theme_constant_override("outline_size", 10 if upright else 5)
 		for b in _over_row.get_children():
 			(b as Button).custom_minimum_size = Vector2(500, 140) if upright else Vector2(0, 70)
@@ -4278,6 +4286,12 @@ func _build_hud() -> void:
 	over_box = _panel(root)
 	# (it grows upward from just above the middle of the screen, so it sits over the wreck, not on it)
 	over_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	# (a heading over it all, in the middle)
+	_over_head = _label(60, Color(0.7, 1.0, 0.72))
+	_over_head.text = "RESULTS"
+	_over_head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_glow(_over_head, Color(0.3, 1.0, 0.45, 0.55))
+	over_box.add_child(_over_head)
 	over_label = _label(34, Color(0.55, 1.0, 0.62))
 	over_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_glow(over_label, Color(0.25, 1.0, 0.4, 0.5))
@@ -4609,6 +4623,19 @@ func _show_ship() -> void:
 		_play_button.disabled = true
 
 
+## At start-up: down out of the stars onto the moon, as after a crash (only the landing, none of the
+## climb off Earth): the ship already parked there with the pilot lounging, and the camera coming
+## down onto it behind an unseen ship that leads it (see `_going_home` and `_home`)
+func _boot_landing() -> void:
+	title_box.visible = false
+	_stand_in = ufo
+	_make_ufo(Vector3.ZERO)
+	_park_ufo(false)
+	ufo.visible = false
+	mode = "landing"
+	_launch_t = LAUNCH
+
+
 func _show_title() -> void:
 	mode = "title"
 	alien_seed = randi()
@@ -4882,11 +4909,11 @@ func _heat_note(text: String, seconds: float) -> void:
 func _hud(delta: float) -> void:
 	# (nothing on the screen while the ship comes down from space)
 	var playing := mode == "play" and intro <= 0.0
-	score_label.visible = playing or mode == "over"
+	score_label.visible = playing
 	if intro > 0.0:
 		score_label.visible = false
 	mult_label.visible = playing
-	coin.visible = playing or mode == "over"
+	coin.visible = playing
 	log_box.visible = playing
 	_type_log(delta)
 	stars.visible = playing
