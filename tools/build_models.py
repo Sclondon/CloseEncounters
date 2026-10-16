@@ -56,6 +56,7 @@ COLOURS = {
     "chrome_leg": (0.75, 0.77, 0.8), "drink": (0.35, 0.95, 0.5), "umbrella": (1.0, 0.5, 0.75), "black_hull": (0.09, 0.09, 0.11), "hull_edge": (0.2, 0.2, 0.24),
     "cooler_red": (0.8, 0.12, 0.1), "cooler_white": (0.93, 0.93, 0.9), "beer": (0.66, 0.38, 0.12), "beer_green": (0.22, 0.6, 0.28), "can_red": (0.85, 0.15, 0.15), "can_silver": (0.8, 0.82, 0.86), "beer_cap": (0.9, 0.75, 0.25),
     "ice": (0.8, 0.92, 1.0), "radio_body": (0.12, 0.12, 0.14), "radio_trim": (0.7, 0.72, 0.75), "speaker": (0.05, 0.05, 0.05),
+    "cloak_dark": (0.2, 0.18, 0.4), "gold_dark": (0.72, 0.5, 0.1), "copper": (0.78, 0.42, 0.18),
 }
 GLOWS = {
     "window": ((1.0, 0.85, 0.45), 2.0), "siren_red": ((1.0, 0.1, 0.1), 3.0),
@@ -66,6 +67,7 @@ GLOWS = {
     "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "pod_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0), "crystal": ((0.5, 0.28, 0.85), 0.55), "neon_pink": ((1.0, 0.3, 0.6), 2.5), "neon_blue": ((0.3, 0.7, 1.0), 2.5), "screen_glow": ((0.75, 0.85, 1.0), 1.3), "jelly": ((0.95, 0.28, 0.62), 0.3), "jelly_glow": ((0.6, 0.9, 1.0), 2.0),
     "foo_glow": ((0.85, 0.22, 0.03), 2.5), "booth_sign": ((0.75, 0.88, 1.0), 2.0), "clock_face": ((1.0, 0.95, 0.8), 1.3),
     "sign": ((1.0, 0.85, 0.55), 1.2),
+    "laser_glow": ((1.0, 0.3, 0.42), 3.0),
 }
 
 _mats = {}
@@ -534,23 +536,9 @@ def striped_melon(length, width, height, at, rings=10, sides=16):
 
 
 def melon():
-    """A watermelon patch: a big striped melon on the vine, a slice cut open beside it (red, black seeds,
-    the pale rind), broad leaves and a curl of vine"""
-    p = [striped_melon(1.5, 0.95, 0.85, (0, 0, 0.4)),
-         box((0.07, 0.07, 0.22), (0.78, 0, 0.5), "corn_leaf", (0, 0.6, 0)),
-         # (the slice lying beside it: dark skin, pale rind, the red flesh stacked on them, no faces shared)
-         box((0.82, 0.36, 0.1), (0.35, -1.0, 0.05), "melon", (0, 0, 0.4)),
-         box((0.74, 0.3, 0.06), (0.35, -1.0, 0.13), "melon_rind", (0, 0, 0.4)),
-         box((0.66, 0.24, 0.14), (0.35, -1.0, 0.23), "melon_flesh", (0, 0, 0.4))]
-    for k in range(4):
-        dx, dy = -0.15 + k * 0.1, 0.05 * math.sin(k * 2.0)
-        p.append(box((0.05, 0.04, 0.03), (0.35 + dx * math.cos(0.4) - dy * math.sin(0.4), -1.0 + dx * math.sin(0.4) + dy * math.cos(0.4), 0.315), "black", (0, 0, 0.4)))
-    for i in range(4):
-        a = i / 4 * math.tau + 0.5
-        p.append(ball((0.6, 0.45, 0.06), (math.cos(a) * 1.0, math.sin(a) * 0.8, 0.06), "leaf" if i % 2 else "leaf_dark", 7, 3, (0, 0, a)))
-    for k in range(6):
-        p.append(box((0.3, 0.05, 0.05), (-0.9 - k * 0.12, 0.3 * math.sin(k * 1.3), 0.05), "corn_leaf", (0, 0, k * 0.9)))
-    return join("melon", p)
+    """A watermelon: a round striped ball, dark green with pale bands running round it from the stub
+    of its stem"""
+    return join("melon", [striped_melon(1.15, 1.15, 1.1, (0, 0, 0.53)), box((0.18, 0.07, 0.07), (0.64, 0, 0.53), "corn_leaf")])
 
 
 def pepper():
@@ -647,6 +635,49 @@ def tree():
 def pine():
     return join("pine", [drum(0.25, 1.6, (0, 0, 0.8), "bark", 6), cone(2.0, 3.0, (0, 0, 2.6), "leaf_dark", 7),
                          cone(1.6, 2.6, (0, 0, 3.9), "leaf_dark", 7), cone(1.1, 2.2, (0, 0, 5.1), "leaf_dark", 7)])
+
+
+def willow():
+    """A weeping willow by the water: a thick leaning trunk, a high rounded crown, and thin strands of
+    leaves hanging from all round it nearly to the ground, in two layers"""
+    p = [drum(0.38, 3.0, (0.15, 0, 1.5), "bark", 7, (0, 0.12, 0)), drum(0.2, 1.4, (0.6, 0.2, 3.4), "bark", 6, (0.3, 0.5, 0)),
+         roughen(ball((3.4, 3.4, 2.6), (0.3, 0, 4.3), "leaf", 9, 5), 0.15, 30)]
+    rnd = random.Random(31)
+    for layer, (r, top) in enumerate(((1.75, 4.4), (1.25, 4.9))):
+        count = 26 if layer == 0 else 18
+        for i in range(count):
+            a = i / count * math.tau + rnd.uniform(-0.08, 0.08)
+            long = rnd.uniform(2.2, 3.2) - layer * 0.5
+            p.append(box((0.22, 0.06, long), (0.3 + r * math.cos(a), r * math.sin(a), top - long * 0.5), "leaf" if (i + layer) % 3 else "leaf_dark", (0, 0, a + math.pi / 2)))
+    return join("willow", p)
+
+
+def cottonwood():
+    """A great plains cottonwood: a tall grey trunk forking into two, a high, ragged, open crown"""
+    p = [drum(0.42, 3.4, (0, 0, 1.7), "bark", 7), drum(0.24, 2.4, (0.5, 0, 4.1), "bark", 6, (0, 0.4, 0)),
+         drum(0.22, 2.2, (-0.45, 0.1, 4.0), "bark", 6, (0, -0.45, 0))]
+    rnd = random.Random(33)
+    for i in range(6):
+        a = i / 6 * math.tau
+        p.append(roughen(ball((2.4, 2.2, 1.8), (1.6 * math.cos(a), 1.4 * math.sin(a), 5.6 + rnd.uniform(-0.4, 0.7)), "leaf" if i % 2 else "aspen_leaf", 7, 4), 0.2, 80 + i))
+    p.append(roughen(ball((2.6, 2.6, 2.0), (0, 0, 6.6), "leaf", 7, 4), 0.2, 90))
+    return join("cottonwood", p)
+
+
+def joshua_tree():
+    """A Joshua tree of the Mojave: a shaggy trunk branching in crooked arms, each ending in a spiky
+    tuft of blades"""
+    p = [drum(0.26, 2.2, (0, 0, 1.1), "sage", 6)]
+    arms = [((0.0, 0.0, 2.1), 0.5, 0.0, 1.3), ((0.0, 0.0, 2.0), 0.6, 2.2, 1.1), ((0.0, 0.0, 1.6), 0.7, 4.1, 1.0)]
+    for base, lean, turn, long in arms:
+        tip = (base[0] + math.cos(turn) * math.sin(lean) * long, base[1] + math.sin(turn) * math.sin(lean) * long, base[2] + math.cos(lean) * long)
+        mid = ((base[0] + tip[0]) / 2, (base[1] + tip[1]) / 2, (base[2] + tip[2]) / 2)
+        p.append(drum(0.16, long, mid, "sage", 5, (0, lean, turn)))
+        for k in range(7):
+            a = k / 7 * math.tau
+            p.append(cone(0.07, 0.6, (tip[0] + 0.12 * math.cos(a), tip[1] + 0.12 * math.sin(a), tip[2] + 0.25), "cactus", 4, (0.6 * math.sin(a), -0.6 * math.cos(a), 0)))
+        p.append(ball((0.34, 0.34, 0.3), tip, "cactus_light", 6, 3))
+    return join("joshua_tree", p)
 
 
 def fence():
@@ -1668,104 +1699,410 @@ def boombox():
     return join("boombox", p)
 
 
+# (shapes the items are made from: a plate cut to an outline, a tube swept along a path, a ring, a
+# faceted star; each a closed mesh, its faces turned outwards)
+
+def _mesh(name, verts, faces, mats, face_mats, at, rot):
+    import bmesh
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(mesh)
+    bm.free()
+    o = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(o)
+    o.location = at
+    o.rotation_euler = rot
+    names = []
+    for m in mats:
+        if m not in names:
+            names.append(m)
+            o.data.materials.append(mat(m))
+    for poly, k in zip(o.data.polygons, face_mats):
+        poly.material_index = names.index(mats[k])
+    return o
+
+
+def _turned(o):
+    """Turns a mesh's faces outwards (a lathe's profile that doubles back)"""
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(o.data)
+    bm.free()
+    return o
+
+
+def _plate(pts, depth, at, m, rot=(0, 0, 0), bevel=0.0, face=None, bow=0.0, puff=0.0):
+    """A plate cut to an outline (x, z points, as seen from the front, -Y), `depth` thick, its front
+    edge chamfered by `bevel`, its front face (in `face`) domed out by `puff` and its sides bowed
+    back by `bow`"""
+    n = len(pts)
+    if sum(pts[i][0] * pts[(i + 1) % n][1] - pts[(i + 1) % n][0] * pts[i][1] for i in range(n)) < 0:
+        pts = pts[::-1]
+
+    def inset(d):
+        out = []
+        for i in range(n):
+            p0, p1, p2 = pts[i - 1], pts[i], pts[(i + 1) % n]
+            e1, e2 = (p1[0] - p0[0], p1[1] - p0[1]), (p2[0] - p1[0], p2[1] - p1[1])
+            l1, l2 = math.hypot(*e1) or 1.0, math.hypot(*e2) or 1.0
+            n1, n2 = (-e1[1] / l1, e1[0] / l1), (-e2[1] / l2, e2[0] / l2)
+            bx, bz = n1[0] + n2[0], n1[1] + n2[1]
+            bl = math.hypot(bx, bz)
+            if bl < 1e-6:
+                out.append(p1)
+                continue
+            bx, bz = bx / bl, bz / bl
+            k = d / max(bx * n1[0] + bz * n1[1], 0.35)
+            out.append((p1[0] + bx * k, p1[1] + bz * k))
+        return out
+
+    rings = [(pts, depth / 2)]
+    if bevel > 0:
+        rings += [(pts, -depth / 2 + bevel), (inset(bevel), -depth / 2)]
+    else:
+        rings += [(pts, -depth / 2)]
+    verts = [(x, y + bow * x * x, z) for ring, y in rings for (x, z) in ring]
+    faces, fm = [tuple(range(n))[::-1]], [0]
+    for r in range(len(rings) - 1):
+        for i in range(n):
+            j = (i + 1) % n
+            faces.append((r * n + i, r * n + j, (r + 1) * n + j, (r + 1) * n + i))
+            fm.append(0)
+    last = (len(rings) - 1) * n
+    if puff > 0:
+        cx = sum(p[0] for p in rings[-1][0]) / n
+        cz = sum(p[1] for p in rings[-1][0]) / n
+        verts.append((cx, -depth / 2 - puff + bow * cx * cx, cz))
+        for i in range(n):
+            faces.append((last + i, last + (i + 1) % n, len(verts) - 1))
+            fm.append(1)
+    else:
+        faces.append(tuple(last + i for i in range(n)))
+        fm.append(1)
+    return _mesh("plate", verts, faces, [m, face or m], fm, at, rot)
+
+
+def _sweep(path, w, d, at, m, rot=(0, 0, 0)):
+    """A bar swept along a path (x, z points), `w` wide across it (one width, or one for each point)
+    and `d` deep (in y)"""
+    n = len(path)
+    ws = w if isinstance(w, (list, tuple)) else [w] * n
+    verts = []
+    for i, (x, z) in enumerate(path):
+        a, b = path[max(i - 1, 0)], path[min(i + 1, n - 1)]
+        tx, tz = b[0] - a[0], b[1] - a[1]
+        tl = math.hypot(tx, tz) or 1.0
+        nx, nz = -tz / tl * ws[i] / 2, tx / tl * ws[i] / 2
+        verts += [(x + nx, -d / 2, z + nz), (x - nx, -d / 2, z - nz), (x - nx, d / 2, z - nz), (x + nx, d / 2, z + nz)]
+    faces = [(0, 1, 2, 3), tuple(4 * (n - 1) + k for k in (3, 2, 1, 0))]
+    for i in range(n - 1):
+        for k in range(4):
+            a, b = 4 * i + k, 4 * i + (k + 1) % 4
+            faces.append((a, b, b + 4, a + 4))
+    return _mesh("sweep", verts, faces, [m], [0] * len(faces), at, rot)
+
+
+def _arc(r, a0, a1, steps, cx=0.0, cz=0.0):
+    """Points round an arc (in the x, z plane) from angle `a0` to `a1`"""
+    return [(cx + r * math.cos(a0 + (a1 - a0) * k / steps), cz + r * math.sin(a0 + (a1 - a0) * k / steps)) for k in range(steps + 1)]
+
+
+def _ring(radius, thick, at, m, segs=16, sides=6, rot=(0, 0, 0)):
+    bpy.ops.mesh.primitive_torus_add(major_segments=segs, minor_segments=sides, major_radius=radius,
+                                     minor_radius=thick, location=at, rotation=rot)
+    return _done(bpy.context.object, m)
+
+
+def _star(r, thick, at, m, rot=(0, 0, 0), points=5, inner=0.48):
+    """A chunky faceted star (a star bit, a sparkle), facing -Y"""
+    verts = []
+    for k in range(points * 2):
+        a = math.pi / 2 + k * math.pi / points
+        rr = r if k % 2 == 0 else r * inner
+        verts.append((rr * math.cos(a), 0.0, rr * math.sin(a)))
+    verts += [(0, -thick / 2, 0), (0, thick / 2, 0)]
+    f, b, n = len(verts) - 2, len(verts) - 1, points * 2
+    faces = [(i, (i + 1) % n, f) for i in range(n)] + [((i + 1) % n, i, b) for i in range(n)]
+    return _mesh("star", verts, faces, [m], [0] * len(faces), at, rot)
+
+
+def _heart_pts(w, steps=24):
+    """A heart's outline, `w` across, its tip at the origin"""
+    pts = []
+    for k in range(steps):
+        t = k / steps * math.tau
+        x = 16 * math.sin(t) ** 3
+        z = 13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t)
+        pts.append((x * w / 32, (z + 17) * w / 32))
+    return pts
+
+
+def _moved(p, rot, at=(0, 0, 0)):
+    """Point `p` turned by `rot` and moved to `at`"""
+    from mathutils import Euler, Vector
+    v = Vector(p)
+    v.rotate(Euler(rot))
+    return tuple(v + Vector(at))
+
+
+# A lightning bolt, pointing down, its top at the origin (x, z)
+BOLT = [(-0.2, 0.0), (0.2, 0.0), (0.0, -0.4), (0.25, -0.4), (-0.35, -1.1), (-0.13, -0.58), (-0.4, -0.58)]
+
+
+def _scaled(pts, s, dx=0.0, dz=0.0):
+    return [(x * s + dx, z * s + dz) for x, z in pts]
+
+
+def _emitter(at, m="metal"):
+    """The saucer's beam emitter: a stepped ring, lights round its rim, a glowing lens beneath"""
+    x, y, z = at
+    head = lathe("emitter", [(0.13, 0.0), (0.28, 0.03), (0.38, 0.09), (0.4, 0.14), (0.36, 0.18), (0.24, 0.22),
+                             (0.14, 0.27), (0.08, 0.31), (0.04, 0.33)],
+                 ["metal_dark", m, m, "metal_dark", m, m, "metal_dark", "metal_dark", "metal_dark"], sides=16)
+    head.location = at
+    p = [head, drum(0.16, 0.04, (x, y, z + 0.005), "pod_glow", 16)]
+    for i in range(10):
+        a = i / 10 * math.tau
+        p.append(ball((0.05, 0.05, 0.05), (x + 0.4 * math.cos(a), y + 0.4 * math.sin(a), z + 0.12), "lights", 6, 3))
+    return p
+
+
 # ---------------------------------------------------------------- items (upgrades), as Risk of Rain 2 shows them
 
 def item_engine():
-    """ENGINE: a thruster, a ribbed bell with a glowing core and fins"""
-    p = [drum(0.32, 0.5, (0, 0, 0.55), "metal", 10), drum(0.4, 0.45, (0, 0, 0.12), "metal_dark", 10, top=0.26),
-         drum(0.2, 0.06, (0, 0, -0.1), "pod_glow", 10)]
-    for i in range(4):
-        a = i * math.tau / 4
-        p.append(box((0.04, 0.3, 0.45), (math.cos(a) * 0.34, math.sin(a) * 0.34, 0.6), "chili", (0, 0, a + math.pi / 2)))
+    """ENGINE: a jet thruster on its side, a fan in its intake, finned, a flame roaring out of its bell"""
+    X, z = (0, math.pi / 2, 0), 0.42
+    p = [_ring(0.25, 0.05, (-0.46, 0, z), "chrome", 16, 6, X), drum(0.235, 0.04, (-0.43, 0, z), "metal_dark", 16, X),
+         cone(0.08, 0.16, (-0.5, 0, z), "chrome", 10, (0, -math.pi / 2, 0)),
+         drum(0.27, 0.54, (-0.15, 0, z), "metal", 16, X),
+         drum(0.29, 0.05, (-0.3, 0, z), "metal_dark", 16, X), drum(0.29, 0.05, (-0.02, 0, z), "metal_dark", 16, X),
+         drum(0.25, 0.2, (0.21, 0, z), "metal_dark", 16, X, top=0.17),
+         drum(0.16, 0.16, (0.38, 0, z), "chili", 16, X, top=0.23), drum(0.2, 0.02, (0.465, 0, z), "flame", 16, X),
+         cone(0.09, 0.34, (0.62, 0, z), "light_white", 8, X)]
+    plume = roughen(lathe("plume", [(0.19, 0.0), (0.22, 0.08), (0.2, 0.2), (0.13, 0.34), (0.05, 0.46), (0.0, 0.52)], ["flame"] * 6, sides=10), 0.02, 7)
+    plume.location, plume.rotation_euler = (0.47, 0, z), X
+    p.append(plume)
+    for i in range(8):
+        a = i / 8 * math.tau
+        p.append(box((0.015, 0.05, 0.17), (-0.455, 0.12 * math.cos(a), z + 0.12 * math.sin(a)), "metal", (a - math.pi / 2, 0, 0)))
+    fin = [(-0.26, 0.22), (0.06, 0.22), (0.12, 0.44), (0.0, 0.44)]
+    for k in range(3):
+        p.append(_plate(fin, 0.04, (0, 0, z), "chili", (k * math.tau / 3, 0, 0), bevel=0.012))
     return join("item_engine", p)
 
 
 def item_beam():
-    """BEAM: an emitter dish with a glowing lens, a little cone of light below"""
-    p = [drum(0.42, 0.12, (0, 0, 0.7), "metal", 12), drum(0.18, 0.2, (0, 0, 0.55), "metal_dark", 10),
-         drum(0.14, 0.05, (0, 0, 0.43), "pod_glow", 10), drum(0.08, 0.5, (0, 0, 0.12), "pod_glow", 8, top=0.32)]
+    """BEAM: the emitter, its beam a column of glowing rings, a cow being lifted up it"""
+    p = _emitter((0, 0, 0.62))
+    for k in range(4):
+        r = 0.17 + k * 0.06
+        p.append(_ring(r, 0.022, (0, 0, 0.5 - k * 0.15), "pod_glow", 16, 4))
+    for i in range(6):
+        a = i / 6 * math.tau + 0.3
+        p.append(rod(0.01, (0.15 * math.cos(a), 0.15 * math.sin(a), 0.6), (0.36 * math.cos(a), 0.36 * math.sin(a), 0.05), "pod_glow", 4))
+    p.append(drum(0.38, 0.02, (0, 0, 0.01), "pod_glow", 16))
+    cow = [box((0.24, 0.12, 0.12), (0, 0, 0), "hide"), box((0.09, 0.08, 0.09), (-0.15, 0, 0.05), "hide"),
+           box((0.05, 0.07, 0.04), (-0.2, 0, 0.03), "pink"), box((0.07, 0.13, 0.06), (0.03, 0, 0.02), "spot"),
+           box((0.02, 0.14, 0.02), (-0.14, 0, 0.1), "horn")]
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            cow.append(box((0.03, 0.03, 0.08), (sx * 0.08, sy * 0.04, -0.09 - 0.02 * sx), "hide", (0, 0.3 * sx, 0)))
+    cow = join("cow_up", cow)
+    cow.location = (0.0, 0.0, 0.28)
+    cow.rotation_euler = (0.2, -0.35, 0.4)
+    p.append(cow)
     return join("item_beam", p)
 
 
 def item_shield():
-    """SHIELD: a kite shield with a glowing boss"""
-    p = [box((0.6, 0.12, 0.6), (0, 0, 0.55), "metal", (0, 0, 0)), box((0.42, 0.12, 0.42), (0, 0, 0.16), "metal", (0, math.pi / 4, 0)),
-         ball((0.24, 0.12, 0.24), (0, -0.08, 0.5), "spark")]
+    """SHIELD: a heater shield, its steel rim riveted round a blue field, a glowing boss at its heart"""
+    out = [(-0.4, 1.0), (-0.2, 1.03), (0, 1.04), (0.2, 1.03), (0.4, 1.0), (0.4, 0.62), (0.37, 0.43), (0.29, 0.25),
+           (0.16, 0.1), (0, 0.0), (-0.16, 0.1), (-0.29, 0.25), (-0.37, 0.43), (-0.4, 0.62)]
+    mid = [(x * 0.82, 0.56 + (z - 0.56) * 0.82) for x, z in out]
+    p = [_plate(out, 0.1, (0, 0.03, 0), "metal", bevel=0.025, bow=0.35),
+         _plate(mid, 0.06, (0, -0.03, 0), "police_blue", bevel=0.02, bow=0.35),
+         _plate([(-0.04, 0.88), (0.04, 0.88), (0.04, 0.2), (-0.04, 0.2)], 0.04, (0, -0.06, 0), "metal", bow=0.35),
+         _plate([(-0.3, 0.6), (0.3, 0.6), (0.3, 0.68), (-0.3, 0.68)], 0.04, (0, -0.06, 0), "metal", bow=0.35),
+         _ring(0.12, 0.03, (0, -0.09, 0.62), "chrome", 16, 6, (math.pi / 2, 0, 0)),
+         ball((0.2, 0.14, 0.2), (0, -0.1, 0.62), "spark", 12, 6)]
+    for x, z in out[::2]:
+        x, z = x * 0.91, 0.56 + (z - 0.56) * 0.91
+        p.append(ball((0.05, 0.05, 0.05), (x, -0.025 + 0.35 * x * x, z), "chrome", 6, 4))
     return join("item_shield", p)
 
 
 def item_dash():
-    """DASH: two chevrons, one before the other"""
+    """DASH: three chevrons charging to the right, brighter each, speed lines behind"""
+    chevron = [(-0.12, 0.5), (0.08, 0.5), (0.34, 0.25), (0.08, 0.0), (-0.12, 0.0), (0.14, 0.25)]
     p = []
-    for k, x in ((0, -0.2), (1, 0.2)):
-        p.append(box((0.42, 0.12, 0.1), (x - 0.06, 0, 0.62), "pod_glow" if k else "metal", (0, -0.75, 0)))
-        p.append(box((0.42, 0.12, 0.1), (x - 0.06, 0, 0.32), "pod_glow" if k else "metal", (0, 0.75, 0)))
+    for k, m in enumerate(("metal_dark", "metal", "spark")):
+        s = 0.8 + 0.12 * k
+        p.append(_plate(_scaled(chevron, s, -0.4 + 0.33 * k, 0.4 - 0.25 * s), 0.14, (0, 0, 0), m, bevel=0.03))
+    for x, z, l in ((-0.62, 0.52, 0.26), (-0.7, 0.4, 0.36), (-0.62, 0.28, 0.26)):
+        p.append(_plate([(x - l / 2, z - 0.02), (x + l / 2, z - 0.025), (x + l / 2, z + 0.025), (x - l / 2, z + 0.02)], 0.05, (0, 0, 0), "metal"))
     return join("item_dash", p)
 
 
 def item_laser():
-    """LASER: a ray gun, a fat body, a ringed barrel and a glowing tip"""
-    p = [box((0.5, 0.18, 0.24), (0, 0, 0.55), "metal", (0, 0, 0)), box((0.12, 0.14, 0.32), (-0.14, 0, 0.3), "metal_dark", (0, 0.3, 0)),
-         drum(0.06, 0.4, (0.42, 0, 0.58), "metal_dark", 8, (0, math.pi / 2, 0))]
-    for x in (0.3, 0.42, 0.54):
-        p.append(drum(0.1, 0.04, (x, 0, 0.58), "chili", 10, (0, math.pi / 2, 0)))
-    p.append(ball((0.14, 0.14, 0.14), (0.64, 0, 0.58), "pod_glow"))
+    """LASER: a ray gun, a finned body with a glowing bulb on top, a ringed barrel and a bolt out of it"""
+    X, z = (0, math.pi / 2, 0), 0.55
+    body = lathe("gun", [(0.05, 0.0), (0.14, 0.03), (0.19, 0.1), (0.2, 0.22), (0.17, 0.33), (0.11, 0.4), (0.07, 0.42)],
+                 ["metal_dark", "metal", "metal", "metal", "metal", "metal_dark", "metal_dark"], sides=14)
+    body.location, body.rotation_euler = (-0.36, 0, z), X
+    p = [body, drum(0.05, 0.08, (-0.38, 0, z), "laser_glow", 8, X),
+         drum(0.045, 0.38, (0.25, 0, z), "metal_dark", 8, X)]
+    for x in (0.14, 0.23, 0.32):
+        p.append(drum(0.085, 0.035, (x, 0, z), "chili", 12, X))
+    p += [drum(0.06, 0.08, (0.46, 0, z), "metal", 10, X, top=0.09), ball((0.1, 0.1, 0.1), (0.5, 0, z), "laser_glow", 8, 5),
+          ball((0.34, 0.06, 0.06), (0.78, 0, z), "laser_glow", 6, 4), ball((0.12, 0.04, 0.04), (1.04, 0, z), "laser_glow", 6, 3),
+          drum(0.06, 0.06, (-0.14, 0, z + 0.2), "metal_dark", 10), ball((0.13, 0.13, 0.15), (-0.14, 0, z + 0.28), "laser_glow", 10, 6)]
+    fin = [(-0.42, 0.14), (-0.2, 0.14), (-0.3, 0.3), (-0.44, 0.3)]
+    for k in (0, 1, 2):
+        p.append(_plate(fin, 0.03, (0, 0, z), "chili", (k * math.tau / 3 + math.pi / 3, 0, 0), bevel=0.01))
+    p.append(_plate([(-0.1, 0.45), (-0.27, 0.45), (-0.38, 0.12), (-0.33, 0.04), (-0.2, 0.06)], 0.11, (0, 0, 0), "metal_dark", bevel=0.025))
+    p.append(_sweep([(-0.12, 0.4), (-0.08, 0.3), (0.0, 0.27), (0.05, 0.34), (0.04, 0.4)], 0.025, 0.035, (0, 0, 0), "metal"))
+    p.append(box((0.025, 0.03, 0.07), (-0.05, 0, 0.37), "metal_dark", (0, 0.3, 0)))
     return join("item_laser", p)
 
 
 def item_turret():
-    """AUTO TURRET: a ball turret on a mount, its barrel out"""
-    p = [drum(0.32, 0.12, (0, 0, 0.06), "metal_dark", 10), ball((0.5, 0.5, 0.46), (0, 0, 0.4), "metal", 10, 6),
-         drum(0.06, 0.45, (0.3, 0, 0.46), "metal_dark", 8, (0, math.pi / 2, 0)), ball((0.1, 0.1, 0.1), (0.52, 0, 0.46), "chili")]
+    """AUTO TURRET: a sentry gun, a round head on a yoke over a stepped base, its twin barrels out and
+    a red eye"""
+    base = lathe("turret_base", [(0.36, 0.0), (0.36, 0.06), (0.3, 0.08), (0.3, 0.12), (0.22, 0.14), (0.2, 0.2)],
+                 ["metal_dark", "metal", "metal_dark", "metal", "metal_dark", "metal_dark"], sides=16)
+    p = [base, drum(0.24, 0.04, (0, 0, 0.22), "hazard", 16), box((0.14, 0.56, 0.06), (0, 0, 0.26), "metal_dark")]
+    for s in (-1, 1):
+        p += [box((0.14, 0.05, 0.3), (0, s * 0.255, 0.4), "metal_dark"), drum(0.07, 0.06, (0, s * 0.215, 0.5), "chrome", 10, (math.pi / 2, 0, 0))]
+    p.append(ball((0.42, 0.38, 0.38), (0, 0, 0.5), "metal", 14, 8))
+    p.append(box((0.08, 0.3, 0.16), (0.18, 0, 0.47), "metal_dark"))
+    for s in (-1, 1):
+        p += [drum(0.035, 0.42, (0.4, s * 0.08, 0.47), "metal_dark", 8, (0, math.pi / 2, 0)),
+              drum(0.055, 0.07, (0.6, s * 0.08, 0.47), "metal", 8, (0, math.pi / 2, 0)),
+              drum(0.025, 0.02, (0.64, s * 0.08, 0.47), "light_amber", 8, (0, math.pi / 2, 0))]
+    p += [drum(0.05, 0.04, (0.18, -0.06, 0.62), "light_red", 10, (0, 1.0, 0)), rod(0.012, (-0.06, 0.08, 0.66), (-0.12, 0.12, 0.88), "metal", 4),
+          ball((0.04, 0.04, 0.04), (-0.12, 0.12, 0.89), "light_red", 6, 3)]
     return join("item_turret", p)
 
 
+def _missile(at, rot, size):
+    """A missile, nose up (before it is turned): striped, finned, its exhaust burning"""
+    nose = lathe("nose", [(0.09, 0.25), (0.085, 0.32), (0.065, 0.39), (0.035, 0.44), (0.0, 0.46)], ["chili"] * 5, sides=12)
+    p = [drum(0.09, 0.5, (0, 0, 0), "white", 12), nose, drum(0.095, 0.04, (0, 0, 0.16), "chili", 12),
+         drum(0.095, 0.03, (0, 0, -0.12), "metal_dark", 12), drum(0.09, 0.09, (0, 0, -0.285), "metal_dark", 12, top=0.07),
+         cone(0.07, 0.26, (0, 0, -0.45), "flame", 8, (math.pi, 0, 0)), cone(0.04, 0.16, (0, 0, -0.4), "light_white", 6, (math.pi, 0, 0))]
+    for k in range(4):
+        p.append(_plate([(0.07, -0.3), (0.2, -0.36), (0.2, -0.27), (0.07, -0.08)], 0.025, (0, 0, 0), "chili", (0, 0, k * math.pi / 2 + math.pi / 4)))
+    o = join("missile", p)
+    o.location, o.rotation_euler, o.scale = at, rot, (size, size, size)
+    return o
+
+
 def item_missiles():
-    """MISSILES: a rocket, nose up, with fins and a flame"""
-    p = [drum(0.11, 0.6, (0, 0, 0.55), "metal", 10), cone(0.11, 0.2, (0, 0, 0.95), "chili", 10),
-         cone(0.08, 0.2, (0, 0, 0.15), "light_amber", 8, (math.pi, 0, 0))]
-    for i in range(3):
-        a = i * math.tau / 3
-        p.append(box((0.03, 0.18, 0.2), (math.cos(a) * 0.14, math.sin(a) * 0.14, 0.32), "metal_dark", (0, 0, a + math.pi / 2)))
+    """MISSILES: a pair of homing missiles climbing away, a curling trail of smoke behind the leader"""
+    p = [_missile((0.2, 0, 0.62), (0, 0.9, 0), 1.0), _missile((-0.16, 0.18, 0.92), (0, 0.9, 0), 0.62)]
+    for k, (x, z, r) in enumerate(((-0.35, 0.22, 0.09), (-0.49, 0.15, 0.11), (-0.65, 0.15, 0.13), (-0.8, 0.22, 0.14))):
+        p.append(ball((r * 2, r * 2, r * 1.8), (x, 0.03 * k, z), "metal" if k % 2 else "white", 8, 5))
     return join("item_missiles", p)
 
 
 def item_cloak():
-    """CLOAK: a hooded cape, drawn closed, with a faint eye in the hood"""
-    p = [drum(0.36, 0.7, (0, 0, 0.36), "cloak_cloth", 8, top=0.14), ball((0.32, 0.32, 0.34), (0, 0, 0.8), "cloak_cloth", 8, 5),
-         ball((0.14, 0.04, 0.06), (0, -0.15, 0.8), "spark")]
+    """CLOAK: a hooded cloak in folds, eyes glinting in the dark of its hood, its edge breaking up into
+    nothing"""
+    cape = lathe("cape", [(0.38, 0.0), (0.36, 0.1), (0.3, 0.3), (0.24, 0.5), (0.19, 0.62), (0.16, 0.66)],
+                 ["cloak_dark", "cloak_cloth", "cloak_cloth", "cloak_cloth", "cloak_cloth", "cloak_cloth"], sides=16, flute=0.14, flute_from=0)
+    p = [cape, ball((0.36, 0.36, 0.38), (0, 0.02, 0.8), "cloak_cloth", 12, 8),
+         cone(0.13, 0.24, (0, 0.13, 0.98), "cloak_cloth", 8, (-0.8, 0, 0)),
+         ball((0.24, 0.12, 0.28), (0, -0.12, 0.78), "black", 10, 6),
+         ball((0.05, 0.03, 0.035), (-0.05, -0.18, 0.8), "spark", 6, 3), ball((0.05, 0.03, 0.035), (0.05, -0.18, 0.8), "spark", 6, 3),
+         ball((0.07, 0.06, 0.07), (0, -0.19, 0.63), "gold", 8, 4)]
+    for k, (x, y, z, s) in enumerate(((0.42, -0.05, 0.36, 0.08), (0.52, 0.02, 0.5, 0.06), (0.6, -0.08, 0.3, 0.05),
+                                      (0.47, 0.05, 0.16, 0.06), (0.68, 0.0, 0.44, 0.04), (0.56, -0.1, 0.62, 0.035))):
+        p.append(box((s, s, s), (x, y, z), "cloak_cloth" if k % 2 == 0 else "spark", (0.6 * k, 0.4 * k, 0.3)))
     return join("item_cloak", p)
 
 
 def item_magnet():
-    """MAGNET: a horseshoe magnet, red with steel tips"""
-    p = [box((0.12, 0.14, 0.5), (-0.22, 0, 0.55), "chili"), box((0.12, 0.14, 0.5), (0.22, 0, 0.55), "chili"),
-         box((0.56, 0.14, 0.12), (0, 0, 0.84), "chili"), box((0.13, 0.15, 0.14), (-0.22, 0, 0.24), "metal"),
-         box((0.13, 0.15, 0.14), (0.22, 0, 0.24), "metal")]
+    """MAGNET: a horseshoe magnet, red with steel poles, lines of force flaring from them and a nut
+    drawn up between"""
+    path = [(-0.22, 0.42), (-0.22, 0.55)] + _arc(0.22, math.pi, 0, 12, 0, 0.66) + [(0.22, 0.55), (0.22, 0.42)]
+    p = [_sweep(path, 0.17, 0.2, (0, 0, 0), "chili")]
+    for s in (-1, 1):
+        p += [box((0.18, 0.21, 0.13), (s * 0.22, 0, 0.385), "metal"), box((0.185, 0.215, 0.03), (s * 0.22, 0, 0.47), "white")]
+    # (lines of force flaring from each pole, and a nut drawn up between them)
+    for s in (-1, 1):
+        for k, lean in enumerate((-0.5, 0.0, 0.5)):
+            x0 = s * 0.22 + 0.06 * (k - 1)
+            p.append(_plate([(x0 - 0.015, 0.29), (x0 + 0.015, 0.29), (x0 + 0.015 + lean * 0.1, 0.18), (x0 - 0.015 + lean * 0.1, 0.18)], 0.03, (0, -0.02, 0), "spark"))
+    p += [drum(0.065, 0.045, (0, -0.02, 0.12), "metal", 6, (math.pi / 2, 0, 0.3)), drum(0.028, 0.055, (0, -0.02, 0.12), "black", 6, (math.pi / 2, 0, 0.3))]
     return join("item_magnet", p)
 
 
 def item_wide():
-    """WIDE BEAM: a little emitter throwing a broad cone of light"""
-    p = [drum(0.16, 0.12, (0, 0, 0.9), "metal", 10), drum(0.1, 0.06, (0, 0, 0.82), "pod_glow", 10),
-         drum(0.1, 0.7, (0, 0, 0.45), "pod_glow", 12, top=0.5), drum(0.5, 0.04, (0, 0, 0.08), "pod_glow", 16)]
+    """WIDE BEAM: the emitter throwing a broad fan of light, arrows pushing it out both ways"""
+    p = _emitter((0, 0, 0.7), "chrome")
+    for k in range(3):
+        r = 0.22 + k * 0.2
+        p.append(_ring(r, 0.022, (0, 0, 0.55 - k * 0.2), "pod_glow", 20, 4))
+    for i in range(8):
+        a = i / 8 * math.tau + 0.2
+        p.append(rod(0.01, (0.15 * math.cos(a), 0.15 * math.sin(a), 0.68), (0.62 * math.cos(a), 0.62 * math.sin(a), 0.15), "pod_glow", 4))
+    arrow = [(-0.72, 0.06), (-0.54, 0.18), (-0.54, 0.1), (0.54, 0.1), (0.54, 0.18), (0.72, 0.06), (0.54, -0.06),
+             (0.54, 0.02), (-0.54, 0.02), (-0.54, -0.06)]
+    p.append(_plate(_scaled(arrow, 1.0, 0, 0.06), 0.06, (0, -0.1, 0), "spark", bevel=0.015))
     return join("item_wide", p)
 
 
 def item_scanner():
-    """SCANNER: a radar dish on a stand"""
-    p = [drum(0.25, 0.08, (0, 0, 0.04), "metal_dark", 10), drum(0.05, 0.4, (0, 0, 0.28), "metal", 6),
-         drum(0.38, 0.08, (0, -0.04, 0.6), "metal", 14, (1.1, 0, 0), top=0.3), drum(0.03, 0.3, (0, -0.16, 0.66), "metal_dark", 6, (1.1, 0, 0)),
-         ball((0.08, 0.08, 0.08), (0, -0.3, 0.7), "pod_glow")]
+    """SCANNER: a radar dish on a pivoting mast, its feed horn on struts, waves going out of it"""
+    base = lathe("scan_base", [(0.26, 0.0), (0.26, 0.05), (0.2, 0.07), (0.12, 0.1), (0.1, 0.12)],
+                 ["metal_dark", "metal", "metal_dark", "metal_dark", "metal_dark"], sides=16)
+    tilt = (1.0, 0, -0.2)
+    at = (0, 0, 0.62)
+    dish = _turned(lathe("dish", [(0.05, -0.01), (0.16, 0.015), (0.28, 0.06), (0.4, 0.14), (0.42, 0.17), (0.38, 0.17),
+                                  (0.27, 0.1), (0.15, 0.06), (0.05, 0.045)],
+                         ["metal", "metal", "metal", "metal_dark", "metal_dark", "white", "white", "white", "white"], sides=18))
+    dish.location, dish.rotation_euler = at, tilt
+    hub = _moved((0, 0, -0.05), tilt, at)
+    p = [base, drum(0.045, 0.32, (0, 0, 0.26), "metal", 8), dish, rod(0.04, (0, 0, 0.38), hub, "metal_dark", 8),
+         drum(0.1, 0.08, hub, "metal_dark", 12, tilt)]
+    feed = _moved((0, 0, 0.32), tilt, at)
+    for k in range(3):
+        a = k / 3 * math.tau + 0.5
+        p.append(rod(0.012, _moved((0.34 * math.cos(a), 0.34 * math.sin(a), 0.14), tilt, at), feed, "metal_dark", 4))
+    p += [drum(0.04, 0.08, feed, "metal", 8, tilt), ball((0.08, 0.08, 0.08), _moved((0, 0, 0.36), tilt, at), "pod_glow", 8, 5)]
+    # (the waves face the hologram's camera, going out up the dish's way)
+    tip = _moved((0, 0, 0.36), tilt, at)
+    for k, r in enumerate((0.13, 0.22, 0.31)):
+        p.append(_sweep(_arc(r, 2.45 - 0.55, 2.45 + 0.55, 8), 0.035, 0.03, tip, "pod_glow", (0, 0, 0.6)))
     return join("item_scanner", p)
 
 
 def item_jammer():
-    """JAMMER: a box of electronics with a tall aerial and a blinking light"""
-    p = [box((0.5, 0.3, 0.32), (0, 0, 0.18), "metal_dark"), box((0.4, 0.04, 0.18), (0, -0.16, 0.2), "metal"),
-         drum(0.02, 0.6, (0.15, 0, 0.62), "metal", 6), ball((0.08, 0.08, 0.08), (0.15, 0, 0.94), "chili")]
-    for i in range(3):
-        p.append(box((0.07, 0.02, 0.05), (-0.14 + i * 0.1, -0.19, 0.24), "light_amber"))
+    """JAMMER: a rugged little radio set with a handle and two aerials, a jagged trace across its screen"""
+    case = [(-0.28, 0.08), (-0.24, 0.04), (0.24, 0.04), (0.28, 0.08), (0.28, 0.44), (0.24, 0.48), (-0.24, 0.48), (-0.28, 0.44)]
+    p = [_plate(case, 0.3, (0, 0, 0), "metal_dark", bevel=0.03, face="metal"),
+         box((0.3, 0.02, 0.17), (-0.07, -0.155, 0.32), "panel"),
+         _sweep([(-0.2, 0.31), (-0.15, 0.31), (-0.12, 0.38), (-0.08, 0.26), (-0.04, 0.36), (0.0, 0.3), (0.06, 0.3)], 0.022, 0.02, (0, -0.17, 0), "light_amber")]
+    for x, m in ((-0.17, "light_red"), (-0.07, "light_amber"), (0.03, "lights_under")):
+        p.append(box((0.06, 0.02, 0.04), (x, -0.155, 0.15), m))
+    for z in (0.33, 0.17):
+        p += [drum(0.05, 0.04, (0.17, -0.16, z), "metal_dark", 10, (math.pi / 2, 0, 0)),
+              box((0.012, 0.02, 0.05), (0.17, -0.185, z + 0.015), "white")]
+    for s in (-1, 1):
+        p.append(box((0.06, 0.32, 0.06), (s * 0.27, 0, 0.06), "black"))
+    p += [_sweep([(-0.02, 0.47)] + _arc(0.1, math.pi, 0, 6, 0.1, 0.52) + [(0.22, 0.47)], 0.035, 0.05, (0, 0, 0), "black"),
+          drum(0.03, 0.04, (-0.19, 0, 0.5), "metal", 8), rod(0.014, (-0.19, 0, 0.5), (-0.26, 0, 1.05), "chrome", 5),
+          ball((0.05, 0.05, 0.05), (-0.26, 0, 1.06), "light_red", 6, 4),
+          rod(0.012, (0.22, 0.08, 0.48), (0.38, 0.08, 0.8), "chrome", 5), ball((0.04, 0.04, 0.04), (0.38, 0.08, 0.8), "chrome", 6, 3)]
+    for k, r in enumerate((0.09, 0.15)):
+        for s in (-1, 1):
+            arc = _arc(r, -0.6 if s > 0 else math.pi - 0.6, 0.6 if s > 0 else math.pi + 0.6, 5, -0.26, 1.0)
+            p.append(_sweep(arc, 0.02, 0.02, (0, 0, 0), "light_amber"))
     return join("item_jammer", p)
 
 
@@ -1782,73 +2119,180 @@ def canister():
 
 
 def item_lucky():
-    """LUCKY CHARM: a four-leaf clover on its stem"""
-    p = [box((0.05, 0.05, 0.5), (0, 0, 0.25), "leaf_dark")]
-    for i in range(4):
-        a = i / 4 * math.tau + math.pi / 4
-        p.append(ball((0.34, 0.26, 0.06), (math.cos(a) * 0.17, math.sin(a) * 0.17, 0.55), "leaf", 8, 3, (0, 0, a)))
+    """LUCKY CHARM: a four-leaf clover of heart-shaped leaves on a curling stem, a glint beside it"""
+    heart = _heart_pts(0.3, 20)
+    p = [_sweep([(0.0, 0.6), (0.02, 0.45), (0.08, 0.3), (0.07, 0.15), (0.0, 0.04), (-0.06, 0.0)], [0.05, 0.05, 0.045, 0.04, 0.035, 0.03], 0.045, (0, 0.04, 0), "leaf_dark"),
+         ball((0.08, 0.08, 0.08), (0, -0.03, 0.62), "leaf_dark", 8, 4)]
+    for k in range(4):
+        a = math.pi / 4 + k * math.pi / 2
+        b = math.atan2(math.cos(a), math.sin(a))
+        at = (0.03 * math.cos(a), 0.012 * k - 0.02, 0.62 + 0.03 * math.sin(a))
+        p.append(_plate(heart, 0.05, at, "leaf", (0, b, 0), bevel=0.012, face="cactus_light", puff=0.03))
+        p.append(_plate([(-0.008, 0.02), (0.008, 0.02), (0.006, 0.2), (-0.006, 0.2)], 0.02, (at[0], at[1] - 0.045, at[2]), "leaf_dark", (0, b, 0)))
+    p += [_star(0.09, 0.04, (0.36, -0.05, 0.88), "light_white", (0, 0, 0.2), 4, 0.3),
+          _star(0.05, 0.03, (0.44, -0.05, 0.72), "light_white", (0, 0, 0.5), 4, 0.3)]
     return join("item_lucky", p)
 
 
 def item_armor():
-    """ARMOR: a plate of armour, riveted, in overlapping bands"""
-    p = []
-    for i in range(3):
-        p.append(box((0.7, 0.12, 0.26), (0, -0.04 * i, 0.2 + i * 0.22), "metal" if i % 2 == 0 else "metal_dark", (0.2, 0, 0)))
+    """ARMOR: a steel breastplate, ridged and riveted, two bands of plate hung beneath it"""
+    half = [(0.0, 0.26), (0.16, 0.28), (0.25, 0.34), (0.27, 0.48), (0.3, 0.66), (0.27, 0.76), (0.27, 0.84), (0.33, 0.92),
+            (0.38, 0.96), (0.36, 1.03), (0.2, 1.05), (0.12, 0.97), (0.0, 0.93)]
+    torso = half + [(-x, z) for x, z in reversed(half[1:-1])]
+    p = [_plate(torso, 0.14, (0, 0, 0), "metal", bevel=0.035, bow=1.2, puff=0.05)]
+    for k, (z, w) in enumerate(((0.19, 0.27), (0.09, 0.24))):
+        p.append(_plate([(-w, z - 0.05), (w, z - 0.05), (w + 0.02, z + 0.05), (-w - 0.02, z + 0.05)], 0.08, (0, -0.02 * k - 0.04, 0), "metal_dark", bevel=0.02, bow=1.2))
+    p.append(_sweep([(0.0, 0.33), (0.0, 0.6), (0.0, 0.9)], [0.03, 0.05, 0.03], 0.04, (0, -0.12, 0), "chrome"))
+    p.append(_sweep(_arc(0.12, math.pi, math.tau, 8, 0, 1.03), 0.035, 0.05, (0, -0.07, 0), "chrome"))
+    for x, z in ((0.3, 0.97), (-0.3, 0.97), (0.22, 0.5), (-0.22, 0.5), (0.2, 0.33), (-0.2, 0.33)):
+        p.append(ball((0.045, 0.045, 0.045), (x, -0.08 + 1.2 * x * x, z), "chrome", 6, 4))
+    for z in (0.19, 0.09):
         for s in (-1, 1):
-            p.append(ball((0.06, 0.06, 0.06), (0.28 * s, -0.1 - 0.04 * i, 0.2 + i * 0.22), "chrome", 4, 3))
+            p.append(ball((0.04, 0.04, 0.04), (s * 0.22, -0.11 - (0.02 if z < 0.15 else 0) + 1.2 * 0.22 * 0.22, z), "chrome", 6, 4))
     return join("item_armor", p)
 
 
 def item_swivel():
-    """SWIVEL MOUNT: a ball joint, the beam's emitter on it tipped well over to one side"""
-    p = [drum(0.26, 0.1, (0, 0, 0.05), "metal_dark", 10), ball((0.22, 0.22, 0.22), (0, 0, 0.26), "chrome", 8, 5),
-         drum(0.07, 0.36, (0.13, 0, 0.42), "metal", 6, (0, 0.75, 0)),
-         cone(0.2, 0.3, (0.3, 0, 0.6), "light_blue", 8, (0, 0.75 + math.pi, 0))]
+    """SWIVEL MOUNT: a ball joint in its collar, the beam's emitter on its arm tipped well over, its
+    beam slanting out to one side, an arrow of the swing"""
+    base = lathe("swivel_base", [(0.28, 0.0), (0.28, 0.05), (0.22, 0.07), (0.16, 0.12), (0.14, 0.17)],
+                 ["metal_dark", "metal", "metal_dark", "metal_dark", "metal_dark"], sides=16)
+    head, beam = (0.3, 0, 0.62), (0.6, 0, -0.8)
+    tilt = (0, math.atan2(-beam[0], -beam[2]), 0)
+    p = [base, _ring(0.15, 0.04, (0, 0, 0.24), "metal_dark", 16, 6), ball((0.26, 0.26, 0.26), (0, 0, 0.3), "chrome", 12, 8),
+         rod(0.05, (0, 0, 0.3), head, "metal", 8),
+         drum(0.17, 0.14, head, "metal", 12, tilt, top=0.1), drum(0.14, 0.03, (head[0] + beam[0] * 0.075, 0, head[2] + beam[2] * 0.075), "pod_glow", 12, tilt),
+         drum(0.26, 0.46, (head[0] + beam[0] * 0.33, 0, head[2] + beam[2] * 0.33), "light_blue", 12, tilt, top=0.12)]
+    for k in range(6):
+        a = k / 6 * math.tau
+        p.append(ball((0.04, 0.04, 0.04), _moved((0.17 * math.cos(a), 0.17 * math.sin(a), 0.0), tilt, head), "lights", 6, 3))
+    swing = _arc(0.44, math.pi * 0.95, math.pi * 0.58, 10, 0, 0.3)
+    p.append(_sweep(swing, 0.04, 0.04, (0, -0.05, 0), "spark"))
+    for (x, z), (x2, z2) in ((swing[0], swing[1]), (swing[-1], swing[-2])):
+        d = math.atan2(z - z2, x - x2)
+        tri = [(x + 0.1 * math.cos(d), z + 0.1 * math.sin(d)), (x + 0.07 * math.cos(d + 2.2), z + 0.07 * math.sin(d + 2.2)),
+               (x + 0.07 * math.cos(d - 2.2), z + 0.07 * math.sin(d - 2.2))]
+        p.append(_plate(tri, 0.04, (0, -0.05, 0), "spark"))
     return join("item_swivel", p)
 
 
+def item_starbits():
+    """STAR BIT BLASTER: a Gatling blaster, six barrels in a turning cluster, a hopper of star bits on
+    top and star bits spraying from its muzzle"""
+    X, z = (0, math.pi / 2, 0), 0.5
+    p = [_plate([(-0.38, 0.38), (0.06, 0.38), (0.1, 0.42), (0.1, 0.62), (0.06, 0.66), (-0.32, 0.66), (-0.38, 0.6)], 0.26, (0, 0, 0), "yellow", bevel=0.04),
+         _plate([(-0.12, 0.4), (-0.27, 0.4), (-0.36, 0.1), (-0.31, 0.03), (-0.19, 0.05)], 0.11, (0, 0, 0), "metal_dark", bevel=0.025),
+         _sweep([(-0.1, 0.39), (-0.06, 0.29), (0.02, 0.27), (0.07, 0.33), (0.07, 0.39)], 0.025, 0.035, (0, 0, 0), "metal_dark"),
+         drum(0.1, 0.06, (0.12, 0, z), "metal_dark", 12, X), drum(0.03, 0.56, (0.36, 0, z), "metal_dark", 8, X)]
+    for k in range(6):
+        a = k / 6 * math.tau
+        y, zz = 0.085 * math.cos(a), z + 0.085 * math.sin(a)
+        p += [drum(0.038, 0.46, (0.36, y, zz), "metal", 8, X), drum(0.024, 0.02, (0.595, y, zz), "neon_pink", 6, X)]
+    for x in (0.25, 0.45):
+        p.append(drum(0.145, 0.04, (x, 0, z), "metal_dark", 12, X))
+    p.append(drum(0.14, 0.03, (0.55, 0, z), "neon_pink", 12, X))
+    hopper = _turned(lathe("hopper", [(0.13, 0.0), (0.15, 0.13), (0.13, 0.15), (0.11, 0.06)], ["neon_pink", "white", "white", "black"], sides=12))
+    hopper.location = (-0.14, 0, 0.64)
+    p.append(hopper)
+    bits = (("light_red", (-0.18, -0.03, 0.8)), ("light_blue", (-0.1, 0.03, 0.81)), ("light_amber", (-0.14, 0.0, 0.85)))
+    for k, (m, at) in enumerate(bits):
+        p.append(_star(0.06, 0.04, at, m, (0.3 * k, 0.5 * k, 0.4 * k)))
+    spray = (("light_amber", (0.76, -0.04, 0.53), 0.08), ("neon_pink", (0.92, 0.04, 0.66), 0.07), ("light_blue", (0.95, -0.06, 0.4), 0.07),
+             ("meteor_glow", (1.1, 0.0, 0.56), 0.06), ("light_red", (1.08, 0.05, 0.75), 0.05), ("light_white", (1.2, -0.04, 0.42), 0.045))
+    for k, (m, at, r) in enumerate(spray):
+        p.append(_star(r, r * 0.8, at, m, (0.4 * k, 0.6 * k + 0.3, 0.7 * k)))
+    return join("item_starbits", p)
+
+
 def item_second_wind():
-    """SECOND WIND: a heart wreathed in a swirl of flame"""
-    p = [ball((0.3, 0.2, 0.3), (-0.1, 0, 0.5), "chili", 8, 4), ball((0.3, 0.2, 0.3), (0.1, 0, 0.5), "chili", 8, 4),
-         cone(0.22, 0.32, (0, 0, 0.3), "chili", 8, (math.pi, 0, 0))]
-    for i in range(5):
-        a = i / 5 * math.tau
-        p.append(cone(0.08, 0.3, (math.cos(a) * 0.32, math.sin(a) * 0.1, 0.45 + 0.12 * math.sin(a)), "camp", 5))
+    """SECOND WIND: a puffed-up heart on a pair of feathered wings, an extra life"""
+    p = [_plate(_scaled(_heart_pts(0.5), 1.0, 0, 0.2), 0.16, (0, 0, 0), "chili", bevel=0.04, face="light_red", puff=0.08),
+         ball((0.08, 0.04, 0.06), (-0.1, -0.15, 0.58), "light_white", 6, 3, (0, 0.3, 0.5))]
+    # (each wing a fan of long flight feathers behind a shorter row, their ends scalloped)
+    big = [(0.0, 0.0), (0.0, 0.1), (0.12, 0.2), (0.28, 0.3), (0.44, 0.4), (0.58, 0.46), (0.52, 0.34), (0.54, 0.26),
+           (0.44, 0.24), (0.46, 0.13), (0.35, 0.13), (0.35, 0.02), (0.25, 0.06), (0.23, -0.06), (0.14, 0.0), (0.1, -0.1)]
+    small = [(0.0, 0.04), (0.0, 0.12), (0.12, 0.21), (0.27, 0.29), (0.38, 0.33), (0.33, 0.24), (0.34, 0.16), (0.24, 0.17),
+             (0.22, 0.07), (0.13, 0.1), (0.08, 0.0)]
+    for s in (-1, 1):
+        p.append(_plate([(s * x, z) for x, z in big], 0.05, (s * 0.14, 0.07, 0.36), "white", (0, -s * 0.12, 0), bevel=0.015))
+        p.append(_plate([(s * x, z) for x, z in small], 0.04, (s * 0.15, 0.02, 0.38), "trim", (0, -s * 0.12, 0), bevel=0.012))
     return join("item_second_wind", p)
 
 
 def item_coolant():
-    """COOLANT: a frosted canister of coolant, ringed with cooling fins, a pipe out of its cap"""
-    p = [drum(0.2, 0.62, (0, 0, 0.36), "ice", 12), drum(0.22, 0.06, (0, 0, 0.06), "metal", 12),
-         drum(0.12, 0.08, (0, 0, 0.71), "metal", 10), drum(0.035, 0.24, (0.12, 0, 0.82), "metal_dark", 6, (0, 1.2, 0)),
-         box((0.06, 0.06, 0.4), (0, -0.2, 0.36), "spark")]
-    for i in range(4):
-        p.append(drum(0.27, 0.025, (0, 0, 0.18 + i * 0.12), "metal", 12))
+    """COOLANT: a frosted canister of coolant, finned top and bottom, a snowflake on it, a valve on
+    its cap, a pipe out of it, icicles hanging"""
+    can = lathe("can", [(0.2, 0.04), (0.22, 0.07), (0.22, 0.6), (0.19, 0.66), (0.12, 0.7), (0.1, 0.72)], ["ice"] * 6, sides=16)
+    p = [can, drum(0.25, 0.06, (0, 0, 0.03), "metal", 16)]
+    for z in (0.13, 0.19, 0.55):
+        p.append(drum(0.27, 0.025, (0, 0, z), "metal", 16))
+    for k in range(3):
+        a = k * math.pi / 3
+        p.append(box((0.03, 0.03, 0.26), (0, -0.215, 0.37), "spark", (0, a, 0)))
+        for s in (-1, 1):
+            tip = (s * 0.1 * math.sin(a), s * 0.1 * math.cos(a))
+            p.append(box((0.07, 0.03, 0.025), (tip[0], -0.215, 0.37 + tip[1]), "spark", (0, a, 0)))
+    p += [drum(0.06, 0.1, (0, 0, 0.75), "metal_dark", 10), _ring(0.12, 0.022, (0, 0, 0.82), "police_blue", 16, 6),
+          box((0.24, 0.025, 0.025), (0, 0, 0.82), "police_blue"), box((0.025, 0.24, 0.025), (0, 0, 0.82), "police_blue"),
+          drum(0.035, 0.04, (0, 0, 0.83), "metal", 8),
+          _sweep([(0.12, 0.66), (0.28, 0.68), (0.35, 0.62), (0.36, 0.44)], 0.05, 0.05, (0, 0, 0), "metal_dark"),
+          drum(0.045, 0.04, (0.36, 0, 0.43), "metal", 8)]
+    for k, a in enumerate((-2.0, -1.6, -1.1, -0.6)):
+        p.append(cone(0.022, 0.09 + 0.03 * (k % 2), (0.27 * math.cos(a), 0.27 * math.sin(a), 0.49 - 0.015 * (k % 2)), "ice", 5, (math.pi, 0, 0)))
     return join("item_coolant", p)
 
 
 def item_nanobots():
-    """NANOBOTS: a cluster of little glowing hexagonal cells"""
-    p = []
-    for i, (x, z) in enumerate(((0, 0.5), (0.24, 0.36), (-0.24, 0.36), (0, 0.22), (0.24, 0.64), (-0.24, 0.64), (0, 0.78))):
-        p.append(drum(0.13, 0.12, (x, 0, z), "spark" if i % 2 == 0 else "metal", 6, (math.pi / 2, 0, 0)))
+    """NANOBOTS: a honeycomb of little bevelled cells, some glowing, a mending cross at its heart"""
+    hexa = [(0.135 * math.cos(k * math.pi / 3), 0.135 * math.sin(k * math.pi / 3)) for k in range(6)]
+    p = [_plate(_scaled(hexa, 1.0, 0, 0.5), 0.18, (0, -0.02, 0), "metal", bevel=0.03, face="metal")]
+    for k in range(6):
+        a = math.pi / 6 + k * math.pi / 3
+        x, z = 0.27 * math.cos(a), 0.5 + 0.27 * math.sin(a)
+        p.append(_plate(_scaled(hexa, 1.0, x, z), 0.12, (0, 0.02 * (k % 2), 0), "metal_dark", bevel=0.025,
+                        face="spark" if k % 2 == 0 else "metal_dark", puff=0.02))
+    p += [box((0.16, 0.04, 0.05), (0, -0.13, 0.5), "spark"), box((0.05, 0.04, 0.16), (0, -0.13, 0.5), "spark")]
+    for (x, z) in ((0.47, 0.82), (-0.46, 0.2)):
+        p += [ball((0.08, 0.08, 0.07), (x, -0.02, z), "metal", 8, 5), ball((0.03, 0.02, 0.03), (x - 0.02, -0.06, z + 0.01), "spark", 6, 3)]
+        for s in (-1, 1):
+            p.append(rod(0.008, (x, -0.02, z), (x + s * 0.07, -0.02, z - 0.06), "metal_dark", 4))
     return join("item_nanobots", p)
 
 
+def _coin(at, rot=(0, 0, 0)):
+    c = _turned(lathe("coin", [(0.01, -0.02), (0.15, -0.02), (0.16, -0.03), (0.2, -0.03), (0.2, 0.03), (0.16, 0.03),
+                               (0.15, 0.02), (0.01, 0.02)], ["gold_dark", "gold", "gold", "gold", "gold", "gold", "gold_dark", "gold_dark"], sides=18))
+    c.location, c.rotation_euler = at, rot
+    return c
+
+
 def item_gold():
-    """GOLD: a stack of gold coins"""
-    p = []
-    for i in range(5):
-        p.append(drum(0.26, 0.07, (0.02 * (i % 2), 0.02 * ((i + 1) % 2), 0.05 + i * 0.075), "gold", 14))
-    p.append(drum(0.26, 0.07, (0.3, -0.05, 0.25), "gold", 14, (1.3, 0, 0.4)))
+    """GOLD: a stack of rimmed gold coins, one stood up in front with a star struck on it, a gold bar
+    behind and a glint or two"""
+    p = [_plate([(-0.24, 0.0), (0.24, 0.0), (0.19, 0.14), (-0.19, 0.14)], 0.24, (-0.12, 0.2, 0), "gold", bevel=0.03, face="gold"),
+         _plate([(-0.24, 0.0), (0.24, 0.0), (0.19, 0.14), (-0.19, 0.14)], 0.24, (-0.12, 0.2, 0.15), "gold", (0, 0, 0.25), bevel=0.03, face="gold")]
+    for k in range(5):
+        p.append(_coin((0.14 + 0.015 * math.sin(k * 2.0), -0.02 + 0.015 * math.cos(k * 2.0), 0.03 + k * 0.065), (0, 0, k * 0.4)))
+    p += [_coin((-0.2, -0.17, 0.23), (math.pi / 2 - 0.15, 0, 0.25)),
+          _star(0.09, 0.03, _moved((0, 0, 0.035), (math.pi / 2 - 0.15, 0, 0.25), (-0.2, -0.17, 0.23)), "gold_dark", (-0.15, 0, 0.25)),
+          _star(0.08, 0.03, (0.4, -0.1, 0.62), "light_white", (0, 0, 0.3), 4, 0.3),
+          _star(0.05, 0.03, (-0.42, -0.1, 0.5), "light_white", (0, 0, 0.6), 4, 0.3)]
     return join("item_gold", p)
 
 
 def item_emp():
-    """EMP: a coil around a crackling sphere"""
-    p = [ball((0.36, 0.36, 0.36), (0, 0, 0.5), "spark", 10, 6), drum(0.3, 0.05, (0, 0, 0.5), "metal", 14),
-         drum(0.3, 0.05, (0, 0, 0.5), "metal", 14, (math.pi / 2, 0, 0)), drum(0.18, 0.12, (0, 0, 0.08), "metal_dark", 10)]
+    """EMP: a Tesla coil, copper windings up its column, a ring on top round a crackling sphere, bolts
+    jumping off it"""
+    base = lathe("emp_base", [(0.3, 0.0), (0.3, 0.06), (0.24, 0.08), (0.2, 0.12), (0.12, 0.14)],
+                 ["metal_dark", "metal", "metal_dark", "metal_dark", "metal_dark"], sides=16)
+    p = [base, drum(0.1, 0.42, (0, 0, 0.33), "white", 12)]
+    for k in range(6):
+        p.append(drum(0.115, 0.035, (0, 0, 0.18 + k * 0.055), "copper", 12))
+    p += [_ring(0.21, 0.07, (0, 0, 0.6), "chrome", 18, 8), ball((0.26, 0.26, 0.26), (0, 0, 0.66), "spark", 12, 8)]
+    # (the bolts in the plane the hologram's camera faces, at 0.6 round from the x axis)
+    for a, down, s in ((0.6, 0.25, 0.42), (0.6 + math.pi, 0.45, 0.38), (0.6, -0.95, 0.26), (0.6 + math.pi, -0.8, 0.22)):
+        at = (0.12 * math.cos(a), 0.12 * math.sin(a), 0.68)
+        p.append(_plate(_scaled(BOLT, s), 0.04, at, "spark", (0, down - math.pi / 2, a)))
     return join("item_emp", p)
 
 
@@ -1965,7 +2409,8 @@ def fish():
 def catfish():
     """A catfish: broad, flat-headed and grey, long whiskers either side of its mouth"""
     p = [ball((0.32, 0.85, 0.22), (0, 0, 0.0), "metal_dark", 8, 5), ball((0.26, 0.6, 0.1), (0, -0.05, -0.07), "stone_pale", 8, 4),
-         box((0.03, 0.22, 0.2), (0, 0.5, 0.0), "metal_dark"), box((0.3, 0.04, 0.04), (0, -0.32, 0.05), "black")]
+         box((0.03, 0.22, 0.14), (0, 0.52, 0.07), "metal_dark", (0.5, 0, 0)), box((0.03, 0.22, 0.14), (0, 0.52, -0.07), "metal_dark", (-0.5, 0, 0)),
+         box((0.03, 0.3, 0.08), (0, 0.05, 0.13), "metal_dark"), box((0.34, 0.04, 0.04), (0, -0.32, 0.05), "black")]
     for s in (-1, 1):
         p.append(box((0.3, 0.02, 0.02), (0.18 * s, -0.42, 0.0), "black", (0, 0, 0.4 * s)))
     return join("catfish", p)
@@ -2016,16 +2461,31 @@ def dealership():
 
 
 def schoolhouse():
-    """A one-room schoolhouse, red with white trim, its bell up in a little tower over the door"""
-    p = [box((6.0, 9.0, 3.2), (0, 0, 1.6), "barn"), box((1.6, 1.6, 1.6), (0, -3.6, 4.6), "white"),
-         cone(1.3, 1.4, (0, -3.6, 6.1), "roof", 4, (0, 0, math.pi / 4)), drum(0.3, 0.4, (0, -3.6, 4.7), "gold", 8),
-         box((1.4, 0.08, 2.2), (0, -4.52, 1.1), "white"), box((1.1, 0.1, 1.9), (0, -4.55, 0.95), "wood_dark")]
-    roof = []
+    """A one-room schoolhouse, red with white trim: a pitched roof over red gable ends, the door in
+    the front gable (-y) under a little open belfry on the ridge, its bell hanging in it"""
+    pitch = math.atan2(2.0, 3.0)
+    p = [box((6.0, 9.0, 3.2), (0, 0, 1.6), "barn"), gable(6.0, 9.0, 2.0, (0, 0, 3.2), "barn"),
+         box((6.2, 9.2, 0.16), (0, 0, 3.2), "white"),
+         # (the door, its white frame and the step up to it)
+         box((1.5, 0.08, 2.3), (0, -4.54, 1.15), "white"), box((1.1, 0.08, 1.95), (0, -4.6, 0.98), "wood_dark"),
+         box((2.0, 0.7, 0.2), (0, -4.85, 0.1), "concrete"),
+         # (the belfry: a white base on the ridge, four posts, the bell hung between them, a pointed roof)
+         box((1.6, 1.6, 1.2), (0, -3.6, 5.0), "white")]
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.append(box((0.16, 0.16, 1.2), (0.65 * sx, -3.6 + 0.65 * sy, 6.2), "white"))
+    p += [cone(0.32, 0.5, (0, -3.6, 6.15), "gold", 8), ball((0.12, 0.12, 0.12), (0, -3.6, 5.85), "gold", 6, 3),
+          box((1.7, 1.7, 0.12), (0, -3.6, 6.86), "white"), cone(1.25, 1.2, (0, -3.6, 7.5), "roof", 4, (0, 0, math.pi / 4))]
+    # The roof: two boards pitched down from the ridge to the eaves, overhanging a little
     for s in (-1, 1):
-        roof.append(box((3.6, 9.6, 0.2), (1.55 * s, 0, 3.95), "roof", (0, -0.6 * s, 0)))
+        n = (math.sin(pitch) * s, 0, math.cos(pitch))
+        p.append(box((3.9, 9.6, 0.2), (1.5 * s + n[0] * 0.12, 0, 4.2 + n[2] * 0.12), "roof", (0, pitch * s, 0)))
         for y in (-1.8, 0.4, 2.6):
             p.append(box((0.08, 1.0, 1.3), (3.02 * s, y, 1.8), "window"))
-    return join("schoolhouse", p + roof)
+    # (a round window up in each gable)
+    for y in (-4.52, 4.52):
+        p.append(drum(0.35, 0.06, (0, y, 4.0), "window", 10, (math.pi / 2, 0, 0)))
+    return join("schoolhouse", p)
 
 
 def playground():
@@ -2578,23 +3038,29 @@ def feed_bin():
 
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
-            tree, pine, fence, tent, floodlight, ufo,
+            tree, pine, willow, cottonwood, joshua_tree, fence, tent, floodlight, ufo,
             mesa, butte, devils_tower, peak, crag, hydrant, bank, fort_knox, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
             diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, carnival, track, locomotive, boxcar, caboose, rider, balloon, fish, catfish, frog, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek, sunflower, cabbage, melon, pepper, motorcycle, cult_altar, helicarrier, railgun, laser_truck, fire_truck, ambulance, hospital, fire_station, prison, grain_elevator, chicken_coop, irrigation, feed_bin,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,
             item_engine, item_beam, item_shield, item_dash, item_laser, item_turret, item_missiles, item_cloak,
-            item_magnet, item_wide, item_scanner, item_jammer, item_coolant, item_lucky, item_armor, item_swivel, item_second_wind, canister, item_nanobots, item_gold, item_emp]
+            item_magnet, item_wide, item_scanner, item_jammer, item_coolant, item_lucky, item_armor, item_swivel, item_starbits, item_second_wind, canister, item_nanobots, item_gold, item_emp]
 
 
 def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     os.makedirs(MODELS, exist_ok=True)
     os.makedirs(ART, exist_ok=True)
+    # (CE_ONLY=name,name builds just those models, and leaves the .blend alone: see tools/look_models.py)
+    only = [n for n in os.environ.get("CE_ONLY", "").split(",") if n]
     x = 0.0
     for build in BUILDERS:
+        if only and getattr(build, "__name__", "") not in only:
+            continue
         root = build()
+        if only and root.name not in only:
+            continue
         bpy.ops.object.select_all(action="DESELECT")
         root.select_set(True)
         for child in root.children:
@@ -2605,7 +3071,8 @@ def main():
         # (laid out in a row in the .blend, to look over)
         root.location.x = x
         x += max(root.dimensions.x, 2.0) + 3.0
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ART, "models.blend"))
+    if not only:
+        bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ART, "models.blend"))
 
 
 main()

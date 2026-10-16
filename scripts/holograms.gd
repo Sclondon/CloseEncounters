@@ -84,6 +84,9 @@ func _process(_delta: float) -> void:
 	var lit := kind.begins_with("item:")
 	if lit:
 		var model_name: String = ITEM_MODELS.get(kind.trim_prefix("item:"), "pod")
+		# (an item whose model is not built yet shows as the turret's)
+		if not ResourceLoader.exists("res://models/%s.glb" % model_name):
+			model_name = "item_turret"
 		_drawing = Ps1.model(model_name)
 		_drawing.set_meta("kind", kind)
 		_view.add_child(_drawing)
@@ -134,7 +137,7 @@ func _frame(model: Node3D, hologram: bool, tint := GREEN) -> void:
 ## item's own colour (`item_colours`, filled in from main.gd UPGRADES); by the upgrade's name
 const ITEM_MODELS := {"engine": "item_engine", "beam": "item_beam", "shield": "item_shield", "dash": "item_dash",
 	"laser": "item_laser", "turret": "item_turret", "missiles": "item_missiles", "cloak": "item_cloak", "fleet": "ufo", "patch": "item_shield",
-	"magnet": "item_magnet", "wide": "item_wide", "scanner": "item_scanner", "jammer": "item_jammer", "coolant": "item_coolant", "nanobots": "item_nanobots", "gold": "item_gold", "emp": "item_emp", "lucky": "item_lucky", "armor": "item_armor", "second_wind": "item_second_wind", "swivel": "item_swivel"}
+	"magnet": "item_magnet", "wide": "item_wide", "scanner": "item_scanner", "jammer": "item_jammer", "coolant": "item_coolant", "nanobots": "item_nanobots", "gold": "item_gold", "emp": "item_emp", "lucky": "item_lucky", "armor": "item_armor", "second_wind": "item_second_wind", "swivel": "item_swivel", "starbits": "item_starbits"}
 
 
 ## Each item's colour, by its name

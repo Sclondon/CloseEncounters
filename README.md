@@ -111,7 +111,7 @@ cacti; **2** trees, rocks, tents; **3** houses, barns, silos, windmills, water t
 cabins; **4** the land itself: buttes, mesas, peaks and Devils Tower (up to 5000 points). Over something too
 heavy, it only rattles (and a roof sheds tiles up the beam). Taking a mesa or a peak clears it out of the way. Under the beam, bits of the ground jump up (grass, clods, chaff, sand, drops over a lake) and the swirl up the beam takes their colour; phone wires near it spark.
 
-The hot air balloon is a proper teardrop of coloured gores. Watermelons are big and striped, dark green with pale bands, each with a slice lying beside it showing the red inside.
+The hot air balloon is a proper teardrop of coloured gores. Watermelons are round striped balls, dark green with pale bands.
 
 **Crop circles**: hold the beam still over a field of crops and a circle presses into it (60 points), joined by a pressed line to its nearest neighbours within 14 m (two lines at most to a circle, never through another).
 **Rare finds**, each under a shaft of gold light: the golden cow, a jackalope, Bigfoot, a meteorite, a fallen
@@ -127,9 +127,15 @@ shows under the heat's news with its seconds left.
 
 **Power-up canisters** hover and spin over a glowing ring in their colour, with a halo round them. Taken, they burst into motes of that colour whirling round the saucer.
 
+The ITEMS section of the log runs common, uncommon, then rare. Every item has a detailed model (see `item_*` in build_models.py), and `sh tools/look_models.sh <dir> <name>...` builds and renders any model from four sides to check its layout.
+
+**Trees**: besides the round deciduous tree, pines, aspens and pinyons there are weeping **willows** leaning over ponds and lakes, tall forked **cottonwoods** in the pastures and out on the plains, and **Joshua trees** among the saguaros in the desert.
+
+The moon menu's buttons flicker on like a hologram warming up instead of popping in. Police circling a wreck keep to a ring round it, easing in and out, instead of jittering at its edge.
+
 **No flicker**: big flat things on the ground (fields, the town square, the rail bed, ponds, and lots, runways and yards in the models: `World.slab`, `box` in build_models.py) are cut into a grid of 2 to 3 m, so they bend with the ground instead of sinking under it between their corners, and they sit clear of it and of each other. A radio dish's waves now leave from in front of the dish, facing the saucer, and travel out to it.
 
-Bullets, pellets and tracers are bright, with a white-hot core, a glow round them and a faint streak behind, and a little slower than they were, so they can be seen coming.
+Bullets, pellets and tracers are bright, with a white-hot core, a small glow round them and a faint streak behind, and slow enough to dodge (pellets 14 m/s, bullets 17, tracers 21). Shots coming at the ship from off the screen show as pulsing red arrows at its edge where they will come in, bigger and brighter the closer they are (`ThreatMarks`). The dash orb fills with green liquid as its charges come back, bubbling, and glows when full.
 
 **Money**: every town may have a **bank**. Hold the beam on it and its cash comes out up the beam over 5 s ($3000, raising the heat). Out in the plains and farmland now and then is **Fort Knox**, a granite gold vault between two watchtowers: 12 s of beam for $25,000 in gold, and a lot of heat. **Fire hydrants** stand along town sidewalks. Beam one up (or blow it up) and water spouts out of the main for good: the beam over the spout drinks it, a trickle of points, and it cools the heat a little. **Railway track** can be beamed up a length at a time, and the next train to reach the gap comes off the rails, ploughing over on its side (`Main.torn_track`).
 
@@ -174,9 +180,9 @@ it holds you. Once there is heat, the patrols lock their lights on and join in.
 MARKET** opens: its carnival-painted trading saucer appears at once in a puff of confetti and smoke, lit (`MarketShip`; from above by a stage light and left out of the dark laid over the picture, `market_dim.gdshader`), and its beam throws the market onto the screen (`ProjectorBeam`: from above on a phone, from the side on a wide screen), with a choice
 of upgrades (sized for thumbs, biggest on an upright phone). They are items that stack, as in Risk of Rain: each pick is one more of it (up to ten), small at first and growing with the stack (the fleet up to six saucers, rates with floors). The items had show as a row of little tiles under the heat's stars, each a small 3D model of the item (built in Blender, `item_*` in tools/build_models.py) with its stack count, as in Risk of Rain 2; the level-up choices show them too:
 ENGINE (+7% speed), BEAM (lifts faster, and every second level one tier stronger), SHIELD (+15), DASH (one more
-dash charge, refilling a little sooner, two more afterimages), MAGNET (small things drift to the beam), WIDE BEAM, SWIVEL MOUNT (the beam leans a third further out from under the ship),
+dash charge, refilling a little sooner, two more afterimages), MAGNET (small things drift to the beam), WIDE BEAM, SWIVEL MOUNT (the beam leans a third further out from under the ship), STAR BIT BLASTER (uncommon: sprays Mario Galaxy-style star bits by itself at what the defence laser would aim at, many times as fast but wild and weak, enough hits adding up to a laser hit),
 SCANNER (the radar sees further), JAMMER (they stop looking sooner), COOLANT (the heat cools quicker), NANOBOTS
-(the shield mends itself), GOLD (everything taken worth a tenth more), EMP (a dash stuns the police and army near), LUCKY CHARM (power-ups turn up more often, and more of them), ARMOR (an eighth less damage a stack), SECOND WIND (each stack shrugs off one fatal hit, the shield back to two fifths), CLOAK, MISSILES, and:
+(the shield mends itself), GOLD (everything taken worth a tenth more), EMP (a dash sets off a crackling electric blast that stuns and freezes the police and army caught in it; bigger with each, and from the second it paralyses people and animals too), LUCKY CHARM (power-ups turn up more often, and more of them), ARMOR (an eighth less damage a stack), SECOND WIND (each stack shrugs off one fatal hit, the shield back to two fifths), CLOAK, MISSILES, and:
 
 - **LASER**: a ray of your own. Switch the beam over to it (L, Tab or C; gamepad Y; or the red bolt button over the beam's mark on a touch screen) and the beam's button fires it, where the beam would fall, leaving a trail of glowing burns on the ground that cool to soot and fade. The police and army there are hit (a few hits blow them up), cars and oil drums blow up, and **anything else burns down** (people, animals, trees, houses...: hits up to its size squared, a LASER's worth a cut each), up to a size the laser's level allows (`laser_burns`: a house wants a second LASER, a church a third); the land itself never burns.
 - **AUTO TURRET**: a turret under the hull that fires by itself, a pink bolt every 4.0 s (0.6 s sooner a level,

@@ -5,10 +5,10 @@ extends Node3D
 ## seen coming and flown out of the way of. The game moves them through `tick`.
 
 const SPECS := {
-	"pellet": {"speed": 18.0, "damage": 2.0, "life": 1.6, "colour": Color(1.0, 0.95, 0.6), "size": Vector3(0.14, 0.14, 0.75)},
-	"bullet": {"speed": 22.5, "damage": 4.0, "life": 2.0, "colour": Color(1.0, 0.9, 0.4), "size": Vector3(0.16, 0.16, 1.1)},
-	"ray": {"speed": 22.0, "damage": 5.0, "life": 1.7, "colour": Color(0.45, 1.0, 0.6), "size": Vector3(0.12, 0.12, 1.5)},
-	"tracer": {"speed": 28.0, "damage": 2.5, "life": 1.75, "colour": Color(1.0, 0.6, 0.25), "size": Vector3(0.17, 0.17, 1.5)},
+	"pellet": {"speed": 14.0, "damage": 2.0, "life": 2.0, "colour": Color(1.0, 0.95, 0.6), "size": Vector3(0.14, 0.14, 0.75)},
+	"bullet": {"speed": 17.0, "damage": 4.0, "life": 2.5, "colour": Color(1.0, 0.9, 0.4), "size": Vector3(0.16, 0.16, 1.1)},
+	"ray": {"speed": 18.0, "damage": 5.0, "life": 2.1, "colour": Color(0.45, 1.0, 0.6), "size": Vector3(0.12, 0.12, 1.5)},
+	"tracer": {"speed": 21.0, "damage": 2.5, "life": 2.2, "colour": Color(1.0, 0.6, 0.25), "size": Vector3(0.17, 0.17, 1.5)},
 	"shell": {"speed": 20.0, "damage": 18.0, "life": 3.0, "colour": Color(1.0, 0.4, 0.1), "size": Vector3(0.35, 0.35, 0.6)},
 	"missile": {"speed": 17.0, "damage": 14.0, "life": 6.0, "colour": Color(0.9, 0.9, 0.9), "size": Vector3(0.22, 0.22, 1.2)},
 	"laser": {"speed": 60.0, "damage": 6.0, "life": 0.8, "colour": Color(1.0, 0.2, 0.25), "size": Vector3(0.12, 0.12, 3.0)},

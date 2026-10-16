@@ -109,7 +109,7 @@ var _circle_time := 0.0
 var _circle_done := false
 ## The traders parked about the country, and what has been bought from them this run
 var shops: Array[Shop] = []
-var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "fleet": 0}
+var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "starbits": 0, "fleet": 0}
 var _hot_wait := 0.0
 ## The level reached this run (see `_levels`), levels still to pick for, and the picker
 var level := 0
@@ -127,7 +127,7 @@ const SPAWN_A_FRAME := 6
 ## What traders sell, one pod each: three of these are set out in front of each trader
 ## The beam's colours as BEAM items stack: green, blue, purple
 const BEAM_COLOURS := [Color(0.55, 1.0, 0.65), Color(0.4, 0.7, 1.0), Color(0.78, 0.45, 1.0)]
-const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "fleet"]
+const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "starbits", "fleet"]
 const UPGRADES := {
 	"engine": {"title": "ENGINE", "about": "faster", "price": 300, "colour": Color(1.0, 0.55, 0.15)},
 	"beam": {"title": "BEAM", "about": "lifts faster, then heavier things", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
@@ -145,10 +145,11 @@ const UPGRADES := {
 	"coolant": {"title": "COOLANT", "about": "the heat cools quicker", "price": 450, "colour": Color(0.6, 1.0, 0.98)},
 	"nanobots": {"title": "NANOBOTS", "about": "the shield mends itself", "price": 450, "colour": Color(0.4, 0.75, 1.0)},
 	"gold": {"title": "GOLD", "about": "everything taken is worth more", "price": 500, "colour": Color(1.0, 0.82, 0.25)},
-	"emp": {"title": "EMP", "about": "dashing stuns the police and army near", "price": 450, "colour": Color(0.55, 0.85, 1.0)},
+	"emp": {"title": "EMP", "about": "a dash stuns the police near; bigger each, and paralyses people too from the second", "price": 450, "colour": Color(0.55, 0.85, 1.0)},
 	"lucky": {"title": "LUCKY CHARM", "about": "power-ups turn up more often", "price": 300, "colour": Color(0.35, 0.95, 0.4)},
 	"armor": {"title": "ARMOR", "about": "the ship takes less damage", "price": 450, "colour": Color(0.7, 0.72, 0.78)},
 	"swivel": {"title": "SWIVEL MOUNT", "about": "lean the beam out further", "price": 350, "colour": Color(0.55, 0.95, 1.0)},
+	"starbits": {"title": "STAR BIT BLASTER", "about": "sprays star bits by itself: fast, wild, weak", "price": 500, "colour": Color(1.0, 0.75, 0.95)},
 	"second_wind": {"title": "SECOND WIND", "about": "shrug off one fatal hit", "price": 600, "colour": Color(1.0, 0.55, 0.25)},
 	"fleet": {"title": "FLEET", "about": "a little helper saucer", "price": 450, "colour": Color(1.0, 0.9, 0.3)},
 }
@@ -231,6 +232,7 @@ var shield_bar: Control
 var heat_note: Label
 var item_bar: Control
 var dash_orb: Control
+var threat_marks: Control
 var heat_note_time := 0.0
 var title_box: Control
 var over_box: Control
@@ -551,7 +553,7 @@ func start(from_launch := false) -> void:
 	_clear_wreck()
 	if not from_launch:
 		alien_seed = randi()
-	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "fleet": 0}
+	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "starbits": 0, "fleet": 0}
 	level = 0
 	_levels_due = 0
 	_rescue_wait = -1.0
@@ -806,6 +808,7 @@ func _process(delta: float) -> void:
 	_boosts(delta)
 	_geysering(delta)
 	_whirl(delta)
+	_star_bits(delta)
 	_trains(delta)
 	_airliners(delta)
 	_watchers(delta)
@@ -846,6 +849,7 @@ func _process(delta: float) -> void:
 	_camera(delta)
 	_hud(delta)
 	_title_flybys(delta)
+	_title_flicker(delta)
 	if mode == "over":
 		_wreck_burning(delta)
 	if ufo.dead and mode == "play":
@@ -1530,7 +1534,7 @@ func _levels() -> void:
 const RARITY_COLOURS: Array[Color] = [Color(0.4, 1.0, 0.5), Color(0.35, 0.65, 1.0), Color(1.0, 0.3, 0.3)]
 const RARITY_NAMES: Array[String] = ["COMMON", "UNCOMMON", "RARE"]
 const RARITY_ODDS: Array[float] = [6.0, 2.5, 0.8]
-const UNCOMMON: Array[String] = ["laser", "turret", "cloak", "nanobots", "gold", "armor"]
+const UNCOMMON: Array[String] = ["laser", "turret", "starbits", "cloak", "nanobots", "gold", "armor"]
 const RARE: Array[String] = ["missiles", "emp", "fleet", "second_wind"]
 
 
@@ -1771,14 +1775,50 @@ func _emp() -> void:
 	var n: int = upgrades["emp"]
 	if n <= 0:
 		return
-	var reach := 10.0 + 3.0 * n
-	ufo.puffs.puff(ufo.global_position, Color(0.55, 0.85, 1.0, 0.5), reach * 0.5, Vector3.ZERO, 0.4)
+	# (bigger and bigger with each EMP stacked)
+	var reach := 9.0 + 5.0 * n
+	_emp_blast(reach)
+	sfx.play("static", 0.6, 2.0)
+	_shake = maxf(_shake, 0.2 + 0.05 * n)
 	for t in things:
-		if t.is_enemy() and t.state == "walk" and t.position.distance_to(ufo.position) < reach:
-			t.reload = maxf(t.reload, 0.0) + 2.5
+		if t.state != "walk" or t.position.distance_to(ufo.position) > reach:
+			continue
+		if t.is_enemy():
+			t.reload = maxf(t.reload, 0.0) + 2.5 + 0.5 * n
 			t.burst = 0
-			for i in 3:
-				ufo.puffs.spark(t.global_position + Vector3(0, 1.0, 0), Vector3(randf_range(-2, 2), randf_range(1, 3), randf_range(-2, 2)), Color(0.55, 0.85, 1.0))
+			t.stunned = maxf(t.stunned, 0.8 + 0.4 * n)
+		elif n >= 2 and t.info["move"] in ["flee", "believer", "graze", "peck", "guard"]:
+			# (from the second EMP on, people and animals caught in it are paralysed a while too)
+			t.stunned = maxf(t.stunned, 1.0 + 0.8 * n)
+		else:
+			continue
+		for i in 3:
+			ufo.puffs.spark(t.global_position + Vector3(0, 1.0, 0), Vector3(randf_range(-2, 2), randf_range(1, 3), randf_range(-2, 2)), Color(0.55, 0.85, 1.0))
+
+
+## The EMP's blast: a shell of crackling electricity swelling out to `reach` and fading (emp.gdshader)
+func _emp_blast(reach: float) -> void:
+	var shell := MeshInstance3D.new()
+	var ball := SphereMesh.new()
+	ball.radius = 1.0
+	ball.height = 2.0
+	ball.radial_segments = 24
+	ball.rings = 12
+	shell.mesh = ball
+	var m := ShaderMaterial.new()
+	m.shader = EMP_SHADER
+	m.set_shader_parameter("seed", randf() * 100.0)
+	shell.material_override = m
+	shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	shell.position = ufo.position
+	shell.scale = Vector3.ONE * 0.5
+	view.add_child(shell)
+	var grow := create_tween().set_parallel(true)
+	grow.tween_property(shell, "scale", Vector3.ONE * reach, 0.55).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	grow.tween_method(func(k: float) -> void: m.set_shader_parameter("fade", k), 1.0, 0.0, 0.7)
+	grow.chain().tween_callback(shell.queue_free)
+	# (and a second, quicker flash inside it)
+	ufo.puffs.puff(ufo.global_position, Color(0.75, 0.92, 1.0, 0.7), 2.5, Vector3.ZERO, 0.2)
 
 # ------------------------------------------------------------------ the cloak
 
@@ -2075,6 +2115,7 @@ var _scorches: Array = []
 var _scorch_mesh: QuadMesh
 var _last_scorch := Vector3.INF
 const SCORCH_SHADER := preload("res://shaders/scorch.gdshader")
+const EMP_SHADER := preload("res://shaders/emp.gdshader")
 
 
 func _scorch(at: Vector3, across: float) -> void:
@@ -4429,7 +4470,8 @@ func _fill_log() -> void:
 		hunters.append([Thing.alien_name(h), "", h in _log_met, h])
 	_log_section("HUNTERS  %d/%d" % [_log_met.size(), HUNTERS.size()], hunters, big)
 	var items: Array = []
-	for what: String in ItemBar.ORDER:
+	# (common first, then uncommon, then rare; in their usual order within each)
+	for what: String in by_rarity(ItemBar.ORDER):
 		var spec: Dictionary = UPGRADES[what]
 		items.append([spec["title"], spec["about"], what in _log_items, "item:" + what])
 	_log_section("ITEMS  %d/%d" % [_log_items.size(), ItemBar.ORDER.size()], items, big)
@@ -4608,6 +4650,11 @@ func _build_hud() -> void:
 	dash_orb.size = Vector2(146, 146)
 	dash_orb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(dash_orb)
+	# (warnings at the screen's edge for shots coming from off it, see ThreatMarks)
+	threat_marks = ThreatMarks.new()
+	threat_marks.main = self
+	threat_marks.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(threat_marks)
 
 	# Top right, beside the pause button: the score (its coin before it) and the multiplier under it
 	score_label = _label(54, Color(0.75, 1.0, 0.78))
@@ -5136,6 +5183,8 @@ func _home() -> void:
 		_stand_in = null
 		_show_ship()
 		title_box.visible = true
+		_title_in = 0.0
+		title_box.modulate.a = 0.0
 		over_box.visible = false
 		_save_best()
 		return
@@ -5145,6 +5194,8 @@ func _home() -> void:
 	ufo.climb_out()
 	_show_ship()
 	title_box.visible = true
+	_title_in = 0.0
+	title_box.modulate.a = 0.0
 	over_box.visible = false
 	_save_best()
 
@@ -5210,6 +5261,9 @@ func _show_title() -> void:
 	_park_ufo()
 	_show_ship()
 	title_box.visible = true
+	# (it flickers on like a hologram warming up, see `_title_flicker`)
+	_title_in = 0.0
+	title_box.modulate.a = 0.0
 	over_box.visible = false
 	# (what the last run added to the log, kept)
 	_save_best()
@@ -5497,6 +5551,9 @@ func _hud(delta: float) -> void:
 	radar.visible = playing
 	dash_orb.visible = playing
 	dash_orb.queue_redraw()
+	threat_marks.visible = playing
+	threat_marks.size = get_viewport().get_visible_rect().size / hud.scale.x
+	threat_marks.queue_redraw()
 	radar.queue_redraw()
 	_facility_wait -= delta
 	if playing and _facility_wait <= 0.0:
@@ -6441,7 +6498,7 @@ class CloakButton extends Control:
 ## how many are stacked in its corner (from the second on)
 class ItemBar extends Control:
 	## The items, in the order they show
-	const ORDER := ["engine", "beam", "shield", "dash", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "fleet"]
+	const ORDER := ["engine", "beam", "shield", "dash", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "starbits", "fleet"]
 	const TILE := 40.0
 	## How many rows of items there are (the heat's news goes under them)
 	var rows := 0
@@ -6526,6 +6583,7 @@ class DashOrb extends Control:
 		draw_circle(c, r, Color(0.02, 0.08, 0.04, 0.8))
 		var n: int = main.ufo.charges()
 		var charge: float = main.ufo.charge
+		_liquid(c, r - 2.0, clampf(charge / maxf(n, 1), 0.0, 1.0))
 		# (smaller arrows, the more there are, all in the orb)
 		var k := r / 46.0 * minf(3.0 / n, 1.0)
 		var across := 22.0 * (n - 1) + 23.0
@@ -6541,6 +6599,39 @@ class DashOrb extends Control:
 			draw_polyline(PackedVector2Array(tip + [tip[0]]), Color(0.75, 1.0, 0.78) if fill >= 1.0 else lit, 2.0)
 		draw_arc(c, r, 0, TAU, 48, Color(0.6, 1.0, 0.7, 0.9), 3.0)
 		draw_arc(c + Vector2(-r * 0.3, -r * 0.35), r * 0.45, PI * 1.05, PI * 1.45, 12, Color(1, 1, 1, 0.5), 3.0)
+
+	## Green liquid in the orb up to `level` (0 to 1) of it, its surface lapping, bubbles rising
+	## through it while it fills, glowing once it is full
+	func _liquid(c: Vector2, r: float, level: float) -> void:
+		if level <= 0.03:
+			return
+		var t := Time.get_ticks_msec() / 1000.0
+		var dy := r - 2.0 * r * level
+		if level >= 0.99:
+			draw_circle(c, r, Color(0.25, 0.9, 0.4, 0.5 + 0.08 * sin(t * 4.0)))
+			return
+		var half := sqrt(maxf(r * r - dy * dy, 0.0))
+		# (the surface laps less the shallower it is, so it never dips through the bottom of the orb)
+		var wave := minf(2.2, (r - dy) * 0.2) * clampf((half - 2.0) / 20.0, 0.0, 1.0)
+		var points := PackedVector2Array()
+		const WAVE := 12
+		for i in WAVE + 1:
+			var x := -half + 2.0 * half * i / WAVE
+			points.append(c + Vector2(x, dy + sin(x * 0.12 + t * 3.0) * wave))
+		# (filled in strips across, row by row, under the surface: the orb's own width at each)
+		var y := dy + wave
+		while y < r:
+			var w := sqrt(maxf(r * r - y * y, 0.0))
+			draw_line(c + Vector2(-w, y), c + Vector2(w, y), Color(0.2, 0.75, 0.32, 0.55), 2.0)
+			y += 2.0
+		draw_polyline(points.slice(0, WAVE + 1), Color(0.6, 1.0, 0.65, 0.85), 2.0)
+		# (bubbles rising through it)
+		for i in 4:
+			var k := fmod(t * 0.6 + i * 0.27, 1.0)
+			var bx := c.x + sin(i * 2.3 + t) * half * 0.6
+			var by := c.y + r - k * (r - dy)
+			if Vector2(bx, by).distance_to(c) < r - 3.0:
+				draw_arc(Vector2(bx, by), 2.5 + i % 2, 0, TAU, 8, Color(0.75, 1.0, 0.8, 0.7), 1.5)
 
 
 ## Whether the railway is broken at `p` (a length of its track beamed away or blown up there)
@@ -6600,3 +6691,186 @@ func _whirl(delta: float) -> void:
 		w["radius"] = lerpf(w["radius"], w["out"], minf(delta * 6.0, 1.0))
 		node.position = ufo.position + Vector3(cos(w["angle"]) * w["radius"], w["y"] + k * 2.0, sin(w["angle"]) * w["radius"])
 		node.scale = Vector3.ONE * 0.3 * (1.0 - k * k)
+
+
+## The title's buttons and name coming on: flashing and flickering like a hologram warming up, steadier
+## and brighter over TITLE_IN seconds, then on for good
+const TITLE_IN := 0.9
+var _title_in := -1.0
+func _title_flicker(delta: float) -> void:
+	if _title_in < 0.0:
+		return
+	_title_in += delta
+	var k := _title_in / TITLE_IN
+	if k >= 1.0 or mode != "title":
+		_title_in = -1.0
+		title_box.modulate = Color.WHITE
+		return
+	# (off and on, the gaps shortening; a brief flare of bright now and then)
+	var lit := randf() < 0.25 + k * 0.75
+	title_box.modulate = Color(1.0, 1.0, 1.0, (0.35 + 0.65 * k) if lit else 0.05 * k)
+	if lit and randf() < 0.12:
+		title_box.modulate = Color(1.6, 1.8, 1.6, 1.0)
+
+
+## The STAR BIT BLASTER: star bits sprayed by themselves at whatever the defence laser would aim
+## at, far quicker than it fires, but wild and weak: each one that hits does a fraction of a laser
+## hit (STAR_BIT_HIT, more with each level; enough of them add up to one, see `_laser_hit`), and
+## now and then one knocks a shell or a missile out of the air
+const STAR_BIT_EVERY := 0.11
+const STAR_BIT_SPEED := 30.0
+const STAR_BIT_HIT := 0.18
+const STAR_BIT_COLOURS: Array[Color] = [Color(1.0, 0.95, 0.35), Color(1.0, 0.45, 0.75), Color(0.45, 0.8, 1.0), Color(0.55, 1.0, 0.5), Color(0.8, 0.55, 1.0), Color(1.0, 0.6, 0.3)]
+var _star_bit_wait := 0.0
+var _star_bit_mesh: ArrayMesh
+## In the air: {node, velocity, life}
+var _star_bits_out: Array = []
+
+func _star_bits(delta: float) -> void:
+	_fly_star_bits(delta)
+	var level: int = upgrades["starbits"]
+	_star_bit_wait -= delta
+	if level == 0 or ufo.dead or mode != "play" or intro > 0.0 or _star_bit_wait > 0.0:
+		return
+	var reach := LASER_REACH + 2.0 * level
+	var target: Node3D
+	var nearest := reach
+	for s in shots:
+		if s.kind in ["shell", "missile"] and not s.done and s.position.distance_to(ufo.position) < nearest:
+			nearest = s.position.distance_to(ufo.position)
+			target = s
+	if target == null and heat_level() >= 1:
+		for t in things:
+			if t.is_enemy() and t.state == "walk" and not t.leaving and t.position.distance_to(ufo.position) < nearest:
+				nearest = t.position.distance_to(ufo.position)
+				target = t
+	if target == null:
+		return
+	_star_bit_wait = STAR_BIT_EVERY / (1.0 + 0.2 * (level - 1))
+	var from := ufo.position + Vector3(0, -0.4, 0)
+	var at := target.global_position + (Vector3(0, 0.8, 0) if target is Thing else Vector3.ZERO)
+	# (wild: thrown well off where it is aimed)
+	var way := (at - from).normalized().rotated(Vector3.UP, randf_range(-0.3, 0.3))
+	way = way.rotated(way.cross(Vector3.UP).normalized() if absf(way.y) < 0.98 else Vector3.RIGHT, randf_range(-0.2, 0.2))
+	var bit := MeshInstance3D.new()
+	bit.mesh = _star_bit()
+	bit.material_override = Ps1.own(STAR_BIT_COLOURS.pick_random(), 2.2)
+	bit.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	bit.position = from
+	bit.rotation = Vector3(randf() * TAU, randf() * TAU, 0)
+	view.add_child(bit)
+	_star_bits_out.append({"node": bit, "velocity": way * STAR_BIT_SPEED, "life": 1.2, "spin": Vector3(randf_range(-12, 12), randf_range(-12, 12), 0)})
+	if randf() < 0.3:
+		sfx.play("ding", randf_range(2.2, 2.8), -18.0)
+
+
+func _fly_star_bits(delta: float) -> void:
+	var hit_power: float = STAR_BIT_HIT * (1.0 + 0.25 * (int(upgrades["starbits"]) - 1))
+	for b: Dictionary in _star_bits_out.duplicate():
+		var node: MeshInstance3D = b["node"]
+		b["life"] -= delta
+		node.position += (b["velocity"] as Vector3) * delta
+		node.rotation += (b["spin"] as Vector3) * delta
+		var done: bool = b["life"] <= 0.0 or node.position.y < 0.1
+		if not done:
+			for s in shots:
+				if s.kind in ["shell", "missile"] and not s.done and s.position.distance_to(node.position) < 1.2:
+					done = true
+					if randf() < 0.2:
+						s.done = true
+						boom(s.position, 0.8)
+					break
+		if not done:
+			for t in things:
+				if t.is_enemy() and t.state == "walk" and t.ground().distance_to(Vector3(node.position.x, 0, node.position.z)) < t.size() * 0.6 + 0.5 and node.position.y < 3.0:
+					done = true
+					ufo.puffs.spark(node.position, Vector3(randf_range(-2, 2), 3.0, randf_range(-2, 2)), (node.material_override as ShaderMaterial).get_shader_parameter("tint"))
+					var dealt: float = float(t.get_meta("star_bits", 0.0)) + hit_power
+					if dealt >= 1.0:
+						dealt -= 1.0
+						_laser_hit(t, node.position)
+					if is_instance_valid(t):
+						t.set_meta("star_bits", dealt)
+					break
+		if done:
+			node.queue_free()
+			_star_bits_out.erase(b)
+
+
+## A star bit: a little five-pointed star, puffed out front and back (made once)
+func _star_bit() -> ArrayMesh:
+	if _star_bit_mesh != null:
+		return _star_bit_mesh
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rim: Array[Vector3] = []
+	for i in 10:
+		var a := i * TAU / 10.0
+		var r := 0.28 if i % 2 == 0 else 0.12
+		rim.append(Vector3(cos(a) * r, sin(a) * r, 0.0))
+	for face: float in [1.0, -1.0]:
+		var tip := Vector3(0, 0, 0.1 * face)
+		for i in 10:
+			var a: Vector3 = rim[i]
+			var b: Vector3 = rim[(i + 1) % 10]
+			for v: Vector3 in ([tip, a, b] if face > 0.0 else [tip, b, a]):
+				st.set_normal(Vector3(0, 0, face))
+				st.add_vertex(v)
+	_star_bit_mesh = st.commit()
+	return _star_bit_mesh
+
+
+## Shots coming at the ship from off the screen (most of all from the sides on a phone): a pulsing
+## red arrow at the edge where each will come in, bigger and brighter the closer it is
+class ThreatMarks extends Control:
+	var main: Node
+	const MARGIN := 44.0
+	const REACH := 50.0
+
+	func _draw() -> void:
+		var cam: Camera3D = main.camera
+		var ufo: Ufo = main.ufo
+		if cam == null or ufo == null or ufo.dead:
+			return
+		var scale_k: float = main.hud.scale.x
+		var view := get_viewport().get_visible_rect().size / scale_k
+
+		var mid := view * 0.5
+		var t := Time.get_ticks_msec() / 1000.0
+		for s: Shot in main.shots:
+			if s.done:
+				continue
+			var to := ufo.position - s.position
+			var far := to.length()
+			if far > REACH or to.dot(s.velocity) <= 0.0:
+				continue
+			var behind := cam.is_position_behind(s.position)
+			var p := cam.unproject_position(s.position) / scale_k
+			if not behind and Rect2(Vector2.ZERO, view).grow(-12.0).has_point(p):
+				continue
+			var way := (p - mid) * (-1.0 if behind else 1.0)
+			if way.length() < 1.0:
+				way = Vector2.DOWN
+			way = way.normalized()
+			# (to the edge of the screen, MARGIN in from it, along the way it lies)
+			var room := mid - Vector2(MARGIN, MARGIN)
+			var k := minf(room.x / maxf(absf(way.x), 0.001), room.y / maxf(absf(way.y), 0.001))
+			var at := mid + way * k
+			var near := 1.0 - far / REACH
+			var big := 14.0 + 16.0 * near
+			var c: Color = Shot.SPECS[s.kind]["colour"]
+			var warn := Color(1.0, 0.25, 0.2).lerp(c, 0.25)
+			warn.a = (0.45 + 0.55 * near) * (0.7 + 0.3 * sin(t * 14.0))
+			var side := Vector2(-way.y, way.x)
+			draw_colored_polygon(PackedVector2Array([at + way * big, at - way * big * 0.5 + side * big * 0.75, at - way * big * 0.5 - side * big * 0.75]), warn)
+			draw_circle(at - way * big * 1.1, big * 0.28, warn)
+
+
+## Items in this order (common, uncommon, rare), each keeping its place among those of its rarity
+func by_rarity(list: Array) -> Array:
+	var out: Array = []
+	for tier in 3:
+		for what: String in list:
+			if rarity(what) == tier:
+				out.append(what)
+	return out

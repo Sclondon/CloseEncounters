@@ -83,6 +83,9 @@ const KINDS := {
 	"pine": {"points": 25, "weight": 1.6, "heat": 0.03, "move": "still", "size": 1.5, "tier": 2},
 	"aspen": {"points": 25, "weight": 1.4, "heat": 0.03, "move": "still", "size": 1.4, "tier": 2},
 	"pinyon": {"points": 20, "weight": 1.2, "heat": 0.03, "move": "still", "size": 1.4, "tier": 2},
+	"willow": {"points": 30, "weight": 1.8, "heat": 0.03, "move": "still", "size": 1.8, "tier": 2},
+	"cottonwood": {"points": 35, "weight": 2.0, "heat": 0.03, "move": "still", "size": 1.8, "tier": 2},
+	"joshua_tree": {"points": 30, "weight": 1.4, "heat": 0.03, "move": "still", "size": 1.2, "tier": 2},
 	"rock": {"points": 30, "weight": 1.8, "heat": 0.03, "move": "still", "size": 1.5, "tier": 2},
 	"camp_tent": {"points": 40, "weight": 1.0, "heat": 0.1, "move": "still", "size": 1.5, "tier": 2, "voice": "scream"},
 	# Buildings (tier 3)
@@ -518,7 +521,14 @@ func tick(delta: float, ufo: Ufo) -> void:
 		"falling":
 			_fall(delta)
 		"walk":
-			_walk(delta, ufo)
+			if stunned > 0.0:
+				# (paralysed by an EMP: stock still, shaking, a spark off it now and then)
+				stunned -= delta
+				model.rotation.z = sin(_t * 40.0) * 0.06
+				if randf() < delta * 4.0:
+					game.ufo.puffs.spark(position + Vector3(0, 1.0, 0), Vector3(randf_range(-2, 2), randf_range(1, 3), randf_range(-2, 2)), Color(0.55, 0.85, 1.0))
+			else:
+				_walk(delta, ufo)
 	held = false
 
 ## Pulled up the beam toward the saucer, turning slowly and kicking its legs
@@ -826,9 +836,15 @@ func _walk(delta: float, ufo: Ufo) -> void:
 		# (the ship down: they may circle the crash site, but never drive into the wreck itself)
 		var off: Vector3 = here - game.wreck
 		off.y = 0.0
-		if off.length() < 7.0 + size():
-			want = off.normalized() if off.length() > 0.01 else Vector3.RIGHT
-			pace = maxf(pace, float(info.get("speed", 0.0)) * 0.6)
+		var ring := 7.0 + size()
+		if off.length() < ring + 6.0:
+			# (near it: round it on a ring, one way or the other, eased out if inside the ring and in if
+			# beyond, rather than heading at it and turning back each moment)
+			var out := off.normalized() if off.length() > 0.01 else Vector3.RIGHT
+			var round_way := Vector3(-out.z, 0, out.x) * (1.0 if get_instance_id() % 2 == 0 else -1.0)
+			var push := clampf((ring + 2.0 - off.length()) / 3.0, -0.6, 1.2)
+			want = (round_way + out * push).normalized()
+			pace = clampf(pace, float(info.get("speed", 0.0)) * 0.35, float(info.get("speed", 0.0)) * 0.55)
 	if light != null:
 		_aim_light(delta, ufo)
 	var moving := want.length() > 0.01 and pace > 0.0
@@ -909,6 +925,8 @@ var _derail := -1.0
 var _derail_side := 1.0
 ## A fish's next spot in its pond; and how far through a leap out of the water it is (-1 if not)
 var _swim_to := Vector3.INF
+## Seconds left paralysed by an EMP (see main.gd `_emp`)
+var stunned := 0.0
 var _leap := -1.0
 ## A police car's officer out of it (see `_police`), and how many are still in it to get out; an
 ## officer's car, and whether it is called back to it
@@ -1546,7 +1564,7 @@ const ALIEN_NAMES := {
 	"phone_pole": "TALK STICK", "phone_booth": "TALK BOX", "saguaro": "SPIKE COLUMN", "pumpjack": "OIL NODDER",
 	"rv": "DWELLING POD", "patrol_car": "LAW POD", "patrol_jeep": "WAR CRAWLER", "sagebrush": "DRY TUFT",
 	"prickly_pear": "SPIKE PADDLE", "fence": "SMALL WALL", "tree": "LEAF TOWER", "pine": "NEEDLE TOWER",
-	"aspen": "GOLD LEAF TOWER", "pinyon": "SCRUB TOWER", "rock": "PLANET CRUMB", "camp_tent": "CLOTH HUT",
+	"aspen": "GOLD LEAF TOWER", "pinyon": "SCRUB TOWER", "willow": "WEEPING TOWER", "cottonwood": "FLUFF TOWER", "joshua_tree": "SPIKY ARM TOWER", "rock": "PLANET CRUMB", "camp_tent": "CLOTH HUT",
 	"house": "EARTHLING NEST", "farmhouse": "BIG NEST", "storefront": "TRADE NEST", "clock_tower": "TIME SPIRE",
 	"city_hall": "HIVE CENTRE", "fountain": "WATER TOY", "church": "SONG HALL", "control_tower": "SKY WATCH SPIRE",
 	"plane": "SLOW SKY POD", "wheat": "GOLD STALK", "corn": "EAR STALK", "pumpkin": "ORANGE ORB",
@@ -1617,7 +1635,7 @@ static func category(of: String) -> String:
 		return "CROPS"
 	if info["move"] in ["graze", "peck", "flee", "fly"]:
 		return "BEASTS"
-	if of in ["tree", "pine", "aspen", "pinyon", "sagebrush", "prickly_pear", "saguaro", "bush"]:
+	if of in ["tree", "pine", "aspen", "pinyon", "willow", "cottonwood", "joshua_tree", "sagebrush", "prickly_pear", "saguaro", "bush"]:
 		return "PLANTS"
 	if of in ["butte", "mesa", "peak", "crag", "devils_tower", "hill", "rock"]:
 		return "THE LAND"

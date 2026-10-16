@@ -920,7 +920,7 @@ func _farm() -> void:
 	# Pasture: trees, cows, and most often a farmstead (a farmhouse with its porch, a barn and a silo
 	# or two, a haystack and bales, pens of animals)
 	for i in _rng.randi_range(3, 7):
-		_plant("tree", 0.75, 1.05, Vector3.INF, 2.5)
+		_plant("cottonwood" if _rng.randf() < 0.3 else "tree", 0.75, 1.05, Vector3.INF, 2.5)
 	for i in _rng.randi_range(2, 5):
 		_plant("bush", 0.6, 1.1, Vector3.INF, 1.2)
 	var farm_at := _spot(17.0) if _rng.randf() < 0.75 else Vector3.INF
@@ -1052,6 +1052,8 @@ func _plains() -> void:
 		_plant("sagebrush", 0.6, 1.2, Vector3.INF, 0.5)
 	for i in _rng.randi_range(1, 3):
 		_plant("rock", 0.5, 1.0, Vector3.INF, 1.0)
+	if _rng.randf() < 0.4:
+		_plant("cottonwood", 0.8, 1.2, Vector3.INF, 2.5)
 	if _rng.randf() < 0.45:
 		_herd("bison", _spot(6.0), _rng.randi_range(3, 6), 7.0)
 	# (nobody lives in the forest round Devils Tower: no ranches, windmills or oil wells there)
@@ -1083,6 +1085,8 @@ func _plains() -> void:
 func _desert() -> void:
 	for i in _rng.randi_range(6, 12):
 		_plant("saguaro", 0.45, 0.7, Vector3.INF, 1.0)
+	for i in _rng.randi_range(1, 4):
+		_plant("joshua_tree", 0.7, 1.2, Vector3.INF, 1.2)
 	for i in _rng.randi_range(4, 8):
 		_plant("prickly_pear", 0.7, 1.2, Vector3.INF, 0.6)
 	for i in _rng.randi_range(3, 6):
@@ -1568,7 +1572,7 @@ func _lake() -> void:
 	for i in _rng.randi_range(5, 9):
 		var shore := _ring_spot(at, r + 1.0, r + 4.0)
 		if _clear(shore, 1.2):
-			_plant("tree" if _rng.randf() < 0.6 else "pine", 0.7, 1.1, shore)
+			_plant("willow" if _rng.randf() < 0.4 else ("tree" if _rng.randf() < 0.6 else "pine"), 0.7, 1.1, shore)
 
 
 ## Water, `r` across, at `at`: a lake, or a park's pond
@@ -1616,6 +1620,10 @@ func _water(at: Vector3, r: float) -> void:
 			Ps1.part(_node, BoxMesh.new(), reed, q, Vector3(0.05, tall, 0.05), Vector3(_rng.randf_range(-0.15, 0.15), 0, _rng.randf_range(-0.15, 0.15)))
 			if k == 0:
 				Ps1.part(_node, BoxMesh.new(), tail, q + Vector3(0, tall * 0.4, 0), Vector3(0.1, 0.3, 0.1))
+	# (a weeping willow or two leaning over it)
+	for i in _rng.randi_range(0, 2):
+		var a := _rng.randf() * TAU
+		_plant("willow", 0.7, 1.0, at + Vector3(cos(a), 0, sin(a)) * (r * float(shape.call(a)) + 2.2))
 	# Fish in it (koi in a park's pond, trout, bass and catfish anywhere else) and frogs on its bank
 	if game != null:
 		var fish: Array = ["koi"] if r < 8.0 and _rng.randf() < 0.5 else ["trout", "bass", "catfish"]
