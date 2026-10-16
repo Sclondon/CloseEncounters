@@ -169,6 +169,8 @@ var holograms: Holograms
 var net: Net
 var coop: Coop
 var coop_seed := 0
+## Level-ups come with the score (off for the preview film)
+var levels_on := true
 ## Where the moon is in the sky in a run (see _camera)
 var _moon_dir := Vector3.ZERO
 const DESKTOP_HUD := 0.78
@@ -1089,6 +1091,8 @@ static func level_at(n: int) -> int:
 
 ## A level for every LEVEL_AT reached: one at a time, a pick of three upgrades
 func _levels() -> void:
+	if not levels_on:
+		return
 	while score >= level_at(level + 1):
 		level += 1
 		_levels_due += 1

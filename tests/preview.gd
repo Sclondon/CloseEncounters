@@ -22,6 +22,18 @@ func _initialize() -> void:
 	root.add_child(main)
 	# (no touch controls in the film, whatever this machine has)
 	main._touch_screen = false
+	# (a country of farms and plains all round where the run starts: no mesa filling the picture)
+	for s in range(1, 400):
+		World.world_seed = s
+		var open := true
+		for x in range(-4, 5):
+			for z in range(-4, 5):
+				if World.biome(World.chunk_of(World.START) + Vector2i(x, z)) in [World.Biome.MESA, World.Biome.DESERT, World.Biome.MOUNTAIN]:
+					open = false
+		if open:
+			main.coop_seed = s
+			break
+	World.world_seed = 0
 
 
 func _process(_delta: float) -> bool:
@@ -32,7 +44,7 @@ func _process(_delta: float) -> bool:
 	var in_space: bool = main.mode == "launch" and main._launch_t > 3.6 or main.mode == "play" and main.intro > 2.0
 	Engine.time_scale = 3.0 if in_space else 1.0
 	# (no level-ups in the film: the ship as a new run has it)
-	main.level = 99
+	main.levels_on = false
 	if began < 0:
 		if main.mode == "play":
 			began = frame
