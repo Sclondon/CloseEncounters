@@ -261,7 +261,7 @@ The police see only by their lights: a police car notices the ship only while it
 
 A police car's "?" turns to a red "!" once it is sure. **Liquor stores** (in towns and by the roads, 1500 points) and **coolers** of beer (at campsites, parks, rodeos, drive-ins and liquor stores) are there for the taking. On the moon the pilot holds the drink (an amber bottle, a green one or a can) upside down, shaking it now and then; the cooler holds green bottles and cans as well.
 
-**Items have rarities**, as in Risk of Rain: common (green), uncommon (blue: laser, turret, cloak, nanobots, gold) and rare (red: missiles, EMP, fleet); the rarer, the less often the Moon Market has them, and each is framed in its rarity's colour. **The mountains are a hideout**: over mountain country no police or army are sent and no jets come, those after the ship give up after 4 s, and the heat cools two and a half times quicker.
+**Items have rarities**, as in Risk of Rain: common (green), uncommon (blue: laser, turret, cloak, nanobots, gold) and rare (red: missiles, EMP, fleet); the rarer, the less often the Moon Market has them, and each is framed in its rarity's colour. **The mountains are a partial hideout**: over mountain country no police or army on the ground are sent and those after the ship give up after 4 s; helicopters, Chinooks and jets still come, and the heat cools only a little quicker.
 
 **People are curious** until something frightens them (a beam on near them, a blast, a laser, seeing something
 taken): they edge up to look at the ship from a way off, and come to stand round any crop circle near. **True

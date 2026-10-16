@@ -865,7 +865,7 @@ func _heat(delta: float) -> void:
 	# (the more the ship has taken, the longer it takes them to give up looking)
 	# (a JAMMER: they give up looking sooner; COOLANT: the heat drains away quicker)
 	var jam: float = 1.0 + 0.35 * upgrades["jammer"]
-	var cool: float = (1.0 + 0.4 * upgrades["coolant"]) * (2.5 if hidden else 1.0)
+	var cool: float = (1.0 + 0.4 * upgrades["coolant"]) * (1.6 if hidden else 1.0)
 	if calm > COOL_AFTER * sqrt(danger()) / jam and heat > 0.0:
 		heat = maxf(heat - COOL_RATE * cool / danger() * delta, 0.0)
 	var threat := int((danger() - 1.0) * 2.0)
@@ -1014,8 +1014,9 @@ func _station_for(kind: String) -> Vector3:
 
 
 ## Keeps the police and army up to strength for the heat, bringing them in from out of sight
-## Somewhere to run to: over the mountains the police and army cannot follow. None are sent there,
-## no jets come, those after the ship give up after a few seconds, and the heat cools far quicker
+## Somewhere to run to: over the mountains the police and army on the ground cannot follow. None of them
+## are sent there and those after the ship give up after a few seconds; but helicopters and jets still
+## come, and the heat only cools a little quicker
 var hidden := false
 var _hidden_for := 0.0
 const HIDE_LOSES := 4.0
@@ -1026,11 +1027,11 @@ func _hideout(delta: float) -> void:
 	hidden = mode == "play" and not ufo.dead and World.biome(World.chunk_of(ufo.ground())) == World.Biome.MOUNTAIN
 	_hidden_for = _hidden_for + delta if hidden else 0.0
 	if hidden and not was and heat_level() >= 1:
-		_heat_note("INTO THE MOUNTAINS: THEY CAN'T FOLLOW", 2.5)
+		_heat_note("INTO THE MOUNTAINS: THE CARS CAN'T FOLLOW", 2.5)
 	if hidden and _hidden_for > HIDE_LOSES and _hidden_for - delta <= HIDE_LOSES:
 		var lost := false
 		for t: Thing in things:
-			if t.is_enemy() and t.state == "walk" and not t.leaving:
+			if t.is_enemy() and t.state == "walk" and not t.leaving and t.info["move"] != "hover":
 				t.leaving = true
 				lost = true
 		if lost:
@@ -1043,9 +1044,14 @@ func _forces(delta: float) -> void:
 	for t in things:
 		if t.leaving and t.ground().distance_to(ufo.ground()) > 70.0:
 			_remove(t)
-	if _spawn_wait > 0.0 or ufo.dead or hidden:
+	if _spawn_wait > 0.0 or ufo.dead:
 		return
 	var wanted: Dictionary = FORCES[heat_level()].duplicate()
+	# (over the mountains only what flies comes after the ship)
+	if hidden:
+		for k: String in wanted.keys():
+			if Thing.KINDS[k]["move"] != "hover":
+				wanted.erase(k)
 	# (a ship that has taken more is sent more after it: more of the lightest on the ground, a step
 	# of danger)
 	var first := ""
@@ -1085,7 +1091,7 @@ const JETS := {
 
 
 func _jets(delta: float) -> void:
-	if mode == "play" and heat_level() >= 5 and not ufo.dead and not hidden:
+	if mode == "play" and heat_level() >= 5 and not ufo.dead:
 		_jet_wait -= delta
 		if _jet_wait <= 0.0:
 			# Fighter jets from four stars, twice as often at five
