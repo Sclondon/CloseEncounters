@@ -135,7 +135,7 @@ Searchlights are soft cones, brightest down the middle and fading to their edges
 | 4 | The army: jeeps firing machine guns on the move |
 | 5 | Tanks, and jets fly over firing missiles. Hold five stars for 30 s and they **nuke** you: a red ring on the ground where the ship is going, five seconds, then a missile, a flash and a mushroom cloud that takes everything inside (and most of a shield); again every 20 s while it lasts |
 
-Each star takes much more heat than the last (the fifth over five times the first's), and for 8 seconds after a new one the heat comes only slowly, so the
+Each star takes much more heat than the last (the fifth some twenty times the first's, and all of it a quarter slower), and for 8 seconds after a new one the heat comes only slowly, so the
 stars are stages rather than a rush from one to five.
 
 **Witnesses**: anyone who sees the beam take something runs for the nearest **phone booth** by the road (a red
