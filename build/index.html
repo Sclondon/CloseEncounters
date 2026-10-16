@@ -92,7 +92,7 @@ body {
 		</style>
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
-<style>html,body{background:#05070f;touch-action:none;overscroll-behavior:none;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}canvas{touch-action:none;-webkit-user-select:none;-webkit-touch-callout:none}</style>
+<style>html,body{background:#05070f;touch-action:none;overscroll-behavior:none;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}canvas{touch-action:none;-webkit-user-select:none;-webkit-touch-callout:none}#status-progress{display:none!important}#ce-star{position:fixed;left:-99px;top:-99px;width:30px;height:30px;margin:-15px 0 0 -15px;pointer-events:none;z-index:10;filter:drop-shadow(0 0 6px #b8ffc4) drop-shadow(0 0 14px #4f8)}#ce-star>div{width:100%;height:100%;background:#e8ffec;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);animation:ce-spin 1.6s linear infinite}@keyframes ce-spin{to{transform:rotate(360deg)}}</style><script>window.addEventListener('DOMContentLoaded',function(){var w=document.createElement('div');w.id='ce-star';w.appendChild(document.createElement('div'));document.body.appendChild(w);var k=0;var t=setInterval(function(){var st=document.getElementById('status');var img=document.getElementById('status-splash');var p=document.getElementById('status-progress');if(!st||!img||!document.body.contains(st)||getComputedStyle(st).display==='none'||getComputedStyle(st).visibility==='hidden'){w.remove();clearInterval(t);return;}var want=(p&&p.max&&p.value)?p.value/p.max:0;k+=(want-k)*0.25;var r=img.getBoundingClientRect();if(r.width<2||!img.naturalWidth){return;}var s=Math.min(r.width/img.naturalWidth,r.height/img.naturalHeight,1);var dw=img.naturalWidth*s,dh=img.naturalHeight*s;var x0=r.left+(r.width-dw)/2,y0=r.top+(r.height-dh)/2;var x=x0+dw*(0.33+0.34*k);var y=y0+dh*(0.48-0.24*Math.sin(Math.PI*k));w.style.left=x+'px';w.style.top=y+'px';},50);});</script>
 	</head>
 	<body>
 		<canvas id="canvas">
@@ -104,14 +104,14 @@ body {
 		</noscript>
 
 		<div id="status">
-			<img id="status-splash" class="show-image--false fullsize--true use-filter--true" src="index.png" alt="">
+			<img id="status-splash" class="show-image--true fullsize--false use-filter--true" src="index.png" alt="">
 			<progress id="status-progress"></progress>
 			<div id="status-notice"></div>
 		</div>
 
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"mainPack":"index-a9497a9a69.pck","args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index-a9497a9a69.pck":2305156,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_CONFIG = {"mainPack":"index-eac39c6ec8.pck","args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index-eac39c6ec8.pck":2346756,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
