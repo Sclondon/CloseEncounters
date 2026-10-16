@@ -3700,7 +3700,8 @@ func _layout_title(size: Vector2) -> void:
 		title_box.offset_left = 40.0
 		title_box.offset_right = -40.0
 		title_box.offset_top = 150.0
-		title_box.offset_bottom = -170.0
+		# (low: the last row of buttons just above the bottom of the screen)
+		title_box.offset_bottom = -36.0
 		title_box.custom_minimum_size = Vector2.ZERO
 	else:
 		# (on a wide screen too: the name over the ship and the buttons under it, all centred on it)
@@ -3708,7 +3709,7 @@ func _layout_title(size: Vector2) -> void:
 		title_box.offset_left = 30.0
 		title_box.offset_right = -30.0
 		title_box.offset_top = 24.0
-		title_box.offset_bottom = -24.0
+		title_box.offset_bottom = -10.0
 		title_box.custom_minimum_size = Vector2.ZERO
 	_title_gap.visible = true
 	# (the name on one line, glowing: as big as it fits across the box, up to a modest size)
