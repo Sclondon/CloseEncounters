@@ -352,6 +352,10 @@ var _wonder_mat: ShaderMaterial
 var _wonder_pop := 0.0
 const SIGHT := 45.0
 const WONDER := preload("res://shaders/wonder.gdshader")
+const FILM := preload("res://shaders/film.gdshader")
+const FILM_FRAMES := preload("res://textures/drive_in_film.png")
+## A drive-in screen's film, if it is showing one
+var film: MeshInstance3D
 ## The phone booth a caller runs to and calls from (see `witness`), and the way to its door; a
 ## booth's aerial (see Broadcast)
 var booth: Thing
@@ -429,6 +433,20 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 	model.position.y = model_y
 	power = info.get("power", 0.0)
 	cash = info.get("cash", 0.0)
+	if kind == "screen" and randf() < 0.6:
+		# (now and then a drive-in is showing a film: a saucer burning down a town, tools/drive_in_film.sh)
+		film = MeshInstance3D.new()
+		var quad := QuadMesh.new()
+		quad.size = Vector2(13.0, 6.0)
+		quad.subdivide_width = 4
+		film.mesh = quad
+		var m := ShaderMaterial.new()
+		m.shader = FILM
+		m.set_shader_parameter("film", FILM_FRAMES)
+		m.set_shader_parameter("start", randf() * 10.0)
+		film.material_override = m
+		film.position = Vector3(0, 6.5, 0.32)
+		model.add_child(film)
 	if kind == "rival":
 		# (a rival saucer has a pilot of its own under its dome)
 		var pilot := Alien.new()

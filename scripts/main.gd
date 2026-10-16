@@ -1595,7 +1595,7 @@ func _level_up() -> void:
 		b.add_theme_font_size_override("font_size", 70 if big else 34)
 		b.add_theme_color_override("font_color", (spec["colour"] as Color).lerp(Color.WHITE, 0.35))
 		# (the item itself beside its name, a little 3D model of it)
-		b.icon = holograms.item(what)
+		b.icon = holograms.turning("item:" + what)
 		b.expand_icon = true
 		b.add_theme_constant_override("icon_max_width", 210 if big else 96)
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -4180,10 +4180,15 @@ func _build_log(root: Control) -> void:
 	_log_head = head
 
 
+var _log_made := ""
 func open_log() -> void:
 	if mode != "title":
 		return
-	_fill_log()
+	# (made afresh only when something new is in it since it was last made: it is a lot to build)
+	var now := str([_log_taken, _log_met, _log_items, _upright()])
+	if now != _log_made:
+		_log_made = now
+		_fill_log()
 	title_box.visible = false
 	_log_box.visible = true
 
@@ -4466,17 +4471,18 @@ func _fill_log() -> void:
 			continue
 		var count := int(_log_taken.get(kind, 0))
 		have += 1 if count > 0 else 0
-		specimens.append([Thing.alien_name(kind), "x%d" % count, count > 0, kind])
+		# (how many taken, and what one is worth before any bonus)
+		specimens.append([Thing.alien_name(kind), "x%d   $%d" % [count, int(info.get("points", 0))], count > 0, kind])
 	_log_section("SPECIMENS  %d/%d" % [have, specimens.size()], specimens, big)
 	var hunters: Array = []
 	for h: String in HUNTERS:
-		hunters.append([Thing.alien_name(h), "", h in _log_met, h])
+		hunters.append([Thing.alien_name(h), "$%d" % int(Thing.KINDS[h].get("points", 0)) if Thing.KINDS.has(h) else "", h in _log_met, h])
 	_log_section("HUNTERS  %d/%d" % [_log_met.size(), HUNTERS.size()], hunters, big)
 	var items: Array = []
 	# (common first, then uncommon, then rare; in their usual order within each)
 	for what: String in by_rarity(ItemBar.ORDER):
 		var spec: Dictionary = UPGRADES[what]
-		items.append([spec["title"], spec["about"], what in _log_items, "item:" + what])
+		items.append([spec["title"], "%s\nWORTH $%d" % [spec["about"], int(spec.get("price", 0))], what in _log_items, "item:" + what])
 	_log_section("ITEMS  %d/%d" % [_log_items.size(), ItemBar.ORDER.size()], items, big)
 
 
