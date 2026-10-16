@@ -101,6 +101,10 @@ func _process(_delta: float) -> bool:
 			print("score %d, taken %d, things %d, shots %d" % [main.score, main.taken, main.things.size(), main.shots.size()])
 			print("PASSED" if fails == 0 else "FAILED")
 			return true
+	# (slow shots take a while to wear a full shield down: from here on it is down to a sliver, for
+	# what is shooting to finish it)
+	if frame == 3600 and main.mode == "play":
+		main.ufo.hull = minf(main.ufo.hull, 6.0)
 	if frame > 3000 and main.mode == "play":
 		main.heat = 5.0
 		main.calm = 0.0

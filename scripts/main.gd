@@ -109,7 +109,7 @@ var _circle_time := 0.0
 var _circle_done := false
 ## The traders parked about the country, and what has been bought from them this run
 var shops: Array[Shop] = []
-var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "starbits": 0, "fleet": 0}
+var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "starbits": 0, "sling": 0, "fleet": 0}
 var _hot_wait := 0.0
 ## The level reached this run (see `_levels`), levels still to pick for, and the picker
 var level := 0
@@ -127,7 +127,7 @@ const SPAWN_A_FRAME := 6
 ## What traders sell, one pod each: three of these are set out in front of each trader
 ## The beam's colours as BEAM items stack: green, blue, purple
 const BEAM_COLOURS := [Color(0.55, 1.0, 0.65), Color(0.4, 0.7, 1.0), Color(0.78, 0.45, 1.0)]
-const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "starbits", "fleet"]
+const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "starbits", "sling", "fleet"]
 const UPGRADES := {
 	"engine": {"title": "ENGINE", "about": "faster", "price": 300, "colour": Color(1.0, 0.55, 0.15)},
 	"beam": {"title": "BEAM", "about": "lifts faster, then heavier things", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
@@ -150,6 +150,7 @@ const UPGRADES := {
 	"armor": {"title": "ARMOR", "about": "the ship takes less damage", "price": 450, "colour": Color(0.7, 0.72, 0.78)},
 	"swivel": {"title": "SWIVEL MOUNT", "about": "lean the beam out further", "price": 350, "colour": Color(0.55, 0.95, 1.0)},
 	"starbits": {"title": "STAR BIT BLASTER", "about": "sprays star bits by itself: fast, wild, weak", "price": 500, "colour": Color(1.0, 0.75, 0.95)},
+	"sling": {"title": "GRAVITY SLING", "about": "now and then flings a meteor down on the police: a big splash", "price": 700, "colour": Color(1.0, 0.55, 0.2)},
 	"second_wind": {"title": "SECOND WIND", "about": "shrug off one fatal hit", "price": 600, "colour": Color(1.0, 0.55, 0.25)},
 	"fleet": {"title": "FLEET", "about": "a little helper saucer", "price": 450, "colour": Color(1.0, 0.9, 0.3)},
 }
@@ -553,7 +554,7 @@ func start(from_launch := false) -> void:
 	_clear_wreck()
 	if not from_launch:
 		alien_seed = randi()
-	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "starbits": 0, "fleet": 0}
+	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "starbits": 0, "sling": 0, "fleet": 0}
 	level = 0
 	_levels_due = 0
 	_rescue_wait = -1.0
@@ -800,6 +801,7 @@ func _process(delta: float) -> void:
 	_beam_shadows()
 	_shops(delta)
 	_rivals(delta)
+	_rival_hunt(delta)
 	_rival_bumps()
 	_nuking(delta)
 	_surface_fx(delta)
@@ -809,6 +811,7 @@ func _process(delta: float) -> void:
 	_geysering(delta)
 	_whirl(delta)
 	_star_bits(delta)
+	_sling(delta)
 	_trains(delta)
 	_airliners(delta)
 	_watchers(delta)
@@ -1535,7 +1538,7 @@ const RARITY_COLOURS: Array[Color] = [Color(0.4, 1.0, 0.5), Color(0.35, 0.65, 1.
 const RARITY_NAMES: Array[String] = ["COMMON", "UNCOMMON", "RARE"]
 const RARITY_ODDS: Array[float] = [6.0, 2.5, 0.8]
 const UNCOMMON: Array[String] = ["laser", "turret", "starbits", "cloak", "nanobots", "gold", "armor"]
-const RARE: Array[String] = ["missiles", "emp", "fleet", "second_wind"]
+const RARE: Array[String] = ["missiles", "emp", "fleet", "second_wind", "sling"]
 
 
 func rarity(what: String) -> int:
@@ -3036,7 +3039,7 @@ func fire(from: Thing, gun: String, target: Ufo) -> void:
 		mark = decoy.position
 		going = Vector3.ZERO
 	# Aimed where the saucer will be, give or take
-	var lead := mark + going * (muzzle.distance_to(mark) / 28.0)
+	var lead := mark + going * (muzzle.distance_to(mark) / 18.0)
 	match gun:
 		"shotgun":
 			for i in 5:
@@ -6498,7 +6501,7 @@ class CloakButton extends Control:
 ## how many are stacked in its corner (from the second on)
 class ItemBar extends Control:
 	## The items, in the order they show
-	const ORDER := ["engine", "beam", "shield", "dash", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "starbits", "fleet"]
+	const ORDER := ["engine", "beam", "shield", "dash", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "starbits", "sling", "fleet"]
 	const TILE := 40.0
 	## How many rows of items there are (the heat's news goes under them)
 	var rows := 0
@@ -6874,3 +6877,155 @@ func by_rarity(list: Array) -> Array:
 			if rarity(what) == tier:
 				out.append(what)
 	return out
+
+
+## The nearest rival saucer still flying within `reach` of `p` (on the ground), or null
+func rival_near(p: Vector3, reach: float) -> Thing:
+	var best: Thing = null
+	for t in things:
+		if t.kind == "rival" and t.state == "walk" and not t.downed and not t.leaving:
+			var d := t.ground().distance_to(p)
+			if d < reach:
+				reach = d
+				best = t
+	return best
+
+
+## The police and army against rival saucers: any of them armed and near enough to one shoots at it
+## now and then (as well as at the ship), until it is shot down (see Thing.downed, `rival_crashed`)
+const RIVAL_SHOTS := {"pistol": "bullet", "rifle": "bullet", "shotgun": "pellet", "mg": "tracer", "laser": "laser", "railgun": "slug"}
+## Shots in the air at rivals: {node, velocity, life, damage, target}
+var _rival_fire: Array = []
+
+func _rival_hunt(delta: float) -> void:
+	for f: Dictionary in _rival_fire.duplicate():
+		var s: Shot = f["node"]
+		var target: Thing = f["target"]
+		f["life"] -= delta
+		s.position += (f["velocity"] as Vector3) * delta
+		var hit := is_instance_valid(target) and target.state == "walk" and s.position.distance_to(target.position) < 2.6
+		if hit:
+			target.rival_hp -= float(f["damage"])
+			Ps1.flash(target.model, Color(1.0, 0.6, 0.4))
+			ufo.puffs.spark(s.position, Vector3(randf_range(-3, 3), randf_range(0, 3), randf_range(-3, 3)))
+			if target.rival_hp <= 0.0 and not target.downed:
+				target.downed = true
+				_heat_note("THE POLICE SHOT DOWN A RIVAL!", 2.5)
+				sfx.play("boom", 1.4, _near_db(target))
+		if hit or f["life"] <= 0.0:
+			s.queue_free()
+			_rival_fire.erase(f)
+	if mode != "play":
+		return
+	for r in things:
+		if r.kind != "rival" or r.state != "walk" or r.downed or r.leaving:
+			continue
+		for t in things:
+			if not t.is_enemy() or t.state != "walk" or t.stunned > 0.0:
+				continue
+			var gun: String = t.info.get("gun", "")
+			if gun == "" or not RIVAL_SHOTS.has(gun) or t.ground().distance_to(r.ground()) > float(Thing.GUNS[gun]["range"]) + 10.0:
+				continue
+			var wait: float = float(t.get_meta("rival_wait", randf_range(0.5, 1.5))) - delta
+			if wait > 0.0:
+				t.set_meta("rival_wait", wait)
+				continue
+			t.set_meta("rival_wait", randf_range(1.3, 2.4))
+			var kind: String = RIVAL_SHOTS[gun]
+			var s := Shot.new()
+			view.add_child(s)
+			var from := t.muzzle()
+			var at := r.position + Vector3(randf_range(-1.2, 1.2), randf_range(-0.4, 0.4), randf_range(-1.2, 1.2))
+			s.setup(kind, from, at)
+			_rival_fire.append({"node": s, "velocity": s.velocity, "life": s.life, "damage": s.damage, "target": r})
+			sfx.play("pop", 1.1, _near_db(t) - 4.0)
+
+
+## A rival saucer shot down came to the ground: its wreck there, in a ring of heaped dirt, to be
+## beamed up like any crashed saucer (only the wreck: the dirt stays)
+func rival_crashed(r: Thing) -> void:
+	var at := Vector3(r.position.x, 0, r.position.z)
+	boom(at + Vector3(0, 1.0, 0), 3.5)
+	sfx.play("boom", 0.8, _near_db(r))
+	world.crash_dirt(at, randf() * TAU)
+	var wreck := spawn("crash_site", at, {"turn": randf() * TAU, "tints": r.info.get("tints", {})})
+	if wreck != null:
+		wreck.set_meta("rival", true)
+	log_line("RIVAL SHOT DOWN", 0, "rival")
+	_remove(r)
+
+
+## The GRAVITY SLING: every so often (sooner the more stacked), with the police or army about, a
+## meteor slung down out of the sky onto the thick of them, blazing, and a blast where it lands:
+## everything of theirs within SLING_SPLASH (more with each) is hit twice by it (most are blown up,
+## see `_laser_hit`), and the ground scorched
+const SLING_SPLASH := 6.0
+const SLING_FALL := 1.3
+var _sling_wait := 8.0
+## Meteors on their way down: {node, from, to, age}
+var _slung: Array = []
+
+func _sling(delta: float) -> void:
+	for f: Dictionary in _slung.duplicate():
+		f["age"] += delta
+		var k: float = minf(f["age"] / SLING_FALL, 1.0)
+		var node: Node3D = f["node"]
+		node.position = (f["from"] as Vector3).lerp(f["to"], k * k)
+		node.rotation += Vector3(4.0, 3.0, 0.0) * delta
+		if randf() < delta * 40.0:
+			ufo.puffs.puff(node.position, Color(1.0, randf_range(0.35, 0.75), 0.15, 0.9), randf_range(0.6, 1.0), Vector3.UP * 0.5, 0.5)
+		if k >= 1.0:
+			_sling_impact(f["to"])
+			node.queue_free()
+			_slung.erase(f)
+	var level: int = upgrades["sling"]
+	_sling_wait -= delta
+	if level == 0 or ufo.dead or mode != "play" or intro > 0.0 or _sling_wait > 0.0:
+		return
+	# (the one of theirs with the most of them round it, near enough)
+	var best: Thing = null
+	var most := 0
+	for t in things:
+		if not t.is_enemy() or t.state != "walk" or t.ground().distance_to(ufo.ground()) > 45.0:
+			continue
+		var round_it := 0
+		for o in things:
+			if o.is_enemy() and o.state == "walk" and o.ground().distance_to(t.ground()) < SLING_SPLASH:
+				round_it += 1
+		if round_it > most:
+			most = round_it
+			best = t
+	if best == null:
+		return
+	_sling_wait = maxf(16.0 - 3.0 * level, 6.0)
+	var to := best.ground()
+	var rock := Ps1.model("meteorite")
+	rock.scale = Vector3.ONE * (1.2 + 0.2 * level)
+	var glow := MeshInstance3D.new()
+	glow.mesh = Ps1.ball()
+	glow.material_override = Ps1.own(Color(1.0, 0.5, 0.15), 3.0)
+	glow.scale = Vector3.ONE * 1.6
+	rock.add_child(glow)
+	view.add_child(rock)
+	var from := to + Vector3(randf_range(-25, 25), 70.0, randf_range(-25, 25))
+	rock.position = from
+	_slung.append({"node": rock, "from": from, "to": to, "age": 0.0})
+	sfx.play("whoosh", 0.5, 0.0)
+	_heat_note("GRAVITY SLING!", 1.2)
+
+
+func _sling_impact(at: Vector3) -> void:
+	var level: int = maxi(upgrades["sling"], 1)
+	var splash := SLING_SPLASH + 1.5 * (level - 1)
+	boom(at + Vector3(0, 1.0, 0), 4.0 + level)
+	sfx.play("boom", 0.6, 4.0)
+	_shake = maxf(_shake, 0.5)
+	_scorch(at, splash * 1.4)
+	for t in things.duplicate():
+		if t.is_enemy() and t.state == "walk" and t.ground().distance_to(at) < splash:
+			_laser_hit(t, t.position + Vector3(0, 1.0, 0))
+			if is_instance_valid(t) and t.state == "walk":
+				_laser_hit(t, t.position + Vector3(0, 1.0, 0))
+		elif t.state == "walk" and t.ground().distance_to(at) < splash * 2.0 and t.info["move"] in ["flee", "graze", "peck"]:
+			# (anything else near it runs for it)
+			t.panic = maxf(t.panic, 6.0)

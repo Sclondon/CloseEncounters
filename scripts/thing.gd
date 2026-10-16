@@ -776,6 +776,11 @@ func _walk(delta: float, ufo: Ufo) -> void:
 				# (sent out after a report: making for where the ship was seen, looking for it)
 				want = to_ufo.normalized()
 				pace *= 0.7
+			elif game.rival_near(here, 80.0) != null:
+				# (not after the ship: after a rival saucer instead, to bring it down, keeping a little off)
+				var rival: Thing = game.rival_near(here, 80.0)
+				var to_rival := rival.ground() - here
+				want = to_rival.normalized() if to_rival.length() > 12.0 else Vector3(-to_rival.z, 0, to_rival.x).normalized() * 0.5
 			else:
 				want = _along_road()
 				pace *= 0.6
@@ -1460,6 +1465,12 @@ var _rival_spin := 1.0
 var knock := Vector3.ZERO
 
 
+## A rival saucer's shield against the police and army's fire (see main.gd `_rival_hunt`), and
+## whether it has been shot down (then it falls, smoking, and crashes: main.gd `rival_crashed`)
+var rival_hp := 45.0
+var downed := false
+var _drop_v := 0.0
+
 func _rival(delta: float, here: Vector3) -> float:
 	_rival_life += delta
 	if _rival_beam == null:
@@ -1468,6 +1479,19 @@ func _rival(delta: float, here: Vector3) -> float:
 		_rival_beam.position.y = -0.4
 		add_child(_rival_beam)
 		light_strip(_rival_beam, Color(1.0, 0.35, 0.85), 0.9, RIVAL_Y, 1.2, 3.2, 0.95)
+	if downed:
+		# (shot down: tipping over and spiralling into the ground, smoking, and there it crashes)
+		_drop_prey()
+		_drop_v -= 9.0 * delta
+		position.y += _drop_v * delta
+		model.rotation.z = lerpf(model.rotation.z, 0.8, delta * 2.0)
+		model.rotation.y += delta * 7.0
+		if randf() < delta * 14.0:
+			game.puff(position + Vector3(0, 0.5, 0), Color(0.25, 0.25, 0.27), 0.9)
+		if position.y < 0.9:
+			game.rival_crashed(self)
+		_chase_want = Vector3.ZERO
+		return 0.0
 	position += knock * delta
 	knock = knock.lerp(Vector3.ZERO, minf(delta * 2.0, 1.0))
 	_rival_spin = lerpf(_rival_spin, 1.0, minf(delta * 0.8, 1.0))

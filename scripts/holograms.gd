@@ -137,7 +137,7 @@ func _frame(model: Node3D, hologram: bool, tint := GREEN) -> void:
 ## item's own colour (`item_colours`, filled in from main.gd UPGRADES); by the upgrade's name
 const ITEM_MODELS := {"engine": "item_engine", "beam": "item_beam", "shield": "item_shield", "dash": "item_dash",
 	"laser": "item_laser", "turret": "item_turret", "missiles": "item_missiles", "cloak": "item_cloak", "fleet": "ufo", "patch": "item_shield",
-	"magnet": "item_magnet", "wide": "item_wide", "scanner": "item_scanner", "jammer": "item_jammer", "coolant": "item_coolant", "nanobots": "item_nanobots", "gold": "item_gold", "emp": "item_emp", "lucky": "item_lucky", "armor": "item_armor", "second_wind": "item_second_wind", "swivel": "item_swivel", "starbits": "item_starbits"}
+	"magnet": "item_magnet", "wide": "item_wide", "scanner": "item_scanner", "jammer": "item_jammer", "coolant": "item_coolant", "nanobots": "item_nanobots", "gold": "item_gold", "emp": "item_emp", "lucky": "item_lucky", "armor": "item_armor", "second_wind": "item_second_wind", "swivel": "item_swivel", "starbits": "item_starbits", "sling": "item_sling"}
 
 
 ## Each item's colour, by its name

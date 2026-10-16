@@ -1444,17 +1444,24 @@ def meteorite():
 
 
 def crash_site():
-    """Another saucer, come down long ago: tipped up, half in the ground in a ring of heaped dirt on a
-    dark scar, its dome cracked and a few of its lights still glowing"""
+    """Another saucer, come down long ago (or just now, shot down): tipped up and half in the ground,
+    its dome cracked and a few of its lights still glowing. The ground it ploughed up is
+    `crash_dirt`, apart from it, so that beaming the wreck up leaves the dirt behind"""
     tilt = (0.42, 0.25, 0)
-    p = [ball((6.2, 6.2, 0.25), (0, 0, 0.02), "spot", 12, 3),
-         ball((4.4, 4.4, 0.8), (0, 0, 0.55), "metal_dark", 14, 6, tilt),
+    p = [ball((4.4, 4.4, 0.8), (0, 0, 0.55), "metal_dark", 14, 6, tilt),
          drum(2.25, 0.12, (0, 0, 0.55), "rock", 14, tilt),
          ball((1.7, 1.7, 1.2), (0.25, -0.35, 1.05), "glass", 10, 5, tilt),
          box((0.9, 0.08, 0.5), (0.5, -0.6, 1.45), "black", (0.4, 0.6, 0.2))]
     for i in range(5):
         a = (i * 0.9 + 0.4)
         p.append(ball((0.22, 0.22, 0.16), (2.1 * math.cos(a), 2.1 * math.sin(a), 0.75 + 0.5 * math.sin(a)), "light_amber", 6, 3))
+    return join("crash_site", p)
+
+
+def crash_dirt():
+    """The ground a crashed saucer ploughed up: a dark scar, a ring of heaped dirt round where it
+    lies, and clods thrown out further"""
+    p = [ball((6.2, 6.2, 0.25), (0, 0, 0.05), "spot", 12, 3)]
     rnd = random.Random(7)
     for i in range(14):
         a = i / 14 * math.tau + rnd.uniform(-0.1, 0.1)
@@ -1464,8 +1471,8 @@ def crash_site():
     for i in range(8):
         a = rnd.uniform(0, math.tau)
         r = rnd.uniform(3.4, 4.8)
-        p.append(ball((0.4, 0.35, 0.25), (r * math.cos(a), r * math.sin(a), 0.08), "boot", 5, 3))
-    return join("crash_site", p)
+        p.append(ball((0.4, 0.35, 0.25), (r * math.cos(a), r * math.sin(a), 0.1), "boot", 5, 3))
+    return join("crash_dirt", p)
 
 
 def satellite():
@@ -2150,6 +2157,24 @@ def item_armor():
         for s in (-1, 1):
             p.append(ball((0.04, 0.04, 0.04), (s * 0.22, -0.11 - (0.02 if z < 0.15 else 0) + 1.2 * 0.22 * 0.22, z), "chrome", 6, 4))
     return join("item_armor", p)
+
+
+def item_sling():
+    """GRAVITY SLING: a slingshot (a wooden Y with a wrapped grip), its bands drawn back to a pouch
+    holding a blazing meteor, a ring of orbiting rock round the fork"""
+    p = [drum(0.06, 0.32, (0, 0, 0.16), "wood_dark", 6), drum(0.068, 0.14, (0, 0, 0.12), "denim", 6),
+         drum(0.05, 0.3, (-0.09, 0, 0.42), "wood_dark", 6, (0, -0.5, 0)), drum(0.05, 0.3, (0.09, 0, 0.42), "wood_dark", 6, (0, 0.5, 0))]
+    for s in (-1, 1):
+        p.append(drum(0.06, 0.05, (0.17 * s, 0, 0.56), "metal", 6))
+        p.append(box((0.025, 0.36, 0.025), (0.1 * s, 0.17, 0.53), "red", (0, 0, -0.45 * s)))
+    p += [box((0.16, 0.06, 0.1), (0, 0.33, 0.5), "boot"),
+          roughen(ball((0.22, 0.22, 0.22), (0, 0.36, 0.6), "rock", 7, 5), 0.02, 95),
+          ball((0.3, 0.3, 0.3), (0, 0.36, 0.6), "flame", 6, 4),
+          cone(0.12, 0.3, (0, 0.55, 0.68), "flame", 6, (-1.2, 0, 0))]
+    for k in range(5):
+        a = k / 5 * math.tau
+        p.append(roughen(ball((0.06, 0.06, 0.05), (0.3 * math.cos(a), 0.3 * math.sin(a), 0.42 + 0.05 * math.sin(a * 2)), "rock", 5, 3), 0.01, 96 + k))
+    return join("item_sling", p)
 
 
 def item_swivel():
@@ -3042,10 +3067,10 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             mesa, butte, devils_tower, peak, crag, hydrant, bank, fort_knox, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
             diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, carnival, track, locomotive, boxcar, caboose, rider, balloon, fish, catfish, frog, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek, sunflower, cabbage, melon, pepper, motorcycle, cult_altar, helicarrier, railgun, laser_truck, fire_truck, ambulance, hospital, fire_station, prison, grain_elevator, chicken_coop, irrigation, feed_bin,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
-            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site,
+            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site, crash_dirt,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,
             item_engine, item_beam, item_shield, item_dash, item_laser, item_turret, item_missiles, item_cloak,
-            item_magnet, item_wide, item_scanner, item_jammer, item_coolant, item_lucky, item_armor, item_swivel, item_starbits, item_second_wind, canister, item_nanobots, item_gold, item_emp]
+            item_magnet, item_wide, item_scanner, item_jammer, item_coolant, item_lucky, item_armor, item_swivel, item_sling, item_starbits, item_second_wind, canister, item_nanobots, item_gold, item_emp]
 
 
 def main():

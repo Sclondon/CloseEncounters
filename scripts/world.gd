@@ -1424,7 +1424,11 @@ func _wildlife(b: int) -> void:
 func _rare(c: Vector2i, b: int) -> void:
 	# (and, rarer, another saucer that came down long ago, to be found and taken home)
 	if hash3(c.x, c.y, 58) < 0.012:
-		_spawn("crash_site", _spot(5.0))
+		var wreck := _spot(5.0)
+		if wreck != Vector3.INF:
+			var turn := _rng.randf() * TAU
+			_spawn_at("crash_site", wreck, turn)
+			_put("crash_dirt", wreck, turn)
 	if hash3(c.x, c.y, 55) > 0.03:
 		return
 	var kind: String = {Biome.FARM: "golden_cow", Biome.PLAINS: "jackalope", Biome.MOUNTAIN: "sasquatch",
@@ -1961,3 +1965,13 @@ static func slab(size: Vector3) -> BoxMesh:
 	b.subdivide_width = int(ceil(size.x / 2.0))
 	b.subdivide_depth = int(ceil(size.z / 2.0))
 	return b
+
+
+## The dirt a saucer heaped up crashing at `at` (see main.gd `rival_crashed`): with the chunk it is
+## in, so it goes when that does
+func crash_dirt(at: Vector3, turn: float) -> void:
+	var n := Ps1.model("crash_dirt")
+	n.position = at
+	n.rotation.y = turn
+	var into: Node = chunks.get(chunk_of(at), self)
+	into.add_child(n)
