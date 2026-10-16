@@ -1110,11 +1110,21 @@ static func level_at(n: int) -> int:
 	return int(round(600.0 * pow(float(n), 2.0) / 50.0)) * 50
 
 
+
+
+## The score the level-ups go by: one's own, and in a multiplayer game everyone's together (each
+## picks their own upgrade at each, as in 8 Bit Evil Returns)
+func team_score() -> int:
+	var all := score
+	if coop != null and coop.active():
+		for s in coop.others:
+			all += (coop.others[s] as RemoteSaucer).score
+	return all
 ## A level for every LEVEL_AT reached: one at a time, a pick of three upgrades
 func _levels() -> void:
 	if not levels_on:
 		return
-	while score >= level_at(level + 1):
+	while team_score() >= level_at(level + 1):
 		level += 1
 		_levels_due += 1
 	if _levels_due > 0 and not _picker.visible and not ufo.dead:
@@ -1150,6 +1160,11 @@ func _level_up() -> void:
 		b.custom_minimum_size = Vector2(560, 96)
 		b.add_theme_font_size_override("font_size", 32)
 		b.add_theme_color_override("font_color", (spec["colour"] as Color).lerp(Color.WHITE, 0.35))
+		# (the item itself beside its name, a little 3D model of it)
+		b.icon = holograms.item(what)
+		b.expand_icon = true
+		b.add_theme_constant_override("icon_max_width", 80)
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		_picks.add_child(b)
 	_forget_fingers()
 	_picker.visible = true
@@ -3431,7 +3446,7 @@ func _build_hud() -> void:
 	item_bar.main = self
 	item_bar.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	item_bar.position = Vector2(-260, 80)
-	item_bar.size = Vector2(520, 34)
+	item_bar.size = Vector2(520, 46)
 	item_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(item_bar)
 	# (the heat's news, just under the stars: the farmers armed, the police coming, spotted...)
@@ -3439,7 +3454,7 @@ func _build_hud() -> void:
 	heat_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heat_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	heat_note.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	heat_note.position = Vector2(-260, 118)
+	heat_note.position = Vector2(-260, 132)
 	heat_note.size = Vector2(520, 40)
 	_glow(heat_note, Color(1.0, 0.4, 0.2, 0.45))
 	root.add_child(heat_note)
@@ -4373,7 +4388,7 @@ class Coin extends Control:
 		var lv: int = main.level
 		var from: int = main.level_at(lv)
 		var to: int = main.level_at(lv + 1)
-		var want := int(clampf(float(main.score - from) / maxf(to - from, 1), 0.0, 1.0) * ICONS)
+		var want := int(clampf(float(main.team_score() - from) / maxf(to - from, 1), 0.0, 1.0) * ICONS)
 		if lv != _level:
 			# (a level-up: everything in the glass flies out, and it begins again)
 			_level = lv
@@ -4610,16 +4625,17 @@ class CloakButton extends Control:
 			draw_arc(c, r - 2.0, -PI / 2, -PI / 2 + TAU * (1.0 - left), 32, Color(tint.lightened(0.3), 0.9), 3.0)
 
 
-## The items had, under the heat's stars: a little tile for each, in its colour with its mark, and
+## The items had, under the heat's stars: a little tile for each, in its colour with a 3D model of it, and
 ## how many are stacked in its corner (from the second on)
 class ItemBar extends Control:
-	const MARKS := {"engine": "EN", "beam": "BM", "shield": "SH", "dash": "DS", "laser": "LZ", "turret": "AT", "missiles": "MS", "cloak": "CL", "fleet": "FL"}
-	const TILE := 30.0
+	## The items, in the order they show
+	const ORDER := ["engine", "beam", "shield", "dash", "laser", "turret", "missiles", "cloak", "fleet"]
+	const TILE := 40.0
 	var main: Node
 
 	func _draw() -> void:
 		var had: Array[String] = []
-		for what: String in MARKS:
+		for what: String in ORDER:
 			if int(main.upgrades.get(what, 0)) > 0:
 				had.append(what)
 		var x := (size.x - had.size() * (TILE + 6.0) + 6.0) * 0.5
@@ -4627,9 +4643,10 @@ class ItemBar extends Control:
 			var colour: Color = main.UPGRADES[what]["colour"]
 			var box := Rect2(x, 0, TILE, TILE)
 			draw_rect(box, Color(0.02, 0.06, 0.04, 0.8))
-			draw_rect(box.grow(-3.0), colour * Color(1, 1, 1, 0.35))
+			draw_rect(box.grow(-3.0), colour * Color(1, 1, 1, 0.18))
 			draw_rect(box, colour, false, 2.0)
-			draw_string(main.font, Vector2(x, TILE * 0.68), MARKS[what], HORIZONTAL_ALIGNMENT_CENTER, TILE, 14, colour.lightened(0.4))
+			# (the item itself, a little 3D model of it, as Risk of Rain 2 shows its items)
+			draw_texture_rect(main.holograms.item(what), box.grow(-1.0), false)
 			var n: int = main.upgrades[what]
 			if n > 1:
 				draw_string_outline(main.font, Vector2(x + TILE * 0.45, TILE + 2.0), "x%d" % n, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.9))

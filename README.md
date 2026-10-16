@@ -121,7 +121,7 @@ it holds you. Once there is heat, the patrols lock their lights on and join in.
 ### Level-ups and traders
 
 **Level-ups come with the score** (`level_at`: 600, 2400, 5400, 9600... points): the game pauses and offers a choice
-of upgrades. They are items that stack, as in Risk of Rain: each pick is one more of it (up to ten), small at first and growing with the stack (the fleet up to six saucers, rates with floors). The items had show as a row of little tiles under the heat's stars, with their stack counts:
+of upgrades. They are items that stack, as in Risk of Rain: each pick is one more of it (up to ten), small at first and growing with the stack (the fleet up to six saucers, rates with floors). The items had show as a row of little tiles under the heat's stars, each a small 3D model of the item (built in Blender, `item_*` in tools/build_models.py) with its stack count, as in Risk of Rain 2; the level-up choices show them too:
 ENGINE (+7% speed), BEAM (lifts faster, and every second level one tier stronger), SHIELD (+15), DASH (each charge refills in 2.5 s at first; recharges 0.6 s
 faster, two more afterimages), and:
 
@@ -179,7 +179,7 @@ Valley's client). Each device flies its own saucer and has its own heat, police 
 (`scripts/coop.gd`): each saucer's place, speed, heading, beam and score, 20 times a second, drawn for the others
 as a `RemoteSaucer` with its pilot, its beam and P2/P3/P4 and its score over it, seen on from where it was heard to be at the speed it was going (no stepping); each player's police and army near them, 5 times a second, drawn for the others; and what happens: anything
 taken up a beam is gone for everyone, crop circles are pressed for everyone, blasts are seen by everyone.
-Guests' packets reach only the host, which passes everything on. `--server=<url>` (or `?server=` on the page)
+The level-ups go by everyone's score together (each picks their own upgrade), and the host's moving things (people, animals, cars) near it are followed by everyone else's copies. The other saucers are real ships, driven by what is heard of them, so their beams look just as one's own. Guests' packets reach only the host, which passes everything on. `--server=<url>` (or `?server=` on the page)
 points it at another server.
 
 ## The world

@@ -29,7 +29,7 @@ COLOURS = {
     "gun": (0.15, 0.15, 0.15), "tractor": (0.8, 0.15, 0.1), "barn": (0.62, 0.12, 0.1),
     "trim": (0.95, 0.93, 0.88), "roof": (0.3, 0.3, 0.33), "walls": (0.92, 0.9, 0.82),
     "wood": (0.5, 0.34, 0.2), "wood_dark": (0.32, 0.2, 0.12), "metal": (0.62, 0.64, 0.68),
-    "metal_dark": (0.32, 0.34, 0.38), "leaf": (0.2, 0.42, 0.18), "leaf_dark": (0.12, 0.3, 0.14),
+    "metal_dark": (0.32, 0.34, 0.38), "cloak_cloth": (0.35, 0.32, 0.6), "leaf": (0.2, 0.42, 0.18), "leaf_dark": (0.12, 0.3, 0.14),
     "bark": (0.35, 0.24, 0.15), "hay": (0.85, 0.72, 0.35), "sack": (0.72, 0.6, 0.4),
     "jet": (0.5, 0.55, 0.58), "door": (0.4, 0.25, 0.15),
     # The West
@@ -1418,6 +1418,76 @@ def boombox():
         p.append(drum(0.035, 0.05, (s * 0.21, -0.1, 0.19), "radio_trim", 8, (math.pi / 2, 0, 0)))
     return join("boombox", p)
 
+
+# ---------------------------------------------------------------- items (upgrades), as Risk of Rain 2 shows them
+
+def item_engine():
+    """ENGINE: a thruster, a ribbed bell with a glowing core and fins"""
+    p = [drum(0.32, 0.5, (0, 0, 0.55), "metal", 10), drum(0.4, 0.45, (0, 0, 0.12), "metal_dark", 10, top=0.26),
+         drum(0.2, 0.06, (0, 0, -0.1), "pod_glow", 10)]
+    for i in range(4):
+        a = i * math.tau / 4
+        p.append(box((0.04, 0.3, 0.45), (math.cos(a) * 0.34, math.sin(a) * 0.34, 0.6), "chili", (0, 0, a + math.pi / 2)))
+    return join("item_engine", p)
+
+
+def item_beam():
+    """BEAM: an emitter dish with a glowing lens, a little cone of light below"""
+    p = [drum(0.42, 0.12, (0, 0, 0.7), "metal", 12), drum(0.18, 0.2, (0, 0, 0.55), "metal_dark", 10),
+         drum(0.14, 0.05, (0, 0, 0.43), "pod_glow", 10), drum(0.08, 0.5, (0, 0, 0.12), "pod_glow", 8, top=0.32)]
+    return join("item_beam", p)
+
+
+def item_shield():
+    """SHIELD: a kite shield with a glowing boss"""
+    p = [box((0.6, 0.12, 0.6), (0, 0, 0.55), "metal", (0, 0, 0)), box((0.42, 0.12, 0.42), (0, 0, 0.16), "metal", (0, math.pi / 4, 0)),
+         ball((0.24, 0.12, 0.24), (0, -0.08, 0.5), "spark")]
+    return join("item_shield", p)
+
+
+def item_dash():
+    """DASH: two chevrons, one before the other"""
+    p = []
+    for k, x in ((0, -0.2), (1, 0.2)):
+        p.append(box((0.42, 0.12, 0.1), (x - 0.06, 0, 0.62), "pod_glow" if k else "metal", (0, -0.75, 0)))
+        p.append(box((0.42, 0.12, 0.1), (x - 0.06, 0, 0.32), "pod_glow" if k else "metal", (0, 0.75, 0)))
+    return join("item_dash", p)
+
+
+def item_laser():
+    """LASER: a ray gun, a fat body, a ringed barrel and a glowing tip"""
+    p = [box((0.5, 0.18, 0.24), (0, 0, 0.55), "metal", (0, 0, 0)), box((0.12, 0.14, 0.32), (-0.14, 0, 0.3), "metal_dark", (0, 0.3, 0)),
+         drum(0.06, 0.4, (0.42, 0, 0.58), "metal_dark", 8, (0, math.pi / 2, 0))]
+    for x in (0.3, 0.42, 0.54):
+        p.append(drum(0.1, 0.04, (x, 0, 0.58), "chili", 10, (0, math.pi / 2, 0)))
+    p.append(ball((0.14, 0.14, 0.14), (0.64, 0, 0.58), "pod_glow"))
+    return join("item_laser", p)
+
+
+def item_turret():
+    """AUTO TURRET: a ball turret on a mount, its barrel out"""
+    p = [drum(0.32, 0.12, (0, 0, 0.06), "metal_dark", 10), ball((0.5, 0.5, 0.46), (0, 0, 0.4), "metal", 10, 6),
+         drum(0.06, 0.45, (0.3, 0, 0.46), "metal_dark", 8, (0, math.pi / 2, 0)), ball((0.1, 0.1, 0.1), (0.52, 0, 0.46), "chili")]
+    return join("item_turret", p)
+
+
+def item_missiles():
+    """MISSILES: a rocket, nose up, with fins and a flame"""
+    p = [drum(0.11, 0.6, (0, 0, 0.55), "metal", 10), cone(0.11, 0.2, (0, 0, 0.95), "chili", 10),
+         cone(0.08, 0.2, (0, 0, 0.15), "light_amber", 8, (math.pi, 0, 0))]
+    for i in range(3):
+        a = i * math.tau / 3
+        p.append(box((0.03, 0.18, 0.2), (math.cos(a) * 0.14, math.sin(a) * 0.14, 0.32), "metal_dark", (0, 0, a + math.pi / 2)))
+    return join("item_missiles", p)
+
+
+def item_cloak():
+    """CLOAK: a hooded cape, drawn closed, with a faint eye in the hood"""
+    p = [drum(0.36, 0.7, (0, 0, 0.36), "cloak_cloth", 8, top=0.14), ball((0.32, 0.32, 0.34), (0, 0, 0.8), "cloak_cloth", 8, 5),
+         ball((0.14, 0.04, 0.06), (0, -0.15, 0.8), "spark")]
+    return join("item_cloak", p)
+
+
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
@@ -1425,7 +1495,8 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite,
-            police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap]
+            police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,
+            item_engine, item_beam, item_shield, item_dash, item_laser, item_turret, item_missiles, item_cloak]
 
 
 def main():

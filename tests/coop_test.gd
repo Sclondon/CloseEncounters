@@ -56,9 +56,19 @@ func _process(_delta: float) -> bool:
 			_check(main.coop.others.size() == 1, "the other player's saucer is here (%d)" % main.coop.others.size())
 			if role == "join":
 				main.coop.tell("take", COW_AT, "cow")
+		if t == 150 and role == "host":
+			main.score = 700
 		if t == 240:
 			if role == "host":
 				_check(not is_instance_valid(cow) or cow.state == "gone", "the cow the guest took is gone here too")
+			else:
+				# (the host's score counts toward the guest's level)
+				_check(main.team_score() >= 700, "the level-ups go by everyone's score together (%d)" % main.team_score())
+				var following := 0
+				for th: Thing in main.things:
+					if th.net_to != Vector3.INF:
+						following += 1
+				_check(following > 0, "the host's moving things are followed here (%d)" % following)
 			print("[%s] %s" % [role, "PASSED" if fails == 0 else "FAILED"])
 			quit(fails)
 	if frame > 60 * 60:

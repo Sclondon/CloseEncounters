@@ -169,6 +169,11 @@ var held := false
 var heading := 0.0
 var speed := 0.0
 var home := Vector3.ZERO
+## In a multiplayer game, where the host's game has it (see Coop), its heading, and when that was heard
+## (INF: no word of it, it goes its own way)
+var net_to := Vector3.INF
+var net_turn := 0.0
+var net_at := 0.0
 var goal := Vector3.ZERO
 var think := 0.0
 var panic := 0.0
@@ -469,6 +474,14 @@ func _fall(delta: float) -> void:
 
 
 func _walk(delta: float, ufo: Ufo) -> void:
+	if net_to != Vector3.INF:
+		# (another player's game is the one moving it: it goes where that says, see Coop)
+		position = position.lerp(net_to, 1.0 - exp(-8.0 * delta))
+		heading = lerp_angle(heading, net_turn, 1.0 - exp(-8.0 * delta))
+		rotation.y = heading
+		if Time.get_ticks_msec() / 1000.0 - net_at > 1.5:
+			net_to = Vector3.INF
+		return
 	var here := ground()
 	var to_ufo := ufo.ground() - here
 	var near := to_ufo.length()
@@ -1274,3 +1287,9 @@ static func category(of: String) -> String:
 	if int(info.get("tier", 1)) >= 3:
 		return "BUILDINGS"
 	return "OTHER"
+
+
+## The same thing's name on every player's device (the world is made from the same seed): its kind
+## and where it was put down
+func net_key() -> String:
+	return "%s@%d,%d" % [kind, roundi(home.x * 2.0), roundi(home.z * 2.0)]

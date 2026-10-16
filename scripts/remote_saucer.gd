@@ -1,41 +1,28 @@
 class_name RemoteSaucer
 extends Node3D
-## Another player's saucer, as this device sees it (see Coop): their ship with its pilot under the
-## dome, their beam when it is on, their seat and score over it; gliding after where they were last
-## heard to be, and smoking and dark once they are down.
+## Another player's saucer, as this device sees it (see Coop): a real ship of theirs (the same model,
+## pilot, beam, tilt and glow as one's own), driven by what is heard of it rather than by a stick,
+## seen on from where it was last heard to be at the speed it was going; its seat and score over it.
 
 var slot := 0
 var ship := "saucer"
+var score := 0
+var ufo: Ufo
 var _to := Vector3.ZERO
-var _turn := 0.0
-var _beam: Node3D
-var _hull: Node3D
-var _tag: Label3D
-var _heard := false
-var _dead := false
-## How fast they were going when last heard, and when that was (to see them on from there between
-## what is heard of them, rather than stepping from one word to the next)
 var _vel := Vector3.ZERO
 var _heard_at := 0.0
+var _turn := 0.0
+var _beaming := false
+var _aim := Vector2.ZERO
+var _tag: Label3D
+var _heard := false
 
 
 func _ready() -> void:
-	var spec: Dictionary = Ufo.SHIPS.get(ship, Ufo.SHIPS["saucer"])
-	_hull = Ps1.model(spec["model"])
-	_hull.scale = Vector3.ONE * float(spec.get("scale", 1.0))
-	add_child(_hull)
-	var pilot := Alien.new()
-	pilot.look_seed = slot * 7919 + 13
-	pilot.scale = Vector3.ONE * float(spec["alien_size"])
-	pilot.position.y = float(spec["alien_y"])
-	_hull.add_child(pilot)
-	# (their beam: a soft green strip down to the ground, as the searchlights are drawn)
-	_beam = Node3D.new()
-	_beam.rotation.x = PI
-	_beam.position.y = -0.5
-	add_child(_beam)
-	Thing.light_strip(_beam, Color(0.45, 1.0, 0.6), 0.8, 8.0, 1.2, 4.5, 0.97)
-	_beam.visible = false
+	ufo = Ufo.new()
+	ufo.ship = ship if Ufo.SHIPS.has(ship) else "saucer"
+	ufo.alien_seed = slot * 7919 + 13
+	add_child(ufo)
 	_tag = Label3D.new()
 	_tag.font_size = 64
 	_tag.pixel_size = 0.02
@@ -43,7 +30,6 @@ func _ready() -> void:
 	_tag.modulate = Color(0.75, 1.0, 0.78)
 	_tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_tag.no_depth_test = true
-	_tag.position.y = 2.6
 	add_child(_tag)
 
 
@@ -54,22 +40,32 @@ func hear(state: Array) -> void:
 	_vel = Vector3(float(state[11]), 0.0, float(state[12])) if state.size() > 12 else Vector3.ZERO
 	_heard_at = Time.get_ticks_msec() / 1000.0
 	_turn = float(state[4])
+	_beaming = bool(state[5]) and not bool(state[10])
+	# (their beam's lean, as a stick would give it: see Ufo._lean_beam)
+	_aim = Vector2(float(state[6]), float(state[7])) / Ufo.BEAM_REACH
+	score = int(state[9])
+	_tag.text = "P%d  $%d" % [slot + 1, score]
+	if bool(state[10]) and not ufo.dead:
+		ufo.hull = 0.0
+		ufo.hurt(1.0)
 	if not _heard:
 		_heard = true
-		position = _to
-	_beam.visible = bool(state[5]) and not bool(state[10])
-	if _beam.visible:
-		# (leant as theirs is: the strip turned toward where its foot falls)
-		var lean := Vector3(float(state[6]), -maxf(_to.y - 0.5, 1.0), float(state[7]))
-		_beam.basis = Basis(Quaternion(Vector3.UP, lean.normalized()))
-	_tag.text = "P%d  $%d" % [slot + 1, int(state[9])]
-	_dead = bool(state[10])
+		ufo.position = _to
 
 
 func glide(delta: float) -> void:
+	if ufo == null:
+		return
+	ufo.beam_aim = _aim
+	ufo.velocity = _vel
+	var was := ufo.position
+	ufo.tick(delta, Vector2.ZERO, _beaming)
+	# (their aiming mark is theirs alone)
+	ufo.reticle.visible = false
 	# (where they will be by now, from where they were heard to be and how fast they were going)
 	var age := minf(Time.get_ticks_msec() / 1000.0 - _heard_at, 0.3)
-	position = position.lerp(_to + _vel * age, 1.0 - exp(-10.0 * delta))
-	_hull.rotation.y = lerp_angle(_hull.rotation.y, _turn, 1.0 - exp(-12.0 * delta))
-	if _dead:
-		_hull.rotation.z = lerpf(_hull.rotation.z, 0.5, delta * 2.0)
+	var goal := _to + _vel * age
+	ufo.position = Vector3(was.x, ufo.position.y, was.z).lerp(Vector3(goal.x, ufo.position.y, goal.z), 1.0 - exp(-10.0 * delta))
+	if not ufo._spins:
+		ufo.hull_model.rotation.y = lerp_angle(ufo.hull_model.rotation.y, _turn - ufo.rotation.y, 1.0 - exp(-12.0 * delta))
+	_tag.position = ufo.position + Vector3(0, 2.6, 0)

@@ -6,6 +6,7 @@ extends Node
 ##   ship, its score, and whether it is down; sent STATE_EVERY, drawn for the others as a
 ##   RemoteSaucer gliding after it
 ## - their police and army near them (FOES_EVERY), drawn for the others as models gliding after them
+## - the host's moving things near it (PROPS_EVERY): everyone's copies of them go where the host's are
 ## - what happens: something taken up a beam goes for everyone ("take"), crop circles are pressed
 ##   for everyone ("circle"), and blasts are seen by everyone ("boom")
 ## Each player has their own heat, police and score. Guests send to the host, and the host passes
@@ -19,6 +20,10 @@ const STATE_EVERY := 1.0 / 20.0
 const K_FOES := 70  # F
 const FOES_EVERY := 0.2
 const FOES_REACH := 90.0
+## The host's moving things (people, animals, cars) near it, for everyone's copies to follow
+const K_PROPS := 80  # P
+const PROPS_EVERY := 0.2
+const PROPS_REACH := 70.0
 
 var game: Node
 var net: Net
@@ -26,6 +31,9 @@ var net: Net
 var others := {}
 var _send_wait := 0.0
 var _foes_wait := 0.0
+var _props_wait := 0.0
+## The things here by their names on every device (see Thing.net_key), made as needed
+var _by_key := {}
 ## Others' police and army as seen here, by seat: {their id: Node3D}
 var foes := {}
 
@@ -52,6 +60,11 @@ func _process(delta: float) -> void:
 		_send_foes()
 	for slot in others:
 		(others[slot] as RemoteSaucer).glide(delta)
+	if net.is_host:
+		_props_wait -= delta
+		if _props_wait <= 0.0:
+			_props_wait = PROPS_EVERY
+			_send_props()
 	_glide_foes(delta)
 
 
@@ -153,6 +166,8 @@ func _on_packet(_from: int, kind: int, data: PackedByteArray) -> void:
 			if said.size() < 5:
 				return
 			game.coop_event(str(said[1]), said[2], str(said[3]), float(said[4]))
+		K_PROPS:
+			_hear_props(said)
 		K_FOES:
 			_hear_foes(whose, said)
 
@@ -179,3 +194,44 @@ func _drop_foes(whose: int) -> void:
 	for id in foes[whose]:
 		(foes[whose][id] as Node).queue_free()
 	foes.erase(whose)
+
+
+## Host: the moving things near the ship, where each is and which way it faces
+func _send_props() -> void:
+	var list := [net.slot]
+	var here: Vector3 = game.ufo.ground()
+	for t: Thing in game.things:
+		if t.state != "walk" or t.is_enemy() or t.info["move"] == "still" or t.net_to != Vector3.INF:
+			continue
+		if t.ground().distance_to(here) < PROPS_REACH:
+			list.append([t.net_key(), snappedf(t.position.x, 0.05), snappedf(t.position.z, 0.05), snappedf(t.heading, 0.05)])
+			if list.size() > 90:
+				break
+	_pass_on(K_PROPS, var_to_bytes(list))
+
+
+## Guest: the host's word on its moving things; those of them here go where it says
+func _hear_props(list: Array) -> void:
+	if net.is_host:
+		return
+	var now := Time.get_ticks_msec() / 1000.0
+	var fresh := false
+	for i in range(1, list.size()):
+		var p: Array = list[i]
+		var key := str(p[0])
+		var t: Thing = _by_key.get(key)
+		if (t == null or not is_instance_valid(t) or t.state == "gone") and not fresh:
+			# (names made afresh for everything here, once a packet at most)
+			fresh = true
+			_by_key.clear()
+			for th: Thing in game.things:
+				if th.state == "walk":
+					_by_key[th.net_key()] = th
+			t = _by_key.get(key)
+		if t == null or not is_instance_valid(t):
+			continue
+		if t.state != "walk":
+			continue
+		t.net_to = Vector3(float(p[1]), t.position.y, float(p[2]))
+		t.net_turn = float(p[3])
+		t.net_at = now

@@ -25,7 +25,17 @@ func _ready() -> void:
 	_view.own_world_3d = true
 	_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	add_child(_view)
+	# (a light for the items, drawn in their own colours: see `item`)
+	var sun := DirectionalLight3D.new()
+	sun.rotation = Vector3(-0.8, 0.6, 0)
+	sun.light_energy = 1.4
+	_view.add_child(sun)
+	var env := Environment.new()
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.55, 0.6, 0.7)
+	env.background_mode = Environment.BG_CLEAR_COLOR
 	_camera = Camera3D.new()
+	_camera.environment = env
 	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	_view.add_child(_camera)
 	_material = ShaderMaterial.new()
@@ -70,6 +80,14 @@ func _process(_delta: float) -> void:
 	if _queue.is_empty():
 		return
 	var kind: String = _queue.pop_front()
+	var lit := kind.begins_with("item:")
+	if lit:
+		var model_name: String = ITEM_MODELS.get(kind.trim_prefix("item:"), "pod")
+		_drawing = Ps1.model(model_name)
+		_drawing.set_meta("kind", kind)
+		_view.add_child(_drawing)
+		_frame(_drawing, false)
+		return
 	# (a kind of thing, or one of the ships, by its name in Ufo.SHIPS)
 	var info: Dictionary = Thing.KINDS.get(kind, Ufo.SHIPS.get(kind, Thing.KINDS.get("fighter_" + kind, {})))
 	if info.is_empty():
@@ -80,12 +98,23 @@ func _process(_delta: float) -> void:
 	_drawing = Ps1.model(name, info.get("tints", {}))
 	_drawing.set_meta("kind", kind)
 	_view.add_child(_drawing)
-	# (seen from the front and a little to its right and above, all of it in the picture)
-	_drawing.rotation.y = -0.6
+	_frame(_drawing, true)
+
+
+
+## The camera on a model to be drawn: seen from the front and a little to its right and above, all of
+## it in the picture; as a hologram (green light) or in its own colours
+func _frame(model: Node3D, hologram: bool) -> void:
+	model.rotation.y = -0.6
 	var box := AABB()
-	for mi: MeshInstance3D in _drawing.find_children("*", "MeshInstance3D", true, false):
-		mi.material_override = _material
-		mi.set_surface_override_material(0, null)
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		if hologram:
+			mi.material_override = _material
+			mi.set_surface_override_material(0, null)
+		else:
+			# (its own colours, in a plain lit material: the game's own bends with the world, which
+			# would carry it out of this little picture)
+			_plain(mi)
 		var part := mi.global_transform * mi.get_aabb() if mi.is_inside_tree() else mi.get_aabb()
 		box = part if box.size == Vector3.ZERO else box.merge(part)
 	var middle := box.get_center()
@@ -95,3 +124,27 @@ func _process(_delta: float) -> void:
 	_camera.look_at(middle)
 	_view.render_target_update_mode = SubViewport.UPDATE_ONCE
 	_waiting = 2
+
+## An item (an upgrade) as a little 3D model in its own colours, lit, as Risk of Rain 2 shows its
+## items; by the upgrade's name (see main.gd UPGRADES)
+const ITEM_MODELS := {"engine": "item_engine", "beam": "item_beam", "shield": "item_shield", "dash": "item_dash",
+	"laser": "item_laser", "turret": "item_turret", "missiles": "item_missiles", "cloak": "item_cloak", "fleet": "ufo", "patch": "item_shield"}
+
+
+func item(what: String) -> Texture2D:
+	return icon("item:" + what)
+
+
+## A model's mesh dressed in plain lit materials of the colours the game gives it: from the corners'
+## colours of a merged model, or each surface's tint
+func _plain(mi: MeshInstance3D) -> void:
+	for i in mi.mesh.get_surface_count():
+		var was: Material = mi.material_override if mi.material_override != null else mi.get_surface_override_material(i)
+		var m := StandardMaterial3D.new()
+		m.roughness = 0.8
+		if was is ShaderMaterial and (was as ShaderMaterial).get_shader_parameter("tint") is Color and mi.material_override == null:
+			m.albedo_color = (was as ShaderMaterial).get_shader_parameter("tint")
+		else:
+			m.vertex_color_use_as_albedo = true
+		mi.set_surface_override_material(i, m)
+	mi.material_override = null
