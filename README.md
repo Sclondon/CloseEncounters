@@ -39,7 +39,7 @@ and while on the moon the world stays loaded round where the run starts (no stut
 The HUD: top left, the shield as a glass orb of blue energy, and three arrows that light up as the dodge
 recharges, one for each dash (every dash is a full one; three lamps on the front of the ship light with them);
 under them a round **radar** the same size. The heat's news (the police coming, spotted, a nuke) shows just under the stars. Top right, beside the pause button, the score in alien money and its multiplier,
-and under them a log of everything taken, typed out in glowing green.
+and under them a log of everything taken, typed out in glowing green. Left of the cash, the **level orb** (the size of the shield's) fills with little gold balls toward the next level-up.
 The radar shows the nearest trader, secret facility, substation and rare
 find (on the rim, pointing the way, when out of range), and the police and army about in red. The touch stick
 shows only while a thumb is on it.
@@ -56,7 +56,7 @@ up to make it yours, for good. A facility whose ship has already been found hold
 ### The shield
 
 A bubble round the ship takes the shots, fading as it weakens. **Once it is gone, the next shot is fatal.** It
-recharges slowly by itself with no heat, and fast from an **electric substation**: hold the beam over one and
+recharges slowly by itself with no heat, a little with everything taken (more for heavier things), and fast from an **electric substation**: hold the beam over one and
 its power runs up the beam into the shield until the station goes dark.
 
 ### Ships
@@ -79,7 +79,7 @@ cacti; **2** trees, rocks, tents; **3** houses, barns, silos, windmills, water t
 cabins; **4** the land itself: buttes, mesas, peaks and Devils Tower (up to 5000 points). Over something too
 heavy, it only rattles. Taking a mesa or a peak clears it out of the way.
 
-**Crop circles**: hold the beam still over a field of crops and a circle presses into it (60 points).
+**Crop circles**: hold the beam still over a field of crops and a circle presses into it (60 points), joined by a pressed line to its nearest neighbours (two lines at most to a circle, never through another).
 **Rare finds**, each under a shaft of gold light: the golden cow, a jackalope, Bigfoot, a meteorite, a fallen
 satellite (900 to 3000 points).
 
@@ -239,6 +239,7 @@ objects the game moves: the tank's `turret`, the windmill's `fan`, the pumpjack'
     godot --path . --resolution 1280x720 -s res://tests/aliens.gd -- <out.png>
     godot --path . --resolution 1280x720 -s res://tests/perf.gd           # frame time, draw calls, things
     godot --path . --resolution 640x360 --max-fps 60 -s res://tests/hitches.gd  # the worst frames through the lift-off and descent
+    godot --path . --resolution 640x360 --max-fps 60 -s res://tests/beam_hitch.gd  # the worst frames round the first press of the beam
 
 Performance: each model is merged into one surface at load (colours on its corners, see `Ps1._merged`), so a
 thing is one draw call; nothing is drawn past 115 m (`Ps1.DRAW_TO`); far still things are not ticked and far

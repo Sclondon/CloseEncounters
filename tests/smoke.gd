@@ -60,10 +60,11 @@ func _process(_delta: float) -> bool:
 			_check(seen.has("police_car"), "police came at two stars")
 			_check(patrols > 0, "patrols with searchlights rove about")
 			_check(spotted, "a patrol's searchlight found the ship")
-			_check(seen.has("officer"), "a police car pulled up and an officer got out")
 			main.heat = 3.5
 		2050:
 			_check(seen.has("helicopter"), "a police helicopter came at three stars")
+			# (checked late: a police car has to be sure of the ship before it gives chase and pulls up)
+			_check(seen.has("officer"), "a police car pulled up and an officer got out")
 			main.heat = 4.5
 		2600:
 			_check(seen.has("jeep") and seen.has("chinook"), "army jeeps and a Chinook came at four stars")

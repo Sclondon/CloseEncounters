@@ -833,11 +833,14 @@ func bump(out: Vector3) -> void:
 	if flat.length() < 0.01 or dead:
 		return
 	var into := -velocity.dot(flat.normalized())
-	velocity -= flat.normalized() * maxf(into, 0.0)
+	# (its way into the thing taken off it, so it slides along the rock rather than ploughing on in;
+	# a dash into it ends there)
+	velocity += flat.normalized() * maxf(into, 0.0)
+	dash_left = 0.0
 	if Time.get_ticks_msec() / 1000.0 - _bumped < 0.6 or into < 2.0:
 		return
 	_bumped = Time.get_ticks_msec() / 1000.0
-	knock = flat.normalized() * clampf(into * 1.6, 8.0, 22.0)
+	knock = flat.normalized() * clampf(into * 0.8, 4.0, 10.0)
 	_kick = 1.0
 	if hull > 0.0:
 		# (it takes the shield, never the last of the ship)

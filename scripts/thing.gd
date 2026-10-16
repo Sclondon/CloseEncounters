@@ -283,6 +283,7 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 	model_y = info.get("rest_y", 0.0)
 	model.position.y = model_y
 	power = info.get("power", 0.0)
+	_roof_dish()
 	aim = model.find_child("dish*", true, false) as Node3D
 	if aim == null:
 		aim = model.find_child("cupola*", true, false) as Node3D
@@ -1135,3 +1136,21 @@ func _drop_prey() -> void:
 	_prey = null
 	if _rival_beam != null:
 		_rival_beam.visible = false
+
+
+## Roofs that may carry a little satellite dish, which turns to follow the ship like the big ones
+const DISH_ROOFS := ["house", "farmhouse", "storefront", "diner", "cabin", "police_station"]
+
+
+## About one roof in three gets a little dish, on the ridge (the same roofs every time)
+func _roof_dish() -> void:
+	if not kind in DISH_ROOFS or World.hash3(roundi(position.x), roundi(position.z), 171) > 0.33:
+		return
+	var box := AABB()
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		var part := (model.global_transform.affine_inverse() * mi.global_transform) * mi.get_aabb() if mi.is_inside_tree() else mi.transform * mi.get_aabb()
+		box = part if box.size == Vector3.ZERO else box.merge(part)
+	var dish := Ps1.model("seti_dish")
+	dish.scale = Vector3.ONE * 0.12
+	dish.position = Vector3(box.get_center().x, box.end.y - 0.2, box.get_center().z)
+	model.add_child(dish)

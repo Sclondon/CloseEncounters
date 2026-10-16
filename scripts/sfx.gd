@@ -51,6 +51,11 @@ func _ready() -> void:
 		players.append(p)
 	hum = _looper(_theremin(), -10.0)
 	siren = _looper(_siren(), -20.0)
+	# (on the web each sound is handed to the browser the first time it plays, which can stall a
+	# frame, the beam's long hum most of all: all of them handed over now, at load)
+	if OS.has_feature("web") and AudioServer.has_method("register_stream_as_sample"):
+		for s: AudioStream in sounds.values() + [hum.stream, siren.stream]:
+			AudioServer.call("register_stream_as_sample", s)
 
 
 func play(sound: String, pitch := 1.0, volume_db := 0.0) -> void:

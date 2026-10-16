@@ -376,19 +376,59 @@ func rattle(p: Vector3, reach: float, tier: int) -> void:
 
 
 ## Presses a crop circle into the ground at `p` (drawn only where crops grow), `radius` across, joined
-## by a line pressed through the crop to each other circle within LINK_REACH: how many it was joined to
+## by a line pressed through the crop to the nearest other circles within LINK_REACH: never more than
+## two lines to a circle, and never a line through another circle. How many it was joined to
 func crop_circle(p: Vector3, radius: float) -> int:
-	var joined := 0
+	var here := Vector2(p.x, p.z)
+	var near: Array[Vector4] = []
 	for c: Vector4 in _circles:
-		if c.z > 0.0 and Vector2(c.x - p.x, c.y - p.z).length() < LINK_REACH:
-			_links[_link_next] = Vector4(c.x, c.y, p.x, p.z)
-			_link_next = (_link_next + 1) % _links.size()
-			joined += 1
+		if c.z > 0.0 and Vector2(c.x, c.y).distance_to(here) < LINK_REACH:
+			near.append(c)
+	near.sort_custom(func(a: Vector4, b: Vector4) -> bool: return Vector2(a.x, a.y).distance_to(here) < Vector2(b.x, b.y).distance_to(here))
+	var joined := 0
+	for c: Vector4 in near:
+		if joined >= MAX_LINKS:
+			break
+		var there := Vector2(c.x, c.y)
+		if _links_at(there) >= MAX_LINKS or _crosses_circle(here, there):
+			continue
+		_links[_link_next] = Vector4(c.x, c.y, p.x, p.z)
+		_link_next = (_link_next + 1) % _links.size()
+		joined += 1
 	_circles[_circle_next] = Vector4(p.x, p.z, radius, 0.0)
 	_circle_next = (_circle_next + 1) % _circles.size()
 	_ground_mat.set_shader_parameter("circles", _circles)
 	_ground_mat.set_shader_parameter("links", _links)
 	return joined
+
+
+const MAX_LINKS := 2
+## How big a crop circle may grow, for keeping lines clear of one still growing
+const CIRCLE_ROOM := 7.0
+
+
+## How many lines already run to the circle at `at`
+func _links_at(at: Vector2) -> int:
+	var count := 0
+	for l: Vector4 in _links:
+		if Vector2(l.x, l.y).distance_to(at) < 0.1 or Vector2(l.z, l.w).distance_to(at) < 0.1:
+			count += 1
+	return count
+
+
+## Whether a line from `a` to `b` would pass through a crop circle other than those at its ends
+func _crosses_circle(a: Vector2, b: Vector2) -> bool:
+	for c: Vector4 in _circles:
+		if c.z <= 0.0:
+			continue
+		var o := Vector2(c.x, c.y)
+		if o.distance_to(a) < 0.1 or o.distance_to(b) < 0.1:
+			continue
+		var ab := b - a
+		var k := clampf((o - a).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
+		if o.distance_to(a + ab * k) < maxf(c.z, CIRCLE_ROOM) + 1.0:
+			return true
+	return false
 
 
 ## Grows the newest crop circle (the beam is still held over it)
@@ -1051,17 +1091,19 @@ func _watchers(c: Vector2i, b: int) -> void:
 	elif hash3(c.x, c.y, 92) < 0.12 and b in [Biome.MESA, Biome.PLAINS, Biome.DESERT]:
 		var along := _rng.randf() < 0.5
 		var base := centre_of(c)
+		# (one size to an array, from small ones to the great ones of the Very Large Array)
+		var big := _rng.randf_range(0.4, 0.8)
 		for k in range(-2, 3):
 			var at := base + (Vector3(k * 9.0, 0, 0) if along else Vector3(0, 0, k * 9.0))
 			if _clear(at, 4.0):
 				_take(at, 4.5)
-				_prop("seti_dish", at, 0.0)
+				_prop("seti_dish", at, 0.0, big)
 	elif hash3(c.x, c.y, 93) < 0.08 and b != Biome.MOUNTAIN and field(c) in [Field.NONE, Field.PASTURE]:
 		# (or a single dish on its own)
 		var at := _spot(4.5)
 		if at != Vector3.INF:
 			_take(at, 4.5)
-			_prop("seti_dish", at, 0.0)
+			_prop("seti_dish", at, 0.0, _rng.randf_range(0.3, 0.75))
 
 
 ## A town where two roads cross: main street (shops with sign boards and awnings, in a row facing

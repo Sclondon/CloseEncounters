@@ -117,6 +117,14 @@ def drum(radius, depth, at, m, sides=8, rot=(0, 0, 0), top=None):
     return _done(bpy.context.object, m)
 
 
+def rod(radius, a, b, m, sides=6):
+    """A drum running from point `a` to point `b` (a strut that meets what it holds)"""
+    from mathutils import Vector
+    a, b = Vector(a), Vector(b)
+    rot = Vector((0, 0, 1)).rotation_difference(b - a).to_euler()
+    return drum(radius, (b - a).length, (a + b) / 2, m, sides, tuple(rot))
+
+
 def cone(radius, depth, at, m, sides=6, rot=(0, 0, 0)):
     return drum(radius, depth, at, m, sides, rot, top=0.0)
 
@@ -1224,14 +1232,21 @@ def seti_dish():
     """A radio telescope: a pedestal and a dish (a child, "dish", that the game aims) on a yoke"""
     p = [drum(0.9, 0.6, (0, 0, 0.3), "concrete", 10), drum(0.45, 6.0, (0, 0, 3.3), "white", 8),
          box((2.6, 0.5, 0.5), (0, 0, 6.3), "white")]
+    # (the yoke's two arms up to the dish's pivot)
+    for x in (-1.2, 1.2):
+        p.append(box((0.25, 0.4, 1.0), (x, 0, 6.9), "white"))
     body = join("seti_dish", p)
     bowl = lathe("bowl", [(0.3, -0.6), (2.0, -0.35), (3.6, 0.3), (4.6, 1.2), (4.7, 1.25)], ["white", "white", "white", "metal", "metal"], 18, 0.0, seed=12)
-    feed = [bowl, drum(0.06, 3.0, (0, 0, 2.2), "metal_dark", 4), ball((0.4, 0.4, 0.5), (0, 0, 3.7), "metal_dark", 6, 3)]
+    # the hub on the pivot between the yoke's arms, the feed up the middle, and three struts from
+    # the bowl out near its rim up to the feed's horn
+    feed = [bowl, drum(0.6, 1.2, (0, 0, -0.6), "white", 10), rod(0.06, (0, 0, -0.4), (0, 0, 3.7), "metal_dark", 4),
+            ball((0.4, 0.4, 0.5), (0, 0, 3.7), "metal_dark", 6, 3)]
     for a in range(3):
-        ang = a * math.tau / 3
-        feed.append(drum(0.04, 4.0, (math.cos(ang) * 1.9, math.sin(ang) * 1.9, 2.2), "metal_dark", 4, (math.sin(ang) * 0.6, -math.cos(ang) * 0.6, 0)))
+        ang = a * math.tau / 3 + math.pi / 6
+        foot = (math.cos(ang) * 3.4, math.sin(ang) * 3.4, 0.25)
+        feed.append(rod(0.05, foot, (0, 0, 3.6), "metal_dark", 4))
     dish = join("dish", feed)
-    dish.location = (0, 0, 6.6)
+    dish.location = (0, 0, 7.2)
     dish.rotation_euler = (0.9, 0, 0)
     attach(dish, body)
     return body

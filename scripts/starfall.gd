@@ -5,7 +5,7 @@ extends MeshInstance3D
 
 const GRAVITY := 11.0
 const LIFE := 1.3
-const TRAIL := 7
+const TRAIL := 4
 
 ## Each star: [where, velocity, age, colour, trail of where it was]
 var _stars: Array = []
@@ -25,8 +25,8 @@ func _ready() -> void:
 	m.vertex_color_use_as_albedo = true
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	m.disable_fog = true
-	m.no_depth_test = true
-	m.render_priority = 2
+
+
 	material_override = m
 	extra_cull_margin = 60.0
 
@@ -71,14 +71,14 @@ func _process(delta: float) -> void:
 			var a: Vector3 = trail[k]
 			var b: Vector3 = trail[k + 1]
 			var side := (b - a).cross(cam.global_basis.z).normalized()
-			var wa := 0.09 * (1.0 - float(k) / TRAIL)
-			var wb := 0.09 * (1.0 - float(k + 1) / TRAIL)
-			var ca := Color(c, 0.55 * fade * (1.0 - float(k) / TRAIL))
-			var cb := Color(c, 0.55 * fade * (1.0 - float(k + 1) / TRAIL))
+			var wa := 0.03 * (1.0 - float(k) / TRAIL)
+			var wb := 0.03 * (1.0 - float(k + 1) / TRAIL)
+			var ca := Color(c, 0.4 * fade * (1.0 - float(k) / TRAIL))
+			var cb := Color(c, 0.4 * fade * (1.0 - float(k + 1) / TRAIL))
 			_tri(a + side * wa, a - side * wa, b + side * wb, ca, ca, cb)
 			_tri(a - side * wa, b - side * wb, b + side * wb, ca, cb, cb)
 		# the star: five points round its middle, turning as it falls
-		var r := 0.32 * (0.6 + 0.4 * fade)
+		var r := 0.13 * (0.6 + 0.4 * fade)
 		var spin: float = s[2] * 5.0
 		var mid := Color(1, 1, 1, fade)
 		var tip := Color(c, fade)

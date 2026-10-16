@@ -113,6 +113,7 @@ var _hot_wait := 0.0
 var level := 0
 var _levels_due := 0
 var _picker: VBoxContainer
+var _picker_dim: ColorRect
 var _picker_title: Label
 var _picks: VBoxContainer
 ## Things the world has asked for, waiting to be put down: [kind, where, extra]
@@ -444,6 +445,8 @@ func start(from_launch := false) -> void:
 	level = 0
 	_levels_due = 0
 	_picker.visible = false
+	if _picker_dim != null:
+		_picker_dim.visible = false
 	_clear_fleet()
 	_laser_wait = 0.0
 	_cuts.clear()
@@ -1069,12 +1072,13 @@ func _level_up() -> void:
 		var heading := "%s" % spec["title"] if what == "patch" else "%s %d" % [spec["title"], upgrades[what] + 1]
 		var b := _button("%s\n%s" % [heading, spec["about"]], func() -> void: _pick(what))
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		b.custom_minimum_size = Vector2(700, 120)
+		b.custom_minimum_size = Vector2(640, 120)
 		b.add_theme_font_size_override("font_size", 28)
 		b.add_theme_color_override("font_color", (spec["colour"] as Color).lerp(Color.WHITE, 0.35))
 		_picks.add_child(b)
 	_forget_fingers()
 	_picker.visible = true
+	_picker_dim.visible = true
 	get_tree().paused = true
 
 
@@ -1084,6 +1088,8 @@ func _pick(what: String) -> void:
 	else:
 		buy(what)
 	_picker.visible = false
+	if _picker_dim != null:
+		_picker_dim.visible = false
 	get_tree().paused = false
 
 ## An upgrade: one more level of it (up to MAX_UPGRADE), for nothing (see `_level_up`)
@@ -1735,6 +1741,19 @@ func _warm_effects() -> void:
 	light.shadow_enabled = true
 	light.light_cull_mask = 1 << (Thing.BEAM_LAYER - 1)
 	_warm.add_child(light)
+	# (the stars thrown out on a swallow, and a cop's question mark)
+	var starfall := Starfall.new()
+	_warm.add_child(starfall)
+	starfall.burst(Vector3(0, 4, 0), 6)
+	var wonder := MeshInstance3D.new()
+	wonder.mesh = QuadMesh.new()
+	var wm := ShaderMaterial.new()
+	wm.shader = Thing.WONDER
+	wonder.material_override = wm
+	wonder.position = Vector3(-1, 2, 0)
+	_warm.add_child(wonder)
+
+
 ## Every model made ready once (merged and dressed) at the start, not the first time one is met
 func _warm_models() -> void:
 	for kind: String in Thing.KINDS:
@@ -1787,6 +1806,8 @@ func abducted(t: Thing) -> void:
 		return
 	ufo.gulp(t.size() * t.base_size * 0.7)
 	_score_pop = 1.0
+	# (everything taken mends the shield a little, the heavier the more: a chicken a point, a barn a few)
+	ufo.hull = minf(ufo.hull + 1.0 + float(t.info["weight"]) * 0.5, ufo.hull_max)
 	(_sparks as ScoreSparks).burst(score_label.position + Vector2(score_label.size.x - 40.0, score_label.size.y * 0.5), 14)
 	var points := t.points() * multiplier()
 	if mode == "play":
@@ -2543,7 +2564,8 @@ func _build_hud() -> void:
 	root.add_child(_sparks)
 	coin = Coin.new()
 	coin.font = font
-	coin.size = Vector2(46, 46)
+	coin.main = self
+	coin.size = Vector2(146, 146)
 	coin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(coin)
 
@@ -2626,9 +2648,24 @@ func _build_hud() -> void:
 		_title_row.add_child(_button("QUIT", quit_game))
 	title_box.add_child(_title_row)
 	# The level-up picker: the level, and three upgrades to choose between (see `_level_up`)
+	# (the game dimmed behind it, for the choices to read)
+	_picker_dim = ColorRect.new()
+	_picker_dim.color = Color(0, 0, 0, 0.55)
+	_picker_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_picker_dim.visible = false
+	root.add_child(_picker_dim)
 	_picker = _panel(root)
-	_picker.position = Vector2(-380, -260)
+	# (centred both ways whatever its size, and narrow enough for an upright phone)
+	_picker.custom_minimum_size = Vector2(660, 0)
+	_picker.offset_left = 0.0
+	_picker.offset_right = 0.0
+	_picker.offset_top = 0.0
+	_picker.offset_bottom = 0.0
+	_picker.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_picker.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_picker.visible = false
+	if _picker_dim != null:
+		_picker_dim.visible = false
 	_picker_title = _label(56, Color(0.75, 1.0, 0.78))
 	_picker_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_glow(_picker_title, Color(0.3, 1.0, 0.45, 0.55))
@@ -2985,16 +3022,17 @@ func _hud(delta: float) -> void:
 	if playing and _facility_wait <= 0.0:
 		_facility_wait = 3.0
 		_find_facilities()
-	score_label.text = "%d" % score
+	score_label.text = "$%d" % score
 	mult_label.text = "x%d" % multiplier()
 	# (the score bouncing, swelling and settling, when something is swallowed)
 	_score_pop = maxf(_score_pop - get_process_delta_time() * 2.5, 0.0)
 	var t := 1.0 - _score_pop
 	score_label.pivot_offset = Vector2(score_label.size.x, score_label.size.y * 0.5)
 	score_label.scale = Vector2.ONE * (1.0 + sin(t * 9.0) * exp(-4.0 * t) * 0.35 * float(_score_pop > 0.0))
-	# (the coin just before the score, however long it has grown)
+	# (the level orb just before the cash, however long it has grown, and level with it)
 	var width := font.get_string_size(score_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 54).x
-	coin.position = Vector2(score_label.position.x + score_label.size.x - width - 52.0, score_label.position.y + 14.0)
+	coin.position = Vector2(score_label.position.x + score_label.size.x - width - 156.0, 6.0)
+	coin.queue_redraw()
 	stars.queue_redraw()
 	shield_bar.queue_redraw()
 	stick_ring.queue_redraw()
@@ -3374,16 +3412,53 @@ class Radar extends Control:
 		draw_arc(c, r, 0, TAU, 40, Color(0.6, 1.0, 0.7, 0.7), 2.0)
 
 
-## The alien money the score is counted in: a dollar sign, glowing green
+## The level orb, left of the cash: a glass ball filling with little balls as the score climbs toward
+## the next level-up, one ball at a time from the bottom (the level it is working toward faint in the
+## glass), the same size as the shield's. Five quick
+## taps on it turn the touch readout on (see _input)
 class Coin extends Control:
+	const BALLS := 30
+	## (the same size as the shield's glass: 52 across scaled 1.4)
+	const R := 64.0
+	const BALL := 8.5
 	var font: Font
+	var main: Node
+	## Where each ball sits in the glass, the lowest first
+	var _slots: Array[Vector2] = []
+	var _shown := 0.0
+
+	func _ready() -> void:
+		var step := BALL * 2.05
+		var row := 0
+		var y := R - BALL - 1.0
+		while y > -R + BALL and _slots.size() < BALLS:
+			var half := sqrt(maxf((R - BALL - 1.0) ** 2 - y * y, 0.0))
+			var x := -half + fmod(row * step * 0.5, step)
+			while x <= half and _slots.size() < BALLS:
+				_slots.append(Vector2(x, y))
+				x += step
+			y -= step * 0.87
+			row += 1
 
 	func _draw() -> void:
-		var big := int(size.y * 1.15)
-		var at := Vector2(size.x * 0.12, size.y * 0.92)
-		draw_string_outline(font, at, "$", HORIZONTAL_ALIGNMENT_LEFT, -1, big, 10, Color(0.25, 1.0, 0.4, 0.35))
-		draw_string_outline(font, at, "$", HORIZONTAL_ALIGNMENT_LEFT, -1, big, 5, Color(0, 0, 0, 0.85))
-		draw_string(font, at, "$", HORIZONTAL_ALIGNMENT_LEFT, -1, big, Color(0.6, 1.0, 0.65))
+		var t := Time.get_ticks_msec() / 1000.0
+		var c := size * 0.5
+		var lv: int = main.level
+		var from: int = main.level_at(lv)
+		var to: int = main.level_at(lv + 1)
+		var fill := clampf(float(main.score - from) / maxf(to - from, 1), 0.0, 1.0)
+		_shown = lerpf(_shown, fill, 0.15)
+		draw_circle(c, R + 8.0, Color(0.6, 1.0, 0.7, 0.18))
+		draw_circle(c, R, Color(0.02, 0.08, 0.04, 0.8))
+		# (the level it is working toward, faint in the glass behind the balls)
+		draw_string(font, Vector2(0, c.y + 10.0), "LV %d" % (lv + 1), HORIZONTAL_ALIGNMENT_CENTER, size.x, 30, Color(0.75, 1.0, 0.78, 0.45))
+		var n := int(_shown * BALLS + 0.001)
+		for i in mini(n, _slots.size()):
+			var s: Vector2 = _slots[i] + Vector2(0, sin(t * 3.0 + i * 1.3) * 0.6)
+			draw_circle(c + s, BALL, Color(1.0, 0.85, 0.3))
+			draw_circle(c + s + Vector2(-BALL * 0.3, -BALL * 0.3), BALL * 0.35, Color(1.0, 1.0, 0.85, 0.8))
+		draw_arc(c, R, 0, TAU, 56, Color(0.6, 1.0, 0.7, 0.9), 4.0)
+		draw_arc(c + Vector2(-R * 0.3, -R * 0.35), R * 0.45, PI * 1.05, PI * 1.45, 12, Color(1, 1, 1, 0.5), 4.0)
 
 
 ## The shield: a glass orb of blue energy, its level the shield left, sloshing; beside it three
