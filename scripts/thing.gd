@@ -1581,9 +1581,37 @@ const ALIEN_NAMES := {
 }
 
 
+## More of what the pilot calls things (the newer ones), in the same spirit as ALIEN_NAMES
+const MORE_NAMES := {
+	"sunflower": "SUN-STARING STALK", "cabbage": "LEAF BRAIN", "melon": "STRIPED WATER EGG", "pepper": "FIRE POD BUSH",
+	"locomotive": "SMOKE-PUFFING IRON WORM", "boxcar": "IRON WORM SEGMENT", "caboose": "IRON WORM TAIL", "track": "IRON WORM PATH",
+	"rider": "TWO-HEADED HOOF BEAST", "balloon": "HOT SKY BUBBLE", "tube_man": "FLAILING WIND PRIEST",
+	"gas_station": "DINO JUICE TEMPLE", "dealership": "ROLL-BOX MARKET", "lot_car": "UNCLAIMED ROLL-BOX",
+	"schoolhouse": "SMALL-HUMAN PEN", "playground": "SMALL-HUMAN FLINGER", "crane": "STEEL NECK", "excavator": "DIRT SPOON",
+	"girders": "BONE PILE", "mixer": "SPINNING MUD BELLY", "tire_stack": "ROUND RUBBER TOWER", "scrap_pile": "SHINY TRASH HILL",
+	"junk_car": "DEAD ROLL-BOX", "bench": "BOTTOM PLANK", "gazebo": "ROUND ROOF HUT", "screen": "GIANT PICTURE WALL",
+	"speaker_post": "LOUD STICK", "bleachers": "STARING STAIRS", "ferris_wheel": "BIG SLOW WHEEL OF JOY",
+	"carousel": "FAKE HOOF BEAST SPINNER", "circus_tent": "STRIPED FUN DOME", "booth": "PRIZE HUT", "believer": "BEAM WORSHIPPER",
+	"street_light": "NIGHT SUN STICK", "lamp_post": "SMALL NIGHT SUN", "road_sign": "WORD PLATE", "highway_sign": "BIG WORD PLATE",
+	"trash_can": "WASTE CYLINDER", "bush": "ROUND GREEN LUMP", "grain_elevator": "SEED SKYSCRAPER", "chicken_coop": "EGG FACTORY",
+	"irrigation": "LONG RAIN WALKER", "feed_bin": "SEED CAN", "fire_truck": "RED WATER WAILER", "ambulance": "WEEOO BOX",
+	"bank": "PAPER MONEY CASTLE", "fort_knox": "GOLD BAR FORTRESS", "hydrant": "STUBBY WATER STUMP", "hospital": "HUMAN REPAIR SHOP",
+	"fire_station": "WAILER BARN", "prison": "BAD HUMAN BOX", "inmate": "ORANGE ESCAPEE", "motorcycle": "TWO-WHEEL GROWLER",
+	"biker": "LEATHER GROWLER", "moto_cop": "FAST BLUE GROWLER", "cultist": "ROBED CHANTER", "cult_altar": "CHANTING STONE",
+	"helicarrier": "FLOATING SKY FORTRESS", "railgun": "ZAP TUBE", "laser_truck": "BEAM WAGON", "goalpost": "KICK FORK",
+	"player": "TACKLE HUMAN", "liquor_store": "FIZZ JUICE TEMPLE", "cooler": "COLD FIZZ BOX", "hunter": "CAMO BOOMSTICK HUMAN",
+	"trout": "SPOTTED SWIMMER", "bass": "BIG-MOUTH WIGGLER", "catfish": "WHISKER SLIME", "koi": "ORANGE POND JEWEL", "frog": "GREEN HOPPER",
+	"willow": "WEEPING TOWER", "cottonwood": "FLUFF TOWER", "joshua_tree": "SPIKY ARM TOWER", "crag": "SKY FANG",
+	"pod": "TRADE CAPSULE", "canister": "MYSTERY GLOW JAR",
+}
 ## What the pilot calls a kind of thing
 static func alien_name(of: String) -> String:
-	return ALIEN_NAMES.get(of, of.replace("_", " ").to_upper())
+	if ALIEN_NAMES.has(of) or MORE_NAMES.has(of):
+		return ALIEN_NAMES.get(of, MORE_NAMES.get(of))
+	# (a captured ship: by its own goofy name)
+	if of.begins_with("captured_") and Ufo.SHIPS.has(of.trim_prefix("captured_")):
+		return Ufo.SHIPS[of.trim_prefix("captured_")]["title"]
+	return of.replace("_", " ").to_upper()
 
 
 # ------------------------------------------------------------------ coming apart in the beam
