@@ -812,6 +812,7 @@ func _process(delta: float) -> void:
 	_whirl(delta)
 	_star_bits(delta)
 	_sling(delta)
+	_rocket_launches(delta)
 	_trains(delta)
 	_airliners(delta)
 	_watchers(delta)
@@ -2709,7 +2710,7 @@ func rival_prey(p: Vector3, reach: float) -> Thing:
 ## A rival saucer got something up its beam: gone, and it is noted
 func stolen_by_rival(t: Thing) -> void:
 	var title: String = Thing.alien_name(t.kind)
-	log_line("RIVAL TOOK " + title, 0, t.kind)
+	_heat_note("A RIVAL TOOK: " + title, 2.0)
 	_remove(t)
 
 
@@ -6957,7 +6958,7 @@ func rival_crashed(r: Thing) -> void:
 	var wreck := spawn("crash_site", at, {"turn": randf() * TAU, "tints": r.info.get("tints", {})})
 	if wreck != null:
 		wreck.set_meta("rival", true)
-	log_line("RIVAL SHOT DOWN", 0, "rival")
+
 	_remove(r)
 
 
@@ -7035,3 +7036,56 @@ func _sling_impact(at: Vector3) -> void:
 		elif t.state == "walk" and t.ground().distance_to(at) < splash * 2.0 and t.info["move"] in ["flee", "graze", "peck"]:
 			# (anything else near it runs for it)
 			t.panic = maxf(t.panic, 6.0)
+
+
+## Rockets on their pads (see world.gd `_spaceport`): the ship coming within LAUNCH_NEAR sets the
+## countdown going, T-10 called over the pad each second, then ignition (smoke billowing out of the
+## flame trench) and lift-off, slow then faster, a column of fire and smoke under it, until it is gone
+## up into the sky. Beamed up before then, it is the ship's.
+const LAUNCH_NEAR := 70.0
+const COUNTDOWN := 10.0
+
+func _rocket_launches(delta: float) -> void:
+	if mode != "play":
+		return
+	for t: Thing in things.duplicate():
+		if t.kind != "rocket" or t.state != "walk":
+			continue
+		var count: float = t.get_meta("count", COUNTDOWN)
+		if not t.has_meta("count"):
+			if not ufo.dead and t.ground().distance_to(ufo.ground()) < LAUNCH_NEAR:
+				t.set_meta("count", COUNTDOWN)
+				_heat_note("A ROCKET IS COUNTING DOWN!", 2.0)
+			continue
+		var was := ceili(count)
+		count -= delta
+		t.set_meta("count", count)
+		if count > 0.0:
+			if ceili(count) != was:
+				_popup("T-%d" % ceili(count), t.position + Vector3(0, 20.0, 0), Color(1.0, 0.85, 0.4))
+				sfx.play("key", 0.6, _near_db(t) + 4.0)
+			if count < 3.0 and randf() < delta * 20.0:
+				# (ignition: smoke rolling out across the pad)
+				var a := randf() * TAU
+				puff(t.ground() + Vector3(cos(a) * 3.0, 0.8, sin(a) * 3.0), Color(0.85, 0.85, 0.82), randf_range(2.0, 3.5))
+			if count < 3.0 and ceili(count) != was and was == 3:
+				sfx.play("boom", 0.4, _near_db(t) + 6.0)
+				_shake = maxf(_shake, 0.3)
+			continue
+		# Lift-off: up it goes, faster and faster, on a column of fire and smoke
+		if not t.has_meta("rising"):
+			t.set_meta("rising", 0.0)
+			_popup("LIFT OFF!", t.position + Vector3(0, 20.0, 0), Color(1.0, 0.6, 0.3))
+			if t.obstacle != Vector4.ZERO:
+				world.remove_obstacle(t.chunk, t.obstacle)
+				t.obstacle = Vector4.ZERO
+		var speed: float = t.get_meta("rising") + delta * 9.0
+		t.set_meta("rising", speed)
+		t.position.y += speed * delta
+		var foot := t.position
+		if randf() < delta * 40.0:
+			ufo.puffs.puff(foot + Vector3(randf_range(-0.6, 0.6), -0.5, randf_range(-0.6, 0.6)), Color(1.0, randf_range(0.4, 0.8), 0.15, 0.9), randf_range(1.0, 1.8), Vector3(0, -6.0, 0), 0.4)
+		if randf() < delta * 25.0:
+			puff(foot + Vector3(randf_range(-1, 1), -2.0, randf_range(-1, 1)), Color(0.8, 0.8, 0.78), randf_range(2.0, 3.0))
+		if t.position.y > 220.0:
+			_remove(t)

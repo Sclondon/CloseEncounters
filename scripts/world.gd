@@ -648,7 +648,9 @@ func _make(c: Vector2i) -> void:
 			_plant("pine", 0.8, 1.4, Vector3.INF, 1.3)
 	var town := is_town(c)
 	var open := not road_x and not road_z and not town and facility(c) == "" and not is_base(c) and not near_tower(c)
-	if open and airfield(c):
+	if open and spaceport(c):
+		_spaceport()
+	elif open and airfield(c):
 		_airfield()
 	elif town:
 		_town(b)
@@ -1975,3 +1977,29 @@ func crash_dirt(at: Vector3, turn: float) -> void:
 	n.rotation.y = turn
 	var into: Node = chunks.get(chunk_of(at), self)
 	into.add_child(n)
+
+
+## Whether a spaceport is out here: now and then, in the desert or the plains, far from the start
+static func spaceport(c: Vector2i) -> bool:
+	return not has_rail(c.y) and maxi(absi(c.x), absi(c.y)) > 4 and biome(c) in [Biome.DESERT, Biome.PLAINS] and hash3(c.x, c.y, 231) < 0.012
+
+
+## A spaceport: the launch pad with its service tower and the rocket on it, mission control looking
+## over it, and scientists about (the countdown and lift-off: main.gd `_rocket_launches`)
+func _spaceport() -> void:
+	var base := centre_of(_chunk)
+	var turn := _rng.randi_range(0, 3) * PI / 2
+	var basis := Basis(Vector3.UP, turn)
+	var pad := base + basis * Vector3(5, 0, -6)
+	# (only its tower stands in the ship's way, not the whole deck)
+	var tower := pad + basis * Vector3(4.5, 0, 0)
+	var block := Vector4(tower.x, tower.z, 1.8, 23.0)
+	(obstacles[_chunk] as Array).append(block)
+	_prop("launch_pad", pad, turn, 1.0, {}, block)
+	_prop("rocket", pad + Vector3(0, 0.0, 0), _rng.randf() * TAU)
+	_take(pad, 10.0)
+	var control := base + basis * Vector3(-10, 0, 13)
+	_prop("mission_control", control, turn + PI)
+	_take(control, 8.0)
+	_herd("scientist", base + basis * Vector3(-10, 0, 7), _rng.randi_range(3, 5), 4.0)
+	_prop("seti_dish", base + basis * Vector3(14, 0, 14), 0.0, 0.7)

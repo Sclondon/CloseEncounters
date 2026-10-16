@@ -2798,6 +2798,55 @@ def hydrant():
                             drum(0.1, 0.12, (0, -0.2, 0.46), "yellow", 6, (math.pi / 2, 0, 0))])
 
 
+
+def rocket():
+    """A rocket on its pad, ready to go: a tall white first stage with black roll bands, a narrower
+    second stage, the capsule under a red-tipped escape tower, four fins at its foot, the engine bell
+    under it"""
+    p = [cone(0.85, 1.0, (0, 0, 0.5), "metal_dark", 12, (math.pi, 0, 0)),
+         drum(1.1, 9.0, (0, 0, 5.5), "white", 16), drum(1.12, 0.6, (0, 0, 3.0), "black", 16), drum(1.12, 0.6, (0, 0, 8.4), "black", 16),
+         drum(1.13, 0.3, (0, 0, 6.0), "red", 16),
+         cone(1.1, 0.6, (0, 0, 10.3), "white", 16), drum(0.85, 4.0, (0, 0, 12.6), "white", 14), drum(0.87, 0.4, (0, 0, 11.2), "black", 14),
+         cone(0.85, 1.6, (0, 0, 15.4), "metal", 12), drum(0.08, 1.2, (0, 0, 16.8), "metal_dark", 4), cone(0.14, 0.4, (0, 0, 17.6), "red", 6),
+         box((0.5, 0.08, 0.35), (0, -0.96, 14.9), "window")]
+    for k in range(4):
+        a = k / 4 * math.tau + math.pi / 4
+        p.append(box((0.08, 1.4, 2.2), (1.4 * math.cos(a), 1.4 * math.sin(a), 2.0), "white", (0.25 * math.sin(a), -0.25 * math.cos(a), a + math.pi / 2)))
+    return join("rocket", p)
+
+
+def launch_pad():
+    """A rocket's launch pad: a raised concrete deck over a flame trench, and a red steel service tower
+    beside where the rocket stands, its swing arms reaching over, a lightning mast on top"""
+    p = [box((14.0, 14.0, 1.5), (0, 0, 0.75), "concrete"), box((5.0, 15.0, 0.4), (0, 0, 1.35), "asphalt"),
+         box((4.2, 2.4, 1.2), (0, 7.4, 0.5), "black"), box((4.2, 2.4, 1.2), (0, -7.4, 0.5), "black"),
+         box((2.6, 2.6, 0.3), (0, 0, 1.62), "metal_dark")]
+    tx = 3.6
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.append(box((0.3, 0.3, 18.0), (tx + 0.9 * sx + 0.9, 0.9 * sy, 10.5), "red"))
+    for k in range(9):
+        z = 2.5 + k * 2.0
+        p.append(box((2.1, 2.1, 0.18), (tx + 0.9, 0, z), "red"))
+        p.append(box((0.12, 2.5, 0.12), (tx + 1.8, 0, z + 1.0), "red", (0.8, 0, 0)))
+    for z in (9.0, 13.5):
+        p.append(box((2.2, 0.5, 0.3), (tx - 1.3, 0, z), "red"))
+    p += [drum(0.1, 4.0, (tx + 0.9, 0, 21.5), "metal", 4), box((2.6, 2.6, 0.2), (tx + 0.9, 0, 19.5), "metal_dark")]
+    return join("launch_pad", p)
+
+
+def mission_control():
+    """Mission control: a long low building, a band of lit windows round it, a big dish on its roof
+    and aerials, its sign glowing over the door"""
+    p = [box((14.0, 8.0, 4.0), (0, 0, 2.0), "concrete"), box((14.4, 8.4, 0.3), (0, 0, 4.15), "roof"),
+         box((13.0, 0.08, 1.2), (0, -4.02, 2.6), "window"), box((13.0, 0.08, 1.2), (0, 4.02, 2.6), "window"),
+         box((1.8, 0.1, 2.4), (0, -4.06, 1.2), "door"), box((4.0, 0.3, 0.7), (0, -4.2, 3.7), "screen_glow"),
+         drum(0.25, 1.6, (3.5, 1.0, 5.0), "metal", 8), ball((3.0, 3.0, 1.2), (3.5, 1.0, 6.2), "white", 12, 4, (0.6, 0, 0)),
+         drum(0.06, 3.0, (-5.0, 2.0, 5.6), "metal", 4), drum(0.06, 2.2, (-4.0, 2.5, 5.2), "metal", 4)]
+    for x in (-6.9, 6.9):
+        p.append(box((0.08, 7.0, 1.2), (x, 0, 2.6), "window"))
+    return join("mission_control", p)
+
 def bank():
     """A small-town bank: pale stone, four columns along its porch under a pediment, bronze doors,
     and a gold dollar sign over them"""
@@ -3064,7 +3113,7 @@ def feed_bin():
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, willow, cottonwood, joshua_tree, fence, tent, floodlight, ufo,
-            mesa, butte, devils_tower, peak, crag, hydrant, bank, fort_knox, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
+            mesa, butte, devils_tower, peak, crag, hydrant, bank, fort_knox, rocket, launch_pad, mission_control, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
             diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, carnival, track, locomotive, boxcar, caboose, rider, balloon, fish, catfish, frog, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek, sunflower, cabbage, melon, pepper, motorcycle, cult_altar, helicarrier, railgun, laser_truck, fire_truck, ambulance, hospital, fire_station, prison, grain_elevator, chicken_coop, irrigation, feed_bin,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site, crash_dirt,

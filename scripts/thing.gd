@@ -100,6 +100,12 @@ const KINDS := {
 	"church": {"points": 800, "weight": 5.5, "heat": 0.7, "move": "still", "size": 3.6, "tier": 3},
 	# The airfield: its control tower and little planes
 	"control_tower": {"points": 900, "weight": 5.5, "heat": 0.7, "move": "still", "size": 2.6, "tier": 3},
+	# A spaceport (see world.gd `_spaceport`): the rocket on its pad counts down and lifts off when the
+	# ship comes near (main.gd `_rocket_launches`); beamed up first, it is the ship's
+	"rocket": {"points": 6000, "weight": 8.0, "heat": 1.5, "move": "still", "size": 2.2, "tier": 3, "rest_y": 1.5},
+	"launch_pad": {"points": 2500, "weight": 10.0, "heat": 1.0, "move": "still", "size": 7.0, "tier": 4},
+	"mission_control": {"points": 1800, "weight": 7.0, "heat": 0.9, "move": "still", "size": 5.0, "tier": 3, "voice": "scream"},
+	"scientist": {"model": "person", "tints": {"shirt": Color(0.95, 0.95, 0.95), "denim": Color(0.3, 0.32, 0.38)}, "points": 160, "weight": 1.3, "heat": 0.4, "move": "flee", "speed": 3.2, "size": 0.7, "voice": "scream", "caller": true},
 	"plane": {"points": 600, "weight": 3.5, "heat": 0.5, "move": "still", "size": 3.0, "tier": 2},
 	# The crops in the fields, in rows: hardly worth anything, but a field of them adds up
 	"wheat": {"points": 8, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
@@ -215,7 +221,7 @@ const KINDS := {
 	# and motorcycle cops, quick, who chase and fire
 	"motorcycle": {"tints": {"paint": Color(0.75, 0.12, 0.1)}, "points": 130, "weight": 1.6, "heat": 0.35, "move": "road", "speed": 12.0, "size": 1.2},
 	"biker": {"model": "motorcycle", "tints": {"paint": Color(0.08, 0.08, 0.09), "shirt": Color(0.1, 0.1, 0.11), "denim": Color(0.15, 0.15, 0.2)}, "points": 170, "weight": 1.6, "heat": 0.4, "move": "road", "speed": 11.0, "size": 1.2},
-	"moto_cop": {"model": "motorcycle", "tints": {"paint": Color(0.95, 0.95, 0.95), "shirt": Color(0.15, 0.25, 0.55)}, "points": 280, "weight": 1.6, "heat": 0.6, "move": "chase", "speed": 12.5, "size": 1.2, "keep": 9.0, "enemy": true, "police": true, "gun": "pistol", "slow_gun": 2.2},
+	"moto_cop": {"model": "motorcycle", "tints": {"paint": Color(0.95, 0.95, 0.95), "shirt": Color(0.15, 0.25, 0.55)}, "points": 280, "weight": 1.6, "heat": 0.6, "move": "chase", "speed": 12.5, "size": 1.2, "keep": 14.0, "enemy": true, "police": true, "gun": "pistol", "slow_gun": 4.5},
 	# A cult's compound: robed cultists round their altar, who want to be taken (as true believers do)
 	"cultist": {"model": "person", "tints": {"shirt": Color(0.4, 0.15, 0.5), "denim": Color(0.4, 0.15, 0.5)}, "points": 180, "weight": 1.3, "heat": 0.1, "move": "believer", "speed": 3.0, "size": 0.7, "voice": "star"},
 	"cult_altar": {"points": 800, "weight": 4.0, "heat": 0.3, "move": "still", "size": 3.0, "tier": 3},
@@ -1658,6 +1664,7 @@ const MORE_NAMES := {
 	"trout": "SPOTTED SWIMMER", "bass": "BIG-MOUTH WIGGLER", "catfish": "WHISKER SLIME", "koi": "ORANGE POND JEWEL", "frog": "GREEN HOPPER",
 	"willow": "WEEPING TOWER", "cottonwood": "FLUFF TOWER", "joshua_tree": "SPIKY ARM TOWER", "crag": "SKY FANG",
 	"pod": "TRADE CAPSULE", "canister": "MYSTERY GLOW JAR",
+	"rocket": "PRIMITIVE SKY STICK", "launch_pad": "SKY STICK STOOL", "mission_control": "COUNTING HUT", "scientist": "WHITE COAT THINKER",
 }
 ## What the pilot calls a kind of thing
 static func alien_name(of: String) -> String:
