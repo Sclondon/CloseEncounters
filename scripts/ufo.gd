@@ -51,8 +51,17 @@ const SHIPS := {
 	"jelly": {"title": "BLOOPUS-7", "model": "jelly", "speed": 13.0, "lift": 1.1, "hull": 45.0, "tier": 2, "altitude": 7.5,
 		"radius": 2.5, "beam_foot": 3.5, "alien_y": 1.35, "alien_size": 0.5, "spin": true,
 		"about": "A jellyfish of a ship. The widest, gentlest beam.", "ghost": Color(1.0, 0.5, 0.8)},
+	"tug": {"title": "MUTHURBLOB", "model": "tug", "speed": 9.5, "lift": 1.3, "hull": 110.0, "tier": 3, "altitude": 10.0,
+		"radius": 3.4, "beam_foot": 3.6, "alien_y": 1.55, "alien_size": 0.5, "spin": false,
+		"about": "A hauler, after the Nostromo. Tough; lifts buildings.", "ghost": Color(1.0, 0.75, 0.4)},
+	"frigate": {"title": "NEBULONK-B", "model": "frigate", "speed": 13.5, "lift": 0.95, "hull": 65.0, "tier": 2, "altitude": 11.0,
+		"radius": 3.6, "beam_foot": 2.6, "alien_y": 1.9, "alien_size": 0.45, "spin": false,
+		"about": "A frigate, after the Nebulon-B. Long, lean and quick.", "ghost": Color(0.7, 0.85, 1.0)},
+	"trek": {"title": "ENTERBLORPRISE", "model": "trek", "speed": 14.5, "lift": 1.2, "hull": 70.0, "tier": 2, "altitude": 9.5,
+		"radius": 3.0, "beam_foot": 3.0, "alien_y": 0.95, "alien_size": 0.5, "spin": false,
+		"about": "To boldly go. Quick, with a strong beam.", "ghost": Color(0.6, 0.8, 1.0)},
 }
-const ORDER: Array[String] = ["saucer", "orb", "triangle", "foo", "cigar", "bell", "tictac", "saturn", "diamond", "jelly"]
+const ORDER: Array[String] = ["saucer", "orb", "triangle", "foo", "cigar", "bell", "tictac", "saturn", "diamond", "jelly", "tug", "frigate", "trek"]
 const BEAM_SLOW := 0.6
 ## The dodge: a dash this fast for this long, untouchable while it lasts, then a wait before the next
 const DASH_SPEED := 34.0

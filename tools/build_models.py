@@ -2082,11 +2082,80 @@ def goalpost():
                              box((0.14, 0.14, 4.0), (2.8, 0, 5.0), "yellow")])
 
 
+def tug():
+    """A deep-space hauler after the Nostromo: a long dark industrial hull, the bridge stepped up at the
+    front, towers and masts along its back, two great engine blocks glowing behind"""
+    p = [box((2.6, 6.4, 1.4), (0, 0, 0), "metal_dark"), box((2.0, 2.2, 0.9), (0, -2.2, 1.0), "metal"),
+         box((1.4, 1.2, 0.6), (0, -2.8, 1.6), "metal_dark"), box((1.2, 0.08, 0.3), (0, -3.42, 1.7), "window"),
+         box((0.9, 1.0, 1.6), (-0.7, 1.0, 1.4), "metal"), box((0.7, 0.8, 1.1), (0.8, 0.4, 1.2), "metal_dark"),
+         drum(0.05, 2.2, (0.4, -0.6, 2.2), "metal", 4), drum(0.05, 1.6, (-0.3, 2.0, 2.0), "metal", 4),
+         box((3.4, 0.5, 0.3), (0, -1.0, -0.6), "metal")]
+    for s in (-1, 1):
+        p += [box((1.3, 2.4, 1.5), (1.25 * s, 3.6, 0.1), "metal_dark"), drum(0.5, 0.2, (1.25 * s, 4.85, 0.1), "flame", 10, (math.pi / 2, 0, 0)),
+              box((0.4, 4.0, 0.3), (1.45 * s, -0.6, 0.4), "metal")]
+    for i in range(6):
+        p.append(box((0.3, 0.3, 0.2), (-0.9 + (i % 3) * 0.9, -0.8 + (i // 3) * 1.4, 0.8), "metal"))
+    body = join("tug", p)
+    # (moved back so the cockpit sits over the middle, where the game seats the pilot)
+    body.location = (0, 2.3, 0)
+    bpy.context.view_layer.update()
+    dome = _dome(0.55, 1.9, 1.0)
+    dome.location = (0, 0, dome.location.z)
+    attach(dome, body)
+    return body
+
+
+def frigate():
+    """A frigate after the Nebulon-B: a tall forward section hung with struts, a long thin spine, and
+    a deep engine section behind glowing blue"""
+    p = [box((1.4, 2.8, 1.8), (0, -3.6, 0.9), "white"), box((0.9, 2.0, 0.5), (0, -4.0, 2.0), "metal"),
+         box((0.3, 0.3, 1.6), (0, -4.4, -0.4), "metal_dark", (0.3, 0, 0)), box((2.8, 0.2, 0.2), (0, -3.2, -0.3), "metal"),
+         box((0.35, 4.4, 0.35), (0, -0.2, 0.1), "metal"), box((0.2, 4.4, 0.6), (0, -0.2, -0.3), "metal_dark"),
+         box((2.6, 2.6, 1.6), (0, 2.8, -0.2), "white"), box((2.0, 0.2, 1.1), (0, 4.15, -0.2), "light_blue"),
+         box((1.2, 1.4, 0.6), (0, 2.4, 0.9), "metal")]
+    for s in (-1, 1):
+        p.append(box((0.6, 2.0, 0.9), (1.5 * s, 2.6, -0.4), "white"))
+        p.append(box((0.5, 0.15, 0.7), (1.5 * s, 3.65, -0.4), "light_blue"))
+    body = join("frigate", p)
+    # (moved back so the cockpit sits over the middle, where the game seats the pilot)
+    body.location = (0, 3.5, 0)
+    bpy.context.view_layer.update()
+    dome = _dome(0.5, 2.25, 1.0)
+    dome.location = (0, 0, dome.location.z)
+    attach(dome, body)
+    return body
+
+
+def trek():
+    """A starship of the Federation sort: the great saucer in front, the slim neck down to the
+    secondary hull, and two warp nacelles up on pylons behind, glowing red at the front and blue
+    along their sides"""
+    p = [drum(2.5, 0.42, (0, -1.6, 0.9), "white", 24), drum(1.0, 0.3, (0, -1.6, 1.2), "metal", 16),
+         box((0.5, 1.4, 1.0), (0, 0.2, 0.4), "white", (0.5, 0, 0)), drum(0.55, 3.4, (0, 1.4, -0.2), "white", 12, (math.pi / 2, 0, 0)),
+         drum(0.4, 0.2, (0, -0.3, -0.2), "light_amber", 10, (math.pi / 2, 0, 0))]
+    for s in (-1, 1):
+        p += [box((0.16, 0.9, 1.2), (0.85 * s, 1.8, 0.4), "white", (0, 0.55 * s, 0)),
+              drum(0.3, 3.8, (1.5 * s, 2.0, 1.1), "white", 10, (math.pi / 2, 0, 0)),
+              ball((0.5, 0.5, 0.5), (1.5 * s, 0.1, 1.1), "light_red", 8, 4),
+              box((0.08, 3.0, 0.3), (1.78 * s, 2.0, 1.1), "light_blue")]
+    for i in range(10):
+        a = i / 10 * math.tau
+        p.append(ball((0.12, 0.12, 0.1), (2.3 * math.cos(a), -1.6 + 2.3 * math.sin(a), 1.1), "window", 4, 2))
+    body = join("trek", p)
+    # (moved back so the cockpit sits over the middle, where the game seats the pilot)
+    body.location = (0, 1.6, 0)
+    bpy.context.view_layer.update()
+    dome = _dome(0.55, 1.3, 1.0)
+    dome.location = (0, 0, dome.location.z)
+    attach(dome, body)
+    return body
+
+
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
-            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost,
+            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,

@@ -133,6 +133,9 @@ const KINDS := {
 	"captured_saturn": {"title": "YOU FOUND THE STARZOID: IT'S YOURS", "model": "saturn", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.9, "rare": true, "unlock": "saturn", "rest_y": 1.25},
 	"captured_diamond": {"title": "YOU FOUND THE KRYSTALLIX-9: IT'S YOURS", "model": "diamond", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.2, "rare": true, "unlock": "diamond", "rest_y": 1.7},
 	"captured_jelly": {"title": "YOU FOUND THE BLOOPUS-7: IT'S YOURS", "model": "jelly", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "jelly", "rest_y": 2.0},
+	"captured_tug": {"title": "YOU FOUND THE MUTHURBLOB: IT'S YOURS", "model": "tug", "points": 3000, "weight": 3.5, "heat": 1.5, "move": "still", "size": 3.4, "rare": true, "unlock": "tug", "rest_y": 0.8},
+	"captured_frigate": {"title": "YOU FOUND THE NEBULONK-B: IT'S YOURS", "model": "frigate", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.6, "rare": true, "unlock": "frigate", "rest_y": 1.2},
+	"captured_trek": {"title": "YOU FOUND THE ENTERBLORPRISE: IT'S YOURS", "model": "trek", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "trek", "rest_y": 1.0},
 	# The railway: a train runs the line (`move` "rail", see main.gd _trains), a car of it at a time to take
 	"locomotive": {"points": 700, "weight": 5.0, "heat": 0.5, "move": "rail", "speed": 11.0, "size": 3.6, "tier": 3},
 	"boxcar": {"points": 350, "weight": 4.0, "heat": 0.3, "move": "rail", "speed": 11.0, "size": 3.6, "tier": 2},

@@ -70,7 +70,7 @@ lights flash with the beam, a dodge and a hit.
 
 At start-up the game comes down out of the stars onto the moon, as it does after a crash, to the title.
 
-**Only the Zeebzer can be flown at first.** The other nine are held in **secret government facilities** out
+**Only the Zeebzer can be flown at first.** The other twelve are held in **secret government facilities** out
 in the country (fenced compounds, four searchlight towers, a gold beacon over the captured ship): beam the ship
 up to make it yours, for good. A facility whose ship has already been found holds one not yet found instead
 (`captive` in main.gd). A locked ship says so on the title screen.
@@ -97,6 +97,9 @@ Chosen on the title screen (left / right, or the arrows), and remembered.
 | STARZOID (`saturn`), a ball in a ring of lights | 10.5 | x1.6 (strongest pull) | 55 | 8.5 m | 2: trees and rocks |
 | KRYSTALLIX-9 (`diamond`), a violet crystal | 11 | x0.9 | 75 | 9 m | 3: buildings |
 | BLOOPUS-7 (`jelly`), a glowing pink jellyfish trailing tentacles | 13 | x1.1, widest | 45 | 7.5 m | 2: trees and rocks |
+| MUTHURBLOB (`tug`), a hauler after the Nostromo | 9.5 | x1.3 | 110 | 10 m | 3: buildings |
+| NEBULONK-B (`frigate`), after the Nebulon-B frigate | 13.5 | x0.95, narrow | 65 | 11 m | 2: trees and rocks |
+| ENTERBLORPRISE (`trek`), a starship of the Federation sort | 14.5 | x1.2 | 70 | 9.5 m | 2: trees and rocks |
 
 The beam is green, turns **blue** from the second BEAM item and **purple** from the fourth.
 
@@ -257,6 +260,8 @@ over the fields; cowboys on horseback out on the plains and mesas; town roads ha
 The police see only by their lights: a police car notices the ship only while its searchlight is on it, and an officer, out of the car, swings a **flashlight** after the ship and fires only while it is lit. **Hunters** in blaze orange (mountains and plains) shoot at the ship with rifles whatever the heat. At five stars the jets are fighters, black **stealth** bombers (higher, faster, three missiles) or **warthogs** (low and slow, strafing). Every word on the screen is a hologram, and the results bob gently.
 
 A police car's "?" turns to a red "!" once it is sure. **Liquor stores** (in towns and by the roads, 1500 points) and **coolers** of beer (at campsites, parks, rodeos, drive-ins and liquor stores) are there for the taking. On the moon the pilot holds the drink (an amber bottle, a green one or a can) upside down, shaking it now and then; the cooler holds green bottles and cans as well.
+
+**Items have rarities**, as in Risk of Rain: common (green), uncommon (blue: laser, turret, cloak, nanobots, gold) and rare (red: missiles, EMP, fleet); the rarer, the less often the Moon Market has them, and each is framed in its rarity's colour. **The mountains are a hideout**: over mountain country no police or army are sent and no jets come, those after the ship give up after 4 s, and the heat cools two and a half times quicker.
 
 **People are curious** until something frightens them (a beam on near them, a blast, a laser, seeing something
 taken): they edge up to look at the ship from a way off, and come to stand round any crop circle near. **True

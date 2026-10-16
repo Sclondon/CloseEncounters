@@ -865,7 +865,7 @@ func _heat(delta: float) -> void:
 	# (the more the ship has taken, the longer it takes them to give up looking)
 	# (a JAMMER: they give up looking sooner; COOLANT: the heat drains away quicker)
 	var jam: float = 1.0 + 0.35 * upgrades["jammer"]
-	var cool: float = 1.0 + 0.4 * upgrades["coolant"]
+	var cool: float = (1.0 + 0.4 * upgrades["coolant"]) * (2.5 if hidden else 1.0)
 	if calm > COOL_AFTER * sqrt(danger()) / jam and heat > 0.0:
 		heat = maxf(heat - COOL_RATE * cool / danger() * delta, 0.0)
 	var threat := int((danger() - 1.0) * 2.0)
@@ -1014,12 +1014,36 @@ func _station_for(kind: String) -> Vector3:
 
 
 ## Keeps the police and army up to strength for the heat, bringing them in from out of sight
+## Somewhere to run to: over the mountains the police and army cannot follow. None are sent there,
+## no jets come, those after the ship give up after a few seconds, and the heat cools far quicker
+var hidden := false
+var _hidden_for := 0.0
+const HIDE_LOSES := 4.0
+
+
+func _hideout(delta: float) -> void:
+	var was := hidden
+	hidden = mode == "play" and not ufo.dead and World.biome(World.chunk_of(ufo.ground())) == World.Biome.MOUNTAIN
+	_hidden_for = _hidden_for + delta if hidden else 0.0
+	if hidden and not was and heat_level() >= 1:
+		_heat_note("INTO THE MOUNTAINS: THEY CAN'T FOLLOW", 2.5)
+	if hidden and _hidden_for > HIDE_LOSES and _hidden_for - delta <= HIDE_LOSES:
+		var lost := false
+		for t: Thing in things:
+			if t.is_enemy() and t.state == "walk" and not t.leaving:
+				t.leaving = true
+				lost = true
+		if lost:
+			_heat_note("YOU LOST THEM", 2.0)
+
+
 func _forces(delta: float) -> void:
 	_spawn_wait -= delta
+	_hideout(delta)
 	for t in things:
 		if t.leaving and t.ground().distance_to(ufo.ground()) > 70.0:
 			_remove(t)
-	if _spawn_wait > 0.0 or ufo.dead:
+	if _spawn_wait > 0.0 or ufo.dead or hidden:
 		return
 	var wanted: Dictionary = FORCES[heat_level()].duplicate()
 	# (a ship that has taken more is sent more after it: more of the lightest on the ground, a step
@@ -1061,7 +1085,7 @@ const JETS := {
 
 
 func _jets(delta: float) -> void:
-	if mode == "play" and heat_level() >= 5 and not ufo.dead:
+	if mode == "play" and heat_level() >= 5 and not ufo.dead and not hidden:
 		_jet_wait -= delta
 		if _jet_wait <= 0.0:
 			# Fighter jets from four stars, twice as often at five
@@ -1367,10 +1391,35 @@ func _levels() -> void:
 
 ## LEVEL UP: the game holds still while one of three upgrades is picked (and the shield patched up
 ## is one of them when it is low). Tests and the autopilot take the first.
+## The items' rarities, as in Risk of Rain: common (green), uncommon (blue) and rare (red). The rarer
+## an item, the less often the Moon Market has it; its rarity is the colour of its frame
+const RARITY_COLOURS: Array[Color] = [Color(0.4, 1.0, 0.5), Color(0.35, 0.65, 1.0), Color(1.0, 0.3, 0.3)]
+const RARITY_NAMES: Array[String] = ["COMMON", "UNCOMMON", "RARE"]
+const RARITY_ODDS: Array[float] = [6.0, 2.5, 0.8]
+const UNCOMMON: Array[String] = ["laser", "turret", "cloak", "nanobots", "gold"]
+const RARE: Array[String] = ["missiles", "emp", "fleet"]
+
+
+func rarity(what: String) -> int:
+	return 2 if what in RARE else (1 if what in UNCOMMON else 0)
+
+
 func _level_up() -> void:
 	var offers: Array = GOODS.filter(func(g: String) -> bool: return g != "patch" and upgrades[g] < MAX_UPGRADE)
-	offers.shuffle()
-	offers = offers.slice(0, 3)
+	# (three different ones, the rarer the less often: see RARITY)
+	var picked: Array = []
+	while picked.size() < 3 and not offers.is_empty():
+		var total := 0.0
+		for g: String in offers:
+			total += RARITY_ODDS[rarity(g)]
+		var roll := randf() * total
+		for g: String in offers:
+			roll -= RARITY_ODDS[rarity(g)]
+			if roll <= 0.0:
+				picked.append(g)
+				offers.erase(g)
+				break
+	offers = picked
 	if ufo.hull < ufo.hull_max * 0.6:
 		if offers.size() >= 3:
 			offers[2] = "patch"
@@ -1410,6 +1459,14 @@ func _level_up() -> void:
 		b.add_theme_constant_override("icon_max_width", 210 if big else 96)
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.add_theme_constant_override("h_separation", 30 if big else 18)
+		# (framed in the colour of its rarity: green, blue or red)
+		var tier_colour := RARITY_COLOURS[rarity(what)]
+		for state in ["normal", "hover", "pressed", "focus"]:
+			var box := b.get_theme_stylebox(state).duplicate() as StyleBoxFlat
+			box.border_color = tier_colour
+			box.set_border_width_all(5 if big else 4)
+			box.shadow_color = Color(tier_colour, 0.35)
+			b.add_theme_stylebox_override(state, box)
 		_picks.add_child(b)
 	_forget_fingers()
 	_picker.visible = true
@@ -6086,7 +6143,8 @@ class ItemBar extends Control:
 			var box := Rect2(x, y, TILE, TILE)
 			draw_rect(box, Color(0.02, 0.06, 0.04, 0.8))
 			draw_rect(box.grow(-3.0), colour * Color(1, 1, 1, 0.18))
-			draw_rect(box, colour, false, 2.0)
+			# (its frame the colour of its rarity)
+			draw_rect(box, main.RARITY_COLOURS[main.rarity(what)], false, 2.5)
 			# (the item itself, a little 3D model of it, as Risk of Rain 2 shows its items)
 			draw_texture_rect(main.holograms.item(what), box.grow(-1.0), false)
 			var n: int = main.upgrades[what]
