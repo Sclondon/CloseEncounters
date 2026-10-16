@@ -107,7 +107,7 @@ var _circle_time := 0.0
 var _circle_done := false
 ## The traders parked about the country, and what has been bought from them this run
 var shops: Array[Shop] = []
-var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "fleet": 0}
+var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "fleet": 0}
 var _hot_wait := 0.0
 ## The level reached this run (see `_levels`), levels still to pick for, and the picker
 var level := 0
@@ -120,20 +120,21 @@ var _picks: VBoxContainer
 var _to_spawn: Array = []
 const SPAWN_A_FRAME := 6
 ## What traders sell, one pod each: three of these are set out in front of each trader
-const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "fleet"]
+const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "fleet"]
 const UPGRADES := {
 	"engine": {"title": "ENGINE", "about": "+12% speed", "price": 300, "colour": Color(1.0, 0.55, 0.15)},
 	"beam": {"title": "BEAM", "about": "lifts faster, and stronger: one more kind of thing it can take", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
 	"shield": {"title": "SHIELD", "about": "+25 shield, and patched up", "price": 300, "colour": Color(0.3, 0.6, 1.0)},
 	"patch": {"title": "PATCH", "about": "the shield filled up again", "price": 0, "colour": Color(0.4, 1.0, 1.0)},
 	"dash": {"title": "DASH", "about": "recharges faster, and leaves two more afterimages", "price": 250, "colour": Color(0.75, 0.4, 1.0)},
-	"laser": {"title": "LASER", "about": "fires by itself: shoots down shells and missiles, then jets, then the police and army; quicker and further each level", "price": 500, "colour": Color(1.0, 0.3, 0.45)},
+	"laser": {"title": "LASER", "about": "a cutting beam: switch the beam over to it and fire it where you aim, at the police and army, cars and oil drums; hotter each level", "price": 500, "colour": Color(1.0, 0.3, 0.45)},
+	"turret": {"title": "AUTO TURRET", "about": "fires by itself: shoots down shells and missiles, then jets, then the police and army; quicker and further each level", "price": 500, "colour": Color(1.0, 0.5, 0.3)},
 	"fleet": {"title": "FLEET", "about": "one more little saucer that beams up small things nearby, and gets in the way of shots", "price": 450, "colour": Color(1.0, 0.9, 0.3)},
 }
 const MAX_UPGRADE := 4
 ## The defence laser (see `_laser`): how far it reaches before upgrades (+2 m a level), and the hits
 ## that blow each of the police and army up (one less is only a moment's stun)
-const LASER_REACH := 14.0
+const LASER_REACH := 9.0
 const LASER_HITS := {"police_car": 2, "patrol_car": 2, "jeep": 3, "patrol_jeep": 3, "tank": 5, "helicopter": 4, "chinook": 6, "agent_car": 3}
 var _laser_wait := 0.0
 ## The mini fleet: a little saucer for each level of FLEET (see Drone)
@@ -160,6 +161,13 @@ var _pilot_wander := Vector3.ZERO
 
 # The HUD
 var hud: CanvasLayer
+## The HUD's top control: drawn smaller on a desktop screen (see _fit)
+var _hud_root: Control
+## The log's little holograms of the models (see Holograms)
+var holograms: Holograms
+## Where the moon is in the sky in a run (see _camera)
+var _moon_dir := Vector3.ZERO
+const DESKTOP_HUD := 0.78
 var score_label: Label
 var mult_label: Label
 var coin: Control
@@ -191,6 +199,8 @@ var _again: Button
 var _over_typing := 0.0
 ## The wrecked ship left lying while the camera pulls away from it to the moon (see quit_to_menu)
 var _wreck_ship: Ufo
+## Going home from a wreck: out into space, then straight to the pilot lounging on the moon
+var _from_wreck := false
 const RESULTS_SPEED := 45.0
 var over_label: Label
 ## The title screen's parts, laid out for the screen's shape (`_layout_title`)
@@ -306,6 +316,8 @@ func _ready() -> void:
 	_spawn_some(true)
 	_warm_models()
 	_warm_effects()
+	holograms = Holograms.new()
+	add_child(holograms)
 	_build_hud()
 	if start_mode == "play":
 		start()
@@ -318,7 +330,7 @@ func _ready() -> void:
 func _input_map() -> void:
 	var keys := {
 		"left": [KEY_A, KEY_LEFT], "right": [KEY_D, KEY_RIGHT], "up": [KEY_W, KEY_UP], "down": [KEY_S, KEY_DOWN],
-		"beam": [KEY_SPACE, KEY_J, KEY_Z], "dodge": [KEY_SHIFT, KEY_X, KEY_K], "start": [KEY_ENTER, KEY_SPACE], "pause": [KEY_ESCAPE, KEY_P],
+		"beam": [KEY_SPACE, KEY_J, KEY_Z], "dodge": [KEY_SHIFT, KEY_X, KEY_K], "laser": [KEY_L, KEY_TAB, KEY_C], "start": [KEY_ENTER, KEY_SPACE], "pause": [KEY_ESCAPE, KEY_P],
 	}
 	for action: String in keys:
 		if not InputMap.has_action(action):
@@ -327,7 +339,7 @@ func _input_map() -> void:
 			var e := InputEventKey.new()
 			e.physical_keycode = k
 			InputMap.action_add_event(action, e)
-	for pair: Array in [["beam", JOY_BUTTON_A], ["beam", JOY_BUTTON_RIGHT_SHOULDER], ["dodge", JOY_BUTTON_B], ["dodge", JOY_BUTTON_LEFT_SHOULDER], ["start", JOY_BUTTON_A], ["start", JOY_BUTTON_START], ["pause", JOY_BUTTON_START]]:
+	for pair: Array in [["beam", JOY_BUTTON_A], ["beam", JOY_BUTTON_RIGHT_SHOULDER], ["dodge", JOY_BUTTON_B], ["dodge", JOY_BUTTON_LEFT_SHOULDER], ["laser", JOY_BUTTON_Y], ["start", JOY_BUTTON_A], ["start", JOY_BUTTON_START], ["pause", JOY_BUTTON_START]]:
 		var b := InputEventJoypadButton.new()
 		b.button_index = pair[1]
 		InputMap.action_add_event(pair[0], b)
@@ -399,8 +411,17 @@ func _fit() -> void:
 	# (an upright phone sees more of the world above and below, not less to the sides)
 	camera.keep_aspect = Camera3D.KEEP_WIDTH if size.x < size.y else Camera3D.KEEP_HEIGHT
 	camera.fov = _fov()
+	# (on a big wide screen, a desktop's, the HUD is drawn smaller: sized for thumbs, it is too big
+	# there; a phone on its side keeps it full size)
+	var css := Vector2(DisplayServer.window_get_size()) / maxf(DisplayServer.screen_get_scale(), 1.0)
+	var k := DESKTOP_HUD if size.x >= size.y and css.y >= 560.0 else 1.0
+	if hud != null and _hud_root != null:
+		hud.scale = Vector2(k, k)
+		_hud_root.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		_hud_root.position = Vector2.ZERO
+		_hud_root.size = size / k
 	_layout_touch()
-	_layout_title(size)
+	_layout_title(size / k)
 
 
 ## How wide the camera sees in a run: across an upright phone, or up and down a wide screen
@@ -422,6 +443,7 @@ func start(from_launch := false) -> void:
 			_remove(t)
 	_rival_wait = 50.0
 	_run_taken.clear()
+	laser_mode = false
 	_five_for = 0.0
 	_nuke_wait = 0.0
 	for n: Array in _nukes:
@@ -441,7 +463,7 @@ func start(from_launch := false) -> void:
 	_clear_wreck()
 	if not from_launch:
 		alien_seed = randi()
-	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "fleet": 0}
+	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "fleet": 0}
 	level = 0
 	_levels_due = 0
 	_picker.visible = false
@@ -537,6 +559,8 @@ func _process(delta: float) -> void:
 		steer = _read_steer()
 		beam = Input.is_action_pressed("beam") or beam_finger != NO_FINGER
 		ufo.beam_aim = _beam_aim()
+		if Input.is_action_just_pressed("laser"):
+			toggle_laser()
 		if Input.is_action_just_pressed("dodge"):
 			# (the way it is steered, or else the way it is going, or else away up the screen)
 			var way := steer if steer.length() > 0.2 else Vector2(ufo.velocity.x, ufo.velocity.z)
@@ -551,6 +575,12 @@ func _process(delta: float) -> void:
 		_debug_show()
 	if mode == "launch" or mode == "landing":
 		_launch(delta)
+	# (switched over to the laser: the beam's button fires it instead)
+	if laser_mode and upgrades["laser"] > 0:
+		_cut(delta, beam and mode == "play")
+		beam = false
+	elif _cut_ray != null and _cut_ray.visible:
+		_cut(delta, false)
 	ufo.tick(delta, steer, beam)
 	if not ufo.dead:
 		var held := ufo.position
@@ -1027,7 +1057,7 @@ func _apply_upgrades() -> void:
 	ufo.tier = mini(int(spec["tier"]) + int(upgrades["beam"]), 4)
 	ufo.hull_max = float(spec["hull"]) + 25.0 * upgrades["shield"]
 	ufo.dash_level = upgrades["dash"]
-	if upgrades["laser"] > 0:
+	if upgrades["turret"] > 0:
 		ufo.arm_laser()
 	_build_fleet()
 
@@ -1103,8 +1133,10 @@ func buy(what: String) -> bool:
 	log_line("%s UPGRADED TO %d" % [UPGRADES[what]["title"], upgrades[what]], 0)
 	if what == "shield":
 		ufo.hull = minf(ufo.hull + 25.0, ufo.hull_max)
-	if what == "laser" and upgrades[what] == 1:
-		_banner("LASER ARMED: IT FIRES BY ITSELF", 2.5)
+	if what == "turret" and upgrades[what] == 1:
+		_banner("AUTO TURRET ARMED: IT FIRES BY ITSELF", 2.5)
+	elif what == "laser" and upgrades[what] == 1:
+		_banner("LASER: SWITCH THE BEAM OVER TO IT AND FIRE", 3.0)
 	elif what == "fleet" and upgrades[what] == 1:
 		_banner("A LITTLE SAUCER JOINS YOU", 2.5)
 	sfx.play("bloop", 1.4)
@@ -1132,10 +1164,10 @@ func repair() -> void:
 ## fires sooner and reaches further.
 func _laser(delta: float) -> void:
 	_laser_wait -= delta
-	var level: int = upgrades["laser"]
+	var level: int = upgrades["turret"]
 	if level == 0 or ufo.dead or mode != "play" or intro > 0.0 or _laser_wait > 0.0:
 		return
-	var reach := LASER_REACH + 2.0 * level
+	var reach := LASER_REACH + 2.5 * level
 	var target: Node3D
 	var nearest := reach
 	for s in shots:
@@ -1164,26 +1196,7 @@ func _laser(delta: float) -> void:
 		boom(at, 1.0)
 		_popup("SHOT DOWN", at + Vector3(0, 1.0, 0), Color(1.0, 0.55, 0.65))
 	elif target is Thing:
-		var t: Thing = target
-		var hits := int(t.get_meta("zapped", 0)) + 1
-		if hits >= int(LASER_HITS.get(t.kind, 2)):
-			var points := t.points() / 2 * multiplier()
-			score += points
-			add_heat(0.25)
-			calm = 0.0
-			boom(at, 2.2)
-			sfx.play("boom", 1.3, _near_db(t))
-			log_line("%s BLOWN UP" % t.kind.replace("_", " ").to_upper(), points)
-			_remove(t)
-		else:
-			# (stunned: it holds its fire a while, red and sparking)
-			t.set_meta("zapped", hits)
-			t.reload = maxf(t.reload, 0.0) + 2.0
-			t.burst = 0
-			Ps1.flash(t.model, Color(1.2, 0.15, 0.2))
-			create_tween().tween_callback(func() -> void:
-				if is_instance_valid(t):
-					Ps1.flash(t.model, Color.BLACK)).set_delay(0.2)
+		_laser_hit(target, at)
 	else:
 		# A jet, out of the sky
 		jets.erase(target)
@@ -1197,9 +1210,107 @@ func _laser(delta: float) -> void:
 		log_line("JET SHOT DOWN", points)
 
 
+
+## One of the police or army hit by a laser (the turret's or the ship's): LASER_HITS of them blow it
+## up, scored and heating things up as a crush does; fewer only stun it a while, red and sparking
+func _laser_hit(t: Thing, at: Vector3) -> void:
+	var hits := int(t.get_meta("zapped", 0)) + 1
+	if hits >= int(LASER_HITS.get(t.kind, 2)):
+		var points := t.points() / 2 * multiplier()
+		score += points
+		add_heat(0.25)
+		calm = 0.0
+		boom(at, 2.2)
+		sfx.play("boom", 1.3, _near_db(t))
+		log_line("%s BLOWN UP" % Thing.alien_name(t.kind), points, t.kind)
+		_remove(t)
+		return
+	t.set_meta("zapped", hits)
+	t.reload = maxf(t.reload, 0.0) + 2.0
+	t.burst = 0
+	Ps1.flash(t.model, Color(1.2, 0.15, 0.2))
+	create_tween().tween_callback(func() -> void:
+		if is_instance_valid(t):
+			Ps1.flash(t.model, Color.BLACK)).set_delay(0.2)
+
+
+# ------------------------------------------------------------------ the ship's own laser
+
+## Switched over to the laser (see `toggle_laser`): the beam's button fires it instead, where the
+## beam would fall
+var laser_mode := false
+var _cut_wait := 0.0
+var _cut_ray: MeshInstance3D
+var _cut_mat: StandardMaterial3D
+## The touch switch for it, over the beam's mark
+var laser_button: Control
+
+
+## The beam switched over to the laser, or back (only once a LASER is had)
+func toggle_laser() -> void:
+	if upgrades["laser"] <= 0 or mode != "play":
+		laser_mode = false
+		return
+	laser_mode = not laser_mode
+	sfx.play("zap" if laser_mode else "bloop", 0.8 if laser_mode else 1.2, -6.0)
+	_heat_note("LASER" if laser_mode else "BEAM", 0.8)
+
+
+## Holding the beam's button with the laser switched over: a red-hot ray from under the ship to where
+## the beam would fall, cutting what it touches. The police and army there are hit (and blown up
+## after a few hits); cars and oil drums blow up; anyone else there runs. Hotter (quicker hits) a
+## level.
+func _cut(delta: float, firing: bool) -> void:
+	if _cut_ray == null:
+		_cut_ray = MeshInstance3D.new()
+		var rod := CylinderMesh.new()
+		rod.top_radius = 1.0
+		rod.bottom_radius = 1.0
+		rod.height = 1.0
+		rod.radial_segments = 6
+		_cut_ray.mesh = rod
+		_cut_mat = StandardMaterial3D.new()
+		_cut_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_cut_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_cut_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		_cut_mat.albedo_color = Color(1.0, 0.3, 0.45, 0.9)
+		_cut_ray.material_override = _cut_mat
+		_cut_ray.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_cut_ray.top_level = true
+		view.add_child(_cut_ray)
+	_cut_ray.visible = firing and not ufo.dead
+	if not _cut_ray.visible:
+		return
+	var aim := _beam_aim()
+	var from := ufo.global_position + Vector3(0, -0.6, 0)
+	var foot := ufo.ground() + Vector3(aim.x, 0, aim.y) * Ufo.BEAM_REACH * 1.6
+	var along := foot - from
+	var wide := 0.12 + 0.05 * sin(Time.get_ticks_msec() * 0.05)
+	_cut_ray.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, along.normalized())) * Basis.from_scale(Vector3(wide, along.length(), wide)), (from + foot) * 0.5)
+	if randf() < delta * 30.0:
+		ufo.puffs.spark(foot + Vector3(0, 0.1, 0), Vector3(randf_range(-3, 3), randf_range(2, 5), randf_range(-3, 3)), Color(1.0, 0.5, 0.4))
+	if randf() < delta * 8.0:
+		ufo.puffs.puff(foot + Vector3(0, 0.15, 0), Color(0.2, 0.18, 0.17, 0.4), 0.22, Vector3(0, 1.2, 0), 0.7)
+	_cut_wait -= delta
+	if _cut_wait > 0.0:
+		return
+	_cut_wait = 0.32 - 0.05 * upgrades["laser"]
+	sfx.play("zap", randf_range(0.9, 1.1), -10.0)
+	for t in things.duplicate():
+		if t.state != "walk" or t.hiding:
+			continue
+		if Vector2(t.position.x - foot.x, t.position.z - foot.z).length() > 1.8 + t.size() * 0.3:
+			continue
+		if t.is_enemy():
+			_laser_hit(t, t.global_position + Vector3(0, 1.0, 0))
+		elif t.info.get("explosive", false) or t.kind in VEHICLES:
+			explode(t)
+		elif t.info["move"] in ["flee", "graze", "peck"]:
+			t.panic = 2.5
+
 ## Seconds between the laser's shots, at its level
 func laser_reload() -> float:
-	return 2.4 - 0.4 * upgrades["laser"]
+	return 3.6 - 0.5 * upgrades["turret"]
 
 
 ## A bolt of the laser from `from` to `to`: a white-hot core in a pink glow, there and gone, and a
@@ -1529,7 +1640,6 @@ func _detonate(at: Vector3) -> void:
 ## [node, from, to, seconds in, seconds it takes]
 var _flyby_wait := 6.0
 var _flybys: Array = []
-const FLYBY_SHIPS := ["ufo", "orb", "triangle", "cigar", "bell"]
 
 
 func _title_flybys(delta: float) -> void:
@@ -1554,15 +1664,23 @@ func _title_flybys(delta: float) -> void:
 	_flyby_wait = randf_range(7.0, 16.0)
 	var basis := camera.global_basis
 	var across := 1.0 if randf() < 0.5 else -1.0
-	var far := randf_range(22.0, 34.0)
-	var high := randf_range(3.0, 8.0)
+	var far := randf_range(45.0, 65.0)
+	var high := randf_range(7.0, 14.0)
 	var from := camera.global_position + basis * Vector3(-across * far * 0.9, high, -far)
-	var to := camera.global_position + basis * Vector3(across * far * 0.9, high + randf_range(-2.0, 3.0), -far * randf_range(0.8, 1.2))
+	var to := camera.global_position + basis * Vector3(across * far * 0.9, high + randf_range(-3.0, 4.0), -far * randf_range(0.8, 1.2))
 	var tints := {"lights": Color.from_hsv(randf(), 0.6, 1.0), "lights_under": Color.from_hsv(randf(), 0.5, 1.0)}
-	var node := Ps1.model(FLYBY_SHIPS[randi() % FLYBY_SHIPS.size()], tints)
+	var ship_key: String = ["saucer", "orb", "triangle", "cigar", "bell"][randi() % 5]
+	var spec: Dictionary = Ufo.SHIPS[ship_key]
+	var node := Ps1.model(spec["model"], tints)
+	# (someone at the controls)
+	var pilot := Alien.new()
+	pilot.look_seed = randi()
+	pilot.scale = Vector3.ONE * float(spec["alien_size"])
+	pilot.position.y = float(spec["alien_y"])
+	node.add_child(pilot)
 	node.scale = Vector3.ONE * randf_range(0.8, 1.3)
 	view.add_child(node)
-	_flybys.append([node, from, to, 0.0, randf_range(3.0, 5.5)])
+	_flybys.append([node, from, to, 0.0, randf_range(5.0, 8.0)])
 	sfx.play("whoosh", randf_range(1.2, 1.6), -10.0)
 
 
@@ -1672,8 +1790,8 @@ func rival_prey(p: Vector3, reach: float) -> Thing:
 
 ## A rival saucer got something up its beam: gone, and it is noted
 func stolen_by_rival(t: Thing) -> void:
-	var title: String = t.info.get("title", t.kind.replace("_", " ").to_upper())
-	log_line("RIVAL TOOK " + title, 0)
+	var title: String = Thing.alien_name(t.kind)
+	log_line("RIVAL TOOK " + title, 0, t.kind)
 	_remove(t)
 
 
@@ -1891,8 +2009,8 @@ func abducted(t: Thing) -> void:
 		unlocked.append(found)
 		_save_best()
 	if mode == "play":
-		var title: String = t.info.get("title", t.kind.replace("_", " ").to_upper())
-		log_line(title, points)
+		var title: String = Thing.alien_name(t.kind)
+		log_line(title, points, t.kind)
 		_log_taken[t.kind] = int(_log_taken.get(t.kind, 0)) + 1
 		var had: Array = _run_taken.get(title, [0, 0])
 		_run_taken[title] = [int(had[0]) + 1, int(had[1]) + points]
@@ -2132,8 +2250,9 @@ func _wreck_burning(delta: float) -> void:
 				sfx.play("click", 1.6, -16.0)
 		_again.visible = over_label.visible_characters >= over_label.text.length()
 
-## A line for the log under the score: typed out a letter at a time (`points` after it, if any)
-func log_line(text: String, points: int) -> void:
+## A line for the log under the score: typed out a letter at a time (`points` after it, if any), a
+## little hologram of the `kind` of thing before it
+func log_line(text: String, points: int, kind := "") -> void:
 	var line := _label(27, Color(0.55, 1.0, 0.62))
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var tail := ""
@@ -2144,6 +2263,12 @@ func log_line(text: String, points: int) -> void:
 	line.text = "> " + text + tail
 	line.visible_characters = 0
 	line.set_meta("born", Time.get_ticks_msec() / 1000.0)
+	if kind != "":
+		# (a little hologram of what it was, just before the line)
+		var holo := holograms.view(kind, 34.0)
+		var width := font.get_string_size(line.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 27).x
+		holo.position = Vector2(LOG_WIDTH - width - 40.0, -2.0)
+		line.add_child(holo)
 	_glow(line, Color(0.25, 1.0, 0.4, 0.5))
 	log_box.add_child(line)
 	while log_box.get_child_count() > LOG_LINES:
@@ -2284,13 +2409,13 @@ func _intro_camera() -> void:
 ## with the ship and then follows it off into space
 func _moon_camera(delta: float) -> void:
 	var site := MoonSet.SITE
-	# (close on the pilot up on the ship, Earth over its shoulder; on a wide screen the pilot to the
-	# right of the title, on an upright phone in the middle between the title and the buttons)
-	var at := site + Vector3(-1.4, 2.4, 2.25)
-	var look := site + Vector3(2.65, 1.7, -6.85)
-	if _upright():
-		at = site + Vector3(0.13, 2.0, 2.31)
-		look = site + Vector3(6.15, 2.0, -5.68)
+	# (no moon in the sky when on it)
+	_moon_dir = Vector3.ZERO
+	_sky_mat.set_shader_parameter("moon_dir", Vector3.DOWN)
+	# (close on the pilot up on the ship, Earth over its shoulder, in the middle of the picture between
+	# the title above and the buttons below, on a phone or a wide screen alike)
+	var at := site + Vector3(0.13, 2.0, 2.31)
+	var look := site + Vector3(6.15, 2.0, -5.68)
 	var focus := Vector3(site.x + 1.0, 0.0, site.z)
 	if (mode == "launch" or mode == "landing") and _launch_t > LIFT - 0.2:
 		# (rising with the ship from the title's picture of it and swinging round it, not across it,
@@ -2353,9 +2478,24 @@ func _layout_title(size: Vector2) -> void:
 		return
 	var upright := size.x < size.y
 	if over_box != null:
-		# (the results sit just above the wreck in the middle of the screen, never over it)
-		over_box.offset_top = -size.y * 0.1
-		over_box.offset_bottom = -size.y * 0.1
+		# (the results never over the wreck in the middle of the screen: on a phone just above it; on
+		# a wide screen beside it, on the left, in the middle of the height, all of it on the screen)
+		if upright:
+			over_box.set_anchors_preset(Control.PRESET_CENTER)
+			over_box.custom_minimum_size = Vector2(660, 0)
+			over_box.offset_left = -330.0
+			over_box.offset_right = 330.0
+			over_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
+			over_box.offset_top = -size.y * 0.1
+			over_box.offset_bottom = -size.y * 0.1
+		else:
+			over_box.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+			over_box.custom_minimum_size = Vector2(520, 0)
+			over_box.offset_left = 40.0
+			over_box.offset_right = 560.0
+			over_box.grow_vertical = Control.GROW_DIRECTION_BOTH
+			over_box.offset_top = 0.0
+			over_box.offset_bottom = 0.0
 	if upright:
 		title_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		title_box.offset_left = 40.0
@@ -2364,13 +2504,16 @@ func _layout_title(size: Vector2) -> void:
 		title_box.offset_bottom = -170.0
 		title_box.custom_minimum_size = Vector2.ZERO
 	else:
-		title_box.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
+		# (on a wide screen too: the name over the ship and the buttons under it, all centred on it)
+		title_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		title_box.offset_left = 30.0
-		title_box.offset_right = 650.0
-		title_box.custom_minimum_size = Vector2(620, 0)
-	_title_gap.visible = upright
+		title_box.offset_right = -30.0
+		title_box.offset_top = 24.0
+		title_box.offset_bottom = -24.0
+		title_box.custom_minimum_size = Vector2.ZERO
+	_title_gap.visible = true
 	# (the name on one line, glowing: as big as it fits across the box, up to a modest size)
-	var room := (size.x - 80.0 if upright else 620.0) - 24.0
+	var room := size.x - 80.0 - 24.0
 	var name_size := 76 if upright else 56
 	while name_size > 24 and font.get_string_size(_title_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size).x > room:
 		name_size -= 2
@@ -2457,7 +2600,7 @@ func _fill_log() -> void:
 			continue
 		var count := int(_log_taken.get(kind, 0))
 		have += 1 if count > 0 else 0
-		specimens.append([info.get("title", kind.replace("_", " ").to_upper()), "x%d" % count, count > 0])
+		specimens.append([Thing.alien_name(kind), "x%d" % count, count > 0, kind])
 	_log_section("SPECIMENS  %d/%d" % [have, specimens.size()], specimens, big)
 	var hunters: Array = []
 	for h: String in HUNTERS:
@@ -2492,7 +2635,17 @@ func _log_section(text: String, tiles: Array, big: bool) -> void:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		cell.add_child(l)
+		if known and tile.size() > 3:
+			# (a little hologram of it over its name)
+			var stack := VBoxContainer.new()
+			stack.alignment = BoxContainer.ALIGNMENT_CENTER
+			var holo := holograms.view(tile[3], 110.0 if big else 56.0)
+			holo.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			stack.add_child(holo)
+			stack.add_child(l)
+			cell.add_child(stack)
+		else:
+			cell.add_child(l)
 		grid.add_child(cell)
 
 
@@ -2538,6 +2691,12 @@ func _camera(delta: float) -> void:
 		_intro_camera()
 		return
 	_sky_mat.set_shader_parameter("space", 0.0)
+	# (the moon kept up in the top right of the picture, where the sky shows past the curve of the
+	# world, easing there rather than jumping when the camera turns)
+	var v := camera.get_viewport().get_visible_rect().size
+	var want := camera.project_ray_normal(Vector2(v.x * (0.62 if _upright() else 0.7), v.y * (0.1 if _upright() else 0.16)))
+	_moon_dir = _moon_dir.slerp(want, minf(delta * 2.0, 1.0)) if _moon_dir != Vector3.ZERO else want
+	_sky_mat.set_shader_parameter("moon_dir", _moon_dir)
 	camera.environment.fog_density = 0.006
 	camera.fov = _fov()
 	var goal := focus + _camera_offset()
@@ -2582,6 +2741,7 @@ func _build_hud() -> void:
 	hud.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(hud)
 	var root := Control.new()
+	_hud_root = root
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(root)
@@ -2663,6 +2823,11 @@ func _build_hud() -> void:
 	beam_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	beam_button.visible = false
 	root.add_child(beam_button)
+	laser_button = LaserButton.new()
+	laser_button.main = self
+	laser_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	laser_button.visible = false
+	root.add_child(laser_button)
 
 	# The title: only the name, the ship (with arrows) and PLAY; laid out for the screen's shape by
 	# `_layout_title`
@@ -2931,6 +3096,7 @@ func quit_to_menu() -> void:
 		# (from a wreck: the camera pulls up away from the crash site, out into space, and on to the
 		# moon, where a new ship comes in to land; the wreck stays lying where it is till then)
 		_wreck_ship = ufo
+		_from_wreck = true
 		over_box.visible = false
 		_make_ufo(Vector3(wreck.x, _wreck_ship.altitude, wreck.z))
 		ufo.visible = false
@@ -2953,6 +3119,12 @@ func _going_home(delta: float) -> void:
 		return
 	intro = 0.0
 	dust.fade = 0.0
+	if _from_wreck:
+		# (no landing after a crash: a new ship already down on the moon, the pilot in the chair)
+		_from_wreck = false
+		_show_title()
+		_save_best()
+		return
 	ufo.queue_free()
 	_make_ufo(Vector3.ZERO)
 	_park_ufo(false)
@@ -2984,7 +3156,7 @@ func _facing(way: Vector3) -> float:
 ## way the title's camera looks, made level, so that the ship's climb sinks the moon and Earth out of
 ## the bottom of the picture and leaves only stars
 func _away() -> Vector3:
-	var way := Vector3(4.05, 0, -9.1) if not _upright() else Vector3(6.02, 0, -7.99)
+	var way := Vector3(6.02, 0, -7.99)
 	return way.normalized()
 
 
@@ -3081,6 +3253,7 @@ func _hud(delta: float) -> void:
 	log_box.visible = playing
 	_type_log(delta)
 	stars.visible = playing
+	_layout_touch()
 	shield_bar.visible = playing
 	radar.visible = playing
 	radar.queue_redraw()
@@ -3106,9 +3279,16 @@ func _hud(delta: float) -> void:
 	beam_button.visible = (touched or _touch_screen) and playing
 	# (under the finger that is beaming, and back in its corner after)
 	var mark_at := _beam_at if beam_finger != NO_FINGER and _beam_at != Vector2.INF else _beam_home()
-	beam_button.position = mark_at - beam_button.size * 0.5
+	beam_button.position = mark_at / hud.scale.x - beam_button.size * 0.5
 	stick_ring.visible = playing and stick_finger != NO_FINGER
 	beam_button.queue_redraw()
+	# (the laser's switch, once there is a laser: up over the beam's resting mark)
+	laser_button.visible = beam_button.visible and upgrades["laser"] > 0
+	if laser_button.visible:
+		var r := minf(get_viewport().get_visible_rect().size.x, get_viewport().get_visible_rect().size.y) * 0.13
+		laser_button.size = Vector2.ONE * r * 0.95 / hud.scale.x
+		laser_button.position = (_beam_home() + Vector2(-r * 0.3, -r * 1.85)) / hud.scale.x - laser_button.size * 0.5
+		laser_button.queue_redraw()
 	_pause_button.visible = playing and not autopilot
 	heat_note.visible = playing
 	if heat_note_time > 0.0:
@@ -3215,8 +3395,10 @@ func _layout_touch() -> void:
 		return
 	var size := get_viewport().get_visible_rect().size
 	var r := minf(size.x, size.y) * 0.13
-	beam_button.size = Vector2(r * 2, r * 2)
-	beam_button.position = _beam_home() - Vector2(r, r)
+	# (placed in screen pixels, whatever the HUD's scale)
+	var k := hud.scale.x if hud != null else 1.0
+	beam_button.size = Vector2(r * 2, r * 2) / k
+	beam_button.position = (_beam_home() - Vector2(r, r)) / k
 
 
 ## Touches are read here, before the interface sees them (as Liquid Metal does), so nothing on the
@@ -3225,7 +3407,7 @@ func _input(event: InputEvent) -> void:
 	if _touch_debug and (event is InputEventScreenTouch or event is InputEventMouseButton or (event is InputEventScreenDrag and Engine.get_process_frames() % 12 == 0)):
 		_debug_line("%s | %s%s" % [event.as_text(), mode, " PAUSED" if get_tree().paused else ""])
 	# Five quick taps on the alien coin turn the touch readout on or off (to see what a phone sends)
-	if event is InputEventScreenTouch and event.pressed and coin.visible and coin.get_global_rect().grow(24).has_point(event.position):
+	if event is InputEventScreenTouch and event.pressed and coin.visible and screen_rect(coin).grow(24).has_point(event.position):
 		var now := Time.get_ticks_msec() / 1000.0
 		_coin_taps = _coin_taps + 1 if now - _coin_tapped < 0.6 else 1
 		_coin_tapped = now
@@ -3239,8 +3421,13 @@ func _input(event: InputEvent) -> void:
 		return
 	if get_tree().paused:
 		return
+	if event is InputEventScreenTouch and event.pressed and laser_button != null and laser_button.visible \
+			and screen_rect(laser_button).grow(10).has_point(event.position):
+		# (a tap on the laser's switch: the beam over to the laser, or back)
+		toggle_laser()
+		return
 	if event is InputEventScreenTouch and event.pressed and _pause_button.visible \
-			and _pause_button.get_global_rect().grow(8).has_point(event.position):
+			and screen_rect(_pause_button).grow(8).has_point(event.position):
 		# (a touch, even one left to the button: its mouse is not a lost finger)
 		_touch_down_frame = Engine.get_process_frames()
 		_touch_frame_seen = true
@@ -3657,3 +3844,24 @@ class ScoreSparks extends Control:
 		for s: Array in sparks:
 			var k: float = 1.0 - s[2] / 0.7
 			draw_circle(s[0], 3.0 + 3.0 * k, Color(0.6, 1.0, 0.65, k))
+
+
+## Where a HUD control is on the screen, in screen pixels (the HUD may be drawn smaller: see _fit)
+func screen_rect(c: Control) -> Rect2:
+	return Rect2(c.get_global_transform_with_canvas().origin, c.size * c.get_global_transform_with_canvas().get_scale())
+
+
+## The laser's switch, over the beam's mark on a touch screen: a round button with a red bolt, lit
+## while the beam is switched over to the laser
+class LaserButton extends Control:
+	var main: Node
+
+	func _draw() -> void:
+		var r := size.x * 0.5
+		var c := Vector2(r, r)
+		var on: bool = main.laser_mode
+		draw_circle(c, r, Color(1.0, 0.3, 0.4, 0.35 if on else 0.12))
+		draw_arc(c, r - 2.0, 0, TAU, 32, Color(1.0, 0.55, 0.6, 0.95 if on else 0.5), 3.0)
+		var bolt := PackedVector2Array([c + Vector2(-r * 0.15, -r * 0.55), c + Vector2(r * 0.25, -r * 0.55), c + Vector2(0, -r * 0.05),
+			c + Vector2(r * 0.3, -r * 0.05), c + Vector2(-r * 0.2, r * 0.6), c + Vector2(0, r * 0.1), c + Vector2(-r * 0.3, r * 0.1)])
+		draw_colored_polygon(bolt, Color(1.0, 0.4, 0.5) if on else Color(1.0, 0.6, 0.65, 0.6))

@@ -71,6 +71,7 @@ var tier := 2
 var hull_max := 100.0
 var altitude := 8.0
 var radius := 2.8
+var _shadow: MeshInstance3D
 var beam_foot := 2.7
 var velocity := Vector3.ZERO
 ## A shove off something it flew into (see bump), dying away
@@ -343,13 +344,34 @@ func _ready() -> void:
 	glow.position.y = 1.5
 	add_child(glow)
 	_ship_layer(body)
+	# Its shadow on the ground below: a soft dark round, fading out higher up (see _cast_shadow)
+	_shadow = MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2.ONE
+	_shadow.mesh = plane
+	var shade := StandardMaterial3D.new()
+	shade.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	shade.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	shade.disable_fog = true
+	var blot := GradientTexture2D.new()
+	blot.fill = GradientTexture2D.FILL_RADIAL
+	blot.fill_from = Vector2(0.5, 0.5)
+	blot.fill_to = Vector2(1.0, 0.5)
+	blot.gradient = Gradient.new()
+	blot.gradient.set_color(0, Color(0, 0, 0, 0.55))
+	blot.gradient.set_color(1, Color(0, 0, 0, 0.0))
+	shade.albedo_texture = blot
+	_shadow.material_override = shade
+	_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_shadow.top_level = true
+	add_child(_shadow)
 
 
 func ground() -> Vector3:
 	return Vector3(position.x, 0.0, position.z)
 
 
-## On the moon: the canopy open, the pilot up on top lounging with a cocktail (`on`), or the
+## On the moon: the canopy open, the pilot up on top lounging with a beer (`on`), or the
 ## drink gone and the pilot back down at the controls with the canopy shutting (not `on`)
 func lounge(on: bool) -> void:
 	if not on and lounging:
@@ -365,10 +387,10 @@ func lounge(on: bool) -> void:
 			chair.position = Vector3(CHAIR_AT.x * radius / 2.8, _chair_y, CHAIR_AT.z * radius / 2.8)
 			body.add_child(chair)
 		if _drink == null:
-			_drink = Ps1.model("cocktail")
-			_drink.scale = Vector3.ONE * 1.4
+			_drink = Ps1.model("beer")
+			_drink.scale = Vector3.ONE * 1.6
 			alien.arms[1].add_child(_drink)
-			_drink.position = Vector3(0.02, -0.42, 0.03)
+			_drink.position = Vector3(0.02, -0.36, 0.03)
 			_drink.rotation = Vector3(PI, 0, 0)
 	else:
 		alien.feel("steer")
@@ -407,6 +429,7 @@ func _hull_top() -> float:
 
 ## Flies by `steer` (a stick, at most 1 long); `beam_on` holds the beam down
 func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
+	_cast_shadow()
 	_t += delta
 	since_hit += delta
 	if dead:
@@ -758,7 +781,9 @@ func _lean_beam(delta: float) -> void:
 	_aim = _aim.lerp(want, minf(delta * 6.0, 1.0))
 	var down := altitude - 0.5
 	var to_foot := Vector3(_aim.x, -down, _aim.z)
-	beam_pivot.basis = Basis(Quaternion(Vector3.DOWN, to_foot.normalized())).scaled_local(Vector3(1, to_foot.length() / down, 1))
+	# (sheared, not turned: its foot stays a flat round on the ground wherever it is aimed, all of
+	# its rim down on the ground, rather than tipping up on one side)
+	beam_pivot.basis = Basis(Vector3.RIGHT, -to_foot / down, Vector3.BACK)
 
 
 ## Where the middle of the beam is at height `y`: under the ship at the top, leant off by the aim
@@ -845,3 +870,15 @@ func bump(out: Vector3) -> void:
 	if hull > 0.0:
 		# (it takes the shield, never the last of the ship)
 		hurt(minf(clampf(into * 0.6, 3.0, 8.0), hull))
+
+
+## The shadow under the ship, on the ground: as wide as the ship, fainter the higher it comes from
+## (none on the moon or out in space, or once it is down)
+func _cast_shadow() -> void:
+	var high := position.y
+	_shadow.visible = not dead and not parked and high < 80.0
+	if not _shadow.visible:
+		return
+	_shadow.global_position = Vector3(position.x, 0.06, position.z)
+	_shadow.global_basis = Basis.IDENTITY.scaled(Vector3.ONE * radius * 2.6 * (1.0 + high * 0.02))
+	(_shadow.material_override as StandardMaterial3D).albedo_color.a = clampf(1.0 - (high - altitude) / 40.0, 0.0, 1.0)

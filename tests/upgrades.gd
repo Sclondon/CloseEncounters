@@ -160,13 +160,13 @@ func _process(_delta: float) -> bool:
 				# Three stars, the laser bought, and a tank shell fired at the ship from 13 m off
 				main.heat = 3.2
 				main.score = 50000
-				_check(main.buy("laser") and main.ufo.laser != null, "a LASER can be bought, and a turret is slung under the ship")
+				_check(main.buy("turret") and main.ufo.laser != null, "an AUTO TURRET can be bought, and a turret is slung under the ship")
 				shell = main._shot("shell", main.ufo.position + Vector3(0, -6, 11), main.ufo.position)
 			elif wait == 12:
 				_check((not is_instance_valid(shell) or shell.done) and main.ufo.since_hit > 0.15, "the laser shoots a shell down before it hits")
 				for i in 3:
-					main.buy("laser")
-				_check(main.upgrades["laser"] == 4 and not main.buy("laser") and is_equal_approx(main.laser_reload(), 0.8),
+					main.buy("turret")
+				_check(main.upgrades["turret"] == 4 and not main.buy("turret") and is_equal_approx(main.laser_reload(), 1.6),
 					"the laser goes up to level 4, firing every %.1f s" % main.laser_reload())
 				for t in main.things.duplicate():
 					if t.is_enemy():
@@ -174,11 +174,32 @@ func _process(_delta: float) -> bool:
 				police = main.spawn("police_car", main.ufo.ground() + Vector3(6, 0, 6))
 				score_before = main.score
 			elif wait > 12 and wait < 500 and not is_instance_valid(police):
-				_check(main.score > score_before, "the laser blows up a police car near the ship, for points (%d)" % (main.score - score_before))
-				step = "fleet"
+				_check(main.score > score_before, "the turret blows up a police car near the ship, for points (%d)" % (main.score - score_before))
+				step = "cut"
 				wait = 0
 			elif wait == 500:
-				_check(false, "the laser blows up a police car near the ship")
+				_check(false, "the turret blows up a police car near the ship")
+				step = "cut"
+				wait = 0
+		"cut":
+			# The hand-fired LASER: switched over, held down, at a police car right under the ship
+			if wait == 1:
+				for t in main.things.duplicate():
+					if t.is_enemy():
+						main._remove(t)
+				main.upgrades["turret"] = 0
+				main.score = 50000
+				main.buy("laser")
+				main.toggle_laser()
+				_check(main.laser_mode, "a LASER can be bought, and the beam switched over to it")
+				police = main.spawn("police_car", main.ufo.ground() + Vector3(0.3, 0, 0.3))
+				Input.action_press("beam")
+			elif wait == 90:
+				Input.action_release("beam")
+				_check(not is_instance_valid(police) or int(police.get_meta("zapped", 0)) > 0, "held down, the laser cuts a police car where the beam would fall")
+				_check(not main.ufo.beaming, "and no beam comes on while it fires")
+				main.toggle_laser()
+				_check(not main.laser_mode, "switched back, the beam is the beam again")
 				step = "fleet"
 				wait = 0
 		"fleet":

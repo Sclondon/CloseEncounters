@@ -106,7 +106,7 @@ func tick(delta: float, ufo: Ufo) -> void:
 ## The nearest small thing near the ship that no other of the fleet is after (null if none)
 func _look(ufo: Ufo) -> Thing:
 	var best: Thing
-	var best_d := REACH
+	var best_d := REACH * _strength()
 	for t: Thing in game.things:
 		if t.state != "walk" or t.is_enemy() or t.kind == "pod" or t.tier() > 1 or t.info["move"] == "road":
 			continue
@@ -136,7 +136,7 @@ func _beam_up(delta: float) -> void:
 		_lift = 0.0
 		target.state = "drone"
 		game._witnessed(target)
-	_lift += delta * LIFT / float(target.info["weight"])
+	_lift += delta * LIFT * _strength() / float(target.info["weight"])
 	var k := clampf(_lift, 0.0, 1.0)
 	target.position = Vector3(position.x, lerpf(0.0, position.y - 0.4, ease(k, 1.6)), position.z)
 	target.model.rotation = Vector3(sin(_t * 7.0) * 0.25, _t * 3.0, cos(_t * 6.0) * 0.25)
@@ -202,3 +202,9 @@ func _falling(delta: float, ufo: Ufo) -> void:
 		position = ufo.position + Vector3(0, -1.0, 0)
 		game.puff(position, Color(0.85, 1.0, 0.5), 0.8)
 		game.sfx.play("bloop", 1.8, -4.0)
+
+
+## How strong the fleet is, by its level: 0.6 at the first (slow to lift, near the ship), the full of
+## it by the fourth
+func _strength() -> float:
+	return 0.47 + 0.13 * float(game.upgrades.get("fleet", 1))

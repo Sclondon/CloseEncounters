@@ -125,13 +125,14 @@ of upgrades, each lasting the run, each up to four times:
 ENGINE (+12% speed), BEAM (lifts faster, and one tier stronger), SHIELD (+25), DASH (recharges 0.35 s
 faster, two more afterimages), and:
 
-- **LASER**: a turret under the hull that fires by itself, a pink bolt every 2 s (0.4 s sooner a level,
-  down to 0.8 s) out to 16 m (2 m further a level). It shoots down shells and missiles coming at the ship
+- **LASER**: a cutting ray of your own. Switch the beam over to it (L, Tab or C; gamepad Y; or the red bolt button over the beam's mark on a touch screen) and the beam's button fires it, where the beam would fall: the police and army there are hit (a few hits blow them up), cars and oil drums blow up, anyone else runs. Hotter each level.
+- **AUTO TURRET**: a turret under the hull that fires by itself, a pink bolt every 3.1 s (0.5 s sooner a level,
+  down to 1.6 s) out to 11.5 m (2.5 m further a level). It shoots down shells and missiles coming at the ship
   first, then jets, then, once there is heat, the nearest police or army: a hit stuns one (it holds its fire
   for 2 s), and enough hits blow it up (a police car 2, a jeep 3, a tank 5), for half its points and a
   quarter of a star of heat, as a crush is. They are soon replaced, and it never stops the bullets.
 - **FLEET**: a little saucer for each level (up to four, `scripts/drone.gd`). Each keeps station round
-  the ship and goes off by itself after the small things nearby that nobody will miss (animals, hay, bushes:
+  the ship and goes off by itself (slow and close in at the first level, its full reach and speed by the fourth) after the small things nearby that nobody will miss (animals, hay, bushes:
   nothing heavy, hot, rare or on the road), beaming them up slowly with a beam of its own, for the score and
   the heat as if the ship took them. Shots that meet one stop there, and the police and army sometimes aim
   at one instead of the ship; three hits bring it down, and a new one comes out of the ship 14 s later.

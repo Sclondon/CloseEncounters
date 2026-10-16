@@ -78,12 +78,61 @@ static func part(parent: Node, mesh: Mesh, material: Material, at: Vector3, size
 ## phone the number of things drawn is what counts. The ships keep their surfaces apart (their
 ## lights flash on their own), and so does glass.
 static func model(name: String, tints := {}, own_mats := false) -> Node3D:
+	if name == "pine":
+		return _grown_pine(own_mats)
 	if not _scenes.has(name):
 		_scenes[name] = load("res://models/%s.glb" % name)
 	var n: Node3D = (_scenes[name] as PackedScene).instantiate()
 	_dress(n, tints, own_mats, not name in KEEP_SURFACES)
 	return n
 
+
+
+## The pines are grown, not modelled (GameCommon's PineTree, as in Phone Home): the plainer of its
+## two trees, a pine's height, in the game's greens. Made once.
+static var _pine: ArrayMesh
+
+
+static func pine_mesh() -> ArrayMesh:
+	if _pine != null:
+		return _pine
+	var shape := PineTree.new()
+	shape.height = 6.4
+	shape.trunk_radius = 0.24
+	shape.spread = 0.56
+	shape.whorls = 11
+	shape.branches = 7
+	shape.droop = 0.4
+	shape.seed = 7
+	# (in the game's own greens, a shade lighter than the generator's, for a pine to read at night)
+	shape.bark = Color(0.35, 0.24, 0.15)
+	shape.needles_inner = Color(0.12, 0.3, 0.14)
+	shape.needles_outer = Color(0.2, 0.42, 0.18)
+	shape.tips = Color(0.3, 0.52, 0.24)
+	var grown := shape.simple().mesh()
+	var arrays := grown.surface_get_arrays(0)
+	var colours: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	for i in colours.size():
+		var c := colours[i]
+		c.a = 1.0
+		colours[i] = c
+	arrays[Mesh.ARRAY_COLOR] = colours
+	_pine = ArrayMesh.new()
+	_pine.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return _pine
+
+
+static func _grown_pine(own_mats: bool) -> Node3D:
+	var n := Node3D.new()
+	n.name = "pine"
+	var mi := MeshInstance3D.new()
+	mi.mesh = pine_mesh()
+	mi.material_override = own(Color.WHITE, 0.0, 0.3) if own_mats else mat(Color.WHITE, 0.0, 0.3)
+	mi.extra_cull_margin = CULL_MARGIN
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.visibility_range_end = DRAW_TO
+	n.add_child(mi)
+	return n
 
 ## Models whose surfaces stay apart
 const KEEP_SURFACES: Array[String] = ["ufo", "orb", "triangle", "foo", "cigar", "bell"]

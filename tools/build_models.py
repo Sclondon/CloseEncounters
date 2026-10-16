@@ -22,7 +22,7 @@ COLOURS = {
     "hide": (0.92, 0.9, 0.85), "spot": (0.08, 0.07, 0.07), "pink": (0.95, 0.62, 0.62),
     "horn": (0.9, 0.86, 0.72), "wool": (0.95, 0.94, 0.88), "black": (0.06, 0.06, 0.07),
     "red": (0.75, 0.12, 0.1), "yellow": (0.95, 0.75, 0.15), "white": (0.95, 0.95, 0.92),
-    "skin": (0.92, 0.7, 0.55), "denim": (0.22, 0.32, 0.6), "shirt": (0.8, 0.3, 0.25),
+    "skin": (0.92, 0.7, 0.55), "denim": (0.22, 0.32, 0.6), "shirt": (0.8, 0.3, 0.25), "blush": (0.95, 0.55, 0.55),
     "straw": (0.88, 0.76, 0.42), "boot": (0.25, 0.16, 0.1), "hair": (0.3, 0.2, 0.12),
     "tyre": (0.08, 0.08, 0.08), "hub": (0.6, 0.6, 0.58), "glass": (0.35, 0.45, 0.55),
     "paint": (0.2, 0.45, 0.75), "olive": (0.3, 0.36, 0.2), "olive_dark": (0.2, 0.24, 0.13),
@@ -236,23 +236,44 @@ def chicken():
 # ---------------------------------------------------------------- people
 
 def figure(name, hat, cowboy=False):
+    """A person in October Valley's blocky style (after the 8 Bit Evil Returns sprites): a big head
+    with bar eyes and blush, a short body, stubby legs; boxes measured in sprite pixels of `px`,
+    about 1.5 m tall. A farmer has overalls and a straw hat, a cowboy a felt hat and a bandana."""
+    px = 0.068
+
+    def bx(x, y, z, m, mirror=False):
+        out = [box(((x[1] - x[0]) * px, (y[1] - y[0]) * px, (z[1] - z[0]) * px),
+                   ((x[0] + x[1]) / 2 * px, (y[0] + y[1]) / 2 * px, (z[0] + z[1]) / 2 * px), m)]
+        if mirror:
+            out += bx((-x[1], -x[0]), y, z, m)
+        return out
     p = []
-    for s in (-1, 1):
-        p.append(box((0.16, 0.18, 0.8), (0.11 * s, 0, 0.42), "denim"))
-        p.append(box((0.17, 0.26, 0.1), (0.11 * s, -0.04, 0.05), "boot"))
-        p.append(box((0.12, 0.12, 0.55), (0.3 * s, 0, 1.08), "shirt", (0, 0.15 * s, 0)))
-        p.append(box((0.11, 0.11, 0.11), (0.33 * s, 0, 0.77), "skin"))
-    p += [box((0.44, 0.24, 0.5), (0, 0, 1.08), "shirt"), box((0.3, 0.3, 0.32), (0, 0, 1.52), "skin")]
-    for s in (-1, 1):
-        p.append(box((0.04, 0.02, 0.05), (0.07 * s, -0.16, 1.55), "black"))
+    p += bx((1.3, 2.7), (-0.7, 0.7), (0.8, 7), "denim", True)
+    p += bx((1.2, 2.8), (-2.0, 0.8), (0, 1.1), "boot", True)
+    p += bx((-3, 3), (-1.6, 1.6), (6.8, 8.5), "denim")
+    p += bx((-3, 3), (-1.7, 1.7), (8.5, 13.5), "shirt")
+    p += bx((-1.5, 1.5), (-1.2, 1.2), (13.5, 14.6), "skin")
+    p += bx((-4, 4), (-3.5, 3.5), (15.2, 19.6), "skin")
+    p += bx((-3.3, 3.3), (-3.2, 3.2), (14.4, 15.2), "skin")
+    p += bx((1.0, 2.0), (-3.62, -3.4), (15.8, 18.2), "black", True)
+    p += bx((2.9, 3.9), (-3.58, -3.4), (15.3, 16.1), "blush", True)
+    p += bx((3.0, 4.4), (-0.8, 0.8), (9.6, 13.4), "shirt", True)
+    p += bx((3.1, 4.3), (-0.7, 0.7), (8.4, 9.6), "skin", True)
     if cowboy:
-        p += [drum(0.38, 0.04, (0, 0, 1.69), "felt", 10), drum(0.16, 0.22, (0, 0, 1.8), "felt", 8, top=0.13),
-              box((0.34, 0.06, 0.14), (0, -0.12, 1.33), "chili")]
+        p += [drum(6.8 * px, 0.5 * px, (0, 0, 19.9 * px), "felt", 10), drum(4.3 * px, 2.8 * px, (0, 0, 21.4 * px), "felt", 8, top=3.6 * px)]
+        p += bx((-3.1, 3.1), (-1.9, 1.7), (12.4, 13.6), "chili")
+        p += bx((-4.3, 4.3), (1.6, 3.8), (16.0, 19.6), "hair")
     elif hat:
-        p += [drum(0.32, 0.04, (0, 0, 1.68), "straw", 10), drum(0.17, 0.18, (0, 0, 1.77), "straw", 8)]
-        p += [box((0.3, 0.25, 0.3), (0, 0.01, 1.0), "denim")]
+        p += [drum(6.2 * px, 0.5 * px, (0, 0, 19.9 * px), "straw", 10), drum(4.3 * px, 2.4 * px, (0, 0, 21.2 * px), "straw", 8)]
+        # (overalls: a bib and two straps over the shirt)
+        p += bx((-2.2, 2.2), (-1.85, -1.6), (8.5, 12.4), "denim")
+        p += bx((1.4, 2.2), (-1.85, 1.85), (12.4, 13.5), "denim", True)
+        p += bx((-4.3, 4.3), (1.6, 3.8), (16.0, 19.6), "hair")
     else:
-        p += [box((0.32, 0.32, 0.1), (0, 0.02, 1.7), "hair"), box((0.32, 0.08, 0.24), (0, 0.13, 1.56), "hair")]
+        p += bx((-4.3, 4.3), (-3.8, 3.8), (19.6, 20.8), "hair")
+        p += bx((-4.3, 4.3), (1.6, 3.8), (16.0, 19.6), "hair")
+        p += bx((3.6, 4.3), (-1.2, 1.6), (17.0, 19.6), "hair", True)
+        p += bx((-4.3, 4.3), (-3.8, -3.3), (18.8, 19.6), "hair")
     return join(name, p)
 
 
@@ -1352,6 +1373,23 @@ def cocktail():
     return join("cocktail", p)
 
 
+def beer():
+    """An open bottle of beer: brown glass, a pale label, a long neck, no cap"""
+    p = [drum(0.04, 0.15, (0, 0, 0.075), "beer", 8), drum(0.041, 0.06, (0, 0, 0.08), "cooler_white", 8),
+         drum(0.04, 0.04, (0, 0, 0.17), "beer", 8, top=0.018), drum(0.018, 0.075, (0, 0, 0.225), "beer", 6),
+         drum(0.021, 0.012, (0, 0, 0.262), "beer", 6)]
+    return join("beer", p)
+
+
+def bottle_cap():
+    """A bottle cap prised off and bent: a crimped disc folded up on one side"""
+    p = [drum(0.022, 0.006, (0, 0, 0), "beer_cap", 10), drum(0.022, 0.006, (0.012, 0, 0.006), "beer_cap", 10, (0, -0.9, 0))]
+    for i in range(10):
+        a = i * math.tau / 10
+        p.append(box((0.008, 0.006, 0.01), (math.cos(a) * 0.022, math.sin(a) * 0.022, -0.004), "beer_cap", (0, 0, a)))
+    return join("bottle_cap", p)
+
+
 def cooler():
     """A cooler with its lid open, full of ice and brown bottles of beer, facing -Y"""
     p = [box((0.7, 0.42, 0.36), (0, 0, 0.2), "cooler_red"), box((0.72, 0.44, 0.04), (0, 0, 0.02), "cooler_white"),
@@ -1387,7 +1425,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite,
-            police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox]
+            police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap]
 
 
 def main():

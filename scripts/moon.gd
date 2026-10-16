@@ -1,7 +1,7 @@
 class_name MoonSet
 extends Node3D
 ## The title: the moon, high above the farm country, where the ship stands parked with its canopy
-## open and the pilot up on top of it with a cocktail (see `Ufo.lounge`), Earth hanging in the black
+## open and the pilot up on top of it with a beer (see `Ufo.lounge`), Earth hanging in the black
 ## behind. It sits at SITE (far above the world, out of reach of the camera from down there).
 
 const SITE := Vector3(0, 900, 0)
@@ -58,10 +58,12 @@ func _ready() -> void:
 	earth.position = EARTH_AT
 	earth.rotation = Vector3(0.4, 0, 0.2)
 	add_child(earth)
+	_dress_title()
 
 
 func _process(delta: float) -> void:
 	earth.rotate_object_local(Vector3.UP, delta * 0.03)
+	_play(delta)
 	_fly(delta)
 
 
@@ -142,3 +144,82 @@ func _fly(delta: float) -> void:
 		m.position += c["velocity"] * delta
 		m.scale += Vector3.ONE * c["grow"] * delta
 		(m.material_override as StandardMaterial3D).albedo_color.a = 0.85 * (1.0 - k)
+
+
+# ------------------------------------------------------------------ the radio playing, a beer adrift
+
+## Where an open beer floats, up to the right of the parked ship as the title sees it, its bent cap
+## tumbling beside it
+const BEER_AT := Vector3(6.3, 4.0, -1.6)
+var _beer: Node3D
+var _cap: Node3D
+var _t := 0.0
+var _wave_wait := 0.0
+## The sound coming off the radio: rings growing out from it and fading
+var _waves: Array[Dictionary] = []
+
+
+func _dress_title() -> void:
+	_beer = Ps1.model("beer")
+	_beer.scale = Vector3.ONE * 2.6
+	_beer.position = BEER_AT
+	_beer.rotation = Vector3(0.5, 0.3, -0.6)
+	add_child(_beer)
+	_cap = Ps1.model("bottle_cap")
+	_cap.scale = Vector3.ONE * 2.6
+	_cap.position = BEER_AT + Vector3(0.35, 0.75, 0.2)
+	add_child(_cap)
+
+
+## The radio bouncing to the beat with rings of sound off it, the beer and its cap drifting; while
+## the title is up (not while the lift-off has them flying)
+func _play(delta: float) -> void:
+	_t += delta
+	_beer.position = BEER_AT + Vector3(0, sin(_t * 0.9) * 0.12, 0)
+	_beer.rotation.z = -0.6 + sin(_t * 0.6) * 0.15
+	_beer.rotation.y += delta * 0.25
+	_cap.position = BEER_AT + Vector3(0.35, 0.75 + sin(_t * 1.3 + 1.0) * 0.1, 0.2)
+	_cap.rotation += Vector3(0.7, 1.1, 0.4) * delta
+	var radio := _props[1]
+	var playing := _flying.is_empty() and radio.visible
+	if playing:
+		var beat := absf(sin(_t * PI * 2.0))
+		radio.transform = _homes[1]
+		radio.position.y += beat * 0.06
+		radio.scale = Vector3(1.0 + 0.05 * (1.0 - beat), 1.0 + 0.08 * beat, 1.0 + 0.05 * (1.0 - beat))
+		_wave_wait -= delta
+		if _wave_wait <= 0.0:
+			_wave_wait = 0.5
+			_wave(radio.global_position + Vector3(0, 0.3, 0))
+	for w in _waves.duplicate():
+		w["age"] += delta
+		var k: float = w["age"] / 1.4
+		var ring: MeshInstance3D = w["node"]
+		if k >= 1.0:
+			ring.queue_free()
+			_waves.erase(w)
+			continue
+		ring.scale = Vector3.ONE * (0.3 + k * 1.6)
+		(ring.material_override as StandardMaterial3D).albedo_color.a = 0.55 * (1.0 - k)
+
+
+func _wave(at: Vector3) -> void:
+	var ring := MeshInstance3D.new()
+	var t := TorusMesh.new()
+	t.inner_radius = 0.46
+	t.outer_radius = 0.5
+	t.rings = 24
+	t.ring_segments = 4
+	ring.mesh = t
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.albedo_color = Color(0.6, 1.0, 0.7, 0.55)
+	ring.material_override = m
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(ring)
+	ring.global_position = at
+	# (standing up, facing the way the radio faces, out toward the camera)
+	ring.global_basis = Basis(Vector3.UP, SHIP_TURN - 0.3) * Basis(Vector3.RIGHT, PI / 2)
+	_waves.append({"node": ring, "age": 0.0})

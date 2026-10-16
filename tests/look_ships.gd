@@ -45,7 +45,7 @@ func _initialize() -> void:
 		main.autopilot = false
 		main.score = 90000
 		for i in 4:
-			main.buy("laser")
+			main.buy("turret")
 		main.heat = 3.5
 		for i in 2:
 			main.spawn("police_car", main.ufo.ground() + Vector3(-7 + i * 13, 0, -6 + i * 3))

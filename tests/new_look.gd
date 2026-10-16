@@ -81,6 +81,8 @@ func _process(_delta: float) -> bool:
 			main.heat = 0.0
 			_shot("nuke_after")
 		520:
+			for k in ["COW", "CORN", "PERSON", "CHICKEN", "PIG", "SHEEP", "HAY BALE", "PICKUP", "FARMER", "BARN"]:
+				main._run_taken[k] = [2, 120]
 			for i in 5:
 				main.spawn("person", main.ufo.ground() + Vector3(-30 + i * 3, 0, 25))
 			main.ufo.hull = 0.0

@@ -283,6 +283,13 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 	model_y = info.get("rest_y", 0.0)
 	model.position.y = model_y
 	power = info.get("power", 0.0)
+	if kind == "rival":
+		# (a rival saucer has a pilot of its own under its dome)
+		var pilot := Alien.new()
+		pilot.look_seed = randi()
+		pilot.scale = Vector3.ONE * 0.9
+		pilot.position.y = 0.3
+		model.add_child(pilot)
 	_roof_dish()
 	aim = model.find_child("dish*", true, false) as Node3D
 	if aim == null:
@@ -408,6 +415,8 @@ func _rise(delta: float, ufo: Ufo) -> void:
 	# (the big things shrink as they go up, to fit inside)
 	var shrink := ease(clampf(lift, 0.0, 1.0), 0.6) if tier() >= 3 else smoothstep(0.7, 1.0, lift)
 	model.scale = Vector3.ONE * base_size * maxf(lerpf(1.0, 0.0, shrink), 0.02)
+	if tier() >= 3:
+		_come_apart(delta, ufo, 1.0 - shrink)
 	if info["move"] in ["peck", "graze", "flee", "fly"]:
 		# People and animals panic: thrashing end over end, kicking, squirming
 		model.rotation = Vector3(sin(_t * 17.0) * 0.7, spin * 1.6, cos(_t * 13.0) * 0.6)
@@ -543,6 +552,10 @@ func _walk(delta: float, ufo: Ufo) -> void:
 			if _noticed(delta, ufo, near):
 				pace = _police(delta, ufo, to_ufo, near, pace)
 				want = _chase_want
+			elif game.heat_level() >= 2 and near > 25.0:
+				# (sent out after a report: making for where the ship was seen, looking for it)
+				want = to_ufo.normalized()
+				pace *= 0.7
 			else:
 				want = _along_road()
 				pace *= 0.6
@@ -939,7 +952,7 @@ func _beacon() -> void:
 func _arm_gun() -> void:
 	if gun_node != null:
 		return
-	gun_node = Ps1.part(model, BoxMesh.new(), Ps1.mat(Color(0.15, 0.12, 0.1)), Vector3(0.18, 1.35, 0.35), Vector3(0.06, 0.06, 0.8), Vector3(-0.7, 0, 0))
+	gun_node = Ps1.part(model, BoxMesh.new(), Ps1.mat(Color(0.15, 0.12, 0.1)), Vector3(0.27, 0.72, 0.25), Vector3(0.05, 0.05, 0.6), Vector3(-0.7, 0, 0))
 
 func _shoot(delta: float, ufo: Ufo, near: float) -> void:
 	var gun: String = info.get("gun", "")
@@ -967,7 +980,7 @@ func _shoot(delta: float, ufo: Ufo, near: float) -> void:
 func muzzle() -> Vector3:
 	match kind:
 		"farmer", "cowboy", "officer", "agent":
-			return global_position + Vector3(0, 1.5, 0)
+			return global_position + Vector3(0, 0.85, 0)
 		"tank":
 			return global_position + Vector3(0, 1.9, 0)
 		"jeep":
@@ -1154,3 +1167,71 @@ func _roof_dish() -> void:
 	dish.scale = Vector3.ONE * 0.07
 	dish.position = Vector3(box.get_center().x, box.end.y - 0.2, box.get_center().z)
 	model.add_child(dish)
+
+
+## What the pilot calls everything (the log, the results, the field guide): Earth as an alien
+## naturalist would put it
+const ALIEN_NAMES := {
+	"chicken": "BEAKED EGG-LAYER", "sheep": "WOOL CLOUD", "pig": "MUD SNORTER", "cow": "MILK BEAST",
+	"hay_bale": "GRASS BRICK", "hay_pile": "GRASS HEAP", "barrel": "BOOM CAN", "scarecrow": "STRAW EARTHLING",
+	"outhouse": "WASTE SHRINE", "farmer": "SOIL EARTHLING", "person": "EARTHLING", "camper": "TENT EARTHLING",
+	"hiker": "WANDERING EARTHLING", "stargazer": "SKY WATCHER", "telescope": "PRIMITIVE EYE TUBE",
+	"tractor": "DIRT CRAWLER", "car": "GROUND POD", "pickup": "CARGO POD", "horse": "RIDING BEAST",
+	"bison": "SHAGGY GRAZER", "longhorn": "HORNED MILK BEAST", "coyote": "YIP HOUND", "cowboy": "HAT EARTHLING",
+	"bear": "FUR TITAN", "mountain_goat": "CLIFF HOPPER", "elk": "ANTLER BEAST", "pronghorn": "SPEED GRAZER",
+	"rabbit": "LONG-EAR", "roadrunner": "MEEP BIRD", "crow": "BLACK SQUAWKER", "hawk": "SKY HUNTER",
+	"phone_pole": "TALK STICK", "phone_booth": "TALK BOX", "saguaro": "SPIKE COLUMN", "pumpjack": "OIL NODDER",
+	"rv": "DWELLING POD", "patrol_car": "LAW POD", "patrol_jeep": "WAR CRAWLER", "sagebrush": "DRY TUFT",
+	"prickly_pear": "SPIKE PADDLE", "fence": "SMALL WALL", "tree": "LEAF TOWER", "pine": "NEEDLE TOWER",
+	"aspen": "GOLD LEAF TOWER", "pinyon": "SCRUB TOWER", "rock": "PLANET CRUMB", "camp_tent": "CLOTH HUT",
+	"house": "EARTHLING NEST", "farmhouse": "BIG NEST", "storefront": "TRADE NEST", "clock_tower": "TIME SPIRE",
+	"city_hall": "HIVE CENTRE", "fountain": "WATER TOY", "church": "SONG HALL", "control_tower": "SKY WATCH SPIRE",
+	"plane": "SLOW SKY POD", "wheat": "GOLD STALK", "corn": "EAR STALK", "pumpkin": "ORANGE ORB",
+	"hill": "LAND LUMP", "barn": "BEAST NEST", "silo": "GRAIN TUBE", "windmill": "SPIN FLOWER",
+	"water_tower": "WATER BULB", "diner": "FUEL NEST", "adobe": "MUD NEST", "cabin": "LOG NEST",
+	"butte": "ROCK STUMP", "mesa": "ROCK TABLE", "peak": "PLANET SPIKE", "devils_tower": "THE GREAT STUMP",
+	"police_station": "LAW HIVE", "hangar": "POD BARN", "watchtower": "STARE SPIRE", "tent": "WAR HUT",
+	"fighter_jet": "FAST SKY POD", "parked_jeep": "WAR CRAWLER", "parked_tank": "SHELL CRAWLER",
+	"substation": "SPARK GARDEN", "observatory": "SKY WATCH DOME", "seti_dish": "LISTENING BOWL",
+	"floodlight": "LIGHT STALK", "police_car": "LAW POD", "officer": "LAW EARTHLING", "agent_car": "SHADOW POD",
+	"agent": "SHADOW EARTHLING", "helicopter": "WHIRL POD", "chinook": "DOUBLE WHIRL POD", "jeep": "WAR CRAWLER",
+	"tank": "SHELL CRAWLER", "golden_cow": "GOLDEN MILK BEAST", "jackalope": "HORNED LONG-EAR",
+	"sasquatch": "COUSIN", "meteorite": "SPACE PEBBLE", "satellite": "PRIMITIVE PROBE", "rival": "RIVAL SAUCER",
+}
+
+
+## What the pilot calls a kind of thing
+static func alien_name(of: String) -> String:
+	return ALIEN_NAMES.get(of, of.replace("_", " ").to_upper())
+
+
+# ------------------------------------------------------------------ coming apart in the beam
+
+## The colours a big thing is made of (taken from its model's corners), for the pieces it sheds
+var _pieces: PackedColorArray = PackedColorArray()
+var _piece_wait := 0.0
+
+
+## A building or a landform going up the beam comes apart as it goes: pieces of it in its own colours
+## (boards, shingles, rock) breaking off all over it and flying up into the ship ahead of it, as
+## what is left of it shrinks away (`left`, 1 whole to 0 gone)
+func _come_apart(delta: float, ufo: Ufo, left: float) -> void:
+	if _pieces.is_empty():
+		for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+			if mi.mesh == null or mi.mesh.get_surface_count() == 0:
+				continue
+			var cs = mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR]
+			if cs is PackedColorArray:
+				for i in range(0, cs.size(), maxi(cs.size() / 24, 1)):
+					_pieces.append((cs[i] as Color).linear_to_srgb())
+		if _pieces.is_empty():
+			_pieces.append(Color(0.6, 0.6, 0.6))
+	_piece_wait -= delta
+	if _piece_wait > 0.0 or left <= 0.05:
+		return
+	_piece_wait = 0.05
+	var reach := size() * base_size * 0.5 * left
+	var at := position + Vector3(randf_range(-reach, reach), randf_range(0.2, reach * 1.6), randf_range(-reach, reach))
+	var up := (ufo.position - at).normalized()
+	var c := _pieces[randi() % _pieces.size()]
+	ufo.puffs.chip(at, up * randf_range(5.0, 9.0) + Vector3(randf_range(-1.5, 1.5), 0, randf_range(-1.5, 1.5)), c, randf_range(0.2, 0.55) * clampf(base_size, 0.6, 1.5), -2.0, 0.8)

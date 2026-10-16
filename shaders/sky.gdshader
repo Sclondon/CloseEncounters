@@ -4,7 +4,8 @@ shader_type sky;
 
 uniform vec3 top : source_color = vec3(0.01, 0.015, 0.06);
 uniform vec3 low : source_color = vec3(0.1, 0.14, 0.26);
-uniform vec3 moon_dir = vec3(-0.4, 0.55, -0.73);
+// (low over the horizon ahead, where the camera's picture of the sky always reaches)
+uniform vec3 moon_dir = vec3(0.3, 0.17, -0.94);
 // 1 = out in space (the start of a run): stars all the way round, no haze
 uniform float space = 0.0;
 
@@ -46,7 +47,16 @@ void sky() {
 	float s = stars(d, 90.0, 0.08, 0.16) * 1.4 + stars(d, 180.0, 0.12, 0.2) * 0.8 + stars(d, 300.0, 0.25 + band * 0.4, 0.22) * 0.5;
 	c += vec3(0.95, 0.97, 1.0) * s * above;
 	float m = dot(d, normalize(moon_dir));
-	c += vec3(1.0, 0.97, 0.85) * smoothstep(0.9985, 0.999, m);
-	c += vec3(0.25, 0.3, 0.4) * pow(max(m, 0.0), 60.0) * 0.4;
+	// the moon: a big pale disc with darker seas, and a glow round it
+	if (m > 0.9988) {
+		vec3 md = normalize(moon_dir);
+		vec3 side = normalize(cross(md, vec3(0.0, 1.0, 0.0)));
+		vec3 rise = cross(side, md);
+		vec2 q = vec2(dot(d, side), dot(d, rise)) / 0.049;
+		float seas = smoothstep(0.45, 0.7, noise(q * 4.0 + 3.0)) * 0.35 + smoothstep(0.6, 0.8, noise(q * 9.0)) * 0.15;
+		vec3 face = vec3(1.0, 0.97, 0.86) * (1.0 - seas) * (0.85 + 0.15 * (1.0 - length(q)));
+		c = mix(c, face, smoothstep(0.9988, 0.9990, m));
+	}
+	c += vec3(0.25, 0.3, 0.4) * pow(max(m, 0.0), 80.0) * 0.5;
 	COLOR = c;
 }

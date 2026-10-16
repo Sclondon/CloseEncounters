@@ -49,8 +49,8 @@ func _ready() -> void:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
 		players.append(p)
-	hum = _looper(_theremin(), -10.0)
-	siren = _looper(_siren(), -20.0)
+	hum = _looper(_theremin(), -19.0)
+	siren = _looper(_siren(), -27.0)
 	# (on the web each sound is handed to the browser the first time it plays, which can stall a
 	# frame, the beam's long hum most of all: all of them handed over now, at load)
 	if OS.has_feature("web") and AudioServer.has_method("register_stream_as_sample"):
@@ -63,7 +63,8 @@ func play(sound: String, pitch := 1.0, volume_db := 0.0) -> void:
 	next = (next + 1) % players.size()
 	p.stream = sounds[sound]
 	p.pitch_scale = pitch * randf_range(0.94, 1.06)
-	p.volume_db = volume_db
+	# (well under full: short, bright sounds heard over and over, kept soft)
+	p.volume_db = volume_db - 7.0
 	p.play()
 
 
@@ -89,6 +90,7 @@ func _voice(dur: float, freqs: PackedFloat32Array, vol: float, vibrato := 0.0, n
 	data.resize(n * 2)
 	var phase := 0.0
 	var last := freqs.size() - 1
+	var soft := 0.0
 	for i in n:
 		var u := float(i) / n
 		var at := u * last
@@ -96,11 +98,13 @@ func _voice(dur: float, freqs: PackedFloat32Array, vol: float, vibrato := 0.0, n
 		var f := lerpf(freqs[k], freqs[mini(k + 1, last)], at - k)
 		f *= 1.0 + sin(u * dur * TAU * 11.0) * vibrato
 		phase += TAU * f / RATE
-		var s := sin(phase) + 0.35 * sin(phase * 2.0) + 0.15 * sin(phase * 3.0)
+		var s := sin(phase) + 0.2 * sin(phase * 2.0) + 0.05 * sin(phase * 3.0)
 		if noise > 0.0:
 			s = lerpf(s, randf_range(-1.0, 1.0), noise)
 		var env := minf(u / 0.05, 1.0) * minf((1.0 - u) / 0.4, 1.0)
-		data.encode_s16(i * 2, int(clampf(s * env * vol * 0.6, -1.0, 1.0) * 32767.0))
+		# (smoothed: a gentle low-pass, more so the noisier it is, so nothing hisses or rasps)
+		soft = lerpf(soft, s, 0.35 - noise * 0.2)
+		data.encode_s16(i * 2, int(clampf(soft * env * vol * 0.5, -1.0, 1.0) * 32767.0))
 	return _wav(data)
 
 
@@ -115,7 +119,7 @@ func _theremin() -> AudioStreamWAV:
 		var f := 520.0 + 120.0 * sin(TAU * 0.5 * t) + 18.0 * sin(TAU * 6.0 * t)
 		phase += TAU * f / RATE
 		var s := sin(phase) * 0.8 + sin(phase * 0.5) * 0.2
-		data.encode_s16(i * 2, int(s * 0.35 * 32767.0))
+		data.encode_s16(i * 2, int(s * 0.25 * 32767.0))
 	var wav := _wav(data)
 	wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	wav.loop_end = n
