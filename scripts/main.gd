@@ -3417,16 +3417,19 @@ func _layout_title(size: Vector2) -> void:
 		b.add_theme_font_size_override("font_size", 64 if upright else 40)
 	_play_button.custom_minimum_size = Vector2(340, 130) if upright else Vector2(260, 70)
 	_play_button.add_theme_font_size_override("font_size", 76 if upright else 40)
-	if _gear_button != null:
-		var gear := Vector2(100, 90) if upright else Vector2(64, 56)
-		_gear_button.custom_minimum_size = gear
-		_gear_button.offset_left = -gear.x - 16.0
-		_gear_button.offset_right = -16.0
-		_gear_button.offset_top = 14.0
-		_gear_button.offset_bottom = 14.0 + gear.y
+	# (as many as there are across an upright phone: smaller, the more of them)
+	var n := _title_row.get_child_count()
+	var crowded := upright and n > 3
 	for b in _title_row.get_children():
-		(b as Button).custom_minimum_size = Vector2(250, 110) if upright else Vector2(170, 60)
-		(b as Button).add_theme_font_size_override("font_size", 52 if upright else 32)
+		var w := minf(250.0, (1180.0 - 20.0 * (n - 1)) / n) if upright else 170.0
+		(b as Button).custom_minimum_size = Vector2(w, 110) if upright else Vector2(w, 60)
+		(b as Button).add_theme_font_size_override("font_size", 42 if crowded else (52 if upright else 32))
+		if crowded:
+			for state in ["normal", "hover", "pressed", "focus"]:
+				var box := (b as Button).get_theme_stylebox(state).duplicate() as StyleBoxFlat
+				box.content_margin_left = 12
+				box.content_margin_right = 12
+				(b as Button).add_theme_stylebox_override(state, box)
 
 
 ## The log: a list to scroll by thumb, and BACK
@@ -4060,6 +4063,7 @@ func _build_hud() -> void:
 	_title_row.add_theme_constant_override("separation", 20)
 	_title_row.add_child(_button("SAUCERS", open_saucers))
 	_title_row.add_child(_button("LOG", open_log))
+	_title_row.add_child(_button("OPTIONS", open_options))
 	# (the scores and QUIT are the arcade's: only inside it, or for QUIT, off the web)
 	if _in_arcade():
 		_title_row.add_child(_button("SCORES", open_scores))
@@ -4073,6 +4077,13 @@ func _build_hud() -> void:
 	_picker_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_picker_dim.visible = false
 	root.add_child(_picker_dim)
+	# (the market saucer's beam throwing the market onto the screen, under the market itself)
+	var projector := ProjectorBeam.new()
+	projector.main = self
+	projector.set_anchors_preset(Control.PRESET_FULL_RECT)
+	projector.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	projector.process_mode = Node.PROCESS_MODE_ALWAYS
+	root.add_child(projector)
 	_picker = _panel(root)
 	# (centred both ways whatever its size, and narrow enough for an upright phone)
 	_picker.custom_minimum_size = Vector2(660, 0)
@@ -4124,8 +4135,13 @@ func _build_hud() -> void:
 	_resume_button = _button("RESUME", func() -> void: set_paused(false))
 	_pause_box.add_child(_resume_button)
 	_pause_box.add_child(_button("OPTIONS", open_options))
-	_pause_box.add_child(_button("QUIT TO MENU", quit_to_menu))
+	_pause_box.add_child(_button("TO THE MOON", quit_to_menu))
 	_pause_box.visible = false
+	# (centred both ways whatever its size: see `_fit_pause`)
+	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		_pause_box.set_offset(side, 0.0)
+	_pause_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_pause_box.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_build_options(root)
 
 	over_box = _panel(root)
@@ -4170,6 +4186,10 @@ func _panel(root: Control) -> VBoxContainer:
 	return box
 
 
+## The hologram look shared by every button (see `_button`)
+var _holo_mat: ShaderMaterial
+
+
 func _button(text: String, pressed: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
@@ -4177,13 +4197,27 @@ func _button(text: String, pressed: Callable) -> Button:
 	b.add_theme_font_size_override("font_size", 40)
 	b.custom_minimum_size = Vector2(260, 70)
 	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	# (a hologram: well rounded, room round the text, a soft green glow round it, and scanlines and a
+	# flicker over it, see holo_button.gdshader)
 	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color(0.1, 0.25, 0.14, 0.85)
-	normal.border_color = Color(0.55, 1.0, 0.6)
+	normal.bg_color = Color(0.08, 0.26, 0.15, 0.72)
+	normal.border_color = Color(0.55, 1.0, 0.65)
 	normal.set_border_width_all(3)
-	normal.set_corner_radius_all(10)
+	normal.set_corner_radius_all(24)
+	normal.content_margin_left = 28
+	normal.content_margin_right = 28
+	normal.content_margin_top = 14
+	normal.content_margin_bottom = 14
+	normal.shadow_color = Color(0.3, 1.0, 0.45, 0.28)
+	normal.shadow_size = 10
+	normal.anti_aliasing = true
 	var hover := normal.duplicate() as StyleBoxFlat
-	hover.bg_color = Color(0.18, 0.4, 0.22, 0.95)
+	hover.bg_color = Color(0.16, 0.42, 0.24, 0.85)
+	hover.shadow_color = Color(0.4, 1.0, 0.55, 0.45)
+	if _holo_mat == null:
+		_holo_mat = ShaderMaterial.new()
+		_holo_mat.shader = load("res://shaders/holo_button.gdshader")
+	b.material = _holo_mat
 	b.add_theme_stylebox_override("normal", normal)
 	b.add_theme_stylebox_override("hover", hover)
 	b.add_theme_stylebox_override("pressed", hover)
@@ -4271,7 +4305,7 @@ func _launch(delta: float) -> void:
 		start(true)
 
 
-## QUIT TO MENU: the run given up (no score is sent), and the ship flies home: up off the farm into
+## TO THE MOON (the pause's, or after a crash): the run given up (no score is sent), and the ship flies home: up off the farm into
 ## the stars (the descent backwards, see `_going_home`), then down onto the moon (the flight off it
 ## backwards), and the pilot back in the chair on the title
 func quit_to_menu() -> void:
@@ -4493,23 +4527,11 @@ var _options_head: Label
 var _options_back: Button
 ## Where OPTIONS was opened from: the title ("title") or the pause ("pause")
 var _options_from := "title"
-var _gear_button: Button
 ## Each option's row: [its name's label, what changes it (a slider or a button)], for `_fit_options`
 var _option_rows: Array = []
 
 
 func _build_options(root: Control) -> void:
-	# (a cog in the corner of the title, where the pause button is in play)
-	_gear_button = _button("", func() -> void: open_options())
-	var cog := Cog.new()
-	cog.set_anchors_preset(Control.PRESET_FULL_RECT)
-	cog.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_gear_button.add_child(cog)
-	_gear_button.custom_minimum_size = Vector2(64, 56)
-	_gear_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_gear_button.position = Vector2(-80, 14)
-	_gear_button.focus_mode = Control.FOCUS_NONE
-	root.add_child(_gear_button)
 	var dim := ColorRect.new()
 	dim.color = Color(0.01, 0.04, 0.02, 0.88)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -4677,11 +4699,26 @@ func _apply_options() -> void:
 	Engine.max_fps = frame_rate
 
 
+## The pause sized for thumbs on an upright phone, smaller across a wide screen
+func _fit_pause() -> void:
+	var big := _upright()
+	_pause_box.add_theme_constant_override("separation", 40 if big else 18)
+	_pause_box.custom_minimum_size = Vector2(760 if big else 400, 0)
+	for c in _pause_box.get_children():
+		if c is Button:
+			(c as Button).custom_minimum_size = Vector2(700, 150) if big else Vector2(360, 76)
+			(c as Button).add_theme_font_size_override("font_size", 72 if big else 40)
+		elif c is Label:
+			(c as Label).add_theme_font_size_override("font_size", 130 if big else 64)
+
+
 func set_paused(on: bool) -> void:
 	if mode != "play" or (_picker != null and _picker.visible):
 		return
 	get_tree().paused = on
 	_pause_box.visible = on
+	if on:
+		_fit_pause()
 	if not on and _options_box != null:
 		_options_box.visible = false
 	if on:
@@ -4766,7 +4803,6 @@ func _hud(delta: float) -> void:
 		cloak_button.position = (_beam_home() + Vector2(-rc * 1.85, -rc * 0.35)) / hud.scale.x - cloak_button.size * 0.5
 		cloak_button.queue_redraw()
 	_pause_button.visible = playing and not autopilot
-	_gear_button.visible = mode == "title" and title_box.visible and not _options_box.visible
 	heat_note.visible = playing
 	if heat_note_time > 0.0:
 		heat_note_time -= delta
@@ -5340,44 +5376,74 @@ class BeamButton extends Control:
 		draw_arc(c, r * 0.98, 0, TAU, 48, Color(0.7, 1.0, 0.75, 0.5 if on else 0.15), 2.0)
 
 
-## The pause sign on the pause button: two upright bars, in the middle of it
-## A cog, for the OPTIONS button on the title
-class Cog extends Control:
-	func _draw() -> void:
-		var c := size * 0.5
-		var r := minf(size.x, size.y) * 0.3
-		var colour := Color(0.75, 1.0, 0.78)
-		var points := PackedVector2Array()
-		for i in 32:
-			var a := TAU * i / 32.0
-			var tooth := r * (1.35 if (i / 2) % 2 == 0 else 1.0)
-			points.append(c + Vector2(cos(a), sin(a)) * tooth)
-		draw_colored_polygon(points, colour)
 		draw_circle(c, r * 0.42, Color(0.1, 0.25, 0.14))
 
 
 ## The Moon Market's trading saucer, painted like a carnival: down out of the sky behind the market
 ## while it is open, bobbing and turning there (the game paused all the while), and away up again
-## after the pick. Held at a place in the picture, the top middle, a way off
+## after the pick. Held at a place in the picture, the top middle, a way off. Lit by a stage spotlight
+## and two warm searchlights up at it from the bottom corners, a puff of confetti as it arrives, and
+## its beam (drawn over the picture by ProjectorBeam) throwing the market itself onto the screen
 class MarketShip extends Node3D:
 	var main: Node
 	var _t := 0.0
 	var _leaving := -1.0
 	var _model: Node3D
+	var _light: SpotLight3D
+	var _cones: Array[MeshInstance3D] = []
+	var _cone_mat: ShaderMaterial
+	## Where it shows in the picture (before the lift that makes up for the world's bend)
+	var seen := Vector3.ZERO
+	var _landed := false
+	## The confetti and the puff: [piece, its way, its spin (none for a puff), its age]
+	var _bits: Array = []
 	const DROP := 1.1
 	const AWAY := 30.0
+	const CONFETTI := [Color(1.0, 0.25, 0.3), Color(1.0, 0.85, 0.2), Color(0.3, 0.75, 1.0), Color(0.45, 1.0, 0.5), Color(1.0, 0.5, 0.9), Color(1.0, 0.6, 0.2)]
 
 	func _ready() -> void:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 		_model = Ps1.model("market")
 		_model.scale = Vector3.ONE * 1.4
 		add_child(_model)
+		_light = SpotLight3D.new()
+		_light.top_level = true
+		_light.light_color = Color(1.0, 0.92, 0.75)
+		_light.spot_angle = 16.0
+		_light.spot_range = 24.0
+		_light.light_energy = 0.0
+		add_child(_light)
+		_cone_mat = ShaderMaterial.new()
+		_cone_mat.shader = load("res://shaders/beam.gdshader")
+		_cone_mat.set_shader_parameter("tint", Color(1.0, 0.85, 0.55))
+		_cone_mat.set_shader_parameter("power", 0.0)
+		for i in 2:
+			var cone := MeshInstance3D.new()
+			var mesh := CylinderMesh.new()
+			mesh.top_radius = 1.8
+			mesh.bottom_radius = 0.2
+			mesh.height = 1.0
+			mesh.radial_segments = 10
+			mesh.rings = 1
+			mesh.cap_top = false
+			mesh.cap_bottom = false
+			cone.mesh = mesh
+			cone.material_override = _cone_mat
+			cone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			cone.top_level = true
+			add_child(cone)
+			_cones.append(cone)
 		_place()
 
 	func leave() -> void:
 		if _leaving < 0.0:
 			_leaving = 0.0
 			main.sfx.play("whoosh", 1.2, -4.0)
+
+	## How lit it is: up as it settles, down as it goes
+	func lit() -> float:
+		var on := smoothstep(DROP * 0.6, DROP + 0.3, _t)
+		return on * (1.0 - clampf(_leaving / 0.5, 0.0, 1.0)) if _leaving >= 0.0 else on
 
 	func _process(delta: float) -> void:
 		_t += delta
@@ -5387,28 +5453,168 @@ class MarketShip extends Node3D:
 				queue_free()
 				return
 		_place()
+		if not _landed and _t >= DROP:
+			_landed = true
+			_confetti()
+		_fall(delta)
+
+	## How far down the world's bend draws a point (see bend.gdshaderinc)
+	func _sag(p: Vector3) -> float:
+		var cam: Camera3D = main.camera
+		var focus: Vector3 = cam.position - main._camera_offset() + Vector3(0, 0, -1.0)
+		var bend: float = ProjectSettings.get_setting("shader_globals/bend_k")["value"]
+		var d := p.z - focus.z
+		d = d if d < 0.0 else d * 0.45
+		var s := p.x - focus.x
+		return bend * (d * d + 0.3 * s * s)
 
 	func _place() -> void:
 		var cam: Camera3D = main.camera
 		var size := Vector2(main.view.size)
-		var at := cam.project_position(size * Vector2(0.5, 0.17 if main._upright() else 0.12), AWAY)
+		var at := cam.project_position(size * (Vector2(0.5, 0.17) if main._upright() else Vector2(0.84, 0.3)), AWAY)
 		# (down from high above, slowing and settling with a little bounce; bobbing; and at the end
 		# up and away the quicker)
 		var k := clampf(_t / DROP, 0.0, 1.0)
 		var drop := (1.0 - k) * (1.0 - k) * 22.0 - sin(k * PI) * 0.8
 		var rise := _leaving * _leaving * 30.0 if _leaving > 0.0 else 0.0
 		at.y += drop + rise + sin(_t * 2.2) * 0.35
-		# (lifted by as much as the world's bend would drop it: see bend.gdshaderinc)
-		var focus: Vector3 = cam.position - main._camera_offset() + Vector3(0, 0, -1.0)
-		var bend: float = ProjectSettings.get_setting("shader_globals/bend_k")["value"]
-		var d := at.z - focus.z
-		d = d if d < 0.0 else d * 0.45
-		var s := at.x - focus.x
-		at.y += bend * (d * d + 0.3 * s * s)
+		seen = at
+		# (lifted by as much as the world's bend would drop it)
+		at.y += _sag(at)
 		global_position = at
 		_model.rotation = Vector3(0.18, _t * 0.9, 0.0)
+		var on := lit()
+		# The spotlight, from between it and the camera, a little below
+		var toward := (cam.global_position - at).normalized()
+		_light.global_position = at + toward * 10.0 + Vector3(0, -3.0, 0)
+		_light.look_at(at)
+		_light.light_energy = 9.0 * on
+		# The searchlights, from the bottom corners of the picture up to it, swaying
+		_cone_mat.set_shader_parameter("power", 0.55 * on)
+		for i in 2:
+			var corner := Vector2(0.08 if i == 0 else 0.92, 1.05)
+			var from := cam.project_position(size * corner, 18.0)
+			from.y += _sag(from)
+			var to := at + Vector3(sin(_t * 1.3 + i * 2.0) * 1.2, -0.6, 0)
+			var along := to - from
+			_cones[i].visible = on > 0.01
+			_cones[i].global_transform = Transform3D(Basis(Quaternion(Vector3.UP, along.normalized())) * Basis.from_scale(Vector3(1.0, along.length(), 1.0)), (from + to) * 0.5)
+
+	## A puff of confetti as it arrives
+	func _confetti() -> void:
+		main.sfx.play("pop", 1.3, -2.0)
+		main.sfx.play("fanfare", 1.5, -8.0)
+		var paper := BoxMesh.new()
+		paper.size = Vector3(0.32, 0.03, 0.2)
+		for i in 70:
+			var bit := MeshInstance3D.new()
+			bit.mesh = paper
+			bit.material_override = Ps1.flat(CONFETTI[i % CONFETTI.size()])
+			bit.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			bit.top_level = true
+			add_child(bit)
+			bit.global_position = global_position + Vector3(randf_range(-1, 1), randf_range(-0.3, 0.6), randf_range(-1, 1))
+			var way := Vector3(randf_range(-1, 1), randf_range(0.2, 1.3), randf_range(-1, 1)).normalized() * randf_range(5.0, 11.0)
+			_bits.append([bit, way, Vector3(randf_range(-9, 9), randf_range(-9, 9), randf_range(-9, 9)), 0.0])
+		# (and a puff of white smoke, swelling and gone)
+		for i in 6:
+			var puff := MeshInstance3D.new()
+			puff.mesh = Ps1.ball()
+			puff.material_override = Ps1.flat(Color(0.95, 0.95, 1.0))
+			puff.top_level = true
+			add_child(puff)
+			puff.global_position = global_position + Vector3(randf_range(-2, 2), randf_range(-0.8, 0.8), randf_range(-1.5, 1.5))
+			_bits.append([puff, Vector3(randf_range(-1, 1), 1.0, randf_range(-1, 1)), Vector3.ZERO, 0.0])
+
+	func _fall(delta: float) -> void:
+		var keep: Array = []
+		for b: Array in _bits:
+			var n: MeshInstance3D = b[0]
+			b[3] = float(b[3]) + delta
+			var age: float = b[3]
+			if b[2] == Vector3.ZERO:
+				# (a puff: swelling, then shrinking away, in half a second)
+				if age > 0.55:
+					n.queue_free()
+					continue
+				n.scale = Vector3.ONE * (1.0 + age * 5.0) * (1.0 - smoothstep(0.25, 0.55, age))
+				n.global_position += (b[1] as Vector3) * delta
+				keep.append(b)
+				continue
+			var way: Vector3 = b[1]
+			way.y -= 9.0 * delta
+			way *= 1.0 - minf(2.2 * delta, 0.5)
+			b[1] = way
+			n.global_position += way * delta
+			n.rotation += (b[2] as Vector3) * delta
+			if age > 2.4:
+				n.scale = Vector3.ONE * maxf(1.0 - (age - 2.4) * 2.0, 0.0)
+			if age > 2.9:
+				n.queue_free()
+				continue
+			keep.append(b)
+		_bits = keep
 
 
+## The market saucer's beam, drawn over the picture as if it threw the market onto the screen: a fan
+## of light from under the saucer down onto the panel, the panel washed in it, scanlines drifting
+## down through it
+class ProjectorBeam extends Control:
+	var main: Node
+
+	func _process(_delta: float) -> void:
+		queue_redraw()
+
+	func _draw() -> void:
+		var ship: MarketShip = main._market
+		var panel: Control = main._picker
+		if not is_instance_valid(ship) or not panel.visible:
+			return
+		var on: float = ship.lit()
+		if on <= 0.01:
+			return
+		var cam: Camera3D = main.camera
+		var under: Vector3 = ship.seen + Vector3(0, -1.0, 0)
+		if cam.is_position_behind(under):
+			return
+		var top: Vector2 = cam.unproject_position(under) / Vector2(main.view.size) * size
+		var whole := panel.get_global_rect()
+		var box := Rect2(get_global_transform().affine_inverse() * whole.position, whole.size).grow(18.0)
+		var flick := 0.85 + 0.15 * sin(Time.get_ticks_msec() * 0.031)
+		var warm := Color(1.0, 0.9, 0.6)
+		var hot := Color(warm, 0.42 * on * flick)
+		var faint := Color(warm, 0.1 * on * flick)
+		var dim := Color(warm, 0.03 * on)
+		# (the panel's edge facing the saucer: its top over it on a phone, its side beside it on a wide
+		# screen; and the panel's far edge, for the light washing across it)
+		var a: Vector2
+		var b: Vector2
+		var far_a: Vector2
+		var far_b: Vector2
+		var tl := box.position
+		var tr := box.position + Vector2(box.size.x, 0)
+		var bl := box.position + Vector2(0, box.size.y)
+		var br := box.end
+		if top.y < box.position.y:
+			a = tl; b = tr; far_a = bl; far_b = br
+		elif top.x > box.end.x:
+			a = tr; b = br; far_a = tl; far_b = bl
+		else:
+			a = bl; b = tl; far_a = br; far_b = tr
+		var across := (b - a).normalized() * 10.0
+		# (the fan of light, from the saucer's belly to that edge)
+		draw_polygon(PackedVector2Array([top - across, top + across, b, a]), PackedColorArray([hot, hot, faint, faint]))
+		# (the panel lit by it, brightest at the near edge)
+		draw_polygon(PackedVector2Array([a, b, far_b, far_a]), PackedColorArray([faint, faint, dim, dim]))
+		# (scanlines drifting out along it)
+		var t := Time.get_ticks_msec() / 1000.0
+		for i in 6:
+			var k := fmod(t * 0.35 + i / 6.0, 1.0)
+			draw_line(top.lerp(a, k), top.lerp(b, k), Color(warm, 0.14 * on * (1.0 - k * 0.6)), 2.0)
+		draw_circle(top, 14.0, Color(1.0, 0.95, 0.8, 0.6 * on))
+
+
+## The pause sign on the pause button: two upright bars, in the middle of it
 class PauseBars extends Control:
 	func _draw() -> void:
 		var bar := Vector2(size.x * 0.13, size.y * 0.44)

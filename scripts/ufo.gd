@@ -48,8 +48,11 @@ const SHIPS := {
 	"diamond": {"title": "KRYSTALLIX-9", "model": "diamond", "speed": 11.0, "lift": 0.9, "hull": 75.0, "tier": 3, "altitude": 9.0,
 		"radius": 2.2, "beam_foot": 3.0, "alien_y": 1.2, "alien_size": 0.5, "spin": true,
 		"about": "A crystal of light. Lifts buildings; a strong shield.", "ghost": Color(0.75, 0.45, 1.0)},
+	"jelly": {"title": "BLOOPUS-7", "model": "jelly", "speed": 13.0, "lift": 1.1, "hull": 45.0, "tier": 2, "altitude": 7.5,
+		"radius": 2.5, "beam_foot": 3.5, "alien_y": 1.35, "alien_size": 0.5, "spin": true,
+		"about": "A jellyfish of a ship. The widest, gentlest beam.", "ghost": Color(1.0, 0.5, 0.8)},
 }
-const ORDER: Array[String] = ["saucer", "orb", "triangle", "foo", "cigar", "bell", "tictac", "saturn", "diamond"]
+const ORDER: Array[String] = ["saucer", "orb", "triangle", "foo", "cigar", "bell", "tictac", "saturn", "diamond", "jelly"]
 const BEAM_SLOW := 0.6
 ## The dodge: a dash this fast for this long, untouchable while it lasts, then a wait before the next
 const DASH_SPEED := 34.0

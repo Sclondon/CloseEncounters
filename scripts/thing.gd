@@ -132,6 +132,7 @@ const KINDS := {
 	"captured_tictac": {"title": "YOU FOUND THE TIKTAKKORAX: IT'S YOURS", "model": "tictac", "points": 3000, "weight": 2.5, "heat": 1.5, "move": "still", "size": 2.3, "rare": true, "unlock": "tictac", "rest_y": 0.7},
 	"captured_saturn": {"title": "YOU FOUND THE STARZOID: IT'S YOURS", "model": "saturn", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.9, "rare": true, "unlock": "saturn", "rest_y": 1.25},
 	"captured_diamond": {"title": "YOU FOUND THE KRYSTALLIX-9: IT'S YOURS", "model": "diamond", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.2, "rare": true, "unlock": "diamond", "rest_y": 1.7},
+	"captured_jelly": {"title": "YOU FOUND THE BLOOPUS-7: IT'S YOURS", "model": "jelly", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "jelly", "rest_y": 2.0},
 	"floodlight": {"points": 150, "weight": 2.5, "heat": 0.3, "move": "still", "size": 1.2, "tier": 3},
 	# A trader's goods (see main.gd spawn_shop): beam one up to buy it
 	"pod": {"points": 0, "weight": 0.9, "heat": 0.0, "move": "still", "size": 1.0},

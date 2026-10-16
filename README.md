@@ -35,9 +35,9 @@ and while on the moon the world stays loaded round where the run starts (no stut
   top and leaves afterimages, untouchable while it lasts. It starts with **one charge** (6 s to refill), and each
   DASH item adds another. It drops whatever is in the beam, and throws the pilot about. Dash with no charge and
   the engine fizzles: the ship shudders, smokes and spits sparks.
-- **Pause**: Esc / P / Start, or the pause button in the top right; from there, RESUME, OPTIONS or QUIT TO MENU (the run is given up).
+- **Pause**: Esc / P / Start, or the pause button in the top right; from there, RESUME, OPTIONS or TO THE MOON (the run is given up, and the ship flies home).
 
-**OPTIONS** (the cog in the top right of the title, or from the pause), kept with the bests in user://best.cfg:
+**OPTIONS** (a button on the title beside SAUCERS and LOG, or from the pause), kept with the bests in user://best.cfg:
 MUSIC and EFFECTS loudness (sliders, each its own audio bus), PICTURE (LOW / MEDIUM / HIGH: 220, 300 or 420
 lines), DITHER (the PlayStation dither and 15-bit colour, on or off), SHAKE (screen shake on or off) and FRAMES
 (30, 60 or as fast as the screen goes).
@@ -48,6 +48,8 @@ is gunned down. The results (left-justified, typed out) give what was taken by c
 into the stars and down again onto a new country, the new ship warping in with a burst of sparkles. Watch long
 enough and the **men in black** drive up: one zips the pilot into a body bag and carries it off to their car, the
 other flashes the crowd with a memory eraser (they forget and wander away), and they drive off.
+
+The menus' buttons are holograms: well rounded, roomy, glowing green, with scanlines, a flicker and a band of light sweeping through them (`shaders/holo_button.gdshader`).
 
 The HUD: down the top left, three glass orbs the same size: the shield (blue energy), the round **radar**, and
 the dash (an arrow for each charge, lit once charged, filling as it charges).
@@ -61,7 +63,7 @@ The pilot works a stick and a panel of buttons in front of it, mashes the button
 thrown about the cockpit in a dodge. The ship's
 lights flash with the beam, a dodge and a hit.
 
-**Only the Zeebzer can be flown at first.** The other eight are held in **secret government facilities** out
+**Only the Zeebzer can be flown at first.** The other nine are held in **secret government facilities** out
 in the country (fenced compounds, four searchlight towers, a gold beacon over the captured ship): beam the ship
 up to make it yours, for good. A facility whose ship has already been found holds one not yet found instead
 (`captive` in main.gd). A locked ship says so on the title screen.
@@ -87,6 +89,7 @@ Chosen on the title screen (left / right, or the arrows), and remembered.
 | TIKTAKKORAX (`tictac`), the Nimitz tic tac of 2004: the fastest | 18 | x0.75, narrow | 30 | 7 m | 1: small things only |
 | STARZOID (`saturn`), a ball in a ring of lights | 10.5 | x1.6 (strongest pull) | 55 | 8.5 m | 2: trees and rocks |
 | KRYSTALLIX-9 (`diamond`), a violet crystal | 11 | x0.9 | 75 | 9 m | 3: buildings |
+| BLOOPUS-7 (`jelly`), a glowing pink jellyfish trailing tentacles | 13 | x1.1, widest | 45 | 7.5 m | 2: trees and rocks |
 
 The beam is green, turns **blue** from the second BEAM item and **purple** from the fourth.
 
@@ -145,7 +148,7 @@ it holds you. Once there is heat, the patrols lock their lights on and join in.
 ### Level-ups and traders
 
 **Level-ups come with the score** (`level_at`: 600, 2400, 5400, 9600... points): the game pauses and the **MOON
-MARKET** opens, its carnival-painted trading saucer dropping out of the sky behind it (`MarketShip`), with a choice
+MARKET** opens: its carnival-painted trading saucer drops out of the sky in a puff of confetti and smoke, lit by a spotlight and two swaying searchlights (`MarketShip`), and its beam throws the market onto the screen (`ProjectorBeam`: from above on a phone, from the side on a wide screen), with a choice
 of upgrades (sized for thumbs, biggest on an upright phone). They are items that stack, as in Risk of Rain: each pick is one more of it (up to ten), small at first and growing with the stack (the fleet up to six saucers, rates with floors). The items had show as a row of little tiles under the heat's stars, each a small 3D model of the item (built in Blender, `item_*` in tools/build_models.py) with its stack count, as in Risk of Rain 2; the level-up choices show them too:
 ENGINE (+7% speed), BEAM (lifts faster, and every second level one tier stronger), SHIELD (+15), DASH (one more
 dash charge, refilling a little sooner, two more afterimages), MAGNET (small things drift to the beam), WIDE BEAM,
@@ -303,4 +306,4 @@ Way and the real constellations, the same sky on the moon, in space and over Ear
 twinkling; over Earth the night's blue and a horizon haze are laid on it (`shaders/sky.gdshader`). The
 moon over Earth is NASA's LRO map of it (`textures/moon_lroc.jpg`), hung at one place in the sky like Earth
 over the moon: top left in play on a wide screen, top right on a phone, out of the picture where the
-descent starts and gone again before the ship is home, with a soft glow round it (`shaders/moon_glow.gdshader`). On a phone the camera in play sits lower and looks a little up (`_look_up`), so the sky and the moon show over the fields as on a wide screen.
+descent starts and gone again before the ship is home, a full moon with a soft glow round it (`shaders/moon_glow.gdshader`). On a phone the camera in play sits lower and looks a little up (`_look_up`), so the sky and the moon show over the fields as on a wide screen.

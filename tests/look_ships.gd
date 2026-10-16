@@ -25,7 +25,7 @@ func _initialize() -> void:
 	main.testing = true
 	main.start_mode = "play"
 	root.add_child(main)
-	for s: String in ["tictac", "saturn", "diamond"]:
+	for s: String in ["jelly"]:
 		plan.append(func() -> String:
 			close = false
 			main.hold_camera = false

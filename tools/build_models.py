@@ -63,7 +63,7 @@ GLOWS = {
     "lights_under": ((0.5, 1.0, 0.6), 3.0), "headlight": ((1.0, 0.95, 0.8), 2.0),
     "flame": ((1.0, 0.55, 0.15), 3.0), "neon": ((1.0, 0.35, 0.6), 3.0),
     "light_red": ((1.0, 0.2, 0.15), 3.0), "light_blue": ((0.3, 0.5, 1.0), 3.0), "light_white": ((1.0, 1.0, 0.95), 3.0),
-    "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "pod_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0), "crystal": ((0.5, 0.28, 0.85), 0.55),
+    "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "pod_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0), "crystal": ((0.5, 0.28, 0.85), 0.55), "jelly": ((0.95, 0.28, 0.62), 0.3), "jelly_glow": ((0.6, 0.9, 1.0), 2.0),
     "foo_glow": ((0.85, 0.22, 0.03), 2.5), "booth_sign": ((0.75, 0.88, 1.0), 2.0), "clock_face": ((1.0, 0.95, 0.8), 1.3),
     "sign": ((1.0, 0.85, 0.55), 1.2),
 }
@@ -960,6 +960,24 @@ def bell():
     dome.parent = body
     return body
 
+def jelly():
+    """A jellyfish of a ship: a glowing pink bell, a pale rim, glowing tentacles trailing under it, the
+    pilot under glass on top"""
+    p = [lathe("jelly_bell", [(2.4, 0.0), (2.35, 0.45), (1.9, 1.05), (1.0, 1.45), (0.05, 1.58)],
+               ["jelly", "jelly", "jelly", "jelly", "jelly"], sides=14, wobble=0.04, seed=11),
+         drum(2.45, 0.12, (0, 0, 0.02), "white", 16), drum(1.2, 0.08, (0, 0, -0.02), "lights_under", 12)]
+    for i in range(12):
+        a = i / 12 * math.tau
+        r = 1.9 if i % 2 else 1.2
+        long = 1.9 if i % 2 else 1.3
+        p.append(drum(0.07, long, (r * math.cos(a), r * math.sin(a), -long / 2), "jelly_glow", 5, (0.12 * math.sin(a), 0.12 * math.cos(a), 0)))
+        p.append(ball((0.2, 0.2, 0.2), (r * math.cos(a), r * math.sin(a), -long), "jelly_glow", 5, 3))
+    body = join("jelly", p)
+    dome = _dome(0.6, 1.4, 1.0)
+    dome.parent = body
+    return body
+
+
 def market():
     """The Moon Market's trading saucer, that comes down for a level's shopping: a saucer painted like
     a carnival, red and yellow bands, a striped circus-tent top with a flag, ringed with bulbs of
@@ -1657,7 +1675,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
-            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, market,
+            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,
