@@ -212,13 +212,8 @@ var _again: Button
 var _over_typing := 0.0
 ## The wrecked ship left lying while the camera pulls away from it to the moon (see quit_to_menu)
 var _wreck_ship: Ufo
-## Going home from a wreck: out into space, then straight to the pilot lounging on the moon
+## Going home from a wreck (no ship to follow on the way up: it lies wrecked)
 var _from_wreck := false
-## Coming down onto the moon after a crash, 1 high over it to 0 there (see _moon_camera)
-var _moon_drop := 0.0
-## The way the camera looked, and how wide, when it left the crash (the moon's camera starts so)
-var _drop_from := Vector3.UP
-var _drop_fov := 50.0
 const RESULTS_SPEED := 45.0
 var over_label: Label
 ## The title screen's parts, laid out for the screen's shape (`_layout_title`)
@@ -2652,11 +2647,6 @@ func _intro_camera() -> void:
 	camera.position = ufo.position + _chase(away).slerp(normal_from, settle)
 	var normal_way := (Vector3(0, -ufo.altitude * (1.0 if _upright() else 0.55), 0) - normal_from).normalized()
 	var way := away.slerp(normal_way, settle)
-	if mode == "return" and _from_wreck:
-		# (home from a crash: looking up and up into the stars as it climbs, so that the moon's camera
-		# can take over looking the same way, with no ground in sight, and only then come down onto it)
-		var up := (Vector3(way.x, 0.0, way.z).normalized() * 0.25 + Vector3.UP).normalized()
-		way = way.slerp(up, smoothstep(0.35, 0.9, _return_t / RETURN_UP)).normalized()
 	camera.look_at(camera.position + way, Vector3.UP if absf(way.y) < 0.99 else Vector3.FORWARD)
 	RenderingServer.global_shader_parameter_set("bend_focus", Vector3(ufo.position.x, 0.0, ufo.position.z - 1.0))
 	RenderingServer.global_shader_parameter_set("saucer_pos", ufo.position)
@@ -2730,8 +2720,7 @@ var _sky_base := Basis.IDENTITY
 func _sky_spin() -> float:
 	match mode:
 		"title":
-			# (after a crash, the rest of the turn made as the camera comes down onto the moon)
-			return 0.5 * ease(_moon_drop, 1.6) if _moon_drop > 0.0 else 0.0
+			return 0.0
 		"launch":
 			return 0.5 * smoothstep(LIFT, LAUNCH, _launch_t)
 		"landing":
@@ -2798,16 +2787,6 @@ func _moon_camera(delta: float) -> void:
 	# the title above and the buttons below, on a phone or a wide screen alike)
 	var at := site + Vector3(0.13, 2.0, 2.31)
 	var look := site + Vector3(6.15, 2.0, -5.68)
-	if _moon_drop > 0.0:
-		# (after a crash: looking up into the stars over the moon, then tilting down onto the title's
-		# picture, the moon rising into the bottom of it; never high over the moon, where the edge of
-		# its ground would show)
-		_moon_drop = maxf(_moon_drop - delta / 3.2, 0.0)
-		var k := ease(_moon_drop, 1.6)
-		var title_way := (look - at).normalized()
-		look = at + title_way.slerp(_drop_from.normalized(), k) * 10.0
-		if _moon_drop <= 0.0 and mode == "title":
-			title_box.visible = true
 	var focus := Vector3(site.x + 1.0, 0.0, site.z)
 	if (mode == "launch" or mode == "landing") and _launch_t > LIFT - 0.2:
 		# (rising with the ship from the title's picture of it and swinging round it, not across it,
@@ -2827,8 +2806,6 @@ func _moon_camera(delta: float) -> void:
 	# (wider on a wide screen, for the ground and its cooler and Earth high above both to be seen;
 	# the game's own once the ship is away, as the descent has it)
 	camera.fov = _fov() if _upright() else 52.0
-	if _moon_drop > 0.0:
-		camera.fov = lerpf(camera.fov, _drop_fov, ease(_moon_drop, 1.6))
 	if mode == "launch" or mode == "landing":
 		camera.fov = lerpf(camera.fov, _fov(), smoothstep(LIFT - 0.2, LIFT + 1.6, _launch_t))
 	RenderingServer.global_shader_parameter_set("bend_focus", focus)
@@ -3795,24 +3772,28 @@ func _going_home(delta: float) -> void:
 		return
 	intro = 0.0
 	dust.fade = 0.0
-	if _from_wreck:
-		# (no landing after a crash: a new ship already down on the moon, the pilot in the chair)
-		_from_wreck = false
-		# (no cut: the moon's camera starts looking the very way this one was, out into the same
-		# stars, and only then tilts down onto the moon)
-		_drop_from = -camera.global_basis.z
-		_drop_fov = camera.fov
-		_show_title()
-		_moon_drop = 1.0
-		title_box.visible = false
-		_save_best()
-		return
+	# (after a crash as after quitting: the same flight home, a new ship coming down onto the moon)
+	var warped := _from_wreck
+	_from_wreck = false
 	ufo.queue_free()
 	_make_ufo(Vector3.ZERO)
 	_park_ufo(false)
 	_clear_wreck()
 	mode = "landing"
 	_launch_t = LAUNCH
+	if warped:
+		# (the new ship warping in where the camera meets it: a flash and a spray of stars)
+		_warp_in.call_deferred()
+
+
+func _warp_in() -> void:
+	if ufo == null:
+		return
+	ufo.stars.burst(ufo.global_position, 30, Vector3.ZERO)
+	for i in 3:
+		ufo.puffs.puff(ufo.global_position + Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)), Color(0.7, 1.0, 0.8, 0.8), 2.5 + i, Vector3.ZERO, 0.5)
+	ufo._kick = 1.0
+	sfx.play("whoosh", 2.0, -2.0)
 
 
 ## Down on the moon again: on its legs, the canopy opening and the pilot climbing out and back up
