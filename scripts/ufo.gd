@@ -122,7 +122,7 @@ var _gulp_size := 1.0
 var _hull_scale := Vector3.ONE
 ## The bounce as the beam comes on (1 just on, down to 0), and how far back it tilts while beaming
 var _kick := 0.0
-const BEAM_TILT := 0.28
+const BEAM_TILT := 0.5
 ## How fast the hull spins in a dodge, and how fast it spins now (winding down after one)
 const DASH_SPIN := 30.0
 var _spin_rate := 0.6
@@ -613,7 +613,7 @@ func dodge_ready() -> float:
 
 ## The wait between dodges, shorter with each DASH upgrade
 func dash_wait_max() -> float:
-	return DASH_WAIT - 0.35 * dash_level
+	return maxf(DASH_WAIT - 0.2 * dash_level, 0.8)
 
 
 ## The lights apart from the plates of the hull: what is drawn glowing is a light

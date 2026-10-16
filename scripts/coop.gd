@@ -5,6 +5,7 @@ extends Node
 ## - each saucer: where it is, which way its hull faces, its beam (on, and where it leans), its
 ##   ship, its score, and whether it is down; sent STATE_EVERY, drawn for the others as a
 ##   RemoteSaucer gliding after it
+## - their police and army near them (FOES_EVERY), drawn for the others as models gliding after them
 ## - what happens: something taken up a beam goes for everyone ("take"), crop circles are pressed
 ##   for everyone ("circle"), and blasts are seen by everyone ("boom")
 ## Each player has their own heat, police and score. Guests send to the host, and the host passes
@@ -13,13 +14,20 @@ extends Node
 
 const K_STATE := 83  # S
 const K_EVENT := 69  # E
-const STATE_EVERY := 1.0 / 15.0
+const STATE_EVERY := 1.0 / 20.0
+## Each player's police and army near them, for the others to see, this often
+const K_FOES := 70  # F
+const FOES_EVERY := 0.2
+const FOES_REACH := 90.0
 
 var game: Node
 var net: Net
 ## The other saucers, by seat
 var others := {}
 var _send_wait := 0.0
+var _foes_wait := 0.0
+## Others' police and army as seen here, by seat: {their id: Node3D}
+var foes := {}
 
 
 func _ready() -> void:
@@ -38,16 +46,73 @@ func _process(delta: float) -> void:
 	if _send_wait <= 0.0:
 		_send_wait = STATE_EVERY
 		_send_state()
+	_foes_wait -= delta
+	if _foes_wait <= 0.0:
+		_foes_wait = FOES_EVERY
+		_send_foes()
 	for slot in others:
 		(others[slot] as RemoteSaucer).glide(delta)
+	_glide_foes(delta)
 
 
 ## This saucer, for the others
 func _send_state() -> void:
 	var ufo: Ufo = game.ufo
 	var state := [net.slot, ufo.position.x, ufo.position.y, ufo.position.z, ufo.rotation.y + ufo.hull_model.rotation.y,
-		ufo.beaming, ufo._aim.x, ufo._aim.z, game.ship, game.score, ufo.dead]
+		ufo.beaming, ufo._aim.x, ufo._aim.z, game.ship, game.score, ufo.dead, ufo.velocity.x, ufo.velocity.z]
 	_pass_on(K_STATE, var_to_bytes(state))
+
+
+
+## This player's police and army near the ship, for the others: [kind, x, z, turn] each, by id
+func _send_foes() -> void:
+	var list := [net.slot]
+	var here: Vector3 = game.ufo.ground()
+	for t: Thing in game.things:
+		if t.is_enemy() and t.state == "walk" and t.ground().distance_to(here) < FOES_REACH:
+			list.append([t.get_instance_id(), t.kind, t.position.x, t.position.y, t.position.z, t.heading])
+			if list.size() > 24:
+				break
+	_pass_on(K_FOES, var_to_bytes(list))
+
+
+## Another player's police and army as heard: each a model of it gliding to where it was, gone when
+## it is no longer about
+func _hear_foes(whose: int, list: Array) -> void:
+	if not foes.has(whose):
+		foes[whose] = {}
+	var mine: Dictionary = foes[whose]
+	var seen := {}
+	for i in range(1, list.size()):
+		var f: Array = list[i]
+		var id := int(f[0])
+		seen[id] = true
+		var at := Vector3(float(f[2]), float(f[3]), float(f[4]))
+		if not mine.has(id):
+			var kind := str(f[1])
+			if not Thing.KINDS.has(kind):
+				continue
+			var info: Dictionary = Thing.KINDS[kind]
+			var n := Ps1.model(info.get("model", kind), info.get("tints", {}))
+			n.position = at
+			game.view.add_child(n)
+			mine[id] = n
+		var node: Node3D = mine[id]
+		node.set_meta("to", at)
+		node.set_meta("turn", float(f[5]))
+	for id in mine.keys():
+		if not seen.has(id):
+			(mine[id] as Node).queue_free()
+			mine.erase(id)
+
+
+func _glide_foes(delta: float) -> void:
+	var k := 1.0 - exp(-8.0 * delta)
+	for whose in foes:
+		for id in foes[whose]:
+			var n: Node3D = foes[whose][id]
+			n.position = n.position.lerp(n.get_meta("to", n.position), k)
+			n.rotation.y = lerp_angle(n.rotation.y, float(n.get_meta("turn", 0.0)), k)
 
 
 ## Something that happened here, for the others: "take" (a kind, where), "circle" (where, how
@@ -88,16 +153,29 @@ func _on_packet(_from: int, kind: int, data: PackedByteArray) -> void:
 			if said.size() < 5:
 				return
 			game.coop_event(str(said[1]), said[2], str(said[3]), float(said[4]))
+		K_FOES:
+			_hear_foes(whose, said)
 
 
 func _on_left(slot: int) -> void:
 	if others.has(slot):
 		(others[slot] as Node).queue_free()
 		others.erase(slot)
+	_drop_foes(slot)
 
 
-## The run over (or never begun): the other saucers gone
+## The run over (or never begun): the other saucers, and their police and army, gone
 func clear() -> void:
 	for slot in others:
 		(others[slot] as Node).queue_free()
 	others.clear()
+	for whose in foes.keys():
+		_drop_foes(whose)
+
+
+func _drop_foes(whose: int) -> void:
+	if not foes.has(whose):
+		return
+	for id in foes[whose]:
+		(foes[whose][id] as Node).queue_free()
+	foes.erase(whose)

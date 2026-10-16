@@ -122,19 +122,22 @@ const SPAWN_A_FRAME := 6
 ## What traders sell, one pod each: three of these are set out in front of each trader
 const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "fleet"]
 const UPGRADES := {
-	"engine": {"title": "ENGINE", "about": "+12% speed", "price": 300, "colour": Color(1.0, 0.55, 0.15)},
-	"beam": {"title": "BEAM", "about": "lifts faster, and stronger: one more kind of thing it can take", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
-	"shield": {"title": "SHIELD", "about": "+25 shield, and patched up", "price": 300, "colour": Color(0.3, 0.6, 1.0)},
+	"engine": {"title": "ENGINE", "about": "+7% speed", "price": 300, "colour": Color(1.0, 0.55, 0.15)},
+	"beam": {"title": "BEAM", "about": "lifts faster; and every second level, stronger: one more kind of thing it can take", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
+	"shield": {"title": "SHIELD", "about": "+15 shield, and patched up", "price": 300, "colour": Color(0.3, 0.6, 1.0)},
 	"patch": {"title": "PATCH", "about": "the shield filled up again", "price": 0, "colour": Color(0.4, 1.0, 1.0)},
 	"dash": {"title": "DASH", "about": "recharges faster, and leaves two more afterimages", "price": 250, "colour": Color(0.75, 0.4, 1.0)},
 	"laser": {"title": "LASER", "about": "a cutting beam: switch the beam over to it and fire it where you aim, at the police and army, cars and oil drums; hotter each level", "price": 500, "colour": Color(1.0, 0.3, 0.45)},
 	"turret": {"title": "AUTO TURRET", "about": "fires by itself: shoots down shells and missiles, then jets, then the police and army; quicker and further each level", "price": 500, "colour": Color(1.0, 0.5, 0.3)},
 	"fleet": {"title": "FLEET", "about": "one more little saucer that beams up small things nearby, and gets in the way of shots", "price": 450, "colour": Color(1.0, 0.9, 0.3)},
 }
-const MAX_UPGRADE := 4
+## Upgrades are items that stack, as in Risk of Rain: each pick one more of it, up to this many
+const MAX_UPGRADE := 10
+## The most little saucers the fleet stacks to (more stacks after that make them keener, see Drone)
+const FLEET_MOST := 6
 ## The defence laser (see `_laser`): how far it reaches before upgrades (+2 m a level), and the hits
 ## that blow each of the police and army up (one less is only a moment's stun)
-const LASER_REACH := 9.0
+const LASER_REACH := 7.0
 const LASER_HITS := {"police_car": 2, "patrol_car": 2, "jeep": 3, "patrol_jeep": 3, "tank": 5, "helicopter": 4, "chinook": 6, "agent_car": 3}
 var _laser_wait := 0.0
 ## The mini fleet: a little saucer for each level of FLEET (see Drone)
@@ -173,6 +176,7 @@ var coop_seed := 0
 var levels_on := true
 ## Where the moon is in the sky in a run (see _camera)
 var _moon_dir := Vector3.ZERO
+var _sky_hung := false
 const DESKTOP_HUD := 0.78
 var score_label: Label
 var mult_label: Label
@@ -197,6 +201,7 @@ var _typing := 0.0
 var stars: Control
 var shield_bar: Control
 var heat_note: Label
+var item_bar: Control
 var heat_note_time := 0.0
 var title_box: Control
 var over_box: Control
@@ -207,6 +212,8 @@ var _over_typing := 0.0
 var _wreck_ship: Ufo
 ## Going home from a wreck: out into space, then straight to the pilot lounging on the moon
 var _from_wreck := false
+## Coming down onto the moon after a crash, 1 high over it to 0 there (see _moon_camera)
+var _moon_drop := 0.0
 const RESULTS_SPEED := 45.0
 var over_label: Label
 ## The title screen's parts, laid out for the screen's shape (`_layout_title`)
@@ -386,6 +393,10 @@ func _build_view() -> void:
 	sky_mat.shader = load("res://shaders/sky.gdshader")
 	sky.sky_material = sky_mat
 	_sky_mat = sky_mat
+	_sky_mat.set_shader_parameter("moon_map", load("res://textures/moon_lroc.jpg"))
+	var named := Constellations.directions()
+	named.resize(64)
+	_sky_mat.set_shader_parameter("named", named)
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.32, 0.4, 0.62)
@@ -460,6 +471,7 @@ func start(from_launch := false) -> void:
 	_rival_wait = 50.0
 	coop.clear()
 	_run_taken.clear()
+	_sky_hung = false
 	laser_mode = false
 	_five_for = 0.0
 	_nuke_wait = 0.0
@@ -1072,10 +1084,11 @@ func trader_fled(s: Shop) -> void:
 ## laser under it and the fleet round it
 func _apply_upgrades() -> void:
 	var spec: Dictionary = Ufo.SHIPS[ship]
-	ufo.speed = float(spec["speed"]) * (1.0 + 0.12 * upgrades["engine"])
-	ufo.lift_rate = float(spec["lift"]) * (1.0 + 0.2 * upgrades["beam"])
-	ufo.tier = mini(int(spec["tier"]) + int(upgrades["beam"]), 4)
-	ufo.hull_max = float(spec["hull"]) + 25.0 * upgrades["shield"]
+	# (each a little at first: a level of anything is felt, and the fourth makes it strong)
+	ufo.speed = float(spec["speed"]) * (1.0 + 0.07 * upgrades["engine"])
+	ufo.lift_rate = float(spec["lift"]) * (1.0 + 0.12 * upgrades["beam"])
+	ufo.tier = mini(int(spec["tier"]) + int(upgrades["beam"]) / 2, 4)
+	ufo.hull_max = float(spec["hull"]) + 15.0 * upgrades["shield"]
 	ufo.dash_level = upgrades["dash"]
 	if upgrades["turret"] > 0:
 		ufo.arm_laser()
@@ -1123,7 +1136,7 @@ func _level_up() -> void:
 	_picker_title.text = "LEVEL %d" % level
 	for what: String in offers:
 		var spec: Dictionary = UPGRADES[what]
-		var heading := "%s" % spec["title"] if what == "patch" else "%s %d" % [spec["title"], upgrades[what] + 1]
+		var heading := "%s" % spec["title"] if what == "patch" else "%s  x%d" % [spec["title"], upgrades[what] + 1]
 		var b := _button("%s\n%s" % [heading, spec["about"]], func() -> void: _pick(what))
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.custom_minimum_size = Vector2(640, 120)
@@ -1152,9 +1165,9 @@ func buy(what: String) -> bool:
 		return false
 	upgrades[what] += 1
 	_apply_upgrades()
-	log_line("%s UPGRADED TO %d" % [UPGRADES[what]["title"], upgrades[what]], 0)
+	log_line("%s x%d" % [UPGRADES[what]["title"], upgrades[what]], 0)
 	if what == "shield":
-		ufo.hull = minf(ufo.hull + 25.0, ufo.hull_max)
+		ufo.hull = minf(ufo.hull + 15.0, ufo.hull_max)
 	if what == "turret" and upgrades[what] == 1:
 		_banner("AUTO TURRET ARMED: IT FIRES BY ITSELF", 2.5)
 	elif what == "laser" and upgrades[what] == 1:
@@ -1251,9 +1264,12 @@ func _laser_hit(t: Thing, at: Vector3) -> void:
 	t.reload = maxf(t.reload, 0.0) + 2.0
 	t.burst = 0
 	Ps1.flash(t.model, Color(1.2, 0.15, 0.2))
+	# (held weakly: it may be blown up before the flash is over)
+	var held: WeakRef = weakref(t)
 	create_tween().tween_callback(func() -> void:
-		if is_instance_valid(t):
-			Ps1.flash(t.model, Color.BLACK)).set_delay(0.2)
+		var still: Thing = held.get_ref()
+		if still != null:
+			Ps1.flash(still.model, Color.BLACK)).set_delay(0.2)
 
 
 # ------------------------------------------------------------------ the ship's own laser
@@ -1316,7 +1332,7 @@ func _cut(delta: float, firing: bool) -> void:
 	_cut_wait -= delta
 	if _cut_wait > 0.0:
 		return
-	_cut_wait = 0.32 - 0.05 * upgrades["laser"]
+	_cut_wait = maxf(0.55 - 0.07 * upgrades["laser"], 0.15)
 	sfx.play("zap", randf_range(0.9, 1.1), -10.0)
 	for t in things.duplicate():
 		if t.state != "walk" or t.hiding:
@@ -1332,7 +1348,7 @@ func _cut(delta: float, firing: bool) -> void:
 
 ## Seconds between the laser's shots, at its level
 func laser_reload() -> float:
-	return 3.6 - 0.5 * upgrades["turret"]
+	return maxf(4.6 - 0.6 * upgrades["turret"], 0.9)
 
 
 ## A bolt of the laser from `from` to `to`: a white-hot core in a pink glow, there and gone, and a
@@ -1385,7 +1401,7 @@ func _fleet(delta: float) -> void:
 
 ## One little saucer for each level of FLEET, out of the ship
 func _build_fleet() -> void:
-	while fleet.size() < int(upgrades["fleet"]):
+	while fleet.size() < mini(int(upgrades["fleet"]), FLEET_MOST):
 		var d := Drone.new()
 		view.add_child(d)
 		d.setup(self, fleet.size(), ufo.position + Vector3(0, -1.0, 0))
@@ -2013,6 +2029,7 @@ func abducted(t: Thing) -> void:
 		return
 	ufo.gulp(t.size() * t.base_size * 0.7)
 	_score_pop = 1.0
+	coin.last_kind = t.kind
 	# (everything taken mends the shield a little, the heavier the more: a chicken a point, a barn a few)
 	ufo.hull = minf(ufo.hull + 1.0 + float(t.info["weight"]) * 0.5, ufo.hull_max)
 	(_sparks as ScoreSparks).burst(score_label.position + Vector2(score_label.size.x - 40.0, score_label.size.y * 0.5), 14)
@@ -2125,6 +2142,9 @@ func fire(from: Thing, gun: String, target: Ufo) -> void:
 		"pistol":
 			_shot("bullet", muzzle, lead + Vector3(randf_range(-1.5, 1.5), 0, randf_range(-1.5, 1.5)))
 			sfx.play("pop", 1.0, _near_db(from))
+		"ray":
+			_shot("ray", muzzle, lead + Vector3(randf_range(-1.2, 1.2), 0, randf_range(-1.2, 1.2)))
+			sfx.play("zap", 1.5, _near_db(from))
 		"mg":
 			_shot("tracer", muzzle, lead + Vector3(randf_range(-1.8, 1.8), randf_range(-0.5, 0.5), randf_range(-1.8, 1.8)))
 			sfx.play("rat", 1.0, _near_db(from) - 4.0)
@@ -2274,9 +2294,28 @@ func _wreck_burning(delta: float) -> void:
 				sfx.play("click", 1.6, -16.0)
 		_again.visible = over_label.visible_characters >= over_label.text.length()
 
-## A line for the log under the score: typed out a letter at a time (`points` after it, if any), a
-## little hologram of the `kind` of thing before it
+
+
+## Lines for the log waiting their turn (see _type_log): [text, points, kind, how many]
+var _log_queue: Array = []
+
+
+## A line for the log under the score, queued: each is typed out in turn, after the one before it,
+## so none is lost when many come at once; the same thing taken again while it waits is folded into
+## it ("EAR STALK x3")
 func log_line(text: String, points: int, kind := "") -> void:
+	if not _log_queue.is_empty():
+		var last: Array = _log_queue[-1]
+		if last[0] == text and last[2] == kind:
+			last[1] += points
+			last[3] += 1
+			return
+	_log_queue.append([text, points, kind, 1])
+
+
+## The line put up: typed out a letter at a time (`points` after it, if any), a little hologram of
+## the `kind` of thing before it
+func _log_now(text: String, points: int, kind := "") -> void:
 	var line := _label(27, Color(0.55, 1.0, 0.62))
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var tail := ""
@@ -2302,9 +2341,16 @@ func log_line(text: String, points: int, kind := "") -> void:
 ## Types the newest lines out a letter at a time, with a ticking key, and fades the old ones
 func _type_log(delta: float) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
+	# (the next line waiting goes up once the newest is typed out)
+	var count := log_box.get_child_count()
+	var newest: Label = log_box.get_child(count - 1) if count > 0 else null
+	if not _log_queue.is_empty() and (newest == null or newest.visible_characters < 0 or newest.visible_characters >= newest.text.length()):
+		var next: Array = _log_queue.pop_front()
+		_log_now(next[0] if int(next[3]) == 1 else "%s x%d" % [next[0], next[3]], next[1], next[2])
 	for line: Label in log_box.get_children():
 		if line.visible_characters >= 0 and line.visible_characters < line.text.length():
-			_typing += delta * LOG_SPEED
+			# (typed quicker the more lines are waiting behind it)
+			_typing += delta * LOG_SPEED * (1.0 + 0.6 * _log_queue.size())
 			var more := int(_typing)
 			_typing -= more
 			line.visible_characters = mini(line.visible_characters + more, line.text.length())
@@ -2362,10 +2408,12 @@ func _pilot(delta: float) -> Array:
 
 # ------------------------------------------------------------------ effects
 
+## An explosion at `at`, about `size` across (see Boom: a cartoon one, as in The Wind Waker)
 func boom(at: Vector3, size: float) -> void:
-	for i in 3:
-		var c := [Color(1.0, 0.9, 0.5), Color(1.0, 0.5, 0.15), Color(0.35, 0.33, 0.32)][i] as Color
-		_blob(at + Vector3(randf_range(-0.3, 0.3), i * 0.3, randf_range(-0.3, 0.3)), c, size * (0.6 + i * 0.35), 0.35 + i * 0.25)
+	var b := Boom.new()
+	b.size = size * 0.8
+	b.position = at
+	view.add_child(b)
 
 
 func puff(at: Vector3, c: Color, size: float) -> void:
@@ -2440,6 +2488,14 @@ func _moon_camera(delta: float) -> void:
 	# the title above and the buttons below, on a phone or a wide screen alike)
 	var at := site + Vector3(0.13, 2.0, 2.31)
 	var look := site + Vector3(6.15, 2.0, -5.68)
+	if _moon_drop > 0.0:
+		# (lowering onto the moon after a crash: from high over it down to the title's picture)
+		_moon_drop = maxf(_moon_drop - delta / 2.6, 0.0)
+		var up := ease(_moon_drop, 2.2) * 60.0
+		at += Vector3.UP * up
+		look += Vector3.UP * up * 0.75
+		if _moon_drop <= 0.0 and mode == "title":
+			title_box.visible = true
 	var focus := Vector3(site.x + 1.0, 0.0, site.z)
 	if (mode == "launch" or mode == "landing") and _launch_t > LIFT - 0.2:
 		# (rising with the ship from the title's picture of it and swinging round it, not across it,
@@ -2949,6 +3005,10 @@ func _camera(delta: float) -> void:
 	var want := camera.project_ray_normal(Vector2(v.x * (0.62 if _upright() else 0.7), v.y * (0.1 if _upright() else 0.16)))
 	_moon_dir = _moon_dir.slerp(want, minf(delta * 2.0, 1.0)) if _moon_dir != Vector3.ZERO else want
 	_sky_mat.set_shader_parameter("moon_dir", _moon_dir)
+	# (the constellations hung where this camera shows them, once a run)
+	if not _sky_hung:
+		_sky_hung = true
+		_sky_mat.set_shader_parameter("named", Constellations.for_camera(camera))
 	camera.environment.fog_density = 0.006
 	camera.fov = _fov()
 	var goal := focus + _camera_offset()
@@ -3055,12 +3115,20 @@ func _build_hud() -> void:
 	stars.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(stars)
 
+	# (the items had, small, in a row just under the stars: see ItemBar)
+	item_bar = ItemBar.new()
+	item_bar.main = self
+	item_bar.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	item_bar.position = Vector2(-260, 80)
+	item_bar.size = Vector2(520, 34)
+	item_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(item_bar)
 	# (the heat's news, just under the stars: the farmers armed, the police coming, spotted...)
 	heat_note = _label(28, Color(1.0, 0.6, 0.4))
 	heat_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heat_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	heat_note.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	heat_note.position = Vector2(-260, 80)
+	heat_note.position = Vector2(-260, 118)
 	heat_note.size = Vector2(520, 40)
 	_glow(heat_note, Color(1.0, 0.4, 0.2, 0.45))
 	root.add_child(heat_note)
@@ -3382,6 +3450,9 @@ func _going_home(delta: float) -> void:
 		# (no landing after a crash: a new ship already down on the moon, the pilot in the chair)
 		_from_wreck = false
 		_show_title()
+		# (come down onto it from high over it, the moon rising into the bottom of the picture)
+		_moon_drop = 1.0
+		title_box.visible = false
 		_save_best()
 		return
 	ufo.queue_free()
@@ -3512,6 +3583,8 @@ func _hud(delta: float) -> void:
 	log_box.visible = playing
 	_type_log(delta)
 	stars.visible = playing
+	item_bar.visible = playing
+	item_bar.queue_redraw()
 	_layout_touch()
 	shield_bar.visible = playing
 	radar.visible = playing
@@ -3924,51 +3997,96 @@ class Radar extends Control:
 		draw_arc(c, r, 0, TAU, 40, Color(0.6, 1.0, 0.7, 0.7), 2.0)
 
 
-## The level orb, left of the cash: a glass ball filling with little balls as the score climbs toward
-## the next level-up, one ball at a time from the bottom (the level it is working toward faint in the
-## glass), the same size as the shield's. Five quick
-## taps on it turn the touch readout on (see _input)
+## The level orb, left of the cash, the same size as the shield's glass: it fills toward the next
+## level-up with little hologram icons of what was taken, each dropping in from the top and
+## tumbling down to settle on the others (round bodies under gravity, kept inside the glass and off
+## each other); at a level-up they all fly out and it starts again. The level it is working toward
+## shows faint behind them. Five quick taps on it turn the touch readout on (see _input).
 class Coin extends Control:
-	const BALLS := 30
+	const ICONS := 30
 	## (the same size as the shield's glass: 52 across scaled 1.4)
 	const R := 64.0
-	const BALL := 8.5
+	const BODY := 9.0
+	const GRAVITY := 600.0
 	var font: Font
 	var main: Node
-	## Where each ball sits in the glass, the lowest first
-	var _slots: Array[Vector2] = []
-	var _shown := 0.0
+	## The kind of thing most lately taken (its icon is the next to drop in)
+	var last_kind := "cow"
+	## Each icon: [where (from the middle), velocity, its picture, spin]
+	var _icons: Array = []
+	var _level := 0
+	var _out := 0.0
 
-	func _ready() -> void:
-		var step := BALL * 2.05
-		var row := 0
-		var y := R - BALL - 1.0
-		while y > -R + BALL and _slots.size() < BALLS:
-			var half := sqrt(maxf((R - BALL - 1.0) ** 2 - y * y, 0.0))
-			var x := -half + fmod(row * step * 0.5, step)
-			while x <= half and _slots.size() < BALLS:
-				_slots.append(Vector2(x, y))
-				x += step
-			y -= step * 0.87
-			row += 1
-
-	func _draw() -> void:
-		var t := Time.get_ticks_msec() / 1000.0
-		var c := size * 0.5
+	func _process(delta: float) -> void:
+		if not visible:
+			return
 		var lv: int = main.level
 		var from: int = main.level_at(lv)
 		var to: int = main.level_at(lv + 1)
-		var fill := clampf(float(main.score - from) / maxf(to - from, 1), 0.0, 1.0)
-		_shown = lerpf(_shown, fill, 0.15)
+		var want := int(clampf(float(main.score - from) / maxf(to - from, 1), 0.0, 1.0) * ICONS)
+		if lv != _level:
+			# (a level-up: everything in the glass flies out, and it begins again)
+			_level = lv
+			for b: Array in _icons:
+				b[1] = Vector2(randf_range(-260, 260), randf_range(-520, -320))
+			_out = 0.8
+		if _out > 0.0:
+			_out -= delta
+			for b: Array in _icons:
+				b[1].y += GRAVITY * delta
+				b[0] += b[1] * delta
+			if _out <= 0.0:
+				_icons.clear()
+			queue_redraw()
+			return
+		# (one at a time, a moment apart, so each can be seen to drop)
+		if _icons.size() < want and (_icons.is_empty() or (_icons[-1][0] as Vector2).y > -R * 0.4):
+			_icons.append([Vector2(randf_range(-R * 0.3, R * 0.3), -R + BODY), Vector2(randf_range(-40, 40), 60), main.holograms.icon(last_kind), randf_range(-3, 3)])
+		elif _icons.size() > want:
+			_icons.clear()
+		# the bodies falling, rolling off each other, kept in the glass
+		for step in 2:
+			var dt := delta * 0.5
+			for b: Array in _icons:
+				b[1].y += GRAVITY * dt
+				b[1] *= 1.0 - minf(dt * 1.5, 1.0)
+				b[0] += b[1] * dt
+			for i in _icons.size():
+				var a: Array = _icons[i]
+				for j in range(i + 1, _icons.size()):
+					var b: Array = _icons[j]
+					var d: Vector2 = b[0] - a[0]
+					var gap := d.length()
+					if gap < BODY * 2.0 and gap > 0.01:
+						var push := d / gap * (BODY * 2.0 - gap) * 0.5
+						a[0] -= push
+						b[0] += push
+						var along: float = ((b[1] as Vector2) - (a[1] as Vector2)).dot(d / gap)
+						if along < 0.0:
+							a[1] += d / gap * along * 0.5
+							b[1] -= d / gap * along * 0.5
+				var p: Vector2 = a[0]
+				if p.length() > R - BODY:
+					var n := p.normalized()
+					a[0] = n * (R - BODY)
+					var into := (a[1] as Vector2).dot(n)
+					if into > 0.0:
+						a[1] -= n * into * 1.4
+		for b: Array in _icons:
+			b[3] *= 1.0 - minf(delta * 2.0, 1.0)
+		queue_redraw()
+
+	func _draw() -> void:
+		var c := size * 0.5
 		draw_circle(c, R + 8.0, Color(0.6, 1.0, 0.7, 0.18))
 		draw_circle(c, R, Color(0.02, 0.08, 0.04, 0.8))
-		# (the level it is working toward, faint in the glass behind the balls)
-		draw_string(font, Vector2(0, c.y + 10.0), "LV %d" % (lv + 1), HORIZONTAL_ALIGNMENT_CENTER, size.x, 30, Color(0.75, 1.0, 0.78, 0.45))
-		var n := int(_shown * BALLS + 0.001)
-		for i in mini(n, _slots.size()):
-			var s: Vector2 = _slots[i] + Vector2(0, sin(t * 3.0 + i * 1.3) * 0.6)
-			draw_circle(c + s, BALL, Color(1.0, 0.85, 0.3))
-			draw_circle(c + s + Vector2(-BALL * 0.3, -BALL * 0.3), BALL * 0.35, Color(1.0, 1.0, 0.85, 0.8))
+		draw_string(font, Vector2(0, c.y + 10.0), "LV %d" % (main.level + 1), HORIZONTAL_ALIGNMENT_CENTER, size.x, 30, Color(0.75, 1.0, 0.78, 0.45))
+		for b: Array in _icons:
+			var tex: Texture2D = b[2]
+			var side := BODY * 2.6
+			draw_set_transform(c + (b[0] as Vector2), float(b[3]), Vector2.ONE)
+			draw_texture_rect(tex, Rect2(-side * 0.5, -side * 0.5, side, side), false)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		draw_arc(c, R, 0, TAU, 56, Color(0.6, 1.0, 0.7, 0.9), 4.0)
 		draw_arc(c + Vector2(-R * 0.3, -R * 0.35), R * 0.45, PI * 1.05, PI * 1.45, 12, Color(1, 1, 1, 0.5), 4.0)
 
@@ -4124,3 +4242,30 @@ class LaserButton extends Control:
 		var bolt := PackedVector2Array([c + Vector2(-r * 0.15, -r * 0.55), c + Vector2(r * 0.25, -r * 0.55), c + Vector2(0, -r * 0.05),
 			c + Vector2(r * 0.3, -r * 0.05), c + Vector2(-r * 0.2, r * 0.6), c + Vector2(0, r * 0.1), c + Vector2(-r * 0.3, r * 0.1)])
 		draw_colored_polygon(bolt, Color(1.0, 0.4, 0.5) if on else Color(1.0, 0.6, 0.65, 0.6))
+
+
+## The items had, under the heat's stars: a little tile for each, in its colour with its mark, and
+## how many are stacked in its corner (from the second on)
+class ItemBar extends Control:
+	const MARKS := {"engine": "EN", "beam": "BM", "shield": "SH", "dash": "DS", "laser": "LZ", "turret": "AT", "fleet": "FL"}
+	const TILE := 30.0
+	var main: Node
+
+	func _draw() -> void:
+		var had: Array[String] = []
+		for what: String in MARKS:
+			if int(main.upgrades.get(what, 0)) > 0:
+				had.append(what)
+		var x := (size.x - had.size() * (TILE + 6.0) + 6.0) * 0.5
+		for what: String in had:
+			var colour: Color = main.UPGRADES[what]["colour"]
+			var box := Rect2(x, 0, TILE, TILE)
+			draw_rect(box, Color(0.02, 0.06, 0.04, 0.8))
+			draw_rect(box.grow(-3.0), colour * Color(1, 1, 1, 0.35))
+			draw_rect(box, colour, false, 2.0)
+			draw_string(main.font, Vector2(x, TILE * 0.68), MARKS[what], HORIZONTAL_ALIGNMENT_CENTER, TILE, 14, colour.lightened(0.4))
+			var n: int = main.upgrades[what]
+			if n > 1:
+				draw_string_outline(main.font, Vector2(x + TILE * 0.45, TILE + 2.0), "x%d" % n, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.9))
+				draw_string(main.font, Vector2(x + TILE * 0.45, TILE + 2.0), "x%d" % n, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1))
+			x += TILE + 6.0

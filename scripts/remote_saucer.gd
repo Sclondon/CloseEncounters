@@ -13,6 +13,10 @@ var _hull: Node3D
 var _tag: Label3D
 var _heard := false
 var _dead := false
+## How fast they were going when last heard, and when that was (to see them on from there between
+## what is heard of them, rather than stepping from one word to the next)
+var _vel := Vector3.ZERO
+var _heard_at := 0.0
 
 
 func _ready() -> void:
@@ -43,9 +47,12 @@ func _ready() -> void:
 	add_child(_tag)
 
 
-## What was heard of them: [seat, x, y, z, turn, beaming, aim x, aim z, ship, score, down]
+## What was heard of them: [seat, x, y, z, turn, beaming, aim x, aim z, ship, score, down, going x,
+## going z]
 func hear(state: Array) -> void:
 	_to = Vector3(float(state[1]), float(state[2]), float(state[3]))
+	_vel = Vector3(float(state[11]), 0.0, float(state[12])) if state.size() > 12 else Vector3.ZERO
+	_heard_at = Time.get_ticks_msec() / 1000.0
 	_turn = float(state[4])
 	if not _heard:
 		_heard = true
@@ -60,7 +67,9 @@ func hear(state: Array) -> void:
 
 
 func glide(delta: float) -> void:
-	position += (_to - position) * (1.0 - exp(-12.0 * delta))
+	# (where they will be by now, from where they were heard to be and how fast they were going)
+	var age := minf(Time.get_ticks_msec() / 1000.0 - _heard_at, 0.3)
+	position = position.lerp(_to + _vel * age, 1.0 - exp(-10.0 * delta))
 	_hull.rotation.y = lerp_angle(_hull.rotation.y, _turn, 1.0 - exp(-12.0 * delta))
 	if _dead:
 		_hull.rotation.z = lerpf(_hull.rotation.z, 0.5, delta * 2.0)

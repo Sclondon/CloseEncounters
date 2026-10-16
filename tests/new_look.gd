@@ -97,8 +97,8 @@ func _process(_delta: float) -> bool:
 			main.quit_to_menu()
 		805:
 			_shot("zoom_out_1")
-		850:
-			_shot("zoom_out_2")
+		850, 880, 910, 940:
+			_shot("zoom_out_%d" % frame)
 		1000:
 			_shot("back_home")
 		1010:

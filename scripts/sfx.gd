@@ -58,7 +58,18 @@ func _ready() -> void:
 			AudioServer.call("register_stream_as_sample", s)
 
 
+## The same sound no oftener than this (a beam over a field takes things many times a second, and
+## dozens of the same sound a second on top of each other only clog the audio, worst on the web)
+const MIN_GAP := 0.07
+const GAPS := {"click": 0.09}
+var _last := {}
+
+
 func play(sound: String, pitch := 1.0, volume_db := 0.0) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - float(_last.get(sound, -9.0)) < float(GAPS.get(sound, MIN_GAP)):
+		return
+	_last[sound] = now
 	var p := players[next]
 	next = (next + 1) % players.size()
 	p.stream = sounds[sound]

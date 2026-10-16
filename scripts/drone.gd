@@ -1,7 +1,7 @@
 class_name Drone
 extends Node3D
-## One of the mini fleet bought from the traders (see main.gd `_fleet`): a little saucer that keeps
-## station round the ship, and goes off by itself after the small things near it that nobody will
+## One of the mini fleet (see main.gd `_fleet`): a little saucer that flies in a flock with the ship,
+## and now and then goes off by itself after one of the small things near it that nobody will
 ## miss (animals, hay, bushes: a light thing that draws hardly any heat), beams one up with a little
 ## beam of its own and brings it home for the score. It stands in the way of shots, too: anything
 ## fired that meets it stops there, and the police and army sometimes take it for the ship and aim
@@ -12,7 +12,11 @@ extends Node3D
 const HEIGHT := 3.6
 const REACH := 13.0
 ## How fast it flies, and how much slower than the ship its beam lifts
-const SPEED := 15.0
+const SPEED := 8.0
+## How fast it can change its way (m/s each second), and how long on average between its going
+## off after something, at one stack (see `tick`)
+const TURN := 18.0
+const PROC_EVERY := 10.0
 const LIFT := 0.55
 ## The heaviest and the hottest thing it will take
 const MOST_WEIGHT := 1.8
@@ -37,6 +41,8 @@ var _beam_mat: ShaderMaterial
 var _lift := 0.0
 var _t := 0.0
 var _fall_v := 0.0
+var _velocity := Vector3.ZERO
+var _proc := 3.0
 
 
 func setup(g: Node, i: int, at: Vector3) -> void:
@@ -81,23 +87,46 @@ func tick(delta: float, ufo: Ufo) -> void:
 	if target != null and not lifting and (target.state != "walk" or target.ground().distance_to(ufo.ground()) > REACH + 4.0):
 		_let_go()
 	if target == null and not ufo.dead and not ufo.beaming:
-		target = _look(ufo)
-	var goal: Vector3
+		# (now and then, not always: the more of the fleet's stacks, the oftener)
+		_proc -= delta
+		if _proc <= 0.0:
+			_proc = randf_range(0.7, 1.3) * PROC_EVERY / (0.6 + 0.4 * float(game.upgrades.get("fleet", 1)))
+			target = _look(ufo)
+	# (left far behind, by a dash or the like: back beside the ship, out of sight as it was)
+	if position.distance_to(ufo.position) > REACH * 4.0:
+		position = ufo.position + Vector3(randf_range(-3, 3), -1.2, randf_range(-3, 3))
+		_velocity = ufo.velocity
+	var want: Vector3
+	# (quicker the further it is from the ship, to keep up with it)
+	var top := SPEED + maxf(position.distance_to(ufo.position) - REACH, 0.0) * 1.5
 	if target != null:
-		goal = target.ground() + Vector3(0, HEIGHT, 0)
+		var to := target.ground() + Vector3(0, HEIGHT, 0) - position
+		want = to.normalized() * top * clampf(to.length() / 3.0, 0.15, 1.0)
 	else:
-		# (in station round the ship, going slowly round it, a little under it)
-		var a := _t * 0.8 + slot * TAU / float(of)
-		var out := ufo.radius + 2.2
-		goal = ufo.position + Vector3(cos(a) * out, -1.2 + sin(_t * 2.3 + slot) * 0.25, sin(a) * out)
-	var step := goal - position
-	# (faster the further it has to go, so it never falls far behind the ship)
-	position += step.limit_length((SPEED + step.length() * 2.0) * delta) if step.length() > 1.0 else step * minf(delta * 5.0, 1.0)
+		# Flocking with the ship: toward a place round it (a little behind and under), away from the
+		# rest of the fleet near it, and going the way the ship goes
+		var a := slot * TAU / float(of) + sin(_t * 0.4 + slot) * 0.4
+		var out := ufo.radius + 2.6
+		var home := ufo.position + Vector3(cos(a) * out, -1.2 + sin(_t * 1.7 + slot) * 0.3, sin(a) * out) - ufo.velocity * 0.25
+		var cohesion := home - position
+		var apart := Vector3.ZERO
+		for other: Drone in game.fleet:
+			if other != self and other.is_up():
+				var off := position - other.position
+				if off.length() < 2.5 and off.length() > 0.01:
+					apart += off.normalized() * (2.5 - off.length())
+		top = maxf(top, ufo.velocity.length() * 1.15)
+		want = cohesion * 1.6 + apart * 2.0 + ufo.velocity * 0.8
+		want = want.limit_length(top)
+	# (it turns and speeds up only so fast: a flock, not a swarm of flies)
+	_velocity = _velocity.move_toward(want, delta * TURN)
+	position += _velocity * delta
+	var step := _velocity * 0.2
 	hull.rotation.y += delta * (3.0 if lifting else 1.2)
 	hull.rotation.z = lerpf(hull.rotation.z, clampf(-step.x * 0.05, -0.4, 0.4), minf(delta * 4.0, 1.0))
 	hull.rotation.x = lerpf(hull.rotation.x, clampf(step.z * 0.05, -0.4, 0.4), minf(delta * 4.0, 1.0))
 	Ps1.flash(hull, Color(0.25, 0.5, 0.1) * (0.5 + 0.5 * sin(_t * 18.0)) if lifting else Color.BLACK)
-	if target != null and Vector2(step.x, step.z).length() < 0.5:
+	if target != null and Vector2(target.ground().x - position.x, target.ground().z - position.z).length() < 0.6:
 		_beam_up(delta)
 	else:
 		beam.visible = false
@@ -207,4 +236,4 @@ func _falling(delta: float, ufo: Ufo) -> void:
 ## How strong the fleet is, by its level: 0.6 at the first (slow to lift, near the ship), the full of
 ## it by the fourth
 func _strength() -> float:
-	return 0.47 + 0.13 * float(game.upgrades.get("fleet", 1))
+	return 0.34 + 0.165 * float(game.upgrades.get("fleet", 1))

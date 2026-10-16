@@ -169,17 +169,22 @@ func _dress_title() -> void:
 	_cap.scale = Vector3.ONE * 2.6
 	_cap.position = BEER_AT + Vector3(0.35, 0.75, 0.2)
 	add_child(_cap)
+	# (blown away at lift-off with the cooler and the radio, and back for the title: see blast, tidy)
+	for prop: Node3D in [_beer, _cap]:
+		_props.append(prop)
+		_homes.append(prop.transform)
 
 
 ## The radio bouncing to the beat with rings of sound off it, the beer and its cap drifting; while
 ## the title is up (not while the lift-off has them flying)
 func _play(delta: float) -> void:
 	_t += delta
-	_beer.position = BEER_AT + Vector3(0, sin(_t * 0.9) * 0.12, 0)
-	_beer.rotation.z = -0.6 + sin(_t * 0.6) * 0.15
-	_beer.rotation.y += delta * 0.25
-	_cap.position = BEER_AT + Vector3(0.35, 0.75 + sin(_t * 1.3 + 1.0) * 0.1, 0.2)
-	_cap.rotation += Vector3(0.7, 1.1, 0.4) * delta
+	if _flying.is_empty():
+		_beer.position = BEER_AT + Vector3(0, sin(_t * 0.9) * 0.12, 0)
+		_beer.rotation.z = -0.6 + sin(_t * 0.6) * 0.15
+		_beer.rotation.y += delta * 0.25
+		_cap.position = BEER_AT + Vector3(0.35, 0.75 + sin(_t * 1.3 + 1.0) * 0.1, 0.2)
+		_cap.rotation += Vector3(0.7, 1.1, 0.4) * delta
 	var radio := _props[1]
 	var playing := _flying.is_empty() and radio.visible
 	if playing:

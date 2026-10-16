@@ -6,6 +6,9 @@ uniform vec3 top : source_color = vec3(0.01, 0.015, 0.06);
 uniform vec3 low : source_color = vec3(0.1, 0.14, 0.26);
 // (low over the horizon ahead, where the camera's picture of the sky always reaches)
 uniform vec3 moon_dir = vec3(0.3, 0.17, -0.94);
+uniform sampler2D moon_map : source_color, filter_linear_mipmap;
+// Real constellations' stars (see scripts/constellations.gd): a direction and a brightness each
+uniform vec4 named[64];
 // 1 = out in space (the start of a run): stars all the way round, no haze
 uniform float space = 0.0;
 
@@ -38,7 +41,9 @@ void sky() {
 	vec3 d = EYEDIR;
 	float up = clamp(d.y, -0.2, 1.0);
 	vec3 c = mix(mix(low, top, smoothstep(-0.05, 0.6, up)), top * 0.4, space);
-	float above = mix(smoothstep(0.0, 0.25, up), 1.0, space);
+	// (from a little under the true horizon up: the world curves away, and the sky the camera sees
+	// over it is that low)
+	float above = mix(smoothstep(-0.5, -0.25, up), 1.0, space);
 	// The Milky Way: a soft band across the sky, mottled
 	vec3 band_axis = normalize(vec3(0.5, 0.35, 0.8));
 	float band = exp(-pow(dot(d, band_axis) * 4.0, 2.0));
@@ -46,15 +51,35 @@ void sky() {
 	c += vec3(0.12, 0.13, 0.2) * band * mottle * above;
 	float s = stars(d, 90.0, 0.08, 0.16) * 1.4 + stars(d, 180.0, 0.12, 0.2) * 0.8 + stars(d, 300.0, 0.25 + band * 0.4, 0.22) * 0.5;
 	c += vec3(0.95, 0.97, 1.0) * s * above;
+	// the constellations' stars, brighter and a little bigger than the rest, each with a glow: only
+	// in the night sky over the world (not out in space), and the costly part only near a star
+	if (space < 0.5 && above > 0.0) {
+		for (int i = 0; i < 64; i++) {
+			vec4 st = named[i];
+			// (the stars are packed first: the first empty one is the end of them)
+			if (st.w <= 0.0) break;
+			float t2 = 2.0 * (1.0 - dot(d, st.xyz));
+			float r = 0.0045 * (0.6 + st.w);
+			float rr = r * r;
+			if (t2 > rr * 30.0) continue;
+			float twinkle = 0.85 + 0.15 * sin(TIME * (2.0 + float(i) * 0.37) + float(i));
+			c += vec3(0.95, 0.97, 1.0) * (smoothstep(rr, 0.0, t2) * 1.6 + exp(-t2 / (rr * 9.0)) * 0.35) * st.w * twinkle * above;
+		}
+	}
 	float m = dot(d, normalize(moon_dir));
-	// the moon: a big pale disc with darker seas, and a glow round it
+	// the moon: NASA's map of it (textures/moon_lroc.jpg, LRO, public domain) wrapped on a ball
+	// facing us, the near side to us, a little gibbous, darker toward its edge; and a glow round it
 	if (m > 0.9988) {
 		vec3 md = normalize(moon_dir);
 		vec3 side = normalize(cross(md, vec3(0.0, 1.0, 0.0)));
 		vec3 rise = cross(side, md);
 		vec2 q = vec2(dot(d, side), dot(d, rise)) / 0.049;
-		float seas = smoothstep(0.45, 0.7, noise(q * 4.0 + 3.0)) * 0.35 + smoothstep(0.6, 0.8, noise(q * 9.0)) * 0.15;
-		vec3 face = vec3(1.0, 0.97, 0.86) * (1.0 - seas) * (0.85 + 0.15 * (1.0 - length(q)));
+		float r2 = dot(q, q);
+		vec3 n = vec3(q.x, q.y, sqrt(max(1.0 - r2, 0.0)));
+		vec2 uv = vec2(0.5 + atan(n.x, n.z) / 6.2832, 0.5 - asin(clamp(n.y, -1.0, 1.0)) / 3.1416);
+		vec3 ground = texture(moon_map, uv).rgb;
+		float lit = clamp(dot(n, normalize(vec3(0.55, 0.2, 0.8))) * 1.15 + 0.12, 0.05, 1.0);
+		vec3 face = ground * 1.25 * lit * vec3(1.0, 0.98, 0.93);
 		c = mix(c, face, smoothstep(0.9988, 0.9990, m));
 	}
 	c += vec3(0.25, 0.3, 0.4) * pow(max(m, 0.0), 80.0) * 0.5;

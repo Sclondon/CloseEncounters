@@ -136,7 +136,7 @@ const KINDS := {
 	"officer": {"model": "person", "tints": {"shirt": Color(0.15, 0.25, 0.55)}, "points": 150, "weight": 1.3, "heat": 0.5, "move": "guard", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "pistol", "enemy": true, "crew": true},
 	# The men in black: a black sedan at three stars, agents in black suits getting out of it
 	"agent_car": {"model": "car", "tints": {"paint": Color(0.06, 0.06, 0.08)}, "points": 500, "weight": 3.0, "heat": 0.7, "move": "police", "speed": 8.0, "size": 2.2, "keep": 11.0, "enemy": true, "police": true, "crew_kind": "agent"},
-	"agent": {"model": "person", "tints": {"shirt": Color(0.05, 0.05, 0.06), "denim": Color(0.05, 0.05, 0.06)}, "points": 250, "weight": 1.3, "heat": 0.6, "move": "guard", "speed": 3.8, "size": 0.7, "voice": "scream", "gun": "pistol", "enemy": true, "crew": true},
+	"agent": {"model": "person", "tints": {"shirt": Color(0.05, 0.05, 0.06), "denim": Color(0.05, 0.05, 0.06)}, "points": 250, "weight": 1.3, "heat": 0.6, "move": "guard", "speed": 3.8, "size": 0.7, "voice": "scream", "gun": "ray", "enemy": true, "crew": true},
 	# Over you at three stars and up, circling with a searchlight on you (it cannot be reached)
 	"rival": {"title": "RIVAL SAUCER", "model": "ufo", "tints": {"metal": Color(0.5, 0.18, 0.55), "metal_dark": Color(0.25, 0.08, 0.3), "lights": Color(1.0, 0.3, 0.85), "lights_under": Color(1.0, 0.4, 0.9)}, "points": 0, "weight": 99.0, "heat": 0.0, "move": "rival", "speed": 8.5, "size": 4.2, "tier": 99},
 	"helicopter": {"points": 900, "weight": 6.0, "heat": 0.5, "move": "hover", "speed": 9.0, "size": 2.6, "tier": 4, "enemy": true, "searchlight": true, "light_y": -0.4},
@@ -149,6 +149,8 @@ const KINDS := {
 const GUNS := {
 	"shotgun": {"range": 15.0, "reload": 2.6},
 	"pistol": {"range": 20.0, "reload": 1.3},
+	# (the men in black's: a ray gun, a glowing green bolt)
+	"ray": {"range": 24.0, "reload": 1.6},
 	"mg": {"range": 24.0, "reload": 4.5},
 	"cannon": {"range": 30.0, "reload": 4.5},
 }
@@ -951,6 +953,11 @@ func _beacon() -> void:
 
 func _arm_gun() -> void:
 	if gun_node != null:
+		return
+	if info.get("gun", "") == "ray":
+		# (a silver ray gun, its tip glowing green)
+		gun_node = Ps1.part(model, BoxMesh.new(), Ps1.mat(Color(0.75, 0.78, 0.82)), Vector3(0.27, 0.72, 0.2), Vector3(0.08, 0.08, 0.4), Vector3(-0.7, 0, 0))
+		Ps1.part(gun_node, Ps1.ball(), Ps1.own(Color(0.3, 1.0, 0.5), 2.0), Vector3(0, 0, 0.6), Vector3(1.2, 1.2, 0.3))
 		return
 	gun_node = Ps1.part(model, BoxMesh.new(), Ps1.mat(Color(0.15, 0.12, 0.1)), Vector3(0.27, 0.72, 0.25), Vector3(0.05, 0.05, 0.6), Vector3(-0.7, 0, 0))
 

@@ -72,7 +72,8 @@ func _process(_delta: float) -> bool:
 				var tier: int = main.ufo.tier
 				var score: int = main.score
 				main.buy("beam")
-				_check(main.ufo.tier == mini(tier + 1, 4) and main.score == score, "a BEAM upgrade makes the beam stronger (tier %d to %d), and costs nothing" % [tier, main.ufo.tier])
+				main.buy("beam")
+				_check(main.ufo.tier == mini(tier + 1, 4) and main.score == score, "two BEAM upgrades make the beam stronger (tier %d to %d), and cost nothing" % [tier, main.ufo.tier])
 				var levels: int = main.level
 				main.score = main.level_at(main.level + 2)
 				main._levels()
@@ -166,8 +167,8 @@ func _process(_delta: float) -> bool:
 				_check((not is_instance_valid(shell) or shell.done) and main.ufo.since_hit > 0.15, "the laser shoots a shell down before it hits")
 				for i in 3:
 					main.buy("turret")
-				_check(main.upgrades["turret"] == 4 and not main.buy("turret") and is_equal_approx(main.laser_reload(), 1.6),
-					"the laser goes up to level 4, firing every %.1f s" % main.laser_reload())
+				_check(main.upgrades["turret"] >= 4 and is_equal_approx(main.laser_reload(), maxf(4.6 - 0.6 * main.upgrades["turret"], 0.9)),
+					"the turret stacks, firing quicker each (every %.1f s)" % main.laser_reload())
 				for t in main.things.duplicate():
 					if t.is_enemy():
 						main._remove(t)
@@ -217,6 +218,9 @@ func _process(_delta: float) -> bool:
 					var a := i * TAU / 5.0
 					main.spawn("chicken", main.ufo.ground() + Vector3(cos(a), 0, sin(a)) * 8.0)
 				taken_before = main.taken
+				# (each ready to go off after something at once, not when it next takes the notion)
+				for d: Drone in main.fleet:
+					d._proc = 0.0
 			elif wait == 600:
 				_check(main.taken > taken_before, "the fleet beams up small things by itself (%d taken)" % (main.taken - taken_before))
 				var d: Drone = main.fleet[0]
