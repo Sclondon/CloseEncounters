@@ -700,14 +700,14 @@ def devils_tower():
 
 
 def peak():
-    """A Rocky Mountain peak: craggy and towering over the mesas, its main summit with two shoulders, rock
+    """A Rocky Mountain peak: craggy, a little taller than a mesa, its main summit with two shoulders, rock
     outcrops on its flanks, snow only on its top"""
-    main = lathe("peak", [(24, 0), (20.5, 5.5), (16, 12.5), (11.5, 20), (7, 26.5), (3.2, 32), (0.4, 35)],
+    main = lathe("peak", [(24, 0), (20.5, 3.5), (16, 8), (11.5, 12.5), (7, 16.5), (3.2, 20), (0.4, 22)],
                  ["mountain", "mountain", "mountain", "mountain", "snow", "snow", "snow"], 14, 2.4, seed=11)
-    left = lathe("peak_l", [(11, 0), (8.5, 6.5), (5.5, 13.5), (2.4, 19), (0.3, 21.5)],
+    left = lathe("peak_l", [(11, 0), (8.5, 4), (5.5, 8.5), (2.4, 12), (0.3, 13.5)],
                  ["mountain", "mountain", "mountain", "snow", "snow"], 10, 1.5, seed=12)
     left.location = (12.5, 6.0, 0)
-    right = lathe("peak_r", [(9, 0), (7, 5.5), (4.4, 11), (1.8, 15), (0.3, 17)],
+    right = lathe("peak_r", [(9, 0), (7, 3.5), (4.4, 7), (1.8, 9.5), (0.3, 10.5)],
                   ["mountain", "mountain", "mountain", "snow", "snow"], 9, 1.3, seed=13)
     right.location = (-11.0, -9.0, 0)
     p = [main, left, right]
@@ -715,9 +715,25 @@ def peak():
     for i in range(8):
         a = rnd.uniform(0, math.tau)
         r = rnd.uniform(9.0, 17.0)
-        z = max(0.5, 26.0 - r * 1.45)
+        z = max(0.5, 16.0 - r * 0.9)
         p.append(roughen(ball((rnd.uniform(3.5, 6.0), rnd.uniform(3.0, 5.0), rnd.uniform(2.0, 3.5)), (r * math.cos(a), r * math.sin(a), z), "rock", 7, 4), 0.35, 60 + i))
     return join("peak", p)
+
+
+def crag():
+    """A haven's crag: a narrow jagged spire of rock, taller than a mesa, snow on its tip, a ring of
+    them walling a hidden valley"""
+    main = lathe("crag", [(5.2, 0), (4.4, 3.5), (3.7, 7.5), (2.9, 10.5), (1.9, 13), (0.9, 15), (0.2, 16)],
+                 ["mountain", "mountain", "mountain", "mountain", "mountain", "snow", "snow"], 9, 0.9, seed=21)
+    side = lathe("crag_s", [(3.0, 0), (2.4, 3.5), (1.6, 7), (0.8, 9), (0.2, 10)],
+                 ["mountain", "mountain", "mountain", "snow", "snow"], 7, 0.6, seed=22)
+    side.location = (3.2, 1.2, 0)
+    p = [main, side]
+    rnd = random.Random(23)
+    for i in range(4):
+        a = rnd.uniform(0, math.tau)
+        p.append(roughen(ball((rnd.uniform(1.6, 2.4), rnd.uniform(1.4, 2.0), rnd.uniform(1.0, 1.6)), (4.2 * math.cos(a), 4.2 * math.sin(a), 0.6), "rock", 7, 4), 0.25, 70 + i))
+    return join("crag", p)
 
 
 
@@ -1713,6 +1729,14 @@ def item_armor():
     return join("item_armor", p)
 
 
+def item_swivel():
+    """SWIVEL MOUNT: a ball joint, the beam's emitter on it tipped well over to one side"""
+    p = [drum(0.26, 0.1, (0, 0, 0.05), "metal_dark", 10), ball((0.22, 0.22, 0.22), (0, 0, 0.26), "chrome", 8, 5),
+         drum(0.07, 0.36, (0.13, 0, 0.42), "metal", 6, (0, 0.75, 0)),
+         cone(0.2, 0.3, (0.3, 0, 0.6), "light_blue", 8, (0, 0.75 + math.pi, 0))]
+    return join("item_swivel", p)
+
+
 def item_second_wind():
     """SECOND WIND: a heart wreathed in a swirl of flame"""
     p = [ball((0.3, 0.2, 0.3), (-0.1, 0, 0.5), "chili", 8, 4), ball((0.3, 0.2, 0.3), (0.1, 0, 0.5), "chili", 8, 4),
@@ -2157,6 +2181,45 @@ def liquor_store():
     return join("liquor_store", p)
 
 
+def hydrant():
+    """A red fire hydrant: its barrel, a domed cap and the nozzles out either side"""
+    return join("hydrant", [drum(0.22, 0.12, (0, 0, 0.06), "red", 8), drum(0.16, 0.6, (0, 0, 0.42), "red", 8),
+                            drum(0.2, 0.08, (0, 0, 0.74), "red", 8), ball((0.32, 0.32, 0.24), (0, 0, 0.8), "red", 8, 4),
+                            drum(0.06, 0.1, (0, 0, 0.94), "yellow", 6),
+                            drum(0.08, 0.44, (0, 0, 0.5), "yellow", 6, (0, math.pi / 2, 0)),
+                            drum(0.1, 0.12, (0, -0.2, 0.46), "yellow", 6, (math.pi / 2, 0, 0))])
+
+
+def bank():
+    """A small-town bank: pale stone, four columns along its porch under a pediment, bronze doors,
+    and a gold dollar sign over them"""
+    p = [box((8.0, 6.0, 4.6), (0, 0.4, 2.3), "stone_pale"), box((8.4, 6.6, 0.3), (0, 0.3, 4.75), "concrete"),
+         box((8.6, 1.8, 0.4), (0, -3.0, 0.2), "concrete"), box((8.4, 0.4, 0.5), (0, -3.6, 4.85), "stone_pale"),
+         box((1.6, 0.1, 2.6), (0, -2.62, 1.3), "door"), box((7.4, 0.3, 0.9), (0, -3.6, 5.45), "stone_pale", (0, 0, 0)),
+         box((0.5, 0.2, 1.3), (0, -3.82, 3.4), "gold"), box((1.1, 0.2, 0.22), (0, -3.83, 3.75), "gold"),
+         box((1.1, 0.2, 0.22), (0, -3.83, 3.05), "gold"), box((2.0, 0.08, 1.4), (-2.6, -2.62, 2.2), "window"),
+         box((2.0, 0.08, 1.4), (2.6, -2.62, 2.2), "window")]
+    for x in (-3.3, -1.1, 1.1, 3.3):
+        p.append(drum(0.32, 4.2, (x, -3.5, 2.5), "stone_pale", 8))
+    return join("bank", p)
+
+
+def fort_knox():
+    """Fort Knox: the gold vault, a squat granite block of two storeys with a smaller one stepped up on
+    top, a great bronze door, gold bars stacked inside it, a flag over it"""
+    p = [box((16.0, 16.0, 6.0), (0, 0, 3.0), "stone"), box((16.6, 16.6, 0.5), (0, 0, 6.2), "concrete"),
+         box((9.0, 9.0, 3.0), (0, 0, 7.9), "stone"), box((9.4, 9.4, 0.4), (0, 0, 9.6), "concrete"),
+         box((4.0, 1.2, 4.6), (0, -8.2, 2.3), "stone_pale"), box((2.6, 0.2, 3.4), (0, -8.85, 1.7), "gold"),
+         box((18.0, 18.0, 0.3), (0, 0, 0.15), "concrete"), drum(0.08, 5.0, (0, 0, 12.0), "metal", 6),
+         box((1.6, 0.06, 1.0), (0.8, 0, 13.9), "red")]
+    for i in range(6):
+        p.append(box((0.9, 0.4, 0.3), (-0.9 + (i % 3) * 0.9, -9.0, 0.35 + (i // 3) * 0.32), "gold"))
+    for s in (-1, 1):
+        for k in range(3):
+            p.append(box((1.6, 0.1, 1.0), (s * (3.0 + k * 2.2), -8.02, 4.2), "window"))
+    return join("fort_knox", p)
+
+
 def goalpost():
     """A football goalpost: a yellow post, the crossbar and the two uprights"""
     return join("goalpost", [box((0.16, 0.16, 3.0), (0, 0.6, 1.5), "yellow"), box((0.16, 0.6, 0.16), (0, 0.3, 3.0), "yellow"),
@@ -2393,13 +2456,13 @@ def feed_bin():
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
-            mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
+            mesa, butte, devils_tower, peak, crag, hydrant, bank, fort_knox, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
             diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek, sunflower, cabbage, melon, pepper, motorcycle, cult_altar, helicarrier, railgun, laser_truck, fire_truck, ambulance, hospital, fire_station, prison, grain_elevator, chicken_coop, irrigation, feed_bin,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,
             item_engine, item_beam, item_shield, item_dash, item_laser, item_turret, item_missiles, item_cloak,
-            item_magnet, item_wide, item_scanner, item_jammer, item_coolant, item_lucky, item_armor, item_second_wind, canister, item_nanobots, item_gold, item_emp]
+            item_magnet, item_wide, item_scanner, item_jammer, item_coolant, item_lucky, item_armor, item_swivel, item_second_wind, canister, item_nanobots, item_gold, item_emp]
 
 
 def main():

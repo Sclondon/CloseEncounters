@@ -16,6 +16,9 @@ var _beaming := false
 var _aim := Vector2.ZERO
 var _tag: Label3D
 var _heard := false
+## Down on the ground (see Coop: a beam held over it brings it back), and how long a beam has been
+var down := false
+var lift := 0.0
 
 
 func _ready() -> void:
@@ -45,9 +48,15 @@ func hear(state: Array) -> void:
 	_aim = Vector2(float(state[6]), float(state[7])) / Ufo.BEAM_REACH
 	score = int(state[9])
 	_tag.text = "P%d  $%d" % [slot + 1, score]
-	if bool(state[10]) and not ufo.dead:
+	down = bool(state[10])
+	if down and not ufo.dead:
 		ufo.hull = 0.0
+		ufo.second_winds = 0
 		ufo.hurt(1.0)
+	elif not down and ufo.dead:
+		# (beamed back up by someone)
+		ufo.revive()
+		lift = 0.0
 	if not _heard:
 		_heard = true
 		ufo.position = _to

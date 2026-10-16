@@ -26,7 +26,7 @@ const CHUNK := 48.0
 const START := Vector3(48, 0, 48)
 ## Props tall enough for the saucer to fly into
 ## The land itself (not buildings): what a nuke leaves standing
-const LANDFORMS := ["butte", "mesa", "peak", "devils_tower", "hill"]
+const LANDFORMS := ["butte", "mesa", "peak", "crag", "devils_tower", "hill"]
 ## Props this tall (at their size) or taller stand in the ship's way (see `_prop`, `push_out`)
 const OBSTACLE_FROM := 5.0
 ## Each model's height and the radius of its footprint, measured once from its mesh
@@ -209,8 +209,8 @@ static func has_road(n: int) -> bool:
 	return posmod(n, ROAD_EVERY) == 0
 
 
-## Havens: now and then up in the mountains a hidden valley, ringed all round by low peaks that the
-## police and army on the ground cannot get past (the ship flies over them). Inside one, the ship is
+## Havens: now and then up in the mountains a hidden valley, walled all round by tall crags that the
+## police and army on the ground cannot get past, but for a low saddle the ship flies in over. Inside one, the ship is
 ## hidden from them (see main.gd `_hideout`)
 const HAVEN_RING := 16.0
 const HAVEN_PEAKS := 14
@@ -730,11 +730,19 @@ static func landforms(c: Vector2i) -> Array[Dictionary]:
 	if is_haven(c):
 		# (a hidden valley: a closed ring of low jagged peaks, too low to stop the ship, but no way
 		# through for anything on the ground)
+		# (a wall of tall crags, but for a low saddle of two little peaks where the ship gets in)
+		var saddle := rng.randi_range(0, HAVEN_PEAKS - 1)
 		for i in HAVEN_PEAKS:
-			var a := i * TAU / HAVEN_PEAKS + rng.randf_range(-0.05, 0.05)
-			var size := rng.randf_range(0.15, 0.17)
-			found.append({"name": "peak", "at": centre_of(c) + Vector3(sin(a), 0, cos(a)) * HAVEN_RING, "turn": rng.randf() * TAU,
-				"size": size, "radius": 20.0 * size, "skirt": 24.0 * size, "height": 35.0 * size})
+			var a := i * TAU / HAVEN_PEAKS + rng.randf_range(-0.04, 0.04)
+			var at := centre_of(c) + Vector3(sin(a), 0, cos(a)) * HAVEN_RING
+			if i == saddle or i == (saddle + 1) % HAVEN_PEAKS:
+				var low := rng.randf_range(0.2, 0.22)
+				found.append({"name": "peak", "at": at, "turn": rng.randf() * TAU, "size": low, "radius": 20.0 * low,
+					"skirt": 24.0 * low, "height": 22.0 * low})
+				continue
+			var size := rng.randf_range(0.9, 1.1)
+			found.append({"name": "crag", "at": at, "turn": rng.randf() * TAU, "size": size, "radius": 4.6 * size,
+				"skirt": 5.6 * size, "height": 16.0 * size})
 		return found
 	var b := biome(c)
 	var r := rng.randf()
@@ -753,7 +761,7 @@ static func landforms(c: Vector2i) -> Array[Dictionary]:
 		return found
 	# [radius it blocks, skirt on the ground, height] at size 1, and the sizes it comes in
 	var spec: Array = {"devils_tower": [11.0, 19.0, 26.0, 1.0, 1.0], "butte": [7.0, 10.0, 16.0, 0.85, 1.25],
-		"mesa": [14.5, 19.0, 12.0, 0.8, 1.1], "peak": [20.0, 24.0, 35.0, 0.8, 1.05]}[pick]
+		"mesa": [14.5, 19.0, 12.0, 0.8, 1.1], "peak": [20.0, 24.0, 22.0, 0.65, 0.85]}[pick]
 	var size := rng.randf_range(spec[3], spec[4])
 	var skirt: float = spec[1] * size
 	var room := maxf(CHUNK * 0.5 - skirt, 0.0)
@@ -1280,6 +1288,7 @@ func _town(b: int) -> void:
 	var spin := _rng.randi_range(0, 3) * PI / 2.0
 	var r := Basis(Vector3.UP, spin)
 	var civic: Array = ["hospital", "fire_station"]
+	var banked := false
 	civic.shuffle()
 	# The police station on one corner of the crossing
 	var station := base + r * Vector3(13.0, 0, 13.0)
@@ -1296,7 +1305,10 @@ func _town(b: int) -> void:
 				if not _clear(p, 4.5):
 					continue
 				if i == 0:
-					if _rng.randf() < 0.3:
+					if not banked and _rng.randf() < 0.35:
+						banked = true
+						_prop("bank", p, turn, 0.85)
+					elif _rng.randf() < 0.3:
 						_prop("liquor_store", p, turn, 0.8)
 					else:
 						_prop("storefront", p, turn, 0.9, {"walls": brick[_rng.randi() % brick.size()], "awning": awning[_rng.randi() % awning.size()]})
@@ -1366,6 +1378,8 @@ func _sidewalks(axis: String) -> void:
 			var to_road := atan2(-out.x, -out.z)
 			if i % 4 == 0:
 				_plant_at("street_light", edge, to_road)
+			elif i % 8 == 2 and side > 0.0:
+				_prop("hydrant", edge, to_road)
 			elif i == 6 or i == 10 and side < 0.0:
 				_plant_at("bench", edge, to_road)
 				_plant_at("trash_can", edge + way.normalized() * 1.6, 0.0)
@@ -1513,7 +1527,10 @@ func _rail_line(c: Vector2i) -> void:
 	var x0 := c.x * CHUNK
 	Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.36, 0.35, 0.34)), Vector3(x0, 0.03, z), Vector3(CHUNK, 0.06, 3.6))
 	for i in 6:
-		_put("track", Vector3(x0 - CHUNK * 0.5 + 4.0 + i * 8.0, 0.06, z))
+		# (beamable, see Thing "track"; one beamed away earlier stays gone)
+		var at := Vector3(x0 - CHUNK * 0.5 + 4.0 + i * 8.0, 0.06, z)
+		if game == null or not game.track_torn(at):
+			_prop("track", at)
 
 
 ## Whether an airfield is out here: now and then, in open country away from where the game starts
@@ -1602,6 +1619,9 @@ func _venue(c: Vector2i, b: int) -> bool:
 		return false
 	var pick: Array = VENUES[b]
 	var name: String = pick[mini(int(hash3(c.x, c.y, 212) * pick.size()), pick.size() - 1)]
+	# (now and then, out in the open, a gold vault: Fort Knox, watchtowers at its corners)
+	if b in [Biome.PLAINS, Biome.FARM] and hash3(c.x, c.y, 213) < 0.1:
+		name = "fort_knox"
 	var at := _spot(16.0)
 	if at == Vector3.INF:
 		return false
@@ -1609,6 +1629,10 @@ func _venue(c: Vector2i, b: int) -> bool:
 	var turn := _rng.randf() * TAU
 	var basis := Basis(Vector3.UP, turn)
 	match name:
+		"fort_knox":
+			_prop("fort_knox", at, turn)
+			for corner: Vector2 in [Vector2(-1, -1), Vector2(1, 1)]:
+				_prop("watchtower", at + basis * Vector3(corner.x * 11.0, 0, corner.y * 11.0), turn)
 		"school":
 			_prop("schoolhouse", at + basis * Vector3(-4, 0, 0), turn)
 			_prop("playground", at + basis * Vector3(7, 0, 3), turn)

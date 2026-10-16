@@ -9,6 +9,8 @@ extends Node
 ## - the host's moving things near it (PROPS_EVERY): everyone's copies of them go where the host's are
 ## - what happens: something taken up a beam goes for everyone ("take"), crop circles are pressed
 ##   for everyone ("circle"), and blasts are seen by everyone ("boom")
+## - a friend shot down waits on the ground a while: a beam held over their wreck brings them back
+##   ("revive")
 ## Each player has their own heat, police and score. Guests send to the host, and the host passes
 ## everything on to everyone (the server only lets a guest's packets reach the host), with whose it
 ## was in the packet.
@@ -24,6 +26,8 @@ const FOES_REACH := 90.0
 const K_PROPS := 80  # P
 const PROPS_EVERY := 0.2
 const PROPS_REACH := 70.0
+## Seconds a beam must be held over a downed friend to bring them back up
+const RESCUE_HOLD := 1.5
 
 var game: Node
 var net: Net
@@ -60,12 +64,42 @@ func _process(delta: float) -> void:
 		_send_foes()
 	for slot in others:
 		(others[slot] as RemoteSaucer).glide(delta)
+		_rescuing(others[slot] as RemoteSaucer, delta)
 	if net.is_host:
 		_props_wait -= delta
 		if _props_wait <= 0.0:
 			_props_wait = PROPS_EVERY
 			_send_props()
 	_glide_foes(delta)
+
+
+## Whether any of the others is still flying
+func friend_up() -> bool:
+	for slot in others:
+		var s: RemoteSaucer = others[slot]
+		if not s.down and Time.get_ticks_msec() / 1000.0 - s._heard_at < 3.0:
+			return true
+	return false
+
+
+## A friend down on the ground, and this ship's beam held over the wreck: after RESCUE_HOLD they are
+## beamed back up (told to them as "revive", see main.gd `coop_event`)
+func _rescuing(s: RemoteSaucer, delta: float) -> void:
+	var ufo: Ufo = game.ufo
+	if not s.down or not s.ufo.crashed:
+		s.lift = 0.0
+		return
+	var over := Vector2(ufo.position.x - s.ufo.position.x, ufo.position.z - s.ufo.position.z).length() < ufo.beam_foot + 1.5
+	if ufo.beaming and not ufo.dead and over:
+		s.lift += delta
+		if randf() < delta * 14.0:
+			ufo.puffs.puff(s.ufo.position + Vector3(randf_range(-1, 1), 0.5, randf_range(-1, 1)), Color(0.6, 1.0, 0.7, 0.7), 0.5, Vector3(0, 5.0, 0), 0.6)
+		game._heat_note("BEAMING UP P%d  %d%%" % [s.slot + 1, int(s.lift / RESCUE_HOLD * 100.0)], 0.3)
+		if s.lift >= RESCUE_HOLD:
+			s.lift = -2.0
+			tell("revive", s.ufo.position, str(s.slot))
+	else:
+		s.lift = maxf(s.lift - delta * 0.5, 0.0) if s.lift >= 0.0 else minf(s.lift + delta, 0.0)
 
 
 ## This saucer, for the others

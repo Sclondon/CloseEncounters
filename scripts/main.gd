@@ -109,7 +109,7 @@ var _circle_time := 0.0
 var _circle_done := false
 ## The traders parked about the country, and what has been bought from them this run
 var shops: Array[Shop] = []
-var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "fleet": 0}
+var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "fleet": 0}
 var _hot_wait := 0.0
 ## The level reached this run (see `_levels`), levels still to pick for, and the picker
 var level := 0
@@ -127,7 +127,7 @@ const SPAWN_A_FRAME := 6
 ## What traders sell, one pod each: three of these are set out in front of each trader
 ## The beam's colours as BEAM items stack: green, blue, purple
 const BEAM_COLOURS := [Color(0.55, 1.0, 0.65), Color(0.4, 0.7, 1.0), Color(0.78, 0.45, 1.0)]
-const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "fleet"]
+const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "fleet"]
 const UPGRADES := {
 	"engine": {"title": "ENGINE", "about": "faster", "price": 300, "colour": Color(1.0, 0.55, 0.15)},
 	"beam": {"title": "BEAM", "about": "lifts faster, then heavier things", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
@@ -148,6 +148,7 @@ const UPGRADES := {
 	"emp": {"title": "EMP", "about": "dashing stuns the police and army near", "price": 450, "colour": Color(0.55, 0.85, 1.0)},
 	"lucky": {"title": "LUCKY CHARM", "about": "power-ups turn up more often", "price": 300, "colour": Color(0.35, 0.95, 0.4)},
 	"armor": {"title": "ARMOR", "about": "the ship takes less damage", "price": 450, "colour": Color(0.7, 0.72, 0.78)},
+	"swivel": {"title": "SWIVEL MOUNT", "about": "lean the beam out further", "price": 350, "colour": Color(0.55, 0.95, 1.0)},
 	"second_wind": {"title": "SECOND WIND", "about": "shrug off one fatal hit", "price": 600, "colour": Color(1.0, 0.55, 0.25)},
 	"fleet": {"title": "FLEET", "about": "a little helper saucer", "price": 450, "colour": Color(1.0, 0.9, 0.3)},
 }
@@ -176,6 +177,14 @@ var wreck := Vector3.INF
 var _wreck_t := 0.0
 var _wreck_pilot: Node3D
 var _over_show := 0.0
+## Co-op: how long a downed ship waits on the ground for a friend to beam it up (-1 before it is down)
+const RESCUE_WAIT := 20.0
+## Where lengths of the railway have been beamed away (a train coming to one comes off the rails)
+var torn_track: Array[Vector3] = []
+## Where hydrants have been knocked off, each a fountain of water ever after (see `_geysering`)
+var geysers: Array[Vector3] = []
+var _geyser_wait := 0.0
+var _rescue_wait := -1.0
 var _hurt := 0.0
 var _over_wait := 0.0
 var _last_level := 0
@@ -542,9 +551,12 @@ func start(from_launch := false) -> void:
 	_clear_wreck()
 	if not from_launch:
 		alien_seed = randi()
-	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "fleet": 0}
+	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "fleet": 0}
 	level = 0
 	_levels_due = 0
+	_rescue_wait = -1.0
+	torn_track.clear()
+	geysers.clear()
 	_picker.visible = false
 	if _picker_dim != null:
 		_picker_dim.visible = false
@@ -756,6 +768,10 @@ func _process(delta: float) -> void:
 					_hot_wait = 2.5
 					_heat_note(why_not(t), 2.5)
 				continue
+			if t.cash > 0.0 and t.state == "walk":
+				_rob(t, delta)
+				t.tick(delta, ufo)
+				continue
 			if t.power > 0.0 and t.state == "walk":
 				_drain(t, delta)
 				t.tick(delta, ufo)
@@ -788,6 +804,7 @@ func _process(delta: float) -> void:
 	_launch_missiles(delta)
 	_magnet(delta)
 	_boosts(delta)
+	_geysering(delta)
 	_trains(delta)
 	_airliners(delta)
 	_watchers(delta)
@@ -956,6 +973,34 @@ func spotted(_by: Thing, delta: float, why := "SPOTTED!") -> void:
 
 
 ## A substation under the beam: its power runs up the beam into the shield, until it goes dark
+## A bank (or Fort Knox) with the beam held on it: its money sucked out of it and up the beam, a
+## little at a time over its `hold` seconds, bills (or gold) streaming up; then it is cleaned out
+func _rob(t: Thing, delta: float) -> void:
+	var hold: float = t.info.get("hold", 5.0)
+	var full: float = t.info.get("cash", 1000.0)
+	var take := minf(t.cash, full / hold * delta)
+	t.cash -= take
+	t.robbed += take
+	var gold: bool = t.info.get("gold", false)
+	var tint := Color(1.0, 0.82, 0.25) if gold else Color(0.45, 0.9, 0.4)
+	if randf() < delta * 30.0:
+		var from := t.position + Vector3(randf_range(-1.5, 1.5), randf_range(0.5, 2.5), randf_range(-1.5, 1.5))
+		ufo.puffs.puff(from, tint, randf_range(0.25, 0.4), (ufo.position - from).normalized() * 9.0, 0.7)
+	if t.robbed >= full * 0.1 or t.cash <= 0.0:
+		var got := int(t.robbed) * multiplier()
+		score += got
+		_popup("+$%d" % got, t.position + Vector3(0, 4.0, 0), tint)
+		sfx.play("ding", randf_range(1.2, 1.5), -6.0)
+		add_heat(0.12 if gold else 0.06)
+		t.robbed = 0.0
+	if t.cash <= 0.0:
+		Ps1.flash(t.model, Color(-0.4, -0.4, -0.4))
+		log_line("FORT KNOX CLEANED OUT" if gold else "BANK ROBBED", int(full))
+		_heat_note("FORT KNOX CLEANED OUT!" if gold else "BANK ROBBED!", 2.5)
+		add_heat(1.5 if gold else 0.6)
+		sfx.play("cool", 1.3)
+
+
 func _drain(t: Thing, delta: float) -> void:
 	var take := minf(t.power, 18.0 * delta)
 	t.power -= take
@@ -1353,6 +1398,8 @@ func _apply_upgrades() -> void:
 	# (WIDE BEAM: a seventh broader a stack, its light with it)
 	var wide: float = 1.0 + 0.15 * upgrades["wide"]
 	ufo.beam_foot = float(spec["beam_foot"]) * wide
+	# (SWIVEL MOUNT: the beam leans a third further out from under the ship a stack)
+	ufo.beam_reach = Ufo.BEAM_REACH * (1.0 + 0.35 * upgrades["swivel"])
 	ufo.beam.scale = Vector3(wide, 1.0, wide)
 	if upgrades["turret"] > 0:
 		ufo.arm_laser()
@@ -1868,7 +1915,7 @@ func _cut(delta: float, firing: bool) -> void:
 	var aim := _beam_aim()
 	var from := ufo.global_position + Vector3(0, -0.6, 0)
 	# (aimed over a much wider spread than the beam's lean: the thumb sweeps it well out from under the ship)
-	var foot := ufo.ground() + Vector3(aim.x, 0, aim.y) * Ufo.BEAM_REACH * 3.5
+	var foot := ufo.ground() + Vector3(aim.x, 0, aim.y) * ufo.beam_reach * 3.5
 	var along := foot - from
 	var wide := 0.12 + 0.05 * sin(Time.get_ticks_msec() * 0.05)
 	_cut_ray.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, along.normalized())) * Basis.from_scale(Vector3(wide, along.length(), wide)), (from + foot) * 0.5)
@@ -1899,7 +1946,7 @@ func _cut(delta: float, firing: bool) -> void:
 
 
 ## What the laser cannot burn: the land itself
-const FIREPROOF := ["hill", "butte", "mesa", "peak", "devils_tower", "runway", "pod", "canister", "rival"]
+const FIREPROOF := ["hill", "butte", "mesa", "peak", "crag", "devils_tower", "runway", "pod", "canister", "rival"]
 
 
 ## The laser on something: it burns, a LASER's worth a cut (more for each LASER item), until it has
@@ -1972,6 +2019,10 @@ func _crush_under_wreck() -> void:
 
 
 func _vaporise(t: Thing) -> void:
+	if t.kind == "hydrant":
+		geysers.append(t.home)
+	if t.kind == "track":
+		torn_track.append(t.home)
 	var at := t.position
 	var big := t.size()
 	coop.tell("boom", at, "", 1.5 + big)
@@ -2775,6 +2826,12 @@ func spawn_car(kind: String, at: Vector3, axis: String, dir: float) -> Thing:
 	return t
 
 func _remove(t: Thing) -> void:
+	# (a hydrant knocked off: water bursting up out of the main where it stood)
+	if t.kind == "hydrant" and t.state != "walk":
+		geysers.append(t.home)
+	# (a length of track taken up the beam, not just left behind: a gap in the line, see Thing "rail")
+	if t.kind == "track" and t.state != "walk":
+		torn_track.append(t.home)
 	t.state = "gone"
 	# (gone, it no longer stands in the way)
 	if t.obstacle != Vector4.ZERO:
@@ -2977,6 +3034,21 @@ func _crash(delta: float) -> void:
 		if randf() < delta * 12.0:
 			puff(ufo.position, Color(0.3, 0.3, 0.32), 1.0)
 		return
+	# (co-op: down but not out while a friend still flies; their beam over the wreck lifts it back up,
+	# see Coop and `revived`)
+	if _rescue_wait < 0.0 and coop.active() and coop.friend_up():
+		_rescue_wait = RESCUE_WAIT
+		boom(ufo.position, 2.0)
+		sfx.play("boom", 0.8, 0.0)
+		_shake = 0.4
+	if _rescue_wait > 0.0:
+		_rescue_wait -= delta
+		if randf() < delta * 8.0:
+			puff(ufo.position + Vector3(0, 0.6, 0), Color(0.18, 0.18, 0.2), 1.0)
+		_heat_note("DOWN! A FRIEND CAN BEAM YOU UP  %d" % ceili(_rescue_wait), 0.3)
+		if _rescue_wait > 0.0 and coop.friend_up():
+			return
+		_rescue_wait = 0.0
 	boom(ufo.position, 4.0)
 	sfx.play("boom", 0.7, 4.0)
 	_shake = 0.6
@@ -3001,6 +3073,15 @@ func _crash(delta: float) -> void:
 	_banner("", 0.0)
 
 
+
+
+## Co-op: beamed back up off the ground by a friend, flying again with half a shield
+func revived() -> void:
+	_rescue_wait = -1.0
+	ufo.revive()
+	sfx.play("ding", 1.3, 0.0)
+	_heat_note("RESCUED!", 2.0)
+	coop.tell("revive", ufo.position, "up")
 
 
 ## One of the police or army (or a jet) destroyed, for the results
@@ -4289,6 +4370,12 @@ func coop_event(what: String, at: Vector3, kind: String, size: float) -> void:
 				_remove(best)
 		"pull":
 			world.pull(at, 1.2, 9)
+		"revive":
+			# (a friend's beam over our wreck: back up we go)
+			if kind == str(coop.net.slot) and ufo.dead and ufo.crashed and mode == "play" and _rescue_wait > 0.0:
+				revived()
+			elif kind != str(coop.net.slot):
+				ufo.puffs.puff(at + Vector3(0, 1.0, 0), Color(0.6, 1.0, 0.7, 0.7), 1.4, Vector3(0, 4.0, 0), 0.8)
 		"circle":
 			world.crop_circle(at, size)
 		"boom":
@@ -4344,6 +4431,11 @@ func _log_section(text: String, tiles: Array, big: bool) -> void:
 		var frame := StyleBoxFlat.new()
 		frame.bg_color = Color(0.1, 0.25, 0.14, 0.85) if known else Color(0.06, 0.09, 0.08, 0.7)
 		frame.border_color = Color(0.55, 1.0, 0.6) if known else Color(0.25, 0.35, 0.3)
+		if tile.size() > 3 and str(tile[3]).begins_with("item:"):
+			# (an item's tile the colour of its rarity, green, blue or red)
+			var rare := RARITY_COLOURS[rarity(str(tile[3]).trim_prefix("item:"))]
+			frame.bg_color = Color(rare.r * 0.3, rare.g * 0.3, rare.b * 0.3, 0.85 if known else 0.45)
+			frame.border_color = rare if known else rare.darkened(0.55)
 		frame.set_border_width_all(2)
 		frame.set_corner_radius_all(8)
 		frame.set_content_margin_all(8)
@@ -6327,7 +6419,7 @@ class CloakButton extends Control:
 ## how many are stacked in its corner (from the second on)
 class ItemBar extends Control:
 	## The items, in the order they show
-	const ORDER := ["engine", "beam", "shield", "dash", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "fleet"]
+	const ORDER := ["engine", "beam", "shield", "dash", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "fleet"]
 	const TILE := 40.0
 	## How many rows of items there are (the heat's news goes under them)
 	var rows := 0
@@ -6351,7 +6443,10 @@ class ItemBar extends Control:
 			var colour: Color = main.UPGRADES[what]["colour"]
 			var box := Rect2(x, y, TILE, TILE)
 			draw_rect(box, Color(0.02, 0.06, 0.04, 0.8))
-			draw_rect(box.grow(-3.0), colour * Color(1, 1, 1, 0.18))
+			# (its background tinted the colour of its rarity)
+			var rare: Color = main.RARITY_COLOURS[main.rarity(what)]
+			draw_rect(box.grow(-2.0), Color(rare.r * 0.35, rare.g * 0.35, rare.b * 0.35, 0.75))
+			draw_rect(box.grow(-3.0), colour * Color(1, 1, 1, 0.1))
 			# (its frame the colour of its rarity)
 			draw_rect(box, main.RARITY_COLOURS[main.rarity(what)], false, 2.5)
 			# (the item itself, a little 3D model of it, as Risk of Rain 2 shows its items)
@@ -6424,3 +6519,36 @@ class DashOrb extends Control:
 			draw_polyline(PackedVector2Array(tip + [tip[0]]), Color(0.75, 1.0, 0.78) if fill >= 1.0 else lit, 2.0)
 		draw_arc(c, r, 0, TAU, 48, Color(0.6, 1.0, 0.7, 0.9), 3.0)
 		draw_arc(c + Vector2(-r * 0.3, -r * 0.35), r * 0.45, PI * 1.05, PI * 1.45, 12, Color(1, 1, 1, 0.5), 3.0)
+
+
+## Whether the railway is broken at `p` (a length of its track beamed away or blown up there)
+func track_torn(p: Vector3) -> bool:
+	for gap in torn_track:
+		if absf(gap.x - p.x) < 4.0 and absf(gap.z - p.z) < 3.0:
+			return true
+	return false
+
+
+## The knocked-off hydrants' water, spouting up for good: the beam over one drinks it in, a trickle
+## of points and the ship cooled (the heat let off a little)
+func _geysering(delta: float) -> void:
+	if geysers.is_empty():
+		return
+	var here := ufo.ground()
+	geysers = geysers.filter(func(g: Vector3) -> bool: return g.distance_to(here) < 160.0)
+	_geyser_wait -= delta
+	for g in geysers:
+		if g.distance_to(here) > 60.0:
+			continue
+		var drinking := ufo.beaming and not ufo.dead and Vector2(g.x - here.x, g.z - here.z).length() < ufo.beam_foot + 1.0
+		if randf() < delta * 22.0:
+			var up := Vector3(randf_range(-0.6, 0.6), randf_range(7.0, 10.0), randf_range(-0.6, 0.6))
+			if drinking:
+				up = Vector3(ufo.position.x - g.x, ufo.position.y + 2.0, ufo.position.z - g.z) * 1.4
+			ufo.puffs.puff(g + Vector3(0, 0.4, 0), Color(0.65, 0.85, 1.0, 0.75), randf_range(0.25, 0.45), up, 0.9)
+		if drinking and _geyser_wait <= 0.0:
+			_geyser_wait = 0.25
+			score += 5 * multiplier()
+			heat = maxf(heat - 0.04, 0.0)
+			if randf() < 0.3:
+				_popup("+WATER", g + Vector3(0, 3.0, 0), Color(0.6, 0.85, 1.0))

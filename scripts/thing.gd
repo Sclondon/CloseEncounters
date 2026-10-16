@@ -113,6 +113,7 @@ const KINDS := {
 	"butte": {"points": 1500, "weight": 8.0, "heat": 1.0, "move": "still", "size": 2.0, "tier": 4},
 	"mesa": {"points": 2500, "weight": 10.0, "heat": 1.2, "move": "still", "size": 2.0, "tier": 4},
 	"peak": {"points": 4000, "weight": 12.0, "heat": 1.5, "move": "still", "size": 2.0, "tier": 4},
+	"crag": {"points": 3000, "weight": 10.0, "heat": 1.5, "move": "still", "size": 1.5, "tier": 4},
 	"devils_tower": {"points": 5000, "weight": 12.0, "heat": 2.0, "move": "still", "size": 2.0, "tier": 4},
 	# The law, the army, and those who watch the sky (tier 3, but for the jets and the parked ones)
 	"police_station": {"points": 600, "weight": 5.0, "heat": 0.8, "move": "still", "size": 4.0, "tier": 3, "station": "police"},
@@ -144,6 +145,8 @@ const KINDS := {
 	"locomotive": {"points": 700, "weight": 5.0, "heat": 0.5, "move": "rail", "speed": 11.0, "size": 3.6, "tier": 3},
 	"boxcar": {"points": 350, "weight": 4.0, "heat": 0.3, "move": "rail", "speed": 11.0, "size": 3.6, "tier": 2},
 	"caboose": {"points": 400, "weight": 3.5, "heat": 0.3, "move": "rail", "speed": 11.0, "size": 3.0, "tier": 2},
+	# (a length of the line: beamed up, the next train along comes off the rails there)
+	"track": {"points": 120, "weight": 2.0, "heat": 0.4, "move": "still", "size": 3.0, "tier": 1},
 	# Cowboys on horseback, about the plains and the rodeos
 	"rider": {"points": 180, "weight": 2.0, "heat": 0.4, "move": "flee", "speed": 6.5, "size": 1.4, "voice": "neigh", "gun": "pistol", "caller": true},
 	# A hot air balloon hanging over the fields, bobbing (`bob`)
@@ -189,6 +192,11 @@ const KINDS := {
 	# country, the inmates in orange in the yard
 	"fire_truck": {"points": 420, "weight": 4.0, "heat": 0.5, "move": "road", "speed": 9.0, "size": 3.0, "tier": 2},
 	"ambulance": {"points": 320, "weight": 3.0, "heat": 0.5, "move": "road", "speed": 10.0, "size": 2.6},
+	# Money: hold the beam on one and its cash (or gold) comes out up the beam over `hold` seconds
+	"bank": {"points": 800, "weight": 6.0, "heat": 0.8, "move": "still", "size": 4.0, "tier": 4, "voice": "scream", "cash": 3000.0, "hold": 5.0},
+	"fort_knox": {"points": 5000, "weight": 12.0, "heat": 2.0, "move": "still", "size": 7.0, "tier": 5, "cash": 25000.0, "hold": 12.0, "gold": true},
+	# A fire hydrant: taken (or blown up), a fountain of water bursts out of where it stood
+	"hydrant": {"points": 30, "weight": 0.5, "heat": 0.05, "move": "still", "size": 0.5},
 	"hospital": {"points": 900, "weight": 7.0, "heat": 0.8, "move": "still", "size": 6.0, "tier": 3, "voice": "scream"},
 	"fire_station": {"points": 700, "weight": 6.0, "heat": 0.6, "move": "still", "size": 5.0, "tier": 3},
 	"prison": {"points": 2500, "weight": 12.0, "heat": 1.0, "move": "still", "size": 12.0, "tier": 4, "voice": "scream"},
@@ -197,7 +205,7 @@ const KINDS := {
 	# and motorcycle cops, quick, who chase and fire
 	"motorcycle": {"tints": {"paint": Color(0.75, 0.12, 0.1)}, "points": 130, "weight": 1.6, "heat": 0.35, "move": "road", "speed": 12.0, "size": 1.2},
 	"biker": {"model": "motorcycle", "tints": {"paint": Color(0.08, 0.08, 0.09), "shirt": Color(0.1, 0.1, 0.11), "denim": Color(0.15, 0.15, 0.2)}, "points": 170, "weight": 1.6, "heat": 0.4, "move": "road", "speed": 11.0, "size": 1.2},
-	"moto_cop": {"model": "motorcycle", "tints": {"paint": Color(0.95, 0.95, 0.95), "shirt": Color(0.15, 0.25, 0.55)}, "points": 280, "weight": 1.6, "heat": 0.6, "move": "chase", "speed": 12.5, "size": 1.2, "keep": 9.0, "enemy": true, "police": true, "gun": "pistol"},
+	"moto_cop": {"model": "motorcycle", "tints": {"paint": Color(0.95, 0.95, 0.95), "shirt": Color(0.15, 0.25, 0.55)}, "points": 280, "weight": 1.6, "heat": 0.6, "move": "chase", "speed": 12.5, "size": 1.2, "keep": 9.0, "enemy": true, "police": true, "gun": "pistol", "slow_gun": 2.2},
 	# A cult's compound: robed cultists round their altar, who want to be taken (as true believers do)
 	"cultist": {"model": "person", "tints": {"shirt": Color(0.4, 0.15, 0.5), "denim": Color(0.4, 0.15, 0.5)}, "points": 180, "weight": 1.3, "heat": 0.1, "move": "believer", "speed": 3.0, "size": 0.7, "voice": "star"},
 	"cult_altar": {"points": 800, "weight": 4.0, "heat": 0.3, "move": "still", "size": 3.0, "tier": 3},
@@ -356,6 +364,9 @@ var beacon: MeshInstance3D
 var model_y := 0.0
 ## A substation's power left; the parts that aim at the ship (a dish, an observatory's dome)
 var power := 0.0
+## A bank's (or Fort Knox's) money still in it, and how much has come out since it was last counted
+var cash := 0.0
+var robbed := 0.0
 var aim: Node3D
 ## How long a watcher has had the ship in view
 var watching := 0.0
@@ -407,6 +418,7 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 	model_y = info.get("rest_y", 0.0)
 	model.position.y = model_y
 	power = info.get("power", 0.0)
+	cash = info.get("cash", 0.0)
 	if kind == "rival":
 		# (a rival saucer has a pilot of its own under its dome)
 		var pilot := Alien.new()
@@ -705,7 +717,18 @@ func _walk(delta: float, ufo: Ufo) -> void:
 		"rail":
 			# (along the line it was put down on, the way it was going, never off it)
 			want = Vector3(road_dir, 0, 0)
-			position.z = lerpf(position.z, home.z, minf(delta * 4.0, 1.0))
+			if _derail < 0.0 and game.track_torn(position):
+				# (the track beamed away from under it: off the rails it goes, ploughing to a stop on its side)
+				_derail = 0.0
+				_derail_side = 1.0 if randf() < 0.5 else -1.0
+				game.boom(position + Vector3(0, 0.8, 0), 1.2 if kind == "locomotive" else 0.7)
+			if _derail >= 0.0:
+				_derail += delta
+				want = Vector3(road_dir, 0, _derail_side * 0.8).normalized()
+				pace *= maxf(1.0 - _derail / 1.6, 0.0)
+				rotation.z = lerpf(rotation.z, _derail_side * 1.3, minf(delta * 2.5, 1.0))
+			else:
+				position.z = lerpf(position.z, home.z, minf(delta * 4.0, 1.0))
 		"believer":
 			want = _believe(delta, ufo, to_ufo, near)
 			if want == Vector3.ZERO:
@@ -834,6 +857,9 @@ func _walk(delta: float, ufo: Ufo) -> void:
 		_aim(delta, ufo)
 
 var _chase_want := Vector3.ZERO
+## Off the rails (seconds since, -1 while still on them), and which way it went over
+var _derail := -1.0
+var _derail_side := 1.0
 ## A police car's officer out of it (see `_police`), and how many are still in it to get out; an
 ## officer's car, and whether it is called back to it
 var officer: Thing
@@ -1206,7 +1232,7 @@ func _shoot(delta: float, ufo: Ufo, near: float) -> void:
 	reload -= delta
 	if reload > 0.0 or near > float(spec["range"]):
 		return
-	reload = float(spec["reload"]) * randf_range(0.85, 1.2) / pow(game.danger(), 0.6)
+	reload = float(spec["reload"]) * float(info.get("slow_gun", 1.0)) * randf_range(0.85, 1.2) / pow(game.danger(), 0.6)
 	if gun == "mg":
 		burst = 3
 		burst_time = 0.0
@@ -1476,7 +1502,7 @@ const ALIEN_NAMES := {
 	"plane": "SLOW SKY POD", "wheat": "GOLD STALK", "corn": "EAR STALK", "pumpkin": "ORANGE ORB",
 	"hill": "LAND LUMP", "barn": "BEAST NEST", "silo": "GRAIN TUBE", "windmill": "SPIN FLOWER",
 	"water_tower": "WATER BULB", "diner": "FUEL NEST", "adobe": "MUD NEST", "cabin": "LOG NEST",
-	"butte": "ROCK STUMP", "mesa": "ROCK TABLE", "peak": "PLANET SPIKE", "devils_tower": "THE GREAT STUMP",
+	"butte": "ROCK STUMP", "mesa": "ROCK TABLE", "peak": "PLANET SPIKE", "crag": "SKY FANG", "devils_tower": "THE GREAT STUMP",
 	"police_station": "LAW HIVE", "hangar": "POD BARN", "watchtower": "STARE SPIRE", "tent": "WAR HUT",
 	"fighter_jet": "FAST SKY POD", "parked_jeep": "WAR CRAWLER", "parked_tank": "SHELL CRAWLER",
 	"substation": "SPARK GARDEN", "observatory": "SKY WATCH DOME", "seti_dish": "LISTENING BOWL",
@@ -1543,7 +1569,7 @@ static func category(of: String) -> String:
 		return "BEASTS"
 	if of in ["tree", "pine", "aspen", "pinyon", "sagebrush", "prickly_pear", "saguaro", "bush"]:
 		return "PLANTS"
-	if of in ["butte", "mesa", "peak", "devils_tower", "hill", "rock"]:
+	if of in ["butte", "mesa", "peak", "crag", "devils_tower", "hill", "rock"]:
 		return "THE LAND"
 	if info["move"] in ["road", "police", "patrol", "hover", "rail"] or info.get("enemy", false) or of in ["tractor", "pumpjack", "windmill", "plane", "telescope", "barrel", "phone_booth", "phone_pole", "irrigation", "lot_car", "junk_car", "excavator", "mixer", "crane", "tube_man", "balloon"]:
 		return "MACHINES"

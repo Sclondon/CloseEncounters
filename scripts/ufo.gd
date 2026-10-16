@@ -78,6 +78,8 @@ const GHOSTS := 3
 const BEAM_TOP := 1.0
 ## How far the beam's foot can be leant off from under the ship (see `beam_aim`)
 const BEAM_REACH := 3.0
+## How far it leans out on this ship (BEAM_REACH, and more with SWIVEL MOUNT)
+var beam_reach := BEAM_REACH
 ## The ship's own visual layer, which its glow lights alone
 const SHIP_LAYER := 4
 
@@ -821,7 +823,7 @@ func dodging() -> bool:
 
 ## Leans the beam toward `beam_aim` (easing there), and back straight once it is off
 func _lean_beam(delta: float) -> void:
-	var want := Vector3(beam_aim.x, 0, beam_aim.y).limit_length(1.0) * BEAM_REACH if beaming else Vector3.ZERO
+	var want := Vector3(beam_aim.x, 0, beam_aim.y).limit_length(1.0) * beam_reach if beaming else Vector3.ZERO
 	_aim = _aim.lerp(want, minf(delta * 6.0, 1.0))
 	var down := altitude - 0.5
 	var to_foot := Vector3(_aim.x, -down, _aim.z)
@@ -880,6 +882,20 @@ func hurt(amount: float, from := Vector3.INF) -> void:
 		beaming = false
 		beam.visible = false
 		alien.feel("dead")
+
+
+## Beamed up off the ground by a friend (co-op): flying again, the shield back to half
+func revive() -> void:
+	dead = false
+	crashed = false
+	_fall_v = 0.0
+	body.rotation = Vector3.ZERO
+	velocity = Vector3.ZERO
+	hull = hull_max * 0.5
+	since_hit = 0.0
+	alien.mood = "cheer"
+	alien.mood_time = 1.5
+	sparkle()
 
 
 ## Shot down: it tips over and spirals into the ground
