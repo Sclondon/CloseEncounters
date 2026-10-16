@@ -220,6 +220,9 @@ static func _dress(n: Node, tints: Dictionary, own_mats: bool, merge: bool) -> v
 				if paints[i][2] == "glass" and String(mi.name).begins_with("dome"):
 					m = ShaderMaterial.new()
 					m.shader = GLASS
+				elif paints[i][2] == "glass":
+					# (any other glass: a pale pane you can see through, as a phone booth's)
+					m = _pane()
 				elif own_mats:
 					m = own(c, glow, 0.3)
 				else:
@@ -312,3 +315,17 @@ static func flash(n: Node, c: Color) -> void:
 				m.set_shader_parameter("flash", c)
 	for child in n.get_children():
 		flash(child, c)
+
+
+## See-through glass: a pale blue pane, mostly clear
+static func _pane() -> StandardMaterial3D:
+	if _shared.has("pane"):
+		return _shared["pane"]
+	var m := StandardMaterial3D.new()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(0.7, 0.85, 1.0, 0.18)
+	m.roughness = 0.1
+	m.metallic_specular = 0.9
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_shared["pane"] = m
+	return m

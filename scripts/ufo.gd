@@ -385,7 +385,9 @@ func lounge(on: bool) -> void:
 			chair.scale = Vector3.ONE * pilot_size
 			_chair_y = _hull_top() + CHAIR_FLOAT * pilot_size
 			chair.position = Vector3(CHAIR_AT.x * radius / 2.8, _chair_y, CHAIR_AT.z * radius / 2.8)
-			body.add_child(chair)
+			# (on the ship's steady root, not its body: the body rocks as the pilot drops in, the chair
+			# floating over it does not)
+			add_child(chair)
 		if _drink == null:
 			_drink = Ps1.model("beer")
 			_drink.scale = Vector3.ONE * 1.6
@@ -407,7 +409,7 @@ func climb_out() -> void:
 		chair.scale = Vector3.ONE * pilot_size
 		_chair_y = _hull_top() + CHAIR_FLOAT * pilot_size
 		chair.position = Vector3(CHAIR_AT.x * radius / 2.8, _chair_y, CHAIR_AT.z * radius / 2.8)
-		body.add_child(chair)
+		add_child(chair)
 	alien.feel("cheer", HOP_OUT)
 	_hop_out = HOP_OUT
 

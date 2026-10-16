@@ -78,7 +78,7 @@ func follow(top: Vector3, foot: float, neck: float, delta: float, lean := Vector
 				_h[i] = 0.0
 				_a[i] = randf() * TAU
 				_out[i] = randf_range(0.4, 1.0)
-				_climb[i] = randf_range(0.22, 0.45)
+				_climb[i] = randf_range(0.32, 0.62)
 				_at[i] = _swirl(i, top, foot, neck, lean)
 			1:
 				if not on:
@@ -87,11 +87,11 @@ func follow(top: Vector3, foot: float, neck: float, delta: float, lean := Vector
 					_wait[i] = randf_range(0.8, 1.4)
 					continue
 				_h[i] += _climb[i] * delta * (0.6 + _h[i])
-				_a[i] += delta * (2.5 + 6.0 * _h[i] * _h[i])
+				_a[i] += delta * (3.5 + 8.0 * _h[i] * _h[i])
 				var was := _at[i]
 				# (drifting toward its place in the whirl, not carried along with the ship: fly on and it
 				# is left behind for a moment)
-				_at[i] = was.lerp(_swirl(i, top, foot, neck, lean), minf(delta * 2.5, 1.0))
+				_at[i] = was.lerp(_swirl(i, top, foot, neck, lean), minf(delta * 3.5, 1.0))
 				_v[i] = (_at[i] - was) / maxf(delta, 0.001)
 				if _h[i] >= 1.0:
 					_state[i] = 0

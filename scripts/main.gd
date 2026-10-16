@@ -122,14 +122,14 @@ const SPAWN_A_FRAME := 6
 ## What traders sell, one pod each: three of these are set out in front of each trader
 const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "fleet"]
 const UPGRADES := {
-	"engine": {"title": "ENGINE", "about": "+7% speed", "price": 300, "colour": Color(1.0, 0.55, 0.15)},
-	"beam": {"title": "BEAM", "about": "lifts faster; and every second level, stronger: one more kind of thing it can take", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
-	"shield": {"title": "SHIELD", "about": "+15 shield, and patched up", "price": 300, "colour": Color(0.3, 0.6, 1.0)},
-	"patch": {"title": "PATCH", "about": "the shield filled up again", "price": 0, "colour": Color(0.4, 1.0, 1.0)},
-	"dash": {"title": "DASH", "about": "recharges faster, and leaves two more afterimages", "price": 250, "colour": Color(0.75, 0.4, 1.0)},
-	"laser": {"title": "LASER", "about": "a cutting beam: switch the beam over to it and fire it where you aim, at the police and army, cars and oil drums; hotter each level", "price": 500, "colour": Color(1.0, 0.3, 0.45)},
-	"turret": {"title": "AUTO TURRET", "about": "fires by itself: shoots down shells and missiles, then jets, then the police and army; quicker and further each level", "price": 500, "colour": Color(1.0, 0.5, 0.3)},
-	"fleet": {"title": "FLEET", "about": "one more little saucer that beams up small things nearby, and gets in the way of shots", "price": 450, "colour": Color(1.0, 0.9, 0.3)},
+	"engine": {"title": "ENGINE", "about": "faster", "price": 300, "colour": Color(1.0, 0.55, 0.15)},
+	"beam": {"title": "BEAM", "about": "lifts faster, then heavier things", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
+	"shield": {"title": "SHIELD", "about": "more shield", "price": 300, "colour": Color(0.3, 0.6, 1.0)},
+	"patch": {"title": "PATCH", "about": "shield refilled", "price": 0, "colour": Color(0.4, 1.0, 1.0)},
+	"dash": {"title": "DASH", "about": "recharges faster", "price": 250, "colour": Color(0.75, 0.4, 1.0)},
+	"laser": {"title": "LASER", "about": "fire a cutting ray", "price": 500, "colour": Color(1.0, 0.3, 0.45)},
+	"turret": {"title": "AUTO TURRET", "about": "shoots by itself", "price": 500, "colour": Color(1.0, 0.5, 0.3)},
+	"fleet": {"title": "FLEET", "about": "a little helper saucer", "price": 450, "colour": Color(1.0, 0.9, 0.3)},
 }
 ## Upgrades are items that stack, as in Risk of Rain: each pick one more of it, up to this many
 const MAX_UPGRADE := 10
@@ -177,6 +177,8 @@ var levels_on := true
 ## Where the moon is in the sky in a run (see _camera)
 var _moon_dir := Vector3.ZERO
 var _sky_hung := false
+## How much of the moon shows in the sky (0 on the moon itself, up to 1 on the way down)
+var _moon_fade := 0.0
 const DESKTOP_HUD := 0.78
 var score_label: Label
 var mult_label: Label
@@ -214,6 +216,9 @@ var _wreck_ship: Ufo
 var _from_wreck := false
 ## Coming down onto the moon after a crash, 1 high over it to 0 there (see _moon_camera)
 var _moon_drop := 0.0
+## The way the camera looked, and how wide, when it left the crash (the moon's camera starts so)
+var _drop_from := Vector3.UP
+var _drop_fov := 50.0
 const RESULTS_SPEED := 45.0
 var over_label: Label
 ## The title screen's parts, laid out for the screen's shape (`_layout_title`)
@@ -1139,8 +1144,8 @@ func _level_up() -> void:
 		var heading := "%s" % spec["title"] if what == "patch" else "%s  x%d" % [spec["title"], upgrades[what] + 1]
 		var b := _button("%s\n%s" % [heading, spec["about"]], func() -> void: _pick(what))
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		b.custom_minimum_size = Vector2(640, 120)
-		b.add_theme_font_size_override("font_size", 28)
+		b.custom_minimum_size = Vector2(560, 96)
+		b.add_theme_font_size_override("font_size", 32)
 		b.add_theme_color_override("font_color", (spec["colour"] as Color).lerp(Color.WHITE, 0.35))
 		_picks.add_child(b)
 	_forget_fingers()
@@ -1484,12 +1489,21 @@ func _pull_scenery(delta: float) -> void:
 
 
 ## The beam has taken hold of something: anyone near enough to see it reaches for a phone
+## How many of the people who see the ship take something go and call the police about it
+const CALLERS := 0.35
+
 func _witnessed(taken_thing: Thing) -> void:
 	if mode != "play":
 		return
 	for t in things:
 		if t != taken_thing and t.info.get("caller", false) and t.state == "walk" and t.calling <= 0.0 \
 				and t.ground().distance_to(ufo.ground()) < 26.0:
+			# (not everyone runs for a phone: each decides once, the first time they see the ship,
+			# whether they are the calling sort; the rest only run and hide)
+			if not t.has_meta("calls"):
+				t.set_meta("calls", randf() < CALLERS)
+			if not t.get_meta("calls"):
+				continue
 			t.witness()
 			sfx.play("ring", 1.0, _near_db(t))
 
@@ -2326,12 +2340,6 @@ func _log_now(text: String, points: int, kind := "") -> void:
 	line.text = "> " + text + tail
 	line.visible_characters = 0
 	line.set_meta("born", Time.get_ticks_msec() / 1000.0)
-	if kind != "":
-		# (a little hologram of what it was, just before the line)
-		var holo := holograms.view(kind, 34.0)
-		var width := font.get_string_size(line.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 27).x
-		holo.position = Vector2(LOG_WIDTH - width - 40.0, -2.0)
-		line.add_child(holo)
 	_glow(line, Color(0.25, 1.0, 0.4, 0.5))
 	log_box.add_child(line)
 	while log_box.get_child_count() > LOG_LINES:
@@ -2478,22 +2486,39 @@ func _intro_camera() -> void:
 
 
 ## On the moon: low beside the chair, the ship and Earth in the picture; in the launch it rises
+
+
+## The moon in the sky over the world, from the way down from it on: kept up in the top right of
+## the picture (where the sky shows past the curve of the world), easing there rather than jumping
+## when the camera turns, and coming up out of the dark on the way down, not popping in on arrival
+func _place_moon(delta: float) -> void:
+	var v := camera.get_viewport().get_visible_rect().size
+	var want := camera.project_ray_normal(Vector2(v.x * (0.62 if _upright() else 0.7), v.y * (0.1 if _upright() else 0.16)))
+	_moon_dir = _moon_dir.slerp(want, minf(delta * 2.0, 1.0)) if _moon_dir != Vector3.ZERO else want
+	# (fading away again on the way home to the moon)
+	_moon_fade = move_toward(_moon_fade, 0.0 if mode == "return" else 1.0, delta / 1.5)
+	_sky_mat.set_shader_parameter("moon_dir", _moon_dir)
+	_sky_mat.set_shader_parameter("moon_fade", _moon_fade)
 ## with the ship and then follows it off into space
 func _moon_camera(delta: float) -> void:
 	var site := MoonSet.SITE
-	# (no moon in the sky when on it)
-	_moon_dir = Vector3.ZERO
-	_sky_mat.set_shader_parameter("moon_dir", Vector3.DOWN)
+	# (no moon in the sky when on it: whatever is left of it fades away, never popping out)
+	_moon_fade = move_toward(_moon_fade, 0.0, delta / 1.0)
+	_sky_mat.set_shader_parameter("moon_fade", _moon_fade)
+	if _moon_fade <= 0.0:
+		_moon_dir = Vector3.ZERO
 	# (close on the pilot up on the ship, Earth over its shoulder, in the middle of the picture between
 	# the title above and the buttons below, on a phone or a wide screen alike)
 	var at := site + Vector3(0.13, 2.0, 2.31)
 	var look := site + Vector3(6.15, 2.0, -5.68)
 	if _moon_drop > 0.0:
-		# (lowering onto the moon after a crash: from high over it down to the title's picture)
-		_moon_drop = maxf(_moon_drop - delta / 2.6, 0.0)
-		var up := ease(_moon_drop, 2.2) * 60.0
-		at += Vector3.UP * up
-		look += Vector3.UP * up * 0.75
+		# (after a crash: looking up into the stars over the moon, then tilting down onto the title's
+		# picture, the moon rising into the bottom of it; never high over the moon, where the edge of
+		# its ground would show)
+		_moon_drop = maxf(_moon_drop - delta / 3.2, 0.0)
+		var k := ease(_moon_drop, 1.6)
+		var title_way := (look - at).normalized()
+		look = at + title_way.slerp(_drop_from.normalized(), k) * 10.0
 		if _moon_drop <= 0.0 and mode == "title":
 			title_box.visible = true
 	var focus := Vector3(site.x + 1.0, 0.0, site.z)
@@ -2515,6 +2540,8 @@ func _moon_camera(delta: float) -> void:
 	# (wider on a wide screen, for the ground and its cooler and Earth high above both to be seen;
 	# the game's own once the ship is away, as the descent has it)
 	camera.fov = _fov() if _upright() else 52.0
+	if _moon_drop > 0.0:
+		camera.fov = lerpf(camera.fov, _drop_fov, ease(_moon_drop, 1.6))
 	if mode == "launch" or mode == "landing":
 		camera.fov = lerpf(camera.fov, _fov(), smoothstep(LIFT - 0.2, LIFT + 1.6, _launch_t))
 	RenderingServer.global_shader_parameter_set("bend_focus", focus)
@@ -2997,14 +3024,10 @@ func _camera(delta: float) -> void:
 		focus = Vector3(ufo.position.x, 0.0, ufo.position.z)
 	if intro > 0.0 and (mode == "play" or mode == "return"):
 		_intro_camera()
+		_place_moon(delta)
 		return
 	_sky_mat.set_shader_parameter("space", 0.0)
-	# (the moon kept up in the top right of the picture, where the sky shows past the curve of the
-	# world, easing there rather than jumping when the camera turns)
-	var v := camera.get_viewport().get_visible_rect().size
-	var want := camera.project_ray_normal(Vector2(v.x * (0.62 if _upright() else 0.7), v.y * (0.1 if _upright() else 0.16)))
-	_moon_dir = _moon_dir.slerp(want, minf(delta * 2.0, 1.0)) if _moon_dir != Vector3.ZERO else want
-	_sky_mat.set_shader_parameter("moon_dir", _moon_dir)
+	_place_moon(delta)
 	# (the constellations hung where this camera shows them, once a run)
 	if not _sky_hung:
 		_sky_hung = true
@@ -3449,8 +3472,11 @@ func _going_home(delta: float) -> void:
 	if _from_wreck:
 		# (no landing after a crash: a new ship already down on the moon, the pilot in the chair)
 		_from_wreck = false
+		# (no cut: the moon's camera starts looking the very way this one was, out into the same
+		# stars, and only then tilts down onto the moon)
+		_drop_from = -camera.global_basis.z
+		_drop_fov = camera.fov
 		_show_title()
-		# (come down onto it from high over it, the moon rising into the bottom of the picture)
 		_moon_drop = 1.0
 		title_box.visible = false
 		_save_best()
@@ -3533,7 +3559,10 @@ func _show_title() -> void:
 func _choose_music() -> void:
 	if testing:
 		return
-	if mode != "play" or get_tree().paused:
+	if mode == "launch" and _launch_t >= BLAST:
+		# (the radio blown away at lift-off: its song gone with it)
+		music.play("")
+	elif mode != "play" or get_tree().paused:
 		music.play("lounge")
 	elif heat_level() >= 2:
 		music.play("chase")
@@ -4083,9 +4112,13 @@ class Coin extends Control:
 		draw_string(font, Vector2(0, c.y + 10.0), "LV %d" % (main.level + 1), HORIZONTAL_ALIGNMENT_CENTER, size.x, 30, Color(0.75, 1.0, 0.78, 0.45))
 		for b: Array in _icons:
 			var tex: Texture2D = b[2]
-			var side := BODY * 2.6
+			# (each in a little glass ball of its own)
+			var side := BODY * 1.6
 			draw_set_transform(c + (b[0] as Vector2), float(b[3]), Vector2.ONE)
+			draw_circle(Vector2.ZERO, BODY, Color(0.05, 0.25, 0.12, 0.9))
 			draw_texture_rect(tex, Rect2(-side * 0.5, -side * 0.5, side, side), false)
+			draw_arc(Vector2.ZERO, BODY, 0, TAU, 16, Color(0.6, 1.0, 0.7, 0.85), 1.5)
+			draw_circle(Vector2(-BODY * 0.35, -BODY * 0.4), BODY * 0.22, Color(1, 1, 1, 0.55))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		draw_arc(c, R, 0, TAU, 56, Color(0.6, 1.0, 0.7, 0.9), 4.0)
 		draw_arc(c + Vector2(-R * 0.3, -R * 0.35), R * 0.45, PI * 1.05, PI * 1.45, 12, Color(1, 1, 1, 0.5), 4.0)

@@ -6,6 +6,8 @@ uniform vec3 top : source_color = vec3(0.01, 0.015, 0.06);
 uniform vec3 low : source_color = vec3(0.1, 0.14, 0.26);
 // (low over the horizon ahead, where the camera's picture of the sky always reaches)
 uniform vec3 moon_dir = vec3(0.3, 0.17, -0.94);
+// How much of the moon shows (it comes up out of the dark on the way down to Earth)
+uniform float moon_fade = 1.0;
 uniform sampler2D moon_map : source_color, filter_linear_mipmap;
 // Real constellations' stars (see scripts/constellations.gd): a direction and a brightness each
 uniform vec4 named[64];
@@ -80,8 +82,8 @@ void sky() {
 		vec3 ground = texture(moon_map, uv).rgb;
 		float lit = clamp(dot(n, normalize(vec3(0.55, 0.2, 0.8))) * 1.15 + 0.12, 0.05, 1.0);
 		vec3 face = ground * 1.25 * lit * vec3(1.0, 0.98, 0.93);
-		c = mix(c, face, smoothstep(0.9988, 0.9990, m));
+		c = mix(c, face, smoothstep(0.9988, 0.9990, m) * moon_fade);
 	}
-	c += vec3(0.25, 0.3, 0.4) * pow(max(m, 0.0), 80.0) * 0.5;
+	c += vec3(0.25, 0.3, 0.4) * pow(max(m, 0.0), 80.0) * 0.5 * moon_fade;
 	COLOR = c;
 }
