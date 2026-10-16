@@ -1206,7 +1206,7 @@ const ALIEN_NAMES := {
 	"substation": "SPARK GARDEN", "observatory": "SKY WATCH DOME", "seti_dish": "LISTENING BOWL",
 	"floodlight": "LIGHT STALK", "police_car": "LAW POD", "officer": "LAW EARTHLING", "agent_car": "SHADOW POD",
 	"agent": "SHADOW EARTHLING", "helicopter": "WHIRL POD", "chinook": "DOUBLE WHIRL POD", "jeep": "WAR CRAWLER",
-	"tank": "SHELL CRAWLER", "golden_cow": "GOLDEN MILK BEAST", "jackalope": "HORNED LONG-EAR",
+	"tank": "SHELL CRAWLER", "jet": "FAST SKY POD", "golden_cow": "GOLDEN MILK BEAST", "jackalope": "HORNED LONG-EAR",
 	"sasquatch": "COUSIN", "meteorite": "SPACE PEBBLE", "satellite": "PRIMITIVE PROBE", "rival": "RIVAL SAUCER",
 }
 

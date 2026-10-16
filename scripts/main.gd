@@ -768,7 +768,9 @@ func _read_steer() -> Vector2:
 ## than the last), and little for a while after a new star, so that each is a stage of its own
 ## rather than a rush from one to five
 func add_heat(amount: float) -> void:
-	var damp := 1.0 / (1.0 + 0.6 * heat_level())
+	# (each star harder to reach than the last, steeply: five stars takes a long, hot run)
+	var l := float(heat_level())
+	var damp := 1.0 / (1.0 + 0.9 * l + 0.3 * l * l)
 	if _new_star > 0.0:
 		damp *= 0.25
 	heat = minf(heat + amount * damp, MAX_HEAT)
@@ -2649,7 +2651,13 @@ func _intro_camera() -> void:
 	var normal_from := _camera_offset() - Vector3(0, ufo.altitude, 0)
 	camera.position = ufo.position + _chase(away).slerp(normal_from, settle)
 	var normal_way := (Vector3(0, -ufo.altitude * (1.0 if _upright() else 0.55), 0) - normal_from).normalized()
-	camera.look_at(camera.position + away.slerp(normal_way, settle), Vector3.UP)
+	var way := away.slerp(normal_way, settle)
+	if mode == "return" and _from_wreck:
+		# (home from a crash: looking up and up into the stars as it climbs, so that the moon's camera
+		# can take over looking the same way, with no ground in sight, and only then come down onto it)
+		var up := (Vector3(way.x, 0.0, way.z).normalized() * 0.25 + Vector3.UP).normalized()
+		way = way.slerp(up, smoothstep(0.35, 0.9, _return_t / RETURN_UP)).normalized()
+	camera.look_at(camera.position + way, Vector3.UP if absf(way.y) < 0.99 else Vector3.FORWARD)
 	RenderingServer.global_shader_parameter_set("bend_focus", Vector3(ufo.position.x, 0.0, ufo.position.z - 1.0))
 	RenderingServer.global_shader_parameter_set("saucer_pos", ufo.position)
 	_sky_mat.set_shader_parameter("space", 1.0 - smoothstep(0.3, 0.85, k))
@@ -3003,16 +3011,28 @@ func open_saucers() -> void:
 	for s: String in Ufo.ORDER:
 		var spec: Dictionary = Ufo.SHIPS[s]
 		var have := s in unlocked
-		var b := _button(spec["title"] if have else "%s\nLOCKED" % spec["title"], func() -> void: _choose_ship(s))
-		b.icon = holograms.icon(s)
-		b.expand_icon = true
-		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		var b := _button("", func() -> void: _choose_ship(s))
 		b.custom_minimum_size = Vector2(300, 300) if big else Vector2(220, 200)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.add_theme_font_size_override("font_size", 40 if big else 26)
-		if s == ship:
-			b.add_theme_color_override("font_color", Color(1.0, 0.95, 0.5))
+		# (the saucer as a hologram, flickering and scanning as the log's do, filling the tile over its
+		# name, which sits along the bottom)
+		var tile := VBoxContainer.new()
+		tile.set_anchors_preset(Control.PRESET_FULL_RECT)
+		tile.offset_left = 8.0
+		tile.offset_right = -8.0
+		tile.offset_top = 8.0
+		tile.offset_bottom = -8.0
+		tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(tile)
+		var holo := holograms.view(s, 60.0)
+		holo.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		holo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tile.add_child(holo)
+		var name_l := _label(40 if big else 26, Color(1.0, 0.95, 0.5) if s == ship else Color(0.85, 1.0, 0.86))
+		name_l.text = spec["title"] if have else "%s  LOCKED" % spec["title"]
+		name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tile.add_child(name_l)
 		if not have:
 			b.disabled = true
 			b.modulate = Color(0.45, 0.45, 0.45)
@@ -3203,7 +3223,8 @@ func coop_event(what: String, at: Vector3, kind: String, size: float) -> void:
 		"boom":
 			boom(at + Vector3(0, 0.8, 0), size)
 
-## The log written out afresh: the ships, then everything there is to take, then the hunters; what
+## The log written out afresh: everything there is to take, then the hunters (the saucers have their
+## own list, SAUCERS); what
 ## has not been come across yet is ???
 func _fill_log() -> void:
 	for old in _log_list.get_children():
@@ -3213,10 +3234,6 @@ func _fill_log() -> void:
 	_log_head.add_theme_font_size_override("font_size", 110 if big else 56)
 	_log_back.custom_minimum_size = Vector2(420, 140) if big else Vector2(260, 70)
 	_log_back.add_theme_font_size_override("font_size", 72 if big else 40)
-	var ships: Array = []
-	for s: String in Ufo.ORDER:
-		ships.append([Ufo.SHIPS[s]["title"], "" if s in unlocked else "LOCKED", s in unlocked])
-	_log_section("SHIPS  %d/%d" % [unlocked.size(), Ufo.ORDER.size()], ships, big)
 	var specimens: Array = []
 	var have := 0
 	for kind: String in Thing.KINDS:
@@ -3229,7 +3246,7 @@ func _fill_log() -> void:
 	_log_section("SPECIMENS  %d/%d" % [have, specimens.size()], specimens, big)
 	var hunters: Array = []
 	for h: String in HUNTERS:
-		hunters.append([HUNTERS[h], "", h in _log_met])
+		hunters.append([Thing.alien_name(h), "", h in _log_met, h])
 	_log_section("HUNTERS  %d/%d" % [_log_met.size(), HUNTERS.size()], hunters, big)
 
 

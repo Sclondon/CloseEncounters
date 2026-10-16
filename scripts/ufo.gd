@@ -34,7 +34,7 @@ const SHIPS := {
 		"radius": 1.2, "beam_foot": 1.8, "alien_y": 0.66, "alien_size": 0.42, "spin": true,
 		"about": "Tiny, quick, hard to hit. Hardly any shield; small things.", "ghost": Color(1.0, 0.55, 0.25)},
 	"cigar": {"title": "CIGAR", "model": "cigar", "speed": 8.5, "lift": 0.9, "hull": 120.0, "tier": 2, "altitude": 11.0,
-		"radius": 3.8, "beam_foot": 4.2, "alien_y": 0.66, "alien_size": 0.66, "spin": false, "lamps": Vector3(0, 0.95, 2.0),
+		"radius": 3.8, "beam_foot": 4.2, "alien_y": 0.66, "alien_size": 0.66, "spin": false,
 		"about": "Huge and slow. The toughest shield and the widest beam.", "ghost": Color(0.85, 0.9, 1.0)},
 	"bell": {"title": "BELL", "model": "bell", "speed": 10.5, "lift": 0.7, "hull": 40.0, "tier": 4, "altitude": 9.0,
 		"radius": 2.7, "beam_foot": 2.6, "alien_y": 1.12, "alien_size": 0.72, "spin": true,
@@ -145,8 +145,6 @@ var _chair_y := 0.0
 var seat := Vector3.ZERO
 var pilot_size := 1.0
 var _toss := 0.0
-## Three lamps on the front of the hull, lit one by one as the dodge recharges
-var _lamps: Array[ShaderMaterial] = []
 var _spin := 0.0
 var _ghost_wait := 0.0
 var _model_name := "ufo"
@@ -218,13 +216,6 @@ func _ready() -> void:
 	pilot_size = float(spec["alien_size"])
 	body.add_child(alien)
 	_build_panel(float(spec["alien_size"]), Vector3(0, spec["alien_y"], 0))
-	# (on the front of the rim; or where the ship says, on its hull and turning with it: the cigar's
-	# are on its back, its nose being too narrow)
-	var lamps: Vector3 = spec.get("lamps", Vector3(0, 0.22, radius * 0.78))
-	for i in 3:
-		var m := Ps1.own(Color(0.4, 1.0, 0.5), 1.5)
-		_lamps.append(m)
-		Ps1.part(hull_model if spec.has("lamps") else body, Ps1.ball(), m, lamps + Vector3((i - 1) * 0.42, 0, 0), Vector3.ONE * 0.13)
 	_legs = Node3D.new()
 	body.add_child(_legs)
 	# (three legs splayed out, each 1.2 long, its foot pad right at the bottom of it)
@@ -562,11 +553,6 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	_gulping(delta)
 	_smoking(delta)
 	_flash_lights()
-	var ready := dodge_ready()
-	for i in _lamps.size():
-		var lit := ready >= (i + 1) / 3.0
-		_lamps[i].set_shader_parameter("tint", Color(0.4, 1.0, 0.5) if lit else Color(0.35, 0.08, 0.06))
-		_lamps[i].set_shader_parameter("glow", 1.5 if lit else 0.3)
 	var left := hull / hull_max
 	bubble.visible = hull > 0.0 and bubble_fade > 0.0 and cloak <= 0.0
 	_bubble_mat.set_shader_parameter("strength", (0.25 + 0.75 * left) * bubble_fade)

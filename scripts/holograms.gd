@@ -71,7 +71,7 @@ func _process(_delta: float) -> void:
 		return
 	var kind: String = _queue.pop_front()
 	# (a kind of thing, or one of the ships, by its name in Ufo.SHIPS)
-	var info: Dictionary = Thing.KINDS.get(kind, Ufo.SHIPS.get(kind, {}))
+	var info: Dictionary = Thing.KINDS.get(kind, Ufo.SHIPS.get(kind, Thing.KINDS.get("fighter_" + kind, {})))
 	if info.is_empty():
 		return
 	var name: String = info.get("model", kind)

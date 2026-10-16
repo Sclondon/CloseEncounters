@@ -36,10 +36,10 @@ and while on the moon the world stays loaded round where the run starts (no stut
   whatever is in the beam, and throws the pilot about.
 - **Pause**: Esc / P / Start, or the pause button in the top right; from there, RESUME or QUIT TO MENU (the run is given up).
 
-The HUD: top left, the shield as a glass orb of blue energy, and three arrows that light up as the dodge
-recharges, one for each dash (every dash is a full one; three lamps on the front of the ship light with them);
-under them a round **radar** the same size. The heat's news (the police coming, spotted, a nuke) shows just under the stars. Top right, beside the pause button, the score in alien money and its multiplier,
-and under them a log of everything taken, typed out in glowing green. Left of the cash, the **level orb** (the size of the shield's) fills with little gold balls toward the next level-up.
+The HUD: down the top left, three glass orbs the same size: the shield (blue energy), the round **radar**, and
+the dash (three arrows that light up as it recharges, one for each dash; every dash is a full one).
+The heat's news (the police coming, spotted, a nuke) shows just under the stars. Top right, beside the pause button, the score in alien money and its multiplier,
+and under them a log of everything taken, typed out in glowing green. Left of the cash, the **level orb** (the size of the shield's) fills with little hologram balls of what was taken, dropping in, toward the next level-up.
 The radar shows the nearest trader, secret facility, substation and rare
 find (on the rim, pointing the way, when out of range), and the police and army about in red. The touch stick
 shows only while a thumb is on it.
@@ -101,7 +101,7 @@ Searchlights are soft cones, brightest down the middle and fading to their edges
 | 4 | The army: jeeps firing machine guns on the move |
 | 5 | Tanks, and jets fly over firing missiles. Hold five stars for 30 s and they **nuke** you: a red ring on the ground where the ship is going, five seconds, then a missile, a flash and a mushroom cloud that takes everything inside (and most of a shield); again every 20 s while it lasts |
 
-Each star takes more heat than the last, and for 8 seconds after a new one the heat comes only slowly, so the
+Each star takes much more heat than the last (the fifth over five times the first's), and for 8 seconds after a new one the heat comes only slowly, so the
 stars are stages rather than a rush from one to five.
 
 **Witnesses**: anyone who sees the beam take something runs for the nearest **phone booth** by the road (a red
