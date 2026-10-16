@@ -161,15 +161,15 @@ and you bounce off; **dash into it** and it spins away and drops what it had (50
 When the shield is gone the ship comes down and the game is over: a **crash site** where it hit, the ship half
 in the ground, burning and smoking; the pilot tumbles out, lies a moment and gets up, staggering, and people
 come out to stand round and look. The results type out above it in green: what was taken, kind by kind, and
-the total. The score goes to the arcade page (`PLAYER_DIED`); the best score and the ship are kept in
+the total by category (Earthlings, beasts, crops, machines...), left-aligned, typed out with a typewriter's keys and bell. The score goes to the arcade page (`PLAYER_DIED`); the best score and the ship are kept in
 `user://best.cfg`. **Each run is a new country** (`World.reseed`): new regions, roads and props, and Devils
 Tower somewhere else (the tests keep the first one). A run always starts over a cornfield by the first town.
 
 ### Multiplayer
 
-On the title the arrows pick **SINGLE PLAYER** or **MULTIPLAYER**, and **SAUCERS** shows every ship as a
-hologram to pick from (those not yet found greyed out). PLAY in MULTIPLAYER opens the lobby: **HOST A ROOM**
-(a four-letter code to give friends) or type a code and **JOIN**; up to four saucers. The one who made the
+On the title the arrows turn the big button between **PLAY** (alone), **HOST** and **JOIN**, and **SAUCERS** shows every ship as a
+hologram to pick from (those not yet found greyed out). HOST makes a room at once
+(a four-letter code to give friends); JOIN asks for a friend's code. Up to four saucers. The one who made the
 room presses START, and everyone lifts off for the same country: the leader's start carries the world's seed
 (as the room's "stage").
 
@@ -268,3 +268,12 @@ calls a frame, down from 1,100.
     sh tools/export_web.sh      # the web build, its .pck named by its contents (phones never keep an old one)
 
 (`godot` is `C:/Program Files (x86)/Steam/steamapps/common/Godot Engine/godot.windows.opt.tools.64.exe`.)
+
+## Sky
+
+The stars are NASA's Deep Star Maps (`textures/starmap_nasa.jpg`, public domain, the 2020 4K map): the Milky
+Way and the real constellations, the same sky on the moon, in space and over Earth, its brightest stars
+twinkling; over Earth the night's blue and a horizon haze are laid on it (`shaders/sky.gdshader`). The
+moon over Earth is NASA's LRO map of it (`textures/moon_lroc.jpg`), hung at one place in the sky like Earth
+over the moon: top left in play on a wide screen, top right on a phone, out of the picture where the
+descent starts and gone again before the ship is home.

@@ -36,6 +36,13 @@ void fragment() {
 		+ 0.6 * pow(max(dot(r, normalize(vec3(0.7, 0.35, -0.6))), 0.0), 40.0);
 	// (a soft streak across the top, as if from a long light)
 	float streak = smoothstep(0.92, 0.99, r.y) * 0.35;
+	// (the glints and the streak only on the top of the dome, facing the sky: low on it, where it
+	// curves under toward the hull, or inside it with the canopy open, they read as a fault in the
+	// glass)
+	vec3 up_n = (INV_VIEW_MATRIX * vec4(n, 0.0)).xyz;
+	float top = smoothstep(0.15, 0.45, up_n.y) * (FRONT_FACING ? 1.0 : 0.0);
+	glint *= top;
+	streak *= top;
 	vec3 sheen = 0.5 + 0.5 * cos(6.2832 * (rim * 1.3 + vec3(0.0, 0.33, 0.67)));
 	vec3 c = tint * 0.25 + sky * 0.6 + tint * rim * 0.9 + sheen * rim * 0.25;
 	ALBEDO = c + vec3(glint + streak);

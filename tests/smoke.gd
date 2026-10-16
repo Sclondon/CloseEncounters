@@ -11,6 +11,8 @@ var seen := {}
 var hit := false
 var phase := 0
 var dodge_from := 0.0
+var dodge_way := Vector2(1, 0)
+var dodge_start := Vector3.ZERO
 var patrols := 0
 var spotted := false
 
@@ -49,13 +51,26 @@ func _process(_delta: float) -> bool:
 		600:
 			_check(main.taken > 0, "the autopilot took something (%d, score %d, heat %.2f)" % [main.taken, main.score, main.heat])
 			main.heat = 2.5
+			# (a patrol near, its searchlight sure to cross the ship, wherever the autopilot wanders)
+			main.spawn("patrol_car", main.ufo.ground() + Vector3(10, 0, -8))
 		650:
-			var x: float = main.ufo.position.x
-			main._dodge(Vector2(1, 0))
+			# (dashed the way that is clear: a mesa or a tower in the way stops a dash, by design)
+			dodge_way = Vector2(1, 0)
+			for way: Vector2 in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
+				var clear := true
+				for step in range(1, 13):
+					var p: Vector3 = main.ufo.position + Vector3(way.x, 0, way.y) * step
+					if main.world.push_out(p, 2.6).distance_to(p) > 0.01:
+						clear = false
+				if clear:
+					dodge_way = way
+					break
+			dodge_start = main.ufo.position
+			main._dodge(dodge_way)
 			_check(main.ufo.dodging() and not main.ufo.struck(main.ufo.position), "a dodge makes the saucer untouchable")
-			dodge_from = x
 		670:
-			_check(main.ufo.position.x > dodge_from + 4.0, "a dodge dashes the saucer sideways (%.1f m)" % (main.ufo.position.x - dodge_from))
+			var moved: float = (main.ufo.position - dodge_start).dot(Vector3(dodge_way.x, 0, dodge_way.y))
+			_check(moved > 4.0, "a dodge dashes the saucer sideways (%.1f m)" % moved)
 		1500:
 			_check(seen.has("police_car"), "police came at two stars")
 			_check(patrols > 0, "patrols with searchlights rove about")
@@ -63,11 +78,15 @@ func _process(_delta: float) -> bool:
 			main.heat = 3.5
 		2050:
 			_check(seen.has("helicopter"), "a police helicopter came at three stars")
-			# (checked late: a police car has to be sure of the ship before it gives chase and pulls up)
-			_check(seen.has("officer"), "a police car pulled up and an officer got out")
+			# (a police car near, sure of the ship already: it gives chase, pulls up, and out gets the officer)
+			var cop: Thing = main.spawn("police_car", main.ufo.ground() + Vector3(14, 0, 6))
+			cop.alert = 1.0
+			cop.chasing = true
 			main.heat = 4.5
 		2600:
 			_check(seen.has("jeep") and seen.has("chinook"), "army jeeps and a Chinook came at four stars")
+			# (checked late: a police car has to be sure of the ship before it gives chase and pulls up)
+			_check(seen.has("officer"), "a police car pulled up and an officer got out")
 			_check(hit, "the saucer was shot at and hit")
 			main.heat = 5.0
 		3000:

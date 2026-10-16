@@ -45,7 +45,9 @@ void fragment() {
 	vec3 line = saucer_pos - eye;
 	float along = dot(world - eye, line) / dot(line, line);
 	float off = length(world - eye - line * clamp(along, 0.0, 1.0));
-	if (along > 0.0 && along * length(line) < length(line) - 3.5 && off < 4.5) {
+	// (never the ship itself: nothing within 4 m of it, which a close camera, as on the moon, would
+	// otherwise catch)
+	if (along > 0.0 && along * length(line) < length(line) - 3.5 && off < 4.5 && length(world - saucer_pos) > 4.0) {
 		if ((int(FRAGCOORD.x) + int(FRAGCOORD.y)) % 2 == 0) discard;
 	}
 	// (a merged model carries each part's colour on its corners, and how much it glows in their alpha:

@@ -176,9 +176,6 @@ var coop_seed := 0
 var levels_on := true
 ## Where the moon is in the sky in a run (see _camera)
 var _moon_dir := Vector3.ZERO
-var _sky_hung := false
-## How much of the moon shows in the sky (0 on the moon itself, up to 1 on the way down)
-var _moon_fade := 0.0
 const DESKTOP_HUD := 0.78
 var score_label: Label
 var mult_label: Label
@@ -399,9 +396,7 @@ func _build_view() -> void:
 	sky.sky_material = sky_mat
 	_sky_mat = sky_mat
 	_sky_mat.set_shader_parameter("moon_map", load("res://textures/moon_lroc.jpg"))
-	var named := Constellations.directions()
-	named.resize(64)
-	_sky_mat.set_shader_parameter("named", named)
+	_sky_mat.set_shader_parameter("star_map", load("res://textures/starmap_nasa.jpg"))
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.32, 0.4, 0.62)
@@ -476,7 +471,6 @@ func start(from_launch := false) -> void:
 	_rival_wait = 50.0
 	coop.clear()
 	_run_taken.clear()
-	_sky_hung = false
 	laser_mode = false
 	_five_for = 0.0
 	_nuke_wait = 0.0
@@ -2066,8 +2060,10 @@ func abducted(t: Thing) -> void:
 		var title: String = Thing.alien_name(t.kind)
 		log_line(title, points, t.kind)
 		_log_taken[t.kind] = int(_log_taken.get(t.kind, 0)) + 1
-		var had: Array = _run_taken.get(title, [0, 0])
-		_run_taken[title] = [int(had[0]) + 1, int(had[1]) + points]
+		# (the run's takings by category, for the results)
+		var group := Thing.category(t.kind)
+		var had: Array = _run_taken.get(group, [0, 0])
+		_run_taken[group] = [int(had[0]) + 1, int(had[1]) + points]
 	t.state = "gone"
 	t.queue_free()
 
@@ -2216,18 +2212,13 @@ func _crash(delta: float) -> void:
 
 
 
-## The results, line by line: what was taken, kind by kind (most points first), then the total
+## The results: what was taken, category by category (in the log's order), how many and for how
+## much; then the total
 func _results(is_best: bool) -> String:
-	var kinds: Array = _run_taken.keys()
-	kinds.sort_custom(func(a: String, b: String) -> bool: return int(_run_taken[a][1]) > int(_run_taken[b][1]))
 	var lines: Array[String] = []
-	for kind: String in kinds.slice(0, 8):
-		lines.append("%s x%d  %d" % [kind, int(_run_taken[kind][0]), int(_run_taken[kind][1])])
-	if kinds.size() > 8:
-		var rest := 0
-		for kind: String in kinds.slice(8):
-			rest += int(_run_taken[kind][1])
-		lines.append("AND %d MORE  %d" % [kinds.size() - 8, rest])
+	for group: String in Thing.CATEGORIES:
+		if _run_taken.has(group):
+			lines.append("%s x%d  %d" % [group, int(_run_taken[group][0]), int(_run_taken[group][1])])
 	if lines.is_empty():
 		lines.append("NOTHING TAKEN")
 	lines.append("")
@@ -2273,10 +2264,60 @@ func _clear_wreck() -> void:
 	if is_instance_valid(_wreck_pilot):
 		_wreck_pilot.queue_free()
 	_wreck_pilot = null
+	_pilot_way = Vector3.ZERO
+	_pilot_down = false
 	if is_instance_valid(_wreck_ship):
 		_wreck_ship.queue_free()
 	_wreck_ship = null
 
+
+
+## The crashed pilot's run: how long before it is gunned down, the way it is running, and whether it is
+## down
+const PILOT_SHOT := 5.2
+var _pilot_way := Vector3.ZERO
+var _pilot_down := false
+
+
+## Away from the police and army about the wreck (or, with none, from the crowd come to look)
+func _flee_way(from: Vector3) -> Vector3:
+	var away := Vector3.ZERO
+	for t in things:
+		if t.state == "walk" and (t.is_enemy() or t.info.get("caller", false)):
+			var off := Vector3(from.x - t.position.x, 0, from.z - t.position.z)
+			if off.length() < 60.0 and off.length() > 0.1:
+				away += off.normalized() / maxf(off.length(), 3.0)
+	if away.length() < 0.001:
+		var a := randf() * TAU
+		away = Vector3(cos(a), 0, sin(a))
+	return away.normalized()
+
+
+## The pilot gunned down where it runs: a burst of shots at it from the nearest police or army (or out
+## of the dark, with none near), and it drops flat and lies still
+func _gun_down(pilot: Node3D) -> void:
+	_pilot_down = true
+	var from := pilot.position + Vector3(-_pilot_way.x, 0, -_pilot_way.z) * 14.0 + Vector3(0, 1.2, 0)
+	var nearest := 60.0
+	for t in things:
+		if t.state == "walk" and t.is_enemy() and t.position.distance_to(pilot.position) < nearest:
+			nearest = t.position.distance_to(pilot.position)
+			from = t.muzzle()
+	var tw := create_tween()
+	for i in 5:
+		tw.tween_callback(func() -> void:
+			if is_instance_valid(pilot):
+				_shot("bullet", from, pilot.position + Vector3(randf_range(-0.3, 0.3), 0.6, randf_range(-0.3, 0.3)))
+				sfx.play("pop", randf_range(0.9, 1.1), -2.0)
+				ufo.puffs.spark(pilot.position + Vector3(0, 0.6, 0), Vector3(randf_range(-2, 2), randf_range(1, 3), randf_range(-2, 2)), Color(0.4, 1.0, 0.5)))
+		tw.tween_interval(0.12)
+	# (struck: thrown forward and down, flat on the ground, still)
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(pilot):
+			pilot.feel("dead")
+			sfx.play("thud", 0.8))
+	tw.tween_property(pilot, "rotation:x", PI / 2, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(pilot, "position", pilot.position + _pilot_way * 1.4 + Vector3(0, -0.05, 0), 0.35)
 ## The wreck burning: smoke and fire off it, sparks now and then, the pilot staggering about by it;
 ## and the score panel up after a moment
 func _wreck_burning(delta: float) -> void:
@@ -2290,9 +2331,16 @@ func _wreck_burning(delta: float) -> void:
 	if randf() < delta * 1.5:
 		for i in 4:
 			ufo.puffs.spark(wreck + Vector3(0, 1.0, 0), Vector3(randf_range(-1, 1), randf_range(0.5, 1.4), randf_range(-1, 1)) * randf_range(3.0, 6.0))
-	if _wreck_t > 2.6 and is_instance_valid(_wreck_pilot):
-		_wreck_pilot.position.y = 0.25 + absf(sin(_wreck_t * 5.0)) * 0.1
-		_wreck_pilot.rotation.z = sin(_wreck_t * 2.3) * 0.25
+	if _wreck_t > 2.6 and _wreck_t < PILOT_SHOT and is_instance_valid(_wreck_pilot):
+		# (up and running for it, away from whoever is about, bobbing, stumbling)
+		if _pilot_way == Vector3.ZERO:
+			_pilot_way = _flee_way(_wreck_pilot.position)
+			_wreck_pilot.feel("hurt", 9.0)
+		_wreck_pilot.position += _pilot_way * delta * 3.2
+		_wreck_pilot.position.y = 0.25 + absf(sin(_wreck_t * 11.0)) * 0.22
+		_wreck_pilot.rotation = Vector3(0.25, atan2(_pilot_way.x, _pilot_way.z), sin(_wreck_t * 11.0) * 0.18)
+	elif _wreck_t >= PILOT_SHOT and not _pilot_down and is_instance_valid(_wreck_pilot):
+		_gun_down(_wreck_pilot)
 	if _over_show > 0.0:
 		_over_show -= delta
 		if _over_show <= 0.0:
@@ -2304,8 +2352,12 @@ func _wreck_burning(delta: float) -> void:
 		_over_typing -= more
 		if more > 0:
 			over_label.visible_characters = mini(over_label.visible_characters + more, over_label.text.length())
-			if over_label.text[over_label.visible_characters - 1] != " ":
-				sfx.play("click", 1.6, -16.0)
+			# (a typewriter: a key struck for each letter, the bell at the end of a line)
+			var ch := over_label.text[over_label.visible_characters - 1]
+			if ch == "\n":
+				sfx.play("ding", 1.0, -10.0)
+			elif ch != " ":
+				sfx.play("key", randf_range(0.9, 1.15), -8.0)
 		_again.visible = over_label.visible_characters >= over_label.text.length()
 
 
@@ -2488,25 +2540,41 @@ func _intro_camera() -> void:
 ## On the moon: low beside the chair, the ship and Earth in the picture; in the launch it rises
 
 
-## The moon in the sky over the world, from the way down from it on: kept up in the top right of
-## the picture (where the sky shows past the curve of the world), easing there rather than jumping
-## when the camera turns, and coming up out of the dark on the way down, not popping in on arrival
-func _place_moon(delta: float) -> void:
-	var v := camera.get_viewport().get_visible_rect().size
-	var want := camera.project_ray_normal(Vector2(v.x * (0.62 if _upright() else 0.7), v.y * (0.1 if _upright() else 0.16)))
-	_moon_dir = _moon_dir.slerp(want, minf(delta * 2.0, 1.0)) if _moon_dir != Vector3.ZERO else want
-	# (fading away again on the way home to the moon)
-	_moon_fade = move_toward(_moon_fade, 0.0 if mode == "return" else 1.0, delta / 1.5)
+## The moon in the sky over the world, as Earth is over the moon: still, at one place in the sky,
+## and the camera moving under it (it comes into the picture as the descent swings round, and goes
+## out of it on the way home). Where it is: up in the top right of the picture as the game's
+## camera sees it in play, worked out once (again if the screen's shape changes).
+## (where it shows in the picture in play, a phone's and a wide screen's)
+const MOON_UPRIGHT := Vector2(0.6, 0.1)
+const MOON_WIDE := Vector2(0.3, 0.15)
+
+func _place_moon(_delta: float) -> void:
+	if _moon_dir == Vector3.ZERO:
+		_moon_dir = _moon_in_play()
 	_sky_mat.set_shader_parameter("moon_dir", _moon_dir)
-	_sky_mat.set_shader_parameter("moon_fade", _moon_fade)
-## with the ship and then follows it off into space
+	_sky_mat.set_shader_parameter("moon_fade", 1.0)
+
+
+## Where in the sky the top right of the picture is, from the camera as it is in play
+func _moon_in_play(at := Vector2.ZERO) -> Vector3:
+	var was := camera.global_transform
+	var was_fov := camera.fov
+	var off := _camera_offset()
+	var look := Vector3(0, 0.0 if _upright() else ufo.altitude * 0.45, 0)
+	camera.global_transform = Transform3D(Basis.IDENTITY, off).looking_at(look, Vector3.UP)
+	camera.fov = _fov()
+	var v := camera.get_viewport().get_visible_rect().size
+	if at == Vector2.ZERO:
+		at = MOON_UPRIGHT if _upright() else MOON_WIDE
+	var d := camera.project_ray_normal(v * at)
+	camera.global_transform = was
+	camera.fov = was_fov
+	return d
 func _moon_camera(delta: float) -> void:
 	var site := MoonSet.SITE
-	# (no moon in the sky when on it: whatever is left of it fades away, never popping out)
-	_moon_fade = move_toward(_moon_fade, 0.0, delta / 1.0)
-	_sky_mat.set_shader_parameter("moon_fade", _moon_fade)
-	if _moon_fade <= 0.0:
-		_moon_dir = Vector3.ZERO
+	# (no moon in the sky when on it, as there is no Earth in the sky over Earth)
+	_sky_mat.set_shader_parameter("moon_fade", 0.0)
+	_moon_dir = Vector3.ZERO
 	# (close on the pilot up on the ship, Earth over its shoulder, in the middle of the picture between
 	# the title above and the buttons below, on a phone or a wide screen alike)
 	var at := site + Vector3(0.13, 2.0, 2.31)
@@ -2545,7 +2613,9 @@ func _moon_camera(delta: float) -> void:
 	if mode == "launch" or mode == "landing":
 		camera.fov = lerpf(camera.fov, _fov(), smoothstep(LIFT - 0.2, LIFT + 1.6, _launch_t))
 	RenderingServer.global_shader_parameter_set("bend_focus", focus)
-	RenderingServer.global_shader_parameter_set("saucer_pos", Vector3(0, -9999, 0))
+	# (nothing to see through on the moon: the point at the camera itself, so that nothing is ever
+	# "between" them; a point far off would have the ship under the camera taken for in the way)
+	RenderingServer.global_shader_parameter_set("saucer_pos", camera.position)
 	_sky_mat.set_shader_parameter("space", 1.0)
 	camera.environment.fog_density = 0.0
 
@@ -2622,7 +2692,7 @@ func _layout_title(size: Vector2) -> void:
 	# (the name on one line, glowing: as big as it fits across the box, up to a modest size)
 	var room := size.x - 80.0 - 24.0
 	var name_size := 76 if upright else 56
-	while name_size > 24 and font.get_string_size(_title_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size).x > room:
+	while name_size > 24 and font.get_string_size(_title_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size).x * TitleArt.SPREAD > room:
 		name_size -= 2
 	_title_label.add_theme_font_size_override("font_size", name_size)
 	_title_label.add_theme_constant_override("outline_size", maxi(name_size / 4, 6))
@@ -2690,8 +2760,9 @@ func close_log() -> void:
 # ------------------------------------------------------------------ modes and the saucers
 
 ## How the next run is played: alone, or with others (see Net); picked with the arrows by PLAY
-const MODES := ["single", "multi"]
-const MODE_TITLES := {"single": "SINGLE PLAYER", "multi": "MULTIPLAYER"}
+const MODES := ["single", "host", "join"]
+## (what the big button says for each: PLAY alone, or HOST or JOIN a multiplayer room)
+const MODE_TITLES := {"single": "PLAY", "host": "HOST", "join": "JOIN"}
 var play_mode := "single"
 
 
@@ -2764,14 +2835,21 @@ var _lobby_start: Button
 var _lobby_leave: Button
 
 
-## PLAY on the title: off at once alone, or into the lobby for a multiplayer game
+## The big button on the title: PLAY, off at once alone; HOST, a multiplayer room of our own; JOIN,
+## a friend's, by its code
 func _play_pressed() -> void:
 	if mode != "title" or (_lobby_box != null and _lobby_box.visible):
 		return
-	if play_mode == "multi":
-		open_lobby()
-	else:
-		begin_launch()
+	match play_mode:
+		"host":
+			# (straight into a room of our own, its code to give friends)
+			open_lobby()
+			_lobby_say("Making a room...")
+			net.create(ship)
+		"join":
+			open_lobby()
+		_:
+			begin_launch()
 
 
 func _build_lobby(root: Control) -> void:
@@ -2859,12 +2937,13 @@ func _show_lobby() -> void:
 	if _lobby_box == null:
 		return
 	var inside := net.active()
-	_lobby_host.visible = not inside
+	# (JOIN: only the code to type; HOST goes straight into a room of its own)
+	_lobby_host.visible = false
 	_lobby_code.get_parent().visible = not inside
 	_lobby_start.visible = inside and net.slot == 0
 	_lobby_leave.text = "LEAVE" if inside else "BACK"
 	if not inside:
-		_lobby_say("Fly together: up to four saucers over the same country.\nHost a room, or type a friend's code.")
+		_lobby_say("Type the code of a friend's room.")
 		return
 	var names: Array[String] = []
 	for p: Dictionary in net.players:
@@ -3028,10 +3107,6 @@ func _camera(delta: float) -> void:
 		return
 	_sky_mat.set_shader_parameter("space", 0.0)
 	_place_moon(delta)
-	# (the constellations hung where this camera shows them, once a run)
-	if not _sky_hung:
-		_sky_hung = true
-		_sky_mat.set_shader_parameter("named", Constellations.for_camera(camera))
 	camera.environment.fog_density = 0.006
 	camera.fov = _fov()
 	var goal := focus + _camera_offset()
@@ -3189,6 +3264,16 @@ func _build_hud() -> void:
 	bloom.shader = load("res://shaders/title.gdshader")
 	_title_label.material = bloom
 	title_box.add_child(_title_label)
+	# (the label keeps the room in the column; the name itself is drawn over it, letter by letter,
+	# god rays shining out from behind it: see TitleArt)
+	_title_label.self_modulate = Color(1, 1, 1, 0)
+	var art := TitleArt.new()
+	art.main = self
+	art.label = _title_label
+	art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.material = bloom
+	_title_label.add_child(art)
 	_title_gap = Control.new()
 	_title_gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_title_gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -3284,7 +3369,7 @@ func _build_hud() -> void:
 	# (it grows upward from just above the middle of the screen, so it sits over the wreck, not on it)
 	over_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	over_label = _label(34, Color(0.55, 1.0, 0.62))
-	over_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	over_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_glow(over_label, Color(0.25, 1.0, 0.4, 0.5))
 	over_box.add_child(over_label)
 	_again = _button("OK", func() -> void:
@@ -3529,12 +3614,13 @@ func _pick_ship(step: int) -> void:
 	_save_best()
 
 
-## Over PLAY: the mode the arrows pick, and the saucer it is played in
+
 func _show_ship() -> void:
 	var spec: Dictionary = Ufo.SHIPS[ship]
-	ship_label.text = "%s  ·  %s" % [MODE_TITLES[play_mode], spec["title"]]
+	# (no label over it: the button itself says what it will do)
+	ship_label.visible = false
 	if ship in unlocked:
-		_play_button.text = "PLAY"
+		_play_button.text = MODE_TITLES[play_mode]
 		_play_button.disabled = false
 	else:
 		_play_button.text = "LOCKED"
@@ -4302,3 +4388,52 @@ class ItemBar extends Control:
 				draw_string_outline(main.font, Vector2(x + TILE * 0.45, TILE + 2.0), "x%d" % n, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.9))
 				draw_string(main.font, Vector2(x + TILE * 0.45, TILE + 2.0), "x%d" % n, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1))
 			x += TILE + 6.0
+
+
+## The name on the title: its letters spread wide and each bobbing on its own, glowing green, with
+## god rays turning slowly out from behind it (see _build_hud; the label under it only keeps its room)
+class TitleArt extends Control:
+	## How much wider than the font's own spacing the letters stand
+	const SPREAD := 1.22
+	const RAYS := 14
+	var main: Node
+	var label: Label
+
+	func _process(_delta: float) -> void:
+		queue_redraw()
+
+	func _draw() -> void:
+		var t := Time.get_ticks_msec() / 1000.0
+		var font: Font = main.font
+		var fs: int = label.get_theme_font_size("font_size")
+		var text: String = label.text
+		var plain := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var extra := plain * (SPREAD - 1.0) / maxf(text.length() - 1, 1)
+		var c := size * 0.5
+		# god rays: long thin wedges fanning out from behind the name, turning slowly, each breathing
+		var reach := maxf(plain * SPREAD * 0.75, fs * 4.0)
+		for i in RAYS:
+			var a := TAU * i / RAYS + t * 0.12
+			var w := 0.07 + 0.04 * sin(t * 0.9 + i * 1.7)
+			var lit := 0.07 + 0.06 * sin(t * 1.3 + i * 2.3)
+			var tip := c + Vector2(cos(a), sin(a) * 0.55) * reach
+			var l := c + Vector2(cos(a - w), sin(a - w) * 0.55) * reach
+			var r := c + Vector2(cos(a + w), sin(a + w) * 0.55) * reach
+			# (bright at the middle, fading out to nothing at the tip)
+			var glow := Color(0.5, 1.0, 0.6, lit)
+			var none := Color(0.5, 1.0, 0.6, 0.0)
+			draw_polygon(PackedVector2Array([c, l, tip, r]), PackedColorArray([glow, Color(glow, lit * 0.45), none, Color(glow, lit * 0.45)]))
+		draw_circle(c, fs * 0.9, Color(0.4, 1.0, 0.55, 0.06))
+		# the letters
+		var x := c.x - (plain + extra * (text.length() - 1)) * 0.5
+		var base := c.y + fs * 0.35
+		var outline := maxi(fs / 4, 6)
+		for i in text.length():
+			var ch := text[i]
+			var adv := font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			var y := base + sin(t * 2.2 + i * 0.55) * fs * 0.07
+			if ch != " ":
+				draw_string_outline(font, Vector2(x, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, outline * 2, Color(0.25, 1.0, 0.4, 0.18))
+				draw_string_outline(font, Vector2(x, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, outline, Color(0.3, 1.0, 0.45, 0.55))
+				draw_string(font, Vector2(x, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.85, 1.0, 0.86))
+			x += adv + extra

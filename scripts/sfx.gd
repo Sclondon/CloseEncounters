@@ -43,6 +43,9 @@ func _ready() -> void:
 	sounds["star"] = _voice(0.5, PackedFloat32Array([880.0, 660.0, 880.0, 660.0]), 0.45, 0.0, 0.0)
 	sounds["cool"] = _voice(0.5, PackedFloat32Array([660.0, 520.0, 440.0]), 0.35, 0.0, 0.0)
 	sounds["click"] = _voice(0.04, PackedFloat32Array([1700.0, 700.0]), 0.45, 0.0, 0.5)
+	# A typewriter: a key struck (a sharp clack falling to a thump), and the bell at a line's end
+	sounds["key"] = _voice(0.045, PackedFloat32Array([2400.0, 900.0, 260.0]), 0.55, 0.0, 0.75)
+	sounds["ding"] = _voice(0.45, PackedFloat32Array([2100.0, 2100.0, 2080.0]), 0.3, 0.004, 0.0)
 	# The defence laser: a ray-gun's falling whine, as in the pictures
 	sounds["zap"] = _voice(0.22, PackedFloat32Array([2600.0, 1500.0, 700.0, 350.0]), 0.4, 0.08, 0.1)
 	for i in 10:
@@ -61,7 +64,7 @@ func _ready() -> void:
 ## The same sound no oftener than this (a beam over a field takes things many times a second, and
 ## dozens of the same sound a second on top of each other only clog the audio, worst on the web)
 const MIN_GAP := 0.07
-const GAPS := {"click": 0.09}
+const GAPS := {"click": 0.09, "key": 0.035}
 var _last := {}
 
 

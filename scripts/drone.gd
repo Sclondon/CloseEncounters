@@ -10,14 +10,14 @@ extends Node3D
 
 ## How high it flies after something, and how far from the ship it will go for it
 const HEIGHT := 3.6
-const REACH := 13.0
+const REACH := 16.0
 ## How fast it flies, and how much slower than the ship its beam lifts
 const SPEED := 8.0
 ## How fast it can change its way (m/s each second), and how long on average between its going
 ## off after something, at one stack (see `tick`)
-const TURN := 18.0
-const PROC_EVERY := 10.0
-const LIFT := 0.55
+const TURN := 30.0
+const PROC_EVERY := 4.0
+const LIFT := 1.2
 ## The heaviest and the hottest thing it will take
 const MOST_WEIGHT := 1.8
 const MOST_HEAT := 0.1
@@ -84,9 +84,9 @@ func tick(delta: float, ufo: Ufo) -> void:
 		target = null
 		lifting = false
 	# (the ship's own beam took it first, or the ship has gone on without it)
-	if target != null and not lifting and (target.state != "walk" or target.ground().distance_to(ufo.ground()) > REACH + 4.0):
+	if target != null and (not lifting and target.state != "walk" or target.ground().distance_to(ufo.ground()) > REACH + 6.0):
 		_let_go()
-	if target == null and not ufo.dead and not ufo.beaming:
+	if target == null and not ufo.dead:
 		# (now and then, not always: the more of the fleet's stacks, the oftener)
 		_proc -= delta
 		if _proc <= 0.0:
@@ -101,6 +101,8 @@ func tick(delta: float, ufo: Ufo) -> void:
 	var top := SPEED + maxf(position.distance_to(ufo.position) - REACH, 0.0) * 1.5
 	if target != null:
 		var to := target.ground() + Vector3(0, HEIGHT, 0) - position
+		# (darting after it, quicker than the ship flies, to have it before the ship is gone)
+		top = maxf(top * 2.0, ufo.velocity.length() * 1.4)
 		want = to.normalized() * top * clampf(to.length() / 3.0, 0.15, 1.0)
 	else:
 		# Flocking with the ship: toward a place round it (a little behind and under), away from the
@@ -135,16 +137,22 @@ func tick(delta: float, ufo: Ufo) -> void:
 ## The nearest small thing near the ship that no other of the fleet is after (null if none)
 func _look(ufo: Ufo) -> Thing:
 	var best: Thing
-	var best_d := REACH * _strength()
+	var best_d := REACH
 	for t: Thing in game.things:
 		if t.state != "walk" or t.is_enemy() or t.kind == "pod" or t.tier() > 1 or t.info["move"] == "road":
 			continue
 		if float(t.info["weight"]) > MOST_WEIGHT or float(t.info["heat"]) > MOST_HEAT or t.info.get("rare", false):
 			continue
+		# (small game only: animals and people, crops and hay; never posts, cacti and the like)
+		if not (t.info["move"] in ["graze", "peck", "flee", "fly"] or Thing.category(t.kind) == "CROPS"):
+			continue
 		if t.has_meta("drone"):
 			continue
 		var d := t.ground().distance_to(ufo.ground())
 		# (not what the ship's own beam is about to take)
+		# (sooner something that stays put, a crop or a grazing beast, than one that will run)
+		if t.info["move"] in ["flee", "fly"]:
+			d += 6.0
 		if d < best_d and d > ufo.beam_foot + 0.5:
 			best_d = d
 			best = t

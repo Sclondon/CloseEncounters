@@ -281,6 +281,9 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 	if extra.has("turn"):
 		heading = extra["turn"]
 	base_size = extra.get("size", 1.0)
+	if info["move"] == "hover":
+		# (helicopters smaller, to sit at the saucer's own height without dwarfing it)
+		base_size *= 0.6
 	model.scale = Vector3.ONE * base_size
 	model_y = info.get("rest_y", 0.0)
 	model.position.y = model_y
@@ -803,7 +806,8 @@ func _hover(delta: float, ufo: Ufo, here: Vector3) -> float:
 	var goal := ufo.ground() + Vector3(sin(_orbit), 0, cos(_orbit)) * HOVER_OUT
 	if leaving:
 		goal = here + (here - ufo.ground()).normalized() * 20.0
-	position.y = lerpf(position.y, HOVER_Y, minf(delta * 0.8, 1.0))
+	# (at the saucer's own height, level with it)
+	position.y = lerpf(position.y, ufo.position.y, minf(delta * 0.8, 1.0))
 	_chase_want = (goal - here).normalized() if here.distance_to(goal) > 1.0 else Vector3.ZERO
 	# (an army Chinook's door gunner fires on the ship)
 	if info.has("gun") and not leaving:
@@ -1242,3 +1246,31 @@ func _come_apart(delta: float, ufo: Ufo, left: float) -> void:
 	var up := (ufo.position - at).normalized()
 	var c := _pieces[randi() % _pieces.size()]
 	ufo.puffs.chip(at, up * randf_range(5.0, 9.0) + Vector3(randf_range(-1.5, 1.5), 0, randf_range(-1.5, 1.5)), c, randf_range(0.2, 0.55) * clampf(base_size, 0.6, 1.5), -2.0, 0.8)
+
+
+## The categories of things taken, as the log and the results group them, in this order
+const CATEGORIES := ["EARTHLINGS", "BEASTS", "CROPS", "PLANTS", "MACHINES", "BUILDINGS", "THE LAND", "RARE FINDS", "OTHER"]
+
+
+## Which of CATEGORIES a kind of thing is in
+static func category(of: String) -> String:
+	if not KINDS.has(of):
+		return "OTHER"
+	var info: Dictionary = KINDS[of]
+	if info.get("rare", false) or of in ["golden_cow", "jackalope", "sasquatch", "meteorite", "satellite"]:
+		return "RARE FINDS"
+	if info.get("caller", false) or info.get("enemy", false) and info["move"] == "guard" or of in ["scarecrow"]:
+		return "EARTHLINGS"
+	if of in ["wheat", "corn", "pumpkin", "hay_bale", "hay_pile"]:
+		return "CROPS"
+	if info["move"] in ["graze", "peck", "flee", "fly"]:
+		return "BEASTS"
+	if of in ["tree", "pine", "aspen", "pinyon", "sagebrush", "prickly_pear", "saguaro"]:
+		return "PLANTS"
+	if of in ["butte", "mesa", "peak", "devils_tower", "hill", "rock"]:
+		return "THE LAND"
+	if info["move"] in ["road", "police", "patrol", "hover"] or info.get("enemy", false) or of in ["tractor", "pumpjack", "windmill", "plane", "telescope", "barrel", "phone_booth", "phone_pole"]:
+		return "MACHINES"
+	if int(info.get("tier", 1)) >= 3:
+		return "BUILDINGS"
+	return "OTHER"

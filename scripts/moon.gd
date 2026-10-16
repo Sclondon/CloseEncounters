@@ -150,7 +150,7 @@ func _fly(delta: float) -> void:
 
 ## Where an open beer floats, up to the right of the parked ship as the title sees it, its bent cap
 ## tumbling beside it
-const BEER_AT := Vector3(6.3, 4.0, -1.6)
+const BEER_AT := Vector3(6.3, 2.6, -1.6)
 var _beer: Node3D
 var _cap: Node3D
 var _t := 0.0
