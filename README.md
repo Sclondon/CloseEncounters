@@ -252,7 +252,7 @@ top and game booths), a **drive-in** (the screen glowing, rows of cars, speaker 
 scrap, tyres, a fence), a **building site** (a tower crane, an excavator, a cement mixer, girders) and a **rodeo** (a
 ring of fence, bleachers, cowboys on horseback and a bull). By the roads (`_roadside`): **gas stations** and **car
 dealerships** with their lots of cars and **wacky waving inflatable tube men**. Farm ponds; hot air balloons hanging
-over the fields; cowboys on horseback out on the plains and mesas; town roads have **sidewalks**.
+over the fields; cowboys on horseback out on the plains and mesas; town roads have **sidewalks** with **street lights**, benches and trash cans; country roads have **stop signs**, and **highway signs** on the way into a crossing; parks have lamp posts; **bushes** round towns, farms and parks.
 
 **People are curious** until something frightens them (a beam on near them, a blast, a laser, seeing something
 taken): they edge up to look at the ship from a way off, and come to stand round any crop circle near. **True

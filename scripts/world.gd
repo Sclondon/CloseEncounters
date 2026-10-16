@@ -852,6 +852,8 @@ func _farm() -> void:
 	# or two, a haystack and bales, pens of animals)
 	for i in _rng.randi_range(3, 7):
 		_plant("tree", 0.75, 1.05, Vector3.INF, 2.5)
+	for i in _rng.randi_range(2, 5):
+		_plant("bush", 0.6, 1.1, Vector3.INF, 1.2)
 	var farm_at := _spot(17.0) if _rng.randf() < 0.75 else Vector3.INF
 	if farm_at != Vector3.INF:
 		var at := farm_at
@@ -1076,6 +1078,8 @@ func _edge_of_town(b: int, axis: String) -> void:
 	var paint: Array[Color] = [Color(0.92, 0.9, 0.82), Color(0.75, 0.82, 0.9), Color(0.95, 0.85, 0.6), Color(0.8, 0.9, 0.75), Color(0.9, 0.7, 0.65)]
 	var base := centre_of(_chunk)
 	_sidewalks(axis)
+	for i in _rng.randi_range(3, 6):
+		_plant("bush", 0.6, 1.0, Vector3.INF, 1.0)
 	# (now and then one of the houses is a church instead)
 	var church := _rng.randi_range(0, 5) if _rng.randf() < 0.3 else -1
 	var slot := -1
@@ -1236,6 +1240,8 @@ func _town(b: int) -> void:
 	if _rng.randf() < 0.5:
 		_spawn("believer", base + Vector3(_rng.randf_range(-14, 14), 0, _rng.randf_range(-14, 14)))
 	_sidewalks("z")
+	for i in _rng.randi_range(6, 10):
+		_plant("bush", 0.6, 1.0, Vector3.INF, 1.0)
 	_sidewalks("x")
 
 
@@ -1260,6 +1266,15 @@ func _sidewalks(axis: String) -> void:
 				at = Vector3(base.x + along, 0.06, road_z(_chunk.y, base.x + along) + side * (half + 0.9))
 				size = Vector3(6.05, 0.12, 1.6)
 			Ps1.part(_node, BoxMesh.new(), paving, at, size)
+			# (street lights along the outer edge every other slab, their arms out over the road; a
+			# bench and a trash can here and there)
+			var edge := at + (Vector3(side * 0.55, -0.06, 0) if axis == "z" else Vector3(0, -0.06, side * 0.55))
+			var to_road := -PI / 2 * side if axis == "z" else (PI if side > 0.0 else 0.0)
+			if i % 2 == 0:
+				_plant_at("street_light", edge, to_road)
+			elif i == 3 or i == 5 and side < 0.0:
+				_plant_at("bench", edge, to_road)
+				_plant_at("trash_can", edge + (Vector3(0, 0, 1.6) if axis == "z" else Vector3(1.6, 0, 0)), 0.0)
 
 
 ## Animals out where nobody lives, and birds over everything
@@ -1339,6 +1354,22 @@ func _phone_line(c: Vector2i, axis: String) -> void:
 			_take(yard, 6.0)
 			_prop("substation", yard, PI / 2 if axis == "z" else 0.0)
 			game.spawn_later("phone_pole", feed, {"turn": 0.0, "chunk": c, "wire_to": yard})
+	# Road signs: now and then a stop sign across from the poles; and on the way into a crossing of
+	# paved roads, a big green highway sign
+	var line_n := c.x if axis == "z" else c.y
+	var cross_n := c.y if axis == "z" else c.x
+	if hash3(c.x, c.y, 301 if axis == "z" else 302) < 0.35:
+		if axis == "z":
+			_plant_at("road_sign", Vector3(road_x(c.x, base.z - 10.0) - 4.2, 0, base.z - 10.0), PI / 2)
+		else:
+			_plant_at("road_sign", Vector3(base.x - 10.0, 0, road_z(c.y, base.x - 10.0) + 4.2), PI)
+	var dirt := dirt_x(line_n) if axis == "z" else dirt_z(line_n)
+	if not dirt and posmod(cross_n, ROAD_EVERY) in [1, ROAD_EVERY - 1] and hash3(c.x, c.y, 303) < 0.7:
+		var facing := PI if posmod(cross_n, ROAD_EVERY) == ROAD_EVERY - 1 else 0.0
+		if axis == "z":
+			_plant_at("highway_sign", Vector3(road_x(c.x, base.z + 14.0) + 7.5, 0, base.z + 14.0), facing)
+		else:
+			_plant_at("highway_sign", Vector3(base.x + 14.0, 0, road_z(c.y, base.x + 14.0) - 7.5), facing + PI / 2)
 	# A phone booth across the road from the poles, mostly, its door to the road
 	if hash3(c.x, c.y, 133 if axis == "z" else 134) < 0.6:
 		if axis == "z":
@@ -1476,6 +1507,13 @@ func _venue(c: Vector2i, b: int) -> bool:
 				_prop("bench", at + basis * Vector3(4, 0, 2) + Vector3(sin(a), 0, cos(a)) * 9.0, a + PI)
 			for i in 8:
 				_plant("tree", 0.7, 1.1, _ring_spot(at, 12.0, 15.0))
+			# (lamp posts round the pond, a trash can, and bushes)
+			for i in 4:
+				var a := turn + i * TAU / 4.0 + 0.4
+				_plant_at("lamp_post", at + basis * Vector3(4, 0, 2) + Vector3(sin(a), 0, cos(a)) * 8.0, 0.0)
+			_plant_at("trash_can", at + basis * Vector3(-6, 0, -3), 0.0)
+			for i in 6:
+				_plant("bush", 0.7, 1.1, _ring_spot(at, 9.0, 14.0))
 			_herd("person", at + basis * Vector3(-6, 0, 6), _rng.randi_range(2, 5), 6.0)
 		"carnival":
 			_prop("ferris_wheel", at + basis * Vector3(-8, 0, -5), turn)

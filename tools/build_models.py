@@ -21,7 +21,7 @@ ART = os.path.join(ROOT, "art")
 COLOURS = {
     "hide": (0.92, 0.9, 0.85), "spot": (0.08, 0.07, 0.07), "pink": (0.95, 0.62, 0.62),
     "horn": (0.9, 0.86, 0.72), "wool": (0.95, 0.94, 0.88), "black": (0.06, 0.06, 0.07),
-    "red": (0.75, 0.12, 0.1), "yellow": (0.95, 0.75, 0.15), "white": (0.95, 0.95, 0.92), "rust": (0.45, 0.22, 0.12), "orange": (0.95, 0.45, 0.1),
+    "red": (0.75, 0.12, 0.1), "yellow": (0.95, 0.75, 0.15), "white": (0.95, 0.95, 0.92), "rust": (0.45, 0.22, 0.12), "orange": (0.95, 0.45, 0.1), "hwy_green": (0.1, 0.42, 0.22),
     "skin": (0.92, 0.7, 0.55), "denim": (0.22, 0.32, 0.6), "shirt": (0.8, 0.3, 0.25), "blush": (0.95, 0.55, 0.55),
     "straw": (0.88, 0.76, 0.42), "boot": (0.25, 0.16, 0.1), "hair": (0.3, 0.2, 0.12),
     "tyre": (0.08, 0.08, 0.08), "hub": (0.6, 0.6, 0.58), "glass": (0.35, 0.45, 0.55),
@@ -1975,11 +1975,54 @@ def booth():
     for i in range(6):
         p.append(ball((0.16, 0.16, 0.16), (-1.3 + i * 0.52, -1.25, 2.25), ["light_red", "light_amber", "light_blue"][i % 3], 5, 3))
     return join("booth", p)
+def street_light():
+    """A street light: a tall grey pole, its arm out over the road, the lamp glowing under it"""
+    return join("street_light", [drum(0.16, 0.3, (0, 0, 0.15), "metal_dark", 8), drum(0.08, 6.0, (0, 0, 3.0), "metal", 6),
+                                 box((0.08, 1.7, 0.08), (0, -0.85, 6.0), "metal"), box((0.32, 0.6, 0.16), (0, -1.55, 5.94), "metal_dark"),
+                                 box((0.26, 0.5, 0.06), (0, -1.55, 5.84), "lights")])
+
+
+def lamp_post():
+    """An old-fashioned lamp post for a park, a glowing globe on top"""
+    return join("lamp_post", [drum(0.14, 0.3, (0, 0, 0.15), "black", 8), drum(0.06, 2.8, (0, 0, 1.6), "black", 6),
+                              ball((0.4, 0.4, 0.46), (0, 0, 3.15), "lights", 8, 5), drum(0.18, 0.08, (0, 0, 3.42), "black", 8)])
+
+
+def road_sign():
+    """A stop sign on its post"""
+    return join("road_sign", [box((0.07, 0.07, 2.2), (0, 0, 1.1), "metal"),
+                              drum(0.38, 0.04, (0, -0.05, 2.1), "white", 8, (math.pi / 2, 0, math.pi / 8)),
+                              drum(0.33, 0.05, (0, -0.07, 2.1), "red", 8, (math.pi / 2, 0, math.pi / 8))])
+
+
+def highway_sign():
+    """A big green highway sign on two posts, white lines of lettering and a white border"""
+    p = [box((0.14, 0.14, 4.6), (-1.7, 0, 2.3), "metal"), box((0.14, 0.14, 4.6), (1.7, 0, 2.3), "metal"),
+         box((4.2, 0.1, 2.2), (0, 0.02, 3.9), "white"), box((4.0, 0.12, 2.0), (0, -0.01, 3.9), "hwy_green")]
+    for i, w in enumerate((2.6, 1.8, 2.2)):
+        p.append(box((w, 0.05, 0.22), (-0.4 + (2.6 - w) * 0.3, -0.08, 4.5 - i * 0.55), "white"))
+    p.append(box((0.5, 0.05, 0.5), (1.4, -0.08, 3.4), "white", (0, math.pi / 4, 0)))
+    return join("highway_sign", p)
+
+
+def trash_can():
+    """A street trash can"""
+    return join("trash_can", [drum(0.3, 0.9, (0, 0, 0.45), "metal_dark", 10), drum(0.33, 0.08, (0, 0, 0.94), "metal", 10)])
+
+
+def bush():
+    """A round green bush"""
+    p = [roughen(ball((1.2, 1.1, 0.9), (0, 0, 0.45), "leaf", 7, 4), 0.1, 41),
+         roughen(ball((0.8, 0.8, 0.7), (0.35, 0.2, 0.7), "leaf_dark", 6, 4), 0.08, 42),
+         roughen(ball((0.7, 0.7, 0.6), (-0.3, -0.2, 0.6), "leaf", 6, 4), 0.08, 43)]
+    return join("bush", p)
+
+
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
-            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth,
+            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,

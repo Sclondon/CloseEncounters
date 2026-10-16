@@ -166,6 +166,13 @@ const KINDS := {
 	"booth": {"points": 120, "weight": 1.8, "heat": 0.1, "move": "still", "size": 1.8, "tier": 2},
 	# True believers: they want to be taken, and come running to the beam (`move` "believer")
 	"believer": {"model": "person", "tints": {"shirt": Color(0.35, 0.8, 0.4)}, "points": 160, "weight": 1.3, "heat": 0.0, "move": "believer", "speed": 3.8, "size": 0.7, "voice": "star"},
+	# Street furniture and roadside signs (scenery, drawn together: see World._plant_at)
+	"street_light": {"points": 25, "weight": 1.0, "heat": 0.1, "move": "still", "size": 0.6},
+	"lamp_post": {"points": 15, "weight": 0.6, "heat": 0.05, "move": "still", "size": 0.5},
+	"road_sign": {"points": 15, "weight": 0.5, "heat": 0.05, "move": "still", "size": 0.5},
+	"highway_sign": {"points": 60, "weight": 2.0, "heat": 0.2, "move": "still", "size": 2.0, "tier": 2},
+	"trash_can": {"points": 10, "weight": 0.4, "heat": 0.02, "move": "still", "size": 0.5},
+	"bush": {"points": 8, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
 	"floodlight": {"points": 150, "weight": 2.5, "heat": 0.3, "move": "still", "size": 1.2, "tier": 3},
 	# A trader's goods (see main.gd spawn_shop): beam one up to buy it
 	"pod": {"points": 0, "weight": 0.9, "heat": 0.0, "move": "still", "size": 1.0},
@@ -1406,7 +1413,7 @@ static func category(of: String) -> String:
 		return "CROPS"
 	if info["move"] in ["graze", "peck", "flee", "fly"]:
 		return "BEASTS"
-	if of in ["tree", "pine", "aspen", "pinyon", "sagebrush", "prickly_pear", "saguaro"]:
+	if of in ["tree", "pine", "aspen", "pinyon", "sagebrush", "prickly_pear", "saguaro", "bush"]:
 		return "PLANTS"
 	if of in ["butte", "mesa", "peak", "devils_tower", "hill", "rock"]:
 		return "THE LAND"

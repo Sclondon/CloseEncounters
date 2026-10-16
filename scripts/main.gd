@@ -241,6 +241,8 @@ var _title_label: Label
 var _title_gap: Control
 var _arrows: Array[Button] = []
 var _title_row: HBoxContainer
+## QUIT, on its own row under the title's other buttons
+var _quit_row: HBoxContainer
 ## The gap above the title's second row of buttons
 var _title_drop: Control
 ## The log (a field guide): every ship, every kind of thing there is to take (with how many of each
@@ -3710,6 +3712,9 @@ func _layout_title(size: Vector2) -> void:
 				box.content_margin_left = 12
 				box.content_margin_right = 12
 				(b as Button).add_theme_stylebox_override(state, box)
+	for b in _quit_row.get_children():
+		(b as Button).custom_minimum_size = Vector2(250, 110) if upright else Vector2(170, 60)
+		(b as Button).add_theme_font_size_override("font_size", 52 if upright else 32)
 
 
 ## The log: a list to scroll by thumb, and BACK
@@ -4349,9 +4354,13 @@ func _build_hud() -> void:
 	# (the scores and QUIT are the arcade's: only inside it, or for QUIT, off the web)
 	if _in_arcade():
 		_title_row.add_child(_button("SCORES", open_scores))
-	if _in_arcade() or not OS.has_feature("web"):
-		_title_row.add_child(_button("QUIT", quit_game))
 	title_box.add_child(_title_row)
+	# (QUIT on a row of its own under the others)
+	_quit_row = HBoxContainer.new()
+	_quit_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	if _in_arcade() or not OS.has_feature("web"):
+		_quit_row.add_child(_button("QUIT", quit_game))
+		title_box.add_child(_quit_row)
 	# The level-up picker: the level, and three upgrades to choose between (see `_level_up`)
 	# (the game dimmed behind it, for the choices to read)
 	_picker_dim = ColorRect.new()
@@ -5803,16 +5812,16 @@ class MarketShip extends Node3D:
 		main.sfx.play("pop", 1.3, -2.0)
 		main.sfx.play("fanfare", 1.5, -8.0)
 		var paper := BoxMesh.new()
-		paper.size = Vector3(0.32, 0.03, 0.2)
-		for i in 70:
+		paper.size = Vector3(0.5, 0.04, 0.32)
+		for i in 170:
 			var bit := MeshInstance3D.new()
 			bit.mesh = paper
 			bit.material_override = Ps1.flat(CONFETTI[i % CONFETTI.size()])
 			bit.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			bit.top_level = true
 			add_child(bit)
-			bit.global_position = global_position + Vector3(randf_range(-1, 1), randf_range(-0.3, 0.6), randf_range(-1, 1))
-			var way := Vector3(randf_range(-1, 1), randf_range(0.2, 1.3), randf_range(-1, 1)).normalized() * randf_range(5.0, 11.0)
+			bit.global_position = global_position + Vector3(randf_range(-3, 3), randf_range(-0.5, 1.0), randf_range(-2, 2))
+			var way := Vector3(randf_range(-1, 1), randf_range(0.1, 1.2), randf_range(-0.6, 0.6)).normalized() * randf_range(10.0, 26.0)
 			_bits.append([bit, way, Vector3(randf_range(-9, 9), randf_range(-9, 9), randf_range(-9, 9)), 0.0])
 		# (and a puff of white smoke, swelling and gone)
 		for i in 6:
@@ -5841,13 +5850,13 @@ class MarketShip extends Node3D:
 				continue
 			var way: Vector3 = b[1]
 			way.y -= 9.0 * delta
-			way *= 1.0 - minf(2.2 * delta, 0.5)
+			way *= 1.0 - minf(1.5 * delta, 0.5)
 			b[1] = way
 			n.global_position += way * delta
 			n.rotation += (b[2] as Vector3) * delta
-			if age > 2.4:
-				n.scale = Vector3.ONE * maxf(1.0 - (age - 2.4) * 2.0, 0.0)
-			if age > 2.9:
+			if age > 3.4:
+				n.scale = Vector3.ONE * maxf(1.0 - (age - 3.4) * 2.0, 0.0)
+			if age > 3.9:
 				n.queue_free()
 				continue
 			keep.append(b)
