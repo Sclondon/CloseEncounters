@@ -805,6 +805,7 @@ func _process(delta: float) -> void:
 	_magnet(delta)
 	_boosts(delta)
 	_geysering(delta)
+	_whirl(delta)
 	_trains(delta)
 	_airliners(delta)
 	_watchers(delta)
@@ -1460,6 +1461,23 @@ func _boosts(delta: float) -> void:
 	var c := spawn("canister", at, {"tints": {"pod_glow": BOOSTS[what]["colour"]}})
 	if c != null:
 		c.set_meta("boost", what)
+		# (a glowing ring on the ground under it, and a halo round it, in its colour)
+		var tint: Color = BOOSTS[what]["colour"]
+		var ring := CylinderMesh.new()
+		ring.top_radius = 1.1
+		ring.bottom_radius = 1.1
+		ring.height = 0.04
+		ring.radial_segments = 16
+		Ps1.part(c, ring, Ps1.mat(tint, 1.4), Vector3(0, 0.05, 0))
+		var halo := StandardMaterial3D.new()
+		halo.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		halo.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		halo.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		halo.albedo_color = Color(tint.r, tint.g, tint.b, 0.3)
+		halo.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		var glow := QuadMesh.new()
+		glow.size = Vector2(2.4, 2.4)
+		Ps1.part(c.model, glow, halo, Vector3(0, 0.5, 0))
 
 
 ## A canister beamed up: its boost on (or, taken again, on for longer)
@@ -1471,6 +1489,7 @@ func _boost(what: String) -> void:
 		boosts[what] = float(boosts.get(what, 0.0)) + float(spec["time"])
 		_ship_stats()
 	_heat_note("%s!" % spec["title"], 1.6)
+	_power_burst(spec["colour"])
 	sfx.play("fanfare", 1.3, -6.0)
 	ufo.sparkle()
 
@@ -2062,12 +2081,14 @@ func _scorch(at: Vector3, across: float) -> void:
 	if _scorch_mesh == null:
 		_scorch_mesh = QuadMesh.new()
 		_scorch_mesh.orientation = PlaneMesh.FACE_Y
+		_scorch_mesh.subdivide_width = 3
+		_scorch_mesh.subdivide_depth = 3
 	if _scorches.size() >= SCORCH_MOST:
 		var oldest: Array = _scorches.pop_front()
 		(oldest[0] as Node).queue_free()
 	var m := ShaderMaterial.new()
 	m.shader = SCORCH_SHADER
-	var mi := Ps1.part(view, _scorch_mesh, m, Vector3(at.x, 0.04 + randf() * 0.02, at.z), Vector3(across, 1.0, across), Vector3(0, randf() * TAU, 0))
+	var mi := Ps1.part(view, _scorch_mesh, m, Vector3(at.x, 0.08 + randf() * 0.03, at.z), Vector3(across, 1.0, across), Vector3(0, randf() * TAU, 0))
 	_scorches.append([mi, m, 0.0])
 
 
@@ -2182,10 +2203,11 @@ func captive(held: String, c: Vector2i) -> String:
 		return held
 	var left: Array[String] = []
 	for s in Ufo.ORDER:
-		if not s in unlocked:
+		if not s in unlocked and s != Ufo.LAST:
 			left.append(s)
 	if left.is_empty():
-		return held
+		# (every other ship found: now the Moon Market's own saucer is held out there)
+		return Ufo.LAST if not Ufo.LAST in unlocked else held
 	return left[posmod(c.x * 7 + c.y * 13, left.size())]
 
 
@@ -6552,3 +6574,29 @@ func _geysering(delta: float) -> void:
 			heat = maxf(heat - 0.04, 0.0)
 			if randf() < 0.3:
 				_popup("+WATER", g + Vector3(0, 3.0, 0), Color(0.6, 0.85, 1.0))
+
+
+## A power-up's burst: bright motes of its colour bursting out and whirling round the saucer in a
+## ring, rising and fading
+var _whirling: Array = []
+func _power_burst(tint: Color) -> void:
+	for i in 26:
+		var mote := Ps1.part(view, Ps1.ball(), Ps1.own(tint.lightened(randf_range(0.0, 0.4)), 2.5), ufo.position, Vector3.ONE * randf_range(0.18, 0.32))
+		_whirling.append({"node": mote, "angle": i * TAU / 26.0, "radius": 0.5, "out": randf_range(2.8, 4.2),
+			"y": randf_range(-0.6, 0.6), "speed": randf_range(4.0, 6.5) * (1.0 if i % 2 else -1.0), "age": 0.0, "life": randf_range(1.2, 1.8)})
+
+
+func _whirl(delta: float) -> void:
+	for w: Dictionary in _whirling.duplicate():
+		w["age"] += delta
+		var k: float = w["age"] / w["life"]
+		var node: Node3D = w["node"]
+		if k >= 1.0 or not is_instance_valid(node):
+			if is_instance_valid(node):
+				node.queue_free()
+			_whirling.erase(w)
+			continue
+		w["angle"] += w["speed"] * delta
+		w["radius"] = lerpf(w["radius"], w["out"], minf(delta * 6.0, 1.0))
+		node.position = ufo.position + Vector3(cos(w["angle"]) * w["radius"], w["y"] + k * 2.0, sin(w["angle"]) * w["radius"])
+		node.scale = Vector3.ONE * 0.3 * (1.0 - k * k)

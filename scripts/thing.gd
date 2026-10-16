@@ -47,6 +47,12 @@ const KINDS := {
 	"elk": {"points": 80, "weight": 1.8, "heat": 0.02, "move": "graze", "speed": 1.6, "size": 1.4, "voice": "bugle"},
 	"pronghorn": {"points": 45, "weight": 1.0, "heat": 0.01, "move": "flee", "speed": 7.0, "size": 0.9},
 	"rabbit": {"points": 15, "weight": 0.5, "heat": 0.005, "move": "flee", "speed": 5.0, "size": 0.5},
+	# By the water: fish in it (`swim`: round their pond, leaping now and then) and frogs on its bank
+	"trout": {"model": "fish", "tints": {"fish_body": Color(0.5, 0.58, 0.5), "fish_belly": Color(0.95, 0.6, 0.62)}, "points": 45, "weight": 0.6, "heat": 0.01, "move": "swim", "speed": 1.8, "size": 0.6},
+	"bass": {"model": "fish", "tints": {"fish_body": Color(0.28, 0.45, 0.2), "fish_belly": Color(0.88, 0.88, 0.62)}, "points": 45, "weight": 0.7, "heat": 0.01, "move": "swim", "speed": 1.6, "size": 0.65},
+	"catfish": {"model": "catfish", "points": 60, "weight": 0.8, "heat": 0.01, "move": "swim", "speed": 1.1, "size": 0.75},
+	"koi": {"model": "fish", "tints": {"fish_body": Color(1.0, 0.45, 0.1), "fish_belly": Color(0.98, 0.95, 0.9)}, "points": 70, "weight": 0.6, "heat": 0.02, "move": "swim", "speed": 1.2, "size": 0.6},
+	"frog": {"points": 20, "weight": 0.4, "heat": 0.005, "move": "flee", "speed": 2.6, "size": 0.4, "hops": true, "voice": "croak"},
 	"roadrunner": {"points": 30, "weight": 0.5, "heat": 0.01, "move": "flee", "speed": 7.0, "size": 0.5},
 	"crow": {"points": 10, "weight": 0.4, "heat": 0.005, "move": "fly", "speed": 3.0, "size": 0.7, "voice": "caw"},
 	"hawk": {"points": 35, "weight": 0.7, "heat": 0.01, "move": "fly", "speed": 4.0, "size": 1.1, "voice": "caw"},
@@ -138,6 +144,7 @@ const KINDS := {
 	"captured_saturn": {"title": "YOU FOUND THE STARZOID: IT'S YOURS", "model": "saturn", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.9, "rare": true, "unlock": "saturn", "rest_y": 1.25},
 	"captured_diamond": {"title": "YOU FOUND THE KRYSTALLIX-9: IT'S YOURS", "model": "diamond", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.2, "rare": true, "unlock": "diamond", "rest_y": 1.7},
 	"captured_jelly": {"title": "YOU FOUND THE BLOOPUS-7: IT'S YOURS", "model": "jelly", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "jelly", "rest_y": 2.0},
+	"captured_carnival": {"title": "YOU FOUND THE CARNIVORB: IT'S YOURS", "model": "carnival", "points": 5000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "carnival", "rest_y": 0.9},
 	"captured_tug": {"title": "YOU FOUND THE YESTROMO: IT'S YOURS", "model": "tug", "points": 3000, "weight": 3.5, "heat": 1.5, "move": "still", "size": 3.4, "rare": true, "unlock": "tug", "rest_y": 0.8},
 	"captured_frigate": {"title": "YOU FOUND THE NEBULONK-B: IT'S YOURS", "model": "frigate", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.6, "rare": true, "unlock": "frigate", "rest_y": 1.2},
 	"captured_trek": {"title": "YOU FOUND THE ENTERBLORPRISE: IT'S YOURS", "model": "trek", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "trek", "rest_y": 1.0},
@@ -224,7 +231,7 @@ const KINDS := {
 	"floodlight": {"points": 150, "weight": 2.5, "heat": 0.3, "move": "still", "size": 1.2, "tier": 3},
 	# A trader's goods (see main.gd spawn_shop): beam one up to buy it
 	"pod": {"points": 0, "weight": 0.9, "heat": 0.0, "move": "still", "size": 1.0},
-	"canister": {"points": 0, "weight": 0.5, "heat": 0.0, "move": "still", "size": 0.8},
+	"canister": {"points": 0, "weight": 0.5, "heat": 0.0, "move": "still", "size": 0.8, "hover": true},
 	# (the police cannot shoot from the car: they pull up and an officer gets out, see `_police`)
 	"police_car": {"points": 300, "weight": 3.0, "heat": 0.6, "move": "police", "speed": 7.5, "size": 2.2, "keep": 10.0, "enemy": true, "police": true, "searchlight": true},
 	"officer": {"model": "person", "tints": {"shirt": Color(0.15, 0.25, 0.55)}, "points": 150, "weight": 1.3, "heat": 0.5, "move": "guard", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "pistol", "enemy": true, "crew": true},
@@ -605,6 +612,9 @@ func _fall(delta: float) -> void:
 		_toss = Vector3.ZERO
 		_tumble = Vector3.ZERO
 		position = game.world.push_out(position, size() * 0.5)
+		# (and nothing walks on the water but what swims in it, nor anything that flies)
+		if not info["move"] in ["swim", "hover", "rail", "road"] and position.y < 1.0:
+			position = game.world.out_of_water(position, size() * 0.4)
 		game.landed(self, fall_from, thrown)
 
 
@@ -712,6 +722,19 @@ func _walk(delta: float, ufo: Ufo) -> void:
 				if here.distance_to(goal) > 0.6:
 					want = (goal - here).normalized()
 					pace *= 0.4
+		"swim":
+			# (round and round its pond, from one spot in it to another, never out of it)
+			var lake: Vector3 = game.world.lake_at(home)
+			if lake.z <= 0.0:
+				pace = 0.0
+			else:
+				if _swim_to == Vector3.INF or here.distance_to(_swim_to) < 0.8 or randf() < delta * 0.15:
+					var a := randf() * TAU
+					var d := sqrt(randf()) * maxf(lake.z - 1.5, 0.5)
+					_swim_to = Vector3(lake.x + cos(a) * d, 0, lake.y + sin(a) * d)
+				want = (_swim_to - here).normalized()
+				if near < 10.0:
+					pace *= 1.8
 		"road":
 			want = _along_road()
 		"rail":
@@ -817,6 +840,9 @@ func _walk(delta: float, ufo: Ufo) -> void:
 	position += step
 	if speed > 0.05:
 		position = game.world.push_out(position, size() * 0.5)
+		# (and nothing walks on the water but what swims in it, nor anything that flies)
+		if not info["move"] in ["swim", "hover", "rail", "road"] and position.y < 1.0:
+			position = game.world.out_of_water(position, size() * 0.4)
 	rotation.y = heading
 	_flash_siren()
 	for r in rotors:
@@ -849,6 +875,27 @@ func _walk(delta: float, ufo: Ufo) -> void:
 	if info.get("wobble", false):
 		model.rotation = Vector3(sin(_t * 5.3) * 0.22, 0.0, sin(_t * 7.1 + 1.0) * 0.32)
 		model.scale.y = 1.0 + sin(_t * 9.0) * 0.06
+	# (a fish swims just under the surface, its back showing, and now and then leaps clear; a frog hops)
+	if info["move"] == "swim" and state == "walk":
+		if _leap < 0.0 and randf() < delta * 0.08:
+			_leap = 0.0
+		if _leap >= 0.0:
+			_leap += delta * 1.4
+			model.position.y = 0.15 + sin(_leap * PI) * 1.2
+			model.rotation.x = cos(_leap * PI) * -0.9
+			if _leap >= 1.0:
+				_leap = -1.0
+				game.puff(position + Vector3(0, 0.2, 0), Color(0.7, 0.85, 1.0), 0.5)
+		else:
+			model.position.y = 0.15 + sin(_t * 3.0 + home.z) * 0.03
+			model.rotation.x = 0.0
+			model.rotation.z = sin(_t * 9.0) * 0.12
+	if info.get("hops", false) and state == "walk" and speed > 0.2:
+		model.position.y = absf(sin(_t * 7.0)) * 0.45
+	# (a power-up hovers over the ground, spinning)
+	if info.get("hover", false) and state == "walk":
+		model.position.y = model_y + 1.0 + sin(_t * 2.2 + home.x) * 0.25
+		model.rotation.y += delta * 2.4
 	if info.get("bob", false):
 		model.position.y = model_y + sin(_t * 0.8 + home.x) * 0.6
 	if spin_part != null:
@@ -860,6 +907,9 @@ var _chase_want := Vector3.ZERO
 ## Off the rails (seconds since, -1 while still on them), and which way it went over
 var _derail := -1.0
 var _derail_side := 1.0
+## A fish's next spot in its pond; and how far through a leap out of the water it is (-1 if not)
+var _swim_to := Vector3.INF
+var _leap := -1.0
 ## A police car's officer out of it (see `_police`), and how many are still in it to get out; an
 ## officer's car, and whether it is called back to it
 var officer: Thing
@@ -1492,7 +1542,7 @@ const ALIEN_NAMES := {
 	"tractor": "DIRT CRAWLER", "car": "GROUND POD", "pickup": "CARGO POD", "horse": "RIDING BEAST",
 	"bison": "SHAGGY GRAZER", "longhorn": "HORNED MILK BEAST", "coyote": "YIP HOUND", "cowboy": "HAT EARTHLING",
 	"bear": "FUR TITAN", "mountain_goat": "CLIFF HOPPER", "elk": "ANTLER BEAST", "pronghorn": "SPEED GRAZER",
-	"rabbit": "LONG-EAR", "roadrunner": "MEEP BIRD", "crow": "BLACK SQUAWKER", "hawk": "SKY HUNTER",
+	"rabbit": "LONG-EAR", "trout": "SPOTTED SWIMMER", "bass": "BIG-MOUTH WIGGLER", "catfish": "WHISKER SLIME", "koi": "ORANGE POND JEWEL", "frog": "GREEN HOPPER", "roadrunner": "MEEP BIRD", "crow": "BLACK SQUAWKER", "hawk": "SKY HUNTER",
 	"phone_pole": "TALK STICK", "phone_booth": "TALK BOX", "saguaro": "SPIKE COLUMN", "pumpjack": "OIL NODDER",
 	"rv": "DWELLING POD", "patrol_car": "LAW POD", "patrol_jeep": "WAR CRAWLER", "sagebrush": "DRY TUFT",
 	"prickly_pear": "SPIKE PADDLE", "fence": "SMALL WALL", "tree": "LEAF TOWER", "pine": "NEEDLE TOWER",

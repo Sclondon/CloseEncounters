@@ -42,7 +42,20 @@ func _unlock() -> bool:
 			var kind := "captured_" + s
 			_check(Thing.KINDS.has(kind) and Thing.KINDS[kind]["unlock"] == s and ResourceLoader.exists("res://models/%s.glb" % Ufo.SHIPS[s]["model"]),
 				"the %s can be captured, and has a model" % s)
-			_check(_facility(s, 70) != Vector2i.ZERO, "a facility somewhere holds the %s (chunk %s)" % [s, _facility(s, 70)])
+			if s == Ufo.LAST:
+				# (the last is held only once every other ship has been found)
+				var was: Array = main.unlocked.duplicate()
+				main.unlocked.assign(["saucer"])
+				var f := _facility(Ufo.ORDER[1], 70)
+				var before: String = main.captive(Ufo.ORDER[1], f)
+				for o: String in Ufo.ORDER:
+					if o != s and not o in main.unlocked:
+						main.unlocked.append(o)
+				var after: String = main.captive(Ufo.ORDER[1], f)
+				_check(before != s and after == s, "the %s is held in a facility only once every other ship is found (%s, then %s; had %s)" % [s, before, after, was])
+				main.unlocked.assign(was)
+			else:
+				_check(_facility(s, 70) != Vector2i.ZERO, "a facility somewhere holds the %s (chunk %s)" % [s, _facility(s, 70)])
 			_check((Ufo.SHIPS[s]["title"] as String).find(" ") < 0, "the %s has a one-word name (%s)" % [s, Ufo.SHIPS[s]["title"]])
 		main.unlocked.assign(["saucer", "orb"])
 		var swapped: String = main.captive("orb", Vector2i(3, 9))

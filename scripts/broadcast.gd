@@ -59,8 +59,13 @@ func _process(delta: float) -> void:
 		var mat := n.material_override as StandardMaterial3D
 		if b["velocity"] == Vector3.ZERO:
 			var k: float = b["age"] / WAVE_LIFE
-			n.scale = Vector3.ONE * lerpf(0.3, 2.4, k)
-			n.position.y += delta * 0.8
+			n.basis = n.basis.orthonormalized().scaled_local(Vector3.ONE * lerpf(0.3, 2.4, k))
+			var dir: Vector3 = b.get("dir", Vector3.ZERO)
+			if dir == Vector3.ZERO:
+				n.position.y += delta * 0.8
+			else:
+				# (off a dish: out from in front of it, toward what it is tracking)
+				n.position += dir * delta * 9.0
 			mat.albedo_color.a = 0.65 * (1.0 - k)
 			if k >= 1.0:
 				_drop(b)
@@ -76,7 +81,18 @@ func _process(delta: float) -> void:
 func _wave(tip: Vector3) -> void:
 	var n := _piece(_ring_mesh, Color(0.55, 1.0, 0.8, 0.9))
 	n.position = tip
-	_bits.append({"node": n, "age": 0.0, "velocity": Vector3.ZERO})
+	var bit := {"node": n, "age": 0.0, "velocity": Vector3.ZERO}
+	if source != null and is_instance_valid(source):
+		# (a dish's rings face the ship, starting out in front of the dish, clear of it)
+		var thing := get_parent() as Thing
+		var ship: Vector3 = thing.game.ufo.position
+		var dir := (ship - tip).normalized()
+		if dir.length() > 0.5:
+			var side: Vector3 = dir.cross(Vector3.UP if absf(dir.y) < 0.95 else Vector3.RIGHT).normalized()
+			n.basis = Basis(side, dir, side.cross(dir))
+			n.position = tip + dir * (2.0 + thing.size() * 0.6)
+			bit["dir"] = dir
+	_bits.append(bit)
 
 
 func _spark(tip: Vector3) -> void:

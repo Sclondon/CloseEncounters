@@ -21,7 +21,7 @@ ART = os.path.join(ROOT, "art")
 COLOURS = {
     "hide": (0.92, 0.9, 0.85), "spot": (0.08, 0.07, 0.07), "pink": (0.95, 0.62, 0.62),
     "horn": (0.9, 0.86, 0.72), "wool": (0.95, 0.94, 0.88), "black": (0.06, 0.06, 0.07),
-    "red": (0.75, 0.12, 0.1), "yellow": (0.95, 0.75, 0.15), "white": (0.95, 0.95, 0.92), "rust": (0.45, 0.22, 0.12), "orange": (0.95, 0.45, 0.1), "cabbage": (0.6, 0.78, 0.45), "melon": (0.12, 0.32, 0.12), "melon_light": (0.45, 0.68, 0.3), "melon_flesh": (0.92, 0.22, 0.25), "melon_rind": (0.85, 0.92, 0.7), "hwy_green": (0.1, 0.42, 0.22),
+    "red": (0.75, 0.12, 0.1), "yellow": (0.95, 0.75, 0.15), "white": (0.95, 0.95, 0.92), "rust": (0.45, 0.22, 0.12), "orange": (0.95, 0.45, 0.1), "cabbage": (0.6, 0.78, 0.45), "melon": (0.12, 0.32, 0.12), "melon_light": (0.45, 0.68, 0.3), "melon_flesh": (0.92, 0.22, 0.25), "melon_rind": (0.85, 0.92, 0.7), "fish_body": (0.5, 0.58, 0.5), "fish_belly": (0.9, 0.85, 0.75), "hwy_green": (0.1, 0.42, 0.22),
     "skin": (0.92, 0.7, 0.55), "denim": (0.22, 0.32, 0.6), "shirt": (0.8, 0.3, 0.25), "blush": (0.95, 0.55, 0.55),
     "straw": (0.88, 0.76, 0.42), "boot": (0.25, 0.16, 0.1), "hair": (0.3, 0.2, 0.12),
     "tyre": (0.08, 0.08, 0.08), "hub": (0.6, 0.6, 0.58), "glass": (0.35, 0.45, 0.55),
@@ -98,6 +98,21 @@ def _done(obj, m):
 def box(size, at, m, rot=(0, 0, 0)):
     bpy.ops.mesh.primitive_cube_add(size=1.0, location=at, rotation=rot)
     o = bpy.context.object
+    # (a big flat slab low on the ground, a lot or a runway, cut into a grid of about 3 m: the world
+    # bends by each corner, and one left whole sags under the ground between its far corners)
+    if size[2] < 0.7 and at[2] - size[2] * 0.5 < 0.5 and max(size[0], size[1]) > 3.5:
+        import bmesh
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        for axis, length in ((0, size[0]), (1, size[1])):
+            n = int(math.ceil(length / 3.0))
+            for k in range(1, n):
+                normal = (1, 0, 0) if axis == 0 else (0, 1, 0)
+                co = [0.0, 0.0, 0.0]
+                co[axis] = -0.5 + k / n
+                bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=co, plane_no=normal)
+        bm.to_mesh(o.data)
+        bm.free()
     o.scale = size
     return _done(o, m)
 
@@ -523,12 +538,13 @@ def melon():
     the pale rind), broad leaves and a curl of vine"""
     p = [striped_melon(1.5, 0.95, 0.85, (0, 0, 0.4)),
          box((0.07, 0.07, 0.22), (0.78, 0, 0.5), "corn_leaf", (0, 0.6, 0)),
-         # (the slice: a wedge of rind with the red flesh in it)
-         box((0.7, 0.14, 0.42), (0.35, -0.95, 0.22), "melon", (0, 0, 0.4)),
-         box((0.64, 0.16, 0.36), (0.35, -0.95, 0.25), "melon_rind", (0, 0, 0.4)),
-         box((0.58, 0.18, 0.3), (0.35, -0.95, 0.28), "melon_flesh", (0, 0, 0.4))]
-    for k in range(5):
-        p.append(box((0.04, 0.2, 0.06), (0.17 + k * 0.09, -0.95 + 0.04 * math.sin(k), 0.32 + (k % 2) * 0.06), "black", (0, 0, 0.4)))
+         # (the slice lying beside it: dark skin, pale rind, the red flesh stacked on them, no faces shared)
+         box((0.82, 0.36, 0.1), (0.35, -1.0, 0.05), "melon", (0, 0, 0.4)),
+         box((0.74, 0.3, 0.06), (0.35, -1.0, 0.13), "melon_rind", (0, 0, 0.4)),
+         box((0.66, 0.24, 0.14), (0.35, -1.0, 0.23), "melon_flesh", (0, 0, 0.4))]
+    for k in range(4):
+        dx, dy = -0.15 + k * 0.1, 0.05 * math.sin(k * 2.0)
+        p.append(box((0.05, 0.04, 0.03), (0.35 + dx * math.cos(0.4) - dy * math.sin(0.4), -1.0 + dx * math.sin(0.4) + dy * math.cos(0.4), 0.315), "black", (0, 0, 0.4)))
     for i in range(4):
         a = i / 4 * math.tau + 0.5
         p.append(ball((0.6, 0.45, 0.06), (math.cos(a) * 1.0, math.sin(a) * 0.8, 0.06), "leaf" if i % 2 else "leaf_dark", 7, 3, (0, 0, a)))
@@ -574,12 +590,12 @@ def plane():
 
 def runway():
     """An airfield's runway: 80 m of tarmac with a dashed white line down it and its ends marked"""
-    p = [box((10.0, 80.0, 0.06), (0, 0, 0.03), "asphalt")]
+    p = [box((10.0, 80.0, 0.12), (0, 0, 0.06), "asphalt")]
     for i in range(10):
-        p.append(box((0.5, 4.0, 0.07), (0, -36.0 + i * 8.0, 0.04), "white"))
+        p.append(box((0.5, 4.0, 0.06), (0, -36.0 + i * 8.0, 0.15), "white"))
     for end in (-1, 1):
         for x in (-3.5, -2.0, 2.0, 3.5):
-            p.append(box((0.6, 5.0, 0.07), (x, end * 36.5, 0.04), "white"))
+            p.append(box((0.6, 5.0, 0.06), (x, end * 36.5, 0.15), "white"))
     return join("runway", p)
 
 
@@ -1083,22 +1099,41 @@ def jelly():
     return body
 
 
+def _market_parts(k, tent=True):
+    """The Moon Market saucer's parts, `k` times as big: its tent top only if `tent`"""
+    p = [ball((6.0 * k, 6.0 * k, 1.1 * k), (0, 0, 0), "red", 18, 6), drum(3.02 * k, 0.16 * k, (0, 0, 0), "yellow", 20),
+         drum(2.2 * k, 0.12 * k, (0, 0, 0.42 * k), "white", 18), drum(1.4 * k, 0.3 * k, (0, 0, -0.5 * k), "lights_under", 14)]
+    if tent:
+        p += [cone(1.7 * k, 1.5 * k, (0, 0, 1.2 * k), "red", 12), drum(0.05 * k, 0.9 * k, (0, 0, 2.3 * k), "metal", 4),
+              box((0.5 * k, 0.04 * k, 0.3 * k), (0.26 * k, 0, 2.6 * k), "yellow")]
+        for i in range(12):
+            a = i / 12 * math.tau
+            p.append(box((0.16 * k, 1.75 * k, 0.04 * k), (0.85 * k * math.cos(a), 0.85 * k * math.sin(a), 1.2 * k), "white" if i % 2 else "yellow", (0.72, 0, a + math.pi / 2)))
+    bulbs = ["light_red", "light_amber", "light_blue", "light_white"]
+    for i in range(20):
+        a = i / 20 * math.tau
+        p.append(ball((0.26 * k, 0.26 * k, 0.2 * k), (3.0 * k * math.cos(a), 3.0 * k * math.sin(a), 0), bulbs[i % 4], 6, 3))
+    return p
+
+
 def market():
     """The Moon Market's trading saucer, that comes down for a level's shopping: a saucer painted like
     a carnival, red and yellow bands, a striped circus-tent top with a flag, ringed with bulbs of
     every colour"""
-    p = [ball((6.0, 6.0, 1.1), (0, 0, 0), "red", 18, 6), drum(3.02, 0.16, (0, 0, 0), "yellow", 20),
-         drum(2.2, 0.12, (0, 0, 0.42), "white", 18), drum(1.4, 0.3, (0, 0, -0.5), "lights_under", 14),
-         cone(1.7, 1.5, (0, 0, 1.2), "red", 12), drum(0.05, 0.9, (0, 0, 2.3), "metal", 4),
-         box((0.5, 0.04, 0.3), (0.26, 0, 2.6), "yellow")]
-    for i in range(12):
-        a = i / 12 * math.tau
-        p.append(box((0.16, 1.75, 0.04), (0.85 * math.cos(a), 0.85 * math.sin(a), 1.2), "white" if i % 2 else "yellow", (0.72, 0, a + math.pi / 2)))
-    bulbs = ["light_red", "light_amber", "light_blue", "light_white"]
-    for i in range(20):
-        a = i / 20 * math.tau
-        p.append(ball((0.26, 0.26, 0.2), (3.0 * math.cos(a), 3.0 * math.sin(a), 0), bulbs[i % 4], 6, 3))
-    return join("market", p)
+    return join("market", _market_parts(1.0))
+
+
+def carnival():
+    """The Moon Market's saucer to fly (found once every other ship is): smaller, the circus tent
+    swapped for the pilot's glass, a ring of striped pennants round it"""
+    p = _market_parts(0.8, False)
+    for i in range(10):
+        a = i / 10 * math.tau
+        p.append(cone(0.16, 0.3, (1.45 * math.cos(a), 1.45 * math.sin(a), 0.62), "yellow" if i % 2 else "white", 4))
+    body = join("carnival", p)
+    dome = _dome(0.75, 0.38, 1.0)
+    dome.parent = body
+    return body
 
 
 def tictac():
@@ -1823,9 +1858,9 @@ def track():
     """A length of railway (8 m, along x): two steel rails on wooden sleepers"""
     p = []
     for s in (-1, 1):
-        p.append(box((8.0, 0.1, 0.14), (0, 0.72 * s, 0.2), "metal_dark"))
+        p.append(box((8.0, 0.1, 0.14), (0, 0.72 * s, 0.29), "metal_dark"))
     for i in range(10):
-        p.append(box((0.24, 2.3, 0.1), (-3.6 + i * 0.8, 0, 0.08), "wood_dark"))
+        p.append(box((0.24, 2.3, 0.1), (-3.6 + i * 0.8, 0, 0.17), "wood_dark"))
     return join("track", p)
 
 
@@ -1876,21 +1911,73 @@ def rider():
     return join("rider", [body, man])
 
 
+def gored(name, profile, colours, sides=16):
+    """A surface of revolution about z through `profile` [(radius, z)...], its panels coloured by
+    longitude in turn from `colours` (a balloon's gores)"""
+    verts, faces, face_mats = [], [], []
+    for r, z in profile:
+        for j in range(sides):
+            a = j / sides * math.tau
+            verts.append((r * math.cos(a), r * math.sin(a), z))
+    for i in range(len(profile) - 1):
+        for j in range(sides):
+            a, b = i * sides + j, i * sides + (j + 1) % sides
+            faces.append((a, b, b + sides, a + sides))
+            face_mats.append(j % len(colours))
+    top = len(profile) - 1
+    faces.append(tuple(top * sides + j for j in range(sides)))
+    face_mats.append(0)
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+    o = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(o)
+    for c in colours:
+        o.data.materials.append(mat(c))
+    for poly, m in zip(o.data.polygons, face_mats):
+        poly.material_index = m
+    return o
+
+
 def balloon():
-    """A hot air balloon: a big envelope in bright bands, a wicker basket hung under it on ropes, the
-    burner glowing"""
-    bands = ["red", "yellow", "denim", "white", "chili", "yellow"]
-    p = []
-    for i in range(6):
-        z = 5.0 + i * 0.85
-        r = 2.6 * math.sin(math.pi * (0.25 + i * 0.13))
-        p.append(drum(r, 0.86, (0, 0, z), bands[i], 14))
-    p += [ball((5.0, 5.0, 2.6), (0, 0, 9.9), "red", 14, 6), cone(1.4, 1.6, (0, 0, 4.0), "yellow", 14, (math.pi, 0, 0)),
-          box((1.2, 1.2, 0.9), (0, 0, 0.45), "straw"), drum(0.25, 0.3, (0, 0, 1.6), "camp", 8)]
+    """A hot air balloon: a great teardrop envelope in gores of bright colours, narrowing to its mouth,
+    a wicker basket hung under it on ropes, the burner glowing"""
+    envelope = gored("envelope", [(0.7, 4.3), (1.5, 4.9), (2.4, 5.9), (3.0, 7.1), (3.25, 8.3), (3.1, 9.4), (2.6, 10.3),
+                                  (1.8, 11.0), (0.8, 11.4), (0.0, 11.5)], ["red", "yellow", "denim", "white"], 16)
+    p = [envelope, drum(0.72, 0.15, (0, 0, 4.25), "felt", 16),
+         box((1.2, 1.2, 0.9), (0, 0, 0.45), "straw"), box((1.3, 1.3, 0.1), (0, 0, 0.92), "wood_dark"),
+         drum(0.25, 0.3, (0, 0, 1.6), "camp", 8)]
     for sx in (-1, 1):
         for sy in (-1, 1):
-            p.append(box((0.04, 0.04, 2.6), (0.5 * sx, 0.5 * sy, 2.1), "felt"))
+            p.append(box((0.04, 0.04, 3.5), (0.55 * sx, 0.55 * sy, 2.6), "felt", (-0.05 * sy, 0.05 * sx, 0)))
     return join("balloon", p)
+
+
+def fish():
+    """A fish: a long body (tinted by the game: its back and its belly), a forked tail, a fin on its
+    back, eyes; its head at the front (-y)"""
+    p = [ball((0.24, 0.7, 0.26), (0, 0, 0.0), "fish_body", 8, 5), ball((0.18, 0.55, 0.12), (0, -0.02, -0.07), "fish_belly", 8, 4),
+         box((0.03, 0.22, 0.12), (0, 0.05, 0.14), "fish_body"),
+         box((0.03, 0.2, 0.18), (0, 0.42, 0.07), "fish_body", (0.5, 0, 0)), box((0.03, 0.2, 0.18), (0, 0.42, -0.07), "fish_body", (-0.5, 0, 0)),
+         box((0.26, 0.04, 0.04), (0, -0.26, 0.04), "black")]
+    return join("fish", p)
+
+
+def catfish():
+    """A catfish: broad, flat-headed and grey, long whiskers either side of its mouth"""
+    p = [ball((0.32, 0.85, 0.22), (0, 0, 0.0), "metal_dark", 8, 5), ball((0.26, 0.6, 0.1), (0, -0.05, -0.07), "stone_pale", 8, 4),
+         box((0.03, 0.22, 0.2), (0, 0.5, 0.0), "metal_dark"), box((0.3, 0.04, 0.04), (0, -0.32, 0.05), "black")]
+    for s in (-1, 1):
+        p.append(box((0.3, 0.02, 0.02), (0.18 * s, -0.42, 0.0), "black", (0, 0, 0.4 * s)))
+    return join("catfish", p)
+
+
+def frog():
+    """A frog: a squat green body, big bulging eyes on top, its back legs folded beside it"""
+    p = [ball((0.36, 0.42, 0.22), (0, 0, 0.13), "leaf", 8, 4), ball((0.3, 0.32, 0.12), (0, -0.02, 0.06), "cactus_light", 8, 3)]
+    for s in (-1, 1):
+        p += [ball((0.11, 0.11, 0.11), (0.1 * s, -0.12, 0.27), "leaf", 6, 4), ball((0.06, 0.06, 0.06), (0.11 * s, -0.16, 0.3), "black", 4, 3),
+              ball((0.14, 0.28, 0.1), (0.2 * s, 0.1, 0.06), "leaf_dark", 6, 3)]
+    return join("frog", p)
 
 
 def tube_man():
@@ -1908,7 +1995,7 @@ def gas_station():
     p = [box((9.0, 6.0, 0.4), (0, 0, 4.2), "white"), box((9.1, 6.1, 0.12), (0, 0, 3.95), "window"),
          box((9.2, 0.1, 0.5), (0, -3.05, 4.2), "red"), box((6.0, 5.0, 3.2), (0, 8.0, 1.6), "walls"),
          box((6.2, 5.2, 0.2), (0, 8.0, 3.3), "roof"), box((3.0, 0.06, 1.6), (0, 5.48, 1.3), "window"),
-         box((4.0, 0.2, 0.8), (0, 5.4, 3.0), "red"), box((10.0, 15.0, 0.06), (0, 3.5, 0.03), "concrete")]
+         box((4.0, 0.2, 0.8), (0, 5.4, 3.0), "red"), box((10.0, 15.0, 0.12), (0, 3.5, 0.06), "concrete")]
     for sx in (-1, 1):
         for sy in (-1, 1):
             p.append(box((0.3, 0.3, 4.0), (3.8 * sx, 2.4 * sy, 2.0), "white"))
@@ -2493,7 +2580,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
             mesa, butte, devils_tower, peak, crag, hydrant, bank, fort_knox, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
-            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek, sunflower, cabbage, melon, pepper, motorcycle, cult_altar, helicarrier, railgun, laser_truck, fire_truck, ambulance, hospital, fire_station, prison, grain_elevator, chicken_coop, irrigation, feed_bin,
+            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, carnival, track, locomotive, boxcar, caboose, rider, balloon, fish, catfish, frog, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek, sunflower, cabbage, melon, pepper, motorcycle, cult_altar, helicarrier, railgun, laser_truck, fire_truck, ambulance, hospital, fire_station, prison, grain_elevator, chicken_coop, irrigation, feed_bin,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,

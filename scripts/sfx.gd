@@ -24,6 +24,7 @@ func _ready() -> void:
 	sounds["bloop"] = _voice(0.32, PackedFloat32Array([300.0, 520.0, 1400.0]), 0.5)
 	sounds["moo"] = _voice(0.8, PackedFloat32Array([150.0, 190.0, 175.0, 120.0]), 0.6, 0.01, 0.1)
 	sounds["baa"] = _voice(0.5, PackedFloat32Array([420.0, 440.0, 400.0]), 0.5, 0.12, 0.1)
+	sounds["croak"] = _voice(0.25, PackedFloat32Array([160.0, 120.0, 150.0, 110.0]), 0.6, 0.02, 0.3)
 	sounds["oink"] = _voice(0.2, PackedFloat32Array([260.0, 330.0, 200.0]), 0.6, 0.0, 0.45)
 	sounds["cluck"] = _voice(0.12, PackedFloat32Array([900.0, 1300.0, 700.0]), 0.5, 0.0, 0.2)
 	sounds["neigh"] = _voice(0.7, PackedFloat32Array([700.0, 1100.0, 900.0, 1000.0, 600.0]), 0.45, 0.09, 0.2)

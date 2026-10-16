@@ -58,7 +58,7 @@ The HUD: down the top left, three glass orbs the same size: the shield (blue ene
 the dash (an arrow for each charge, lit once charged, filling as it charges).
 The heat's news (the police coming, spotted, a nuke) shows just under the stars. Top right, beside the pause button, the score in alien money and its multiplier,
 and under them a log of everything taken, typed out in glowing green. Left of the cash, the **level orb** (the size of the shield's) fills with little hologram balls of what was taken, dropping in, toward the next level-up.
-The radar shows the nearest trader, secret facility, substation and rare
+The radar shows the nearest secret facility, substation and rare
 find (on the rim, pointing the way, when out of range), and the police and army about in red. The touch stick
 shows only while a thumb is on it.
 
@@ -100,6 +100,7 @@ Chosen on the title screen (left / right, or the arrows), and remembered.
 | YESTROMO (`tug`), a hauler after the Nostromo | 9.5 | x1.3 | 110 | 10 m | 3: buildings |
 | NEBULONK-B (`frigate`), after the Nebulon-B frigate | 13.5 | x0.95, narrow | 65 | 11 m | 2: trees and rocks |
 | ENTERBLORPRISE (`trek`), a starship of the Federation sort | 14.5 | x1.2 | 70 | 9.5 m | 2: trees and rocks |
+| CARNIVORB (`carnival`), the Moon Market's own saucer, held in a facility only once every other ship has been found | 13 | x1.25 | 70 | 8.5 m | 3: buildings |
 
 The beam is green, turns **blue** from the second BEAM item and **purple** from the fourth.
 
@@ -110,7 +111,7 @@ cacti; **2** trees, rocks, tents; **3** houses, barns, silos, windmills, water t
 cabins; **4** the land itself: buttes, mesas, peaks and Devils Tower (up to 5000 points). Over something too
 heavy, it only rattles (and a roof sheds tiles up the beam). Taking a mesa or a peak clears it out of the way. Under the beam, bits of the ground jump up (grass, clods, chaff, sand, drops over a lake) and the swirl up the beam takes their colour; phone wires near it spark.
 
-Watermelons are big and striped, dark green with pale bands, each with a slice cut open beside it showing the red inside.
+The hot air balloon is a proper teardrop of coloured gores. Watermelons are big and striped, dark green with pale bands, each with a slice lying beside it showing the red inside.
 
 **Crop circles**: hold the beam still over a field of crops and a circle presses into it (60 points), joined by a pressed line to its nearest neighbours within 14 m (two lines at most to a circle, never through another).
 **Rare finds**, each under a shaft of gold light: the golden cow, a jackalope, Bigfoot, a meteorite, a fallen
@@ -121,6 +122,12 @@ ring of heaped dirt, a few lights still glowing (3500 points).
 boost: DOUBLE POINTS (15 s), OVERDRIVE (half as fast again, 15 s), HEAT FREEZE (no heat, 12 s), SUPER BEAM
 (lifts far faster and one tier stronger, 12 s) or a SHIELD CELL (the shield full at once). What is under way
 shows under the heat's news with its seconds left.
+
+**Ponds and lakes** have lumpy shores with a mud bank, reeds and cattails, lily pads (a pink flower here and there), slow rings spreading over them and a pale line where they lap the bank. Nothing walks on the water (`World.out_of_water`). In it swim **trout, bass and catfish** (koi in a park's pond), leaping now and then (`swim`), and **frogs** hop about the bank. All of them can be beamed up.
+
+**Power-up canisters** hover and spin over a glowing ring in their colour, with a halo round them. Taken, they burst into motes of that colour whirling round the saucer.
+
+**No flicker**: big flat things on the ground (fields, the town square, the rail bed, ponds, and lots, runways and yards in the models: `World.slab`, `box` in build_models.py) are cut into a grid of 2 to 3 m, so they bend with the ground instead of sinking under it between their corners, and they sit clear of it and of each other. A radio dish's waves now leave from in front of the dish, facing the saucer, and travel out to it.
 
 Bullets, pellets and tracers are bright, with a white-hot core, a glow round them and a faint streak behind, and a little slower than they were, so they can be seen coming.
 
@@ -183,10 +190,7 @@ SCANNER (the radar sees further), JAMMER (they stop looking sooner), COOLANT (th
   the heat as if the ship took them. Shots that meet one stop there, and the police and army sometimes aim
   at one instead of the ship; three hits bring it down, and a new one comes out of the ship 14 s later.
 
-**Traders**: saucers parked out in the country, each with its owner standing by (another alien, with a
-name), and **one pod** set out in front: a single upgrade, tagged, worth two levels of it at once. Beam it up
-and it is yours, free. With heat, or the upgrade already at its most, the pod only rattles. At two stars the
-traders take off.
+**Traders** no longer park out in the country: level-ups (the Moon Market) and the power-up canisters are where upgrades come from. (`scripts/shop.gd` and `spawn_shop` remain, unused.)
 
 ### Rival saucers
 
@@ -325,7 +329,7 @@ loads; the Godot logo tinted green as a hologram (glowing, scanlines, a flicker)
 
     godot --headless --path . --fixed-fps 60 -s res://tests/smoke.gd      # heat, forces, patrols, dodge, crash
     godot --headless --path . --fixed-fps 60 -s res://tests/travel.gd     # the endless world
-    godot --headless --path . --fixed-fps 60 -s res://tests/upgrades.gd   # traders, tiers, a tree, a mesa, the laser, the fleet
+    godot --headless --path . --fixed-fps 60 -s res://tests/upgrades.gd   # tiers, a tree, a mesa, the laser, the fleet
     godot --path . --fixed-fps 60 --resolution 1280x720 -s res://tests/touch.gd   # touch controls, pause, quit
     godot --headless --path . --fixed-fps 60 -s res://tests/unlock.gd     # a secret facility unlocks a ship; every ship flies
     godot --path . --fixed-fps 60 --resolution 1280x720 -s res://tests/<shots|regions|look|look_more|look_ships>.gd -- <out dir>

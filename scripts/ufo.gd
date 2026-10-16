@@ -60,8 +60,13 @@ const SHIPS := {
 	"trek": {"title": "ENTERBLORPRISE", "model": "trek", "speed": 14.5, "lift": 1.2, "hull": 70.0, "tier": 2, "altitude": 9.5,
 		"radius": 3.0, "beam_foot": 3.0, "alien_y": 0.95, "alien_size": 0.5, "spin": false,
 		"about": "To boldly go. Quick, with a strong beam.", "ghost": Color(0.6, 0.8, 1.0)},
+	"carnival": {"title": "CARNIVORB", "model": "carnival", "speed": 13.0, "lift": 1.25, "hull": 70.0, "tier": 3, "altitude": 8.5,
+		"radius": 2.5, "beam_foot": 3.2, "alien_y": 0.36, "alien_size": 0.6, "spin": true,
+		"about": "The Moon Market's own saucer. Good at everything.", "ghost": Color(1.0, 0.6, 0.3)},
 }
-const ORDER: Array[String] = ["saucer", "orb", "triangle", "foo", "cigar", "bell", "tictac", "saturn", "diamond", "jelly", "tug", "frigate", "trek"]
+const ORDER: Array[String] = ["saucer", "orb", "triangle", "foo", "cigar", "bell", "tictac", "saturn", "diamond", "jelly", "tug", "frigate", "trek", "carnival"]
+## The last to be found: held in a facility only once every other ship has been
+const LAST := "carnival"
 const BEAM_SLOW := 0.6
 ## The dodge: a dash this fast for this long, untouchable while it lasts, then a wait before the next
 const DASH_SPEED := 34.0

@@ -37,6 +37,8 @@ func _initialize() -> void:
 	plan.append(func() -> String:
 		main._pick_ship(1)
 		main.start()
+		if main.shops.is_empty():
+			return "trader_none"
 		var s: Shop = main.shops[0]
 		main.score = 450
 		main.ufo.position = Vector3(s.position.x - 4.0, main.ufo.position.y, s.position.z + 10.0)

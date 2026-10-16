@@ -308,8 +308,8 @@ static func facility(c: Vector2i) -> String:
 		return ""
 	if hash3(c.x, c.y, 101) >= 0.022:
 		return ""
-	# (any ship but the saucer, which is flown from the start)
-	var held := Ufo.ORDER.slice(1)
+	# (any ship but the saucer, which is flown from the start, and the last, see main.gd `captive`)
+	var held: Array = Ufo.ORDER.slice(1).filter(func(s: String) -> bool: return s != Ufo.LAST)
 	return held[mini(int(hash3(c.x, c.y, 102) * held.size()), held.size() - 1)]
 
 
@@ -646,12 +646,6 @@ func _make(c: Vector2i) -> void:
 		# (and the forest round it, out to the next chunks)
 		for i in 26:
 			_plant("pine", 0.8, 1.4, Vector3.INF, 1.3)
-	# Now and then a trader's saucer parked out of the way (and always one near the start)
-	if game != null and not road_x and not road_z and (hash3(c.x, c.y, 33) < 0.06 or c == Vector2i(-1, 0)):
-		var pad := _spot(7.0)
-		if pad != Vector3.INF:
-			_take(pad, 7.0)
-			game.spawn_shop(pad, c)
 	var town := is_town(c)
 	var open := not road_x and not road_z and not town and facility(c) == "" and not is_base(c) and not near_tower(c)
 	if open and airfield(c):
@@ -946,7 +940,7 @@ func _farm() -> void:
 		_herd("cow", pen, _rng.randi_range(2, 3), 6.0)
 		# (a pig pen beside it: a muddy wallow in a little pen, a trough, the pigs)
 		var sty := at + basis * Vector3(10, 0, 9)
-		Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.3, 0.2, 0.12)), sty + Vector3(0, 0.1, 0), Vector3(6.5, 0.14, 4.5), Vector3(0, turn, 0))
+		Ps1.part(_node, slab(Vector3(6.5, 0.14, 4.5)), Ps1.flat(Color(0.3, 0.2, 0.12)), sty + Vector3(0, 0.1, 0), Vector3(6.5, 0.14, 4.5), Vector3(0, turn, 0))
 		_pen(sty, turn, 2, 2)
 		Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.45, 0.3, 0.18)), sty + basis * Vector3(0, 0.3, -1.2), Vector3(1.8, 0.4, 0.5), Vector3(0, turn, 0))
 		_herd("pig", sty, _rng.randi_range(2, 3), 2.0)
@@ -1332,7 +1326,7 @@ func _town(b: int) -> void:
 	# The town square on one corner: paved, a fountain in the middle, trees, and the city hall on its
 	# far side looking over it
 	var square := base + r * Vector3(-12.5, 0, 10.0)
-	Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.5, 0.48, 0.45)), square + Vector3(0, 0.1, 0), Vector3(13.0, 0.14, 11.0), Vector3(0, spin, 0))
+	Ps1.part(_node, slab(Vector3(13.0, 0.14, 11.0)), Ps1.flat(Color(0.5, 0.48, 0.45)), square + Vector3(0, 0.12, 0), Vector3(13.0, 0.14, 11.0), Vector3(0, spin, 0))
 	_prop("fountain", square, 0.0, 0.8)
 	for corner: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
 		_plant("tree", 0.6, 0.8, square + r * Vector3(corner.x * 5.2, 0, corner.y * 4.2))
@@ -1525,7 +1519,7 @@ func _car(b: int, axis: String) -> void:
 func _rail_line(c: Vector2i) -> void:
 	var z := rail_z(c.y)
 	var x0 := c.x * CHUNK
-	Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.36, 0.35, 0.34)), Vector3(x0, 0.03, z), Vector3(CHUNK, 0.06, 3.6))
+	Ps1.part(_node, slab(Vector3(CHUNK, 0.12, 3.6)), Ps1.flat(Color(0.36, 0.35, 0.34)), Vector3(x0, 0.06, z), Vector3(CHUNK, 0.12, 3.6))
 	for i in 6:
 		# (beamable, see Thing "track"; one beamed away earlier stays gone)
 		var at := Vector3(x0 - CHUNK * 0.5 + 4.0 + i * 8.0, 0.06, z)
@@ -1580,22 +1574,84 @@ func _lake() -> void:
 ## Water, `r` across, at `at`: a lake, or a park's pond
 func _water(at: Vector3, r: float) -> void:
 	lakes[_chunk] = Vector3(at.x, at.z, r)
+	# (a lumpy shore, not a perfect circle: the same few bulges for the water, the mud bank round it)
+	var lumps: Array[float] = []
+	for k in 3:
+		lumps.append(_rng.randf() * TAU)
+	var shape := func(a: float) -> float:
+		return 1.0 + 0.07 * sin(a * 2.0 + lumps[0]) + 0.05 * sin(a * 3.0 + lumps[1]) + 0.03 * sin(a * 5.0 + lumps[2])
+	var bank := MeshInstance3D.new()
+	bank.mesh = _blob(r * 1.14, shape)
+	bank.material_override = Ps1.flat(Color(0.2, 0.16, 0.1))
+	bank.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	bank.position = at + Vector3(0, 0.08, 0)
+	_node.add_child(bank)
 	var water := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = r
-	disc.bottom_radius = r
-	disc.height = 0.06
-	disc.radial_segments = 28
-	disc.rings = 1
-	water.mesh = disc
+	water.mesh = _blob(r, shape)
 	var m := ShaderMaterial.new()
 	m.shader = WATER
 	water.material_override = m
 	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	water.extra_cull_margin = Ps1.CULL_MARGIN
 	water.visibility_range_end = Ps1.DRAW_TO
-	water.position = at + Vector3(0, 0.14, 0)
+	water.position = at + Vector3(0, 0.2, 0)
 	_node.add_child(water)
+	# Lily pads out on it, a pink flower on one here and there, and reeds and cattails at its edge
+	var pad := Ps1.flat(Color(0.18, 0.4, 0.16))
+	for i in int(r * 1.2):
+		var a := _rng.randf() * TAU
+		var d := _rng.randf_range(0.35, 0.85) * r
+		var p := at + Vector3(cos(a), 0, sin(a)) * d + Vector3(0, 0.24, 0)
+		Ps1.part(_node, CylinderMesh.new(), pad, p, Vector3(0.9, 0.02, 0.9) * _rng.randf_range(0.6, 1.0))
+		if _rng.randf() < 0.25:
+			Ps1.part(_node, Ps1.ball(), Ps1.flat(Color(0.95, 0.6, 0.75)), p + Vector3(0.1, 0.08, 0.05), Vector3(0.22, 0.14, 0.22))
+	var reed := Ps1.flat(Color(0.3, 0.42, 0.18))
+	var tail := Ps1.flat(Color(0.3, 0.18, 0.1))
+	for i in int(r * 1.6):
+		var a := _rng.randf() * TAU
+		var p: Vector3 = at + Vector3(cos(a), 0, sin(a)) * r * float(shape.call(a)) * _rng.randf_range(0.92, 1.06)
+		for k in 3:
+			var tall := _rng.randf_range(0.9, 1.6)
+			var q: Vector3 = p + Vector3(_rng.randf_range(-0.3, 0.3), tall * 0.5, _rng.randf_range(-0.3, 0.3))
+			Ps1.part(_node, BoxMesh.new(), reed, q, Vector3(0.05, tall, 0.05), Vector3(_rng.randf_range(-0.15, 0.15), 0, _rng.randf_range(-0.15, 0.15)))
+			if k == 0:
+				Ps1.part(_node, BoxMesh.new(), tail, q + Vector3(0, tall * 0.4, 0), Vector3(0.1, 0.3, 0.1))
+	# Fish in it (koi in a park's pond, trout, bass and catfish anywhere else) and frogs on its bank
+	if game != null:
+		var fish: Array = ["koi"] if r < 8.0 and _rng.randf() < 0.5 else ["trout", "bass", "catfish"]
+		for i in clampi(int(r * 0.25), 2, 4):
+			var a := _rng.randf() * TAU
+			_spawn_at(fish[_rng.randi() % fish.size()], at + Vector3(cos(a), 0, sin(a)) * _rng.randf_range(0.1, 0.7) * r, a)
+		for i in _rng.randi_range(1, 2):
+			var a := _rng.randf() * TAU
+			_spawn_at("frog", at + Vector3(cos(a), 0, sin(a)) * (r * float(shape.call(a)) + 0.9), a)
+
+
+## A flat lumpy disc `r` across, its outline `shape` (how far out at each angle, about 1), its UV
+## running from the middle (0.5, 0.5) out to the edge (as a disc's would)
+func _blob(r: float, shape: Callable) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	const SIDES := 32
+	# (in rings about 2.5 m apart, so it bends with the ground; see `slab`)
+	var rings := maxi(int(ceil(r / 2.5)), 1)
+	for i in SIDES:
+		var a0 := i * TAU / SIDES
+		var a1 := (i + 1) * TAU / SIDES
+		var f0: float = shape.call(a0)
+		var f1: float = shape.call(a1)
+		for k in rings:
+			var in_k := float(k) / rings
+			var out_k := float(k + 1) / rings
+			var quad := [[a0, in_k * f0, in_k], [a0, out_k * f0, out_k], [a1, out_k * f1, out_k], [a1, in_k * f1, in_k]]
+			for corner: int in [0, 1, 2, 0, 2, 3]:
+				var v: Array = quad[corner]
+				var ang: float = v[0]
+				var out: float = float(v[1]) * r
+				st.set_normal(Vector3.UP)
+				st.set_uv(Vector2(0.5 + 0.5 * cos(ang) * v[2], 0.5 + 0.5 * sin(ang) * v[2]))
+				st.add_vertex(Vector3(cos(ang) * out, 0.0, sin(ang) * out))
+	return st.commit()
 
 
 # ------------------------------------------------------------------ places out in the country
@@ -1706,9 +1762,9 @@ func _venue(c: Vector2i, b: int) -> bool:
 			# (a striped field, end zones and goalposts, bleachers along one side, a game on)
 			var turf := Ps1.flat(Color(0.2, 0.48, 0.2))
 			var chalk := Ps1.flat(Color(0.92, 0.92, 0.9))
-			Ps1.part(_node, BoxMesh.new(), turf, at + Vector3(0, 0.04, 0), Vector3(1, 0.06, 1)).transform = Transform3D(basis * Basis.from_scale(Vector3(30.0, 0.1, 16.0)), at + Vector3(0, 0.12, 0))
+			Ps1.part(_node, slab(Vector3(30.0, 0.1, 16.0)), turf, at, Vector3.ONE).transform = Transform3D(basis * Basis.from_scale(Vector3(30.0, 0.16, 16.0)), at + Vector3(0, 0.1, 0))
 			for k in range(-3, 4):
-				Ps1.part(_node, BoxMesh.new(), chalk, at, Vector3.ONE).transform = Transform3D(basis * Basis.from_scale(Vector3(0.18, 0.1, 16.0)), at + basis * Vector3(k * 4.0, 0.18, 0))
+				Ps1.part(_node, slab(Vector3(0.18, 0.1, 16.0)), chalk, at, Vector3.ONE).transform = Transform3D(basis * Basis.from_scale(Vector3(0.18, 0.1, 15.6)), at + basis * Vector3(k * 4.0, 0.2, 0))
 			for end: float in [-1.0, 1.0]:
 				_prop("goalpost", at + basis * Vector3(end * 15.0, 0, 0), turn + PI / 2)
 			_prop("bleachers", at + basis * Vector3(0, 0, -11.5), turn)
@@ -1719,11 +1775,11 @@ func _venue(c: Vector2i, b: int) -> bool:
 			_prop("cooler", at + basis * Vector3(9, 0, -10), turn, 1.8)
 		"baseball":
 			# (a diamond: grass, a dirt infield, white bases, a backstop, bleachers, a game on)
-			Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.22, 0.5, 0.22)), at, Vector3.ONE).transform = Transform3D(basis * Basis.from_scale(Vector3(26.0, 0.1, 26.0)), at + Vector3(0, 0.12, 0))
+			Ps1.part(_node, slab(Vector3(26.0, 0.1, 26.0)), Ps1.flat(Color(0.22, 0.5, 0.22)), at, Vector3.ONE).transform = Transform3D(basis * Basis.from_scale(Vector3(26.0, 0.16, 26.0)), at + Vector3(0, 0.1, 0))
 			var diamond := basis * Basis(Vector3.UP, PI / 4)
-			Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.6, 0.42, 0.26)), at, Vector3.ONE).transform = Transform3D(diamond * Basis.from_scale(Vector3(11.0, 0.1, 11.0)), at + basis * Vector3(0, 0.18, 4.0))
+			Ps1.part(_node, slab(Vector3(11.0, 0.1, 11.0)), Ps1.flat(Color(0.6, 0.42, 0.26)), at, Vector3.ONE).transform = Transform3D(diamond * Basis.from_scale(Vector3(11.0, 0.1, 11.0)), at + basis * Vector3(0, 0.22, 4.0))
 			for k in 4:
-				var base_at := at + basis * Vector3(0, 0.24, 4.0) + basis * (Basis(Vector3.UP, k * PI / 2) * Vector3(0, 0, 5.5))
+				var base_at := at + basis * Vector3(0, 0.3, 4.0) + basis * (Basis(Vector3.UP, k * PI / 2) * Vector3(0, 0, 5.5))
 				Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.95, 0.95, 0.93)), base_at, Vector3(0.6, 0.08, 0.6))
 			_plant_at("fence", at + basis * Vector3(-1.5, 0, 11.5), turn)
 			_plant_at("fence", at + basis * Vector3(1.5, 0, 11.5), turn)
@@ -1869,3 +1925,31 @@ func _country_folk(c: Vector2i, b: int) -> void:
 			var turn := _rng.randf() * TAU
 			_prop("telescope", at, turn)
 			_spawn("stargazer", at + Basis(Vector3.UP, turn) * Vector3(0.8, 0, -0.6))
+
+
+## The lake (x, z, radius) of the chunk `p` is in (radius -1 if none)
+func lake_at(p: Vector3) -> Vector3:
+	return lakes.get(chunk_of(p), Vector3(0, 0, -1))
+
+
+## A point (and `radius` round it) kept out of the water, on its shore
+func out_of_water(p: Vector3, radius: float) -> Vector3:
+	var lake := lake_at(p)
+	if lake.z <= 0.0:
+		return p
+	var off := Vector2(p.x - lake.x, p.z - lake.y)
+	var keep := lake.z * 1.05 + radius
+	if off.length() >= keep:
+		return p
+	var n := off.normalized() if off.length() > 0.01 else Vector2.RIGHT
+	return Vector3(lake.x + n.x * keep, p.y, lake.y + n.y * keep)
+
+
+## A box for a big flat slab on the ground (a field, a square, a rail bed), cut into a grid of about
+## 2 m once scaled to `size`: the world bends by each corner, and one left whole sags under the
+## ground between its far corners
+static func slab(size: Vector3) -> BoxMesh:
+	var b := BoxMesh.new()
+	b.subdivide_width = int(ceil(size.x / 2.0))
+	b.subdivide_depth = int(ceil(size.z / 2.0))
+	return b

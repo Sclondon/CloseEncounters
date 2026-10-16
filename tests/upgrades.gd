@@ -1,7 +1,6 @@
 extends SceneTree
-## Trading and the strength of the beam: the ship beams up one of the pods the trader near the start
-## has set out (bought, and the trader packs up and goes), pulls a tree out of the ground with a
-## strong beam and then a whole mesa, and finally the heat goes up and another trader takes off.
+## The strength of the beam and level-ups (and no traders parked about any more): the ship pulls a
+## tree out of the ground with a strong beam and then a whole mesa, and presses a crop circle.
 ## Then the defence laser shoots a shell down and blows up a police car, and the mini fleet beams up
 ## chickens by itself, stops a shot, is shot down and comes back.
 ##   godot --headless --path . --fixed-fps 60 -s res://tests/upgrades.gd
@@ -51,24 +50,8 @@ func _process(_delta: float) -> bool:
 	match step:
 		"shop":
 			if frame == 5:
-				_check(not main.shops.is_empty(), "a trader is parked near the start (%d about)" % main.shops.size())
+				_check(main.shops.is_empty(), "no traders are parked out in the country (%d)" % main.shops.size())
 				main.ufo.tier = 2
-				if main.shops.is_empty():
-					return _end()
-				shop = main.shops[0]
-				_over(shop.position)
-				wait = 0
-			elif frame > 5 and wait == 2:
-				_check(shop.pods.size() == 1, "the trader has one pod set out")
-				pod = shop.pods[0]
-				goods = pod.get_meta("goods")
-				level_before = main.upgrades[goods]
-				_over(pod.position)
-				Input.action_press("beam")
-			elif frame > 5 and wait > 2 and wait < 600 and (not is_instance_valid(pod) or pod.state == "gone"):
-				Input.action_release("beam")
-				_check(main.upgrades[goods] == mini(level_before + 2, main.MAX_UPGRADE), "beaming the pod up gives two levels of %s (%d to %d)" % [goods, level_before, main.upgrades[goods]])
-				_check(shop.state == "leaving" and shop.pods.is_empty(), "the trader packs up and leaves")
 				var tier: int = main.ufo.tier
 				var score: int = main.score
 				main.buy("beam")
@@ -79,11 +62,6 @@ func _process(_delta: float) -> bool:
 				main._levels()
 				main._levels()
 				_check(main.level == levels + 2, "score enough brings level-ups (level %d to %d)" % [levels, main.level])
-				step = "tree"
-				wait = 0
-			elif frame > 5 and wait >= 600:
-				_check(false, "beaming a pod up buys it (%s: %s, %s, beam %s, heat %.2f)" % [pod.get_meta("goods") if is_instance_valid(pod) else "?", main.why_not(pod) if is_instance_valid(pod) else "gone", pod.state if is_instance_valid(pod) else "", main.ufo.beaming, main.heat])
-				Input.action_release("beam")
 				step = "tree"
 				wait = 0
 		"tree":
@@ -128,7 +106,7 @@ func _process(_delta: float) -> bool:
 			else:
 				_check(false, "a beam strong enough takes a whole mesa")
 				Input.action_release("beam")
-				step = "flee"
+				step = "laser"
 				wait = 0
 		"crop":
 			if wait == 1:
@@ -141,19 +119,6 @@ func _process(_delta: float) -> bool:
 			elif wait == 480:
 				Input.action_release("beam")
 				_check(main.score > taken_before and main._circle_done, "the beam held still over a field presses a crop circle (score %d to %d)" % [taken_before, main.score])
-				step = "flee"
-				wait = 0
-		"flee":
-			if wait == 1:
-				main.ufo.tier = 2
-				for s: Shop in main.shops:
-					if s.state == "parked":
-						shop = s
-				_over(shop.position + Vector3(20, 0, 0))
-				main.heat = 2.5
-				main.calm = 0.0
-			elif wait == 60:
-				_check(shop.state == "leaving" or not is_instance_valid(shop), "with two stars of heat, the trader takes off")
 				step = "laser"
 				wait = 0
 		"laser":
