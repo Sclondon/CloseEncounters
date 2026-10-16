@@ -20,6 +20,8 @@ var pod: Thing
 var shell: Shot
 var police: Thing
 var score_before := 0
+var goods := ""
+var level_before := 0
 var hits_before := 0
 
 
@@ -57,26 +59,25 @@ func _process(_delta: float) -> bool:
 				_over(shop.position)
 				wait = 0
 			elif frame > 5 and wait == 2:
-				_check(shop.pods.size() == 3, "the trader has three pods of goods set out")
-				main.score = 0
-				# (not a PATCH: the shield is kept full here, so there would be nothing to patch)
-				for p in shop.pods:
-					if p.get_meta("goods") != "patch":
-						pod = p
-						break
+				_check(shop.pods.size() == 1, "the trader has one pod set out")
+				pod = shop.pods[0]
+				goods = pod.get_meta("goods")
+				level_before = main.upgrades[goods]
 				_over(pod.position)
 				Input.action_press("beam")
-			elif frame > 5 and wait == 60:
-				_check(pod.state == "walk", "with no score, a pod cannot be had: it stays where it is")
-				main.score = 20000
-			elif frame > 5 and wait > 60 and wait < 600 and (not is_instance_valid(pod) or pod.state == "gone"):
+			elif frame > 5 and wait > 2 and wait < 600 and (not is_instance_valid(pod) or pod.state == "gone"):
 				Input.action_release("beam")
-				_check(main.score < 20000, "beaming a pod up buys it (score left %d)" % main.score)
-				_check(shop.state == "leaving" and shop.pods.is_empty(), "the trader packs up the rest and leaves")
+				_check(main.upgrades[goods] == mini(level_before + 2, main.MAX_UPGRADE), "beaming the pod up gives two levels of %s (%d to %d)" % [goods, level_before, main.upgrades[goods]])
+				_check(shop.state == "leaving" and shop.pods.is_empty(), "the trader packs up and leaves")
 				var tier: int = main.ufo.tier
-				main.score = 20000
+				var score: int = main.score
 				main.buy("beam")
-				_check(main.ufo.tier == mini(tier + 1, 4), "a BEAM upgrade makes the beam stronger (tier %d to %d)" % [tier, main.ufo.tier])
+				_check(main.ufo.tier == mini(tier + 1, 4) and main.score == score, "a BEAM upgrade makes the beam stronger (tier %d to %d), and costs nothing" % [tier, main.ufo.tier])
+				var levels: int = main.level
+				main.score = main.level_at(main.level + 2)
+				main._levels()
+				main._levels()
+				_check(main.level == levels + 2, "score enough brings level-ups (level %d to %d)" % [levels, main.level])
 				step = "tree"
 				wait = 0
 			elif frame > 5 and wait >= 600:
@@ -136,7 +137,7 @@ func _process(_delta: float) -> bool:
 				main.world.update(main.ufo.position, 0.0, true)
 				taken_before = main.score
 				Input.action_press("beam")
-			elif wait == 300:
+			elif wait == 480:
 				Input.action_release("beam")
 				_check(main.score > taken_before and main._circle_done, "the beam held still over a field presses a crop circle (score %d to %d)" % [taken_before, main.score])
 				step = "flee"

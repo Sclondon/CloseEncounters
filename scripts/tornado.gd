@@ -3,7 +3,8 @@ extends MultiMeshInstance3D
 ## A thin whirl of dust swirling up the tractor beam: specks lifting off the ground at the beam's
 ## foot a few at a time, round and round faster as they near the ship's belly. Let the beam go and
 ## those in it are let go too, drifting out and settling as they fade. The ship moves it
-## (`follow`).
+## (`follow`). The specks hang in the air: they drift toward their place in the whirl, so a ship that
+## flies on leaves them behind for a moment.
 
 const COUNT := 36
 
@@ -87,7 +88,9 @@ func follow(top: Vector3, foot: float, neck: float, delta: float, lean := Vector
 				_h[i] += _climb[i] * delta * (0.6 + _h[i])
 				_a[i] += delta * (2.5 + 6.0 * _h[i] * _h[i])
 				var was := _at[i]
-				_at[i] = _swirl(i, top, foot, neck, lean)
+				# (drifting toward its place in the whirl, not carried along with the ship: fly on and it
+				# is left behind for a moment)
+				_at[i] = was.lerp(_swirl(i, top, foot, neck, lean), minf(delta * 2.5, 1.0))
 				_v[i] = (_at[i] - was) / maxf(delta, 0.001)
 				if _h[i] >= 1.0:
 					_state[i] = 0

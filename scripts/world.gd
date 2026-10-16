@@ -53,6 +53,10 @@ var _rattled: Array = []
 ## Crop circles pressed into the fields: (x, z, radius, unused), the oldest written over first
 var _circles: PackedVector4Array = PackedVector4Array()
 var _circle_next := 0
+## The lines pressed between crop circles near each other: (x, z) to (x, z) each
+var _links: PackedVector4Array = PackedVector4Array()
+var _link_next := 0
+const LINK_REACH := 30.0
 
 
 func _ready() -> void:
@@ -66,11 +70,13 @@ func _ready() -> void:
 	_ground_mat = ShaderMaterial.new()
 	_ground_mat.shader = load("res://shaders/ground.gdshader")
 	_ground_mat.set_shader_parameter("chunk", CHUNK)
-	_ground_mat.set_shader_parameter("road_every", CHUNK * ROAD_EVERY)
-	_biome_img = Image.create(BIOME_SPAN, BIOME_SPAN, false, Image.FORMAT_R8)
+	_ground_mat.set_shader_parameter("road_every_chunks", float(ROAD_EVERY))
+	_biome_img = Image.create(BIOME_SPAN, BIOME_SPAN, false, Image.FORMAT_RGB8)
 	_biome_tex = ImageTexture.create_from_image(_biome_img)
 	_ground_mat.set_shader_parameter("biomes", _biome_tex)
 	_circles.resize(24)
+	_links.resize(16)
+	_ground_mat.set_shader_parameter("links", _links)
 	_ground_mat.set_shader_parameter("circles", _circles)
 	ground.material_override = _ground_mat
 	ground.extra_cull_margin = 200.0
@@ -137,9 +143,59 @@ static func has_road(n: int) -> bool:
 	return posmod(n, ROAD_EVERY) == 0
 
 
-## Whether a town stands where two roads cross here (some crossings are only crossings)
+# ------------------------------------------------------------------ the roads
+# Roads run along every fifth line of chunks, both ways. In open country they meander a little to
+# either side of their line (but never out of their chunks); near a crossing they run straight, so a
+# town is a grid. Some lines are dirt roads (narrower, no line down the middle, no towns on them).
+# shaders/ground.gdshader paints them with the same sums: keep the two the same.
+
+## How far a road wanders from its line, at most
+const MEANDER := 11.0
+
+
+## Where the road along line `n` (a column of chunks; it runs along z) is, at `z`
+static func road_x(n: int, z: float) -> float:
+	return n * CHUNK + _wander(float(n), z)
+
+
+## Where the road along line `m` (a row of chunks; it runs along x) is, at `x`
+static func road_z(m: int, x: float) -> float:
+	return m * CHUNK + _wander(float(m) + 0.5, x)
+
+
+static func _wander(line: float, t: float) -> float:
+	var spacing := CHUNK * ROAD_EVERY
+	var from_crossing := absf(t - roundf(t / spacing) * spacing)
+	var amount := MEANDER * smoothstep(30.0, 90.0, from_crossing)
+	return amount * (sin(t * 0.013 + line * 1.7) + 0.45 * sin(t * 0.031 + line * 2.9)) / 1.45
+
+
+## Whether the road along column `n` / row `m` is a dirt road
+static func dirt_x(n: int) -> bool:
+	return posmod(floori(n / float(ROAD_EVERY)) * 7 + 3, 5) < 2
+
+
+static func dirt_z(m: int) -> bool:
+	return posmod(floori(m / float(ROAD_EVERY)) * 11 + 3, 5) < 2
+
+
+## How wide either side of its middle a road is
+static func road_half(dirt: bool) -> float:
+	return 2.0 if dirt else 3.0
+
+
+## How far `p` is from the middle of the nearest road each way, less that road's half width (so
+## below 0 is on it): [along-z road, along-x road]
+static func road_gaps(p: Vector3) -> Vector2:
+	var n := roundi(p.x / (CHUNK * ROAD_EVERY)) * ROAD_EVERY
+	var m := roundi(p.z / (CHUNK * ROAD_EVERY)) * ROAD_EVERY
+	return Vector2(absf(p.x - road_x(n, p.z)) - road_half(dirt_x(n)), absf(p.z - road_z(m, p.x)) - road_half(dirt_z(m)))
+
+
+## Whether a town stands where two roads cross here (some crossings are only crossings; never on a
+## dirt road)
 static func is_town(c: Vector2i) -> bool:
-	return has_road(c.x) and has_road(c.y) and (c == Vector2i.ZERO or hash3(c.x, c.y, 61) < 0.4)
+	return has_road(c.x) and has_road(c.y) and not dirt_x(c.x) and not dirt_z(c.y) and (c == Vector2i.ZERO or hash3(c.x, c.y, 61) < 0.4)
 
 
 ## Whether this chunk is on a road leading straight out of a town, and is lined with houses
@@ -224,7 +280,8 @@ func _recentre() -> void:
 	var half := BIOME_SPAN / 2
 	for x in BIOME_SPAN:
 		for z in BIOME_SPAN:
-			_biome_img.set_pixel(x, z, Color(biome(_centre + Vector2i(x - half, z - half)) * 40.0 / 255.0, 0, 0))
+			var cz := _centre + Vector2i(x - half, z - half)
+			_biome_img.set_pixel(x, z, Color(biome(cz) * 40.0 / 255.0, field(cz) * 20.0 / 255.0, 1.0 if rows_across(cz) else 0.0))
 	_biome_tex.update(_biome_img)
 	_ground_mat.set_shader_parameter("biome_corner", Vector2((_centre.x - half) * CHUNK, (_centre.y - half) * CHUNK))
 
@@ -268,11 +325,20 @@ func rattle(p: Vector3, reach: float, tier: int) -> void:
 			_rattled.append(entry)
 
 
-## Presses a crop circle into the ground at `p` (drawn only where crops grow), `radius` across
-func crop_circle(p: Vector3, radius: float) -> void:
+## Presses a crop circle into the ground at `p` (drawn only where crops grow), `radius` across, joined
+## by a line pressed through the crop to each other circle within LINK_REACH: how many it was joined to
+func crop_circle(p: Vector3, radius: float) -> int:
+	var joined := 0
+	for c: Vector4 in _circles:
+		if c.z > 0.0 and Vector2(c.x - p.x, c.y - p.z).length() < LINK_REACH:
+			_links[_link_next] = Vector4(c.x, c.y, p.x, p.z)
+			_link_next = (_link_next + 1) % _links.size()
+			joined += 1
 	_circles[_circle_next] = Vector4(p.x, p.z, radius, 0.0)
 	_circle_next = (_circle_next + 1) % _circles.size()
 	_ground_mat.set_shader_parameter("circles", _circles)
+	_ground_mat.set_shader_parameter("links", _links)
+	return joined
 
 
 ## Grows the newest crop circle (the beam is still held over it)
@@ -284,14 +350,6 @@ func grow_circle(radius: float) -> void:
 
 
 ## Whether a crop circle can be pressed at `p`: anywhere in the farm country off the roads
-## Whether a spot in the chunk being made is in its crop fields (not a road, not its lake)
-func crops_here(p: Vector3) -> bool:
-	if biome(_chunk) != Biome.FARM or on_road(p, 3.0):
-		return false
-	var lake: Vector3 = lakes.get(_chunk, Vector3(0, 0, -1))
-	return Vector2(p.x - lake.x, p.z - lake.y).length() > lake.z + 2.0
-
-
 func crops_at(p: Vector3) -> bool:
 	if biome_at(p) != Biome.FARM or on_road(p, 2.0):
 		return false
@@ -305,22 +363,22 @@ const STREET_KINDS: Array[String] = ["person", "farmer", "cowboy", "car", "picku
 
 ## A point moved to the side of any road it is on (with `margin` to spare)
 func off_road(p: Vector3, margin: float) -> Vector3:
-	var every := CHUNK * ROAD_EVERY
-	var clear := 3.0 + margin + 0.5
-	var dx := fposmod(p.x + every * 0.5, every) - every * 0.5
-	var dz := fposmod(p.z + every * 0.5, every) - every * 0.5
-	if absf(dx) < clear:
-		p.x += (clear - absf(dx)) * (1.0 if dx >= 0.0 else -1.0)
-	if absf(dz) < clear:
-		p.z += (clear - absf(dz)) * (1.0 if dz >= 0.0 else -1.0)
+	var n := roundi(p.x / (CHUNK * ROAD_EVERY)) * ROAD_EVERY
+	var m := roundi(p.z / (CHUNK * ROAD_EVERY)) * ROAD_EVERY
+	var clear_x := road_half(dirt_x(n)) + margin + 0.5
+	var clear_z := road_half(dirt_z(m)) + margin + 0.5
+	var dx := p.x - road_x(n, p.z)
+	var dz := p.z - road_z(m, p.x)
+	if absf(dx) < clear_x:
+		p.x += (clear_x - absf(dx)) * (1.0 if dx >= 0.0 else -1.0)
+	if absf(dz) < clear_z:
+		p.z += (clear_z - absf(dz)) * (1.0 if dz >= 0.0 else -1.0)
 	return p
 
 ## Whether a point is on (or within `margin` of) a road
 func on_road(p: Vector3, margin := 0.0) -> bool:
-	var every := CHUNK * ROAD_EVERY
-	var dx := absf(fposmod(p.x + every * 0.5, every) - every * 0.5)
-	var dz := absf(fposmod(p.z + every * 0.5, every) - every * 0.5)
-	return dx < 3.0 + margin or dz < 3.0 + margin
+	var gaps := road_gaps(p)
+	return gaps.x < margin or gaps.y < margin
 
 
 ## Whether any scenery under `p` is too much for a beam of `tier`
@@ -420,9 +478,10 @@ func _make(c: Vector2i) -> void:
 		_base()
 	else:
 		# (out in the open country, now and then a lake, or a low hill)
-		if open and b in [Biome.FARM, Biome.PLAINS, Biome.MOUNTAIN] and hash3(c.x, c.y, 141) < 0.07:
+		var wild := open and (b in [Biome.PLAINS, Biome.MOUNTAIN] or field(c) == Field.PASTURE)
+		if wild and hash3(c.x, c.y, 141) < 0.07:
 			_lake()
-		elif open and b in [Biome.FARM, Biome.PLAINS, Biome.MOUNTAIN] and hash3(c.x, c.y, 142) < 0.16:
+		elif wild and hash3(c.x, c.y, 142) < 0.16:
 			var at := _spot(13.0)
 			if at != Vector3.INF:
 				_take(at, 13.0)
@@ -535,10 +594,10 @@ func _near(at: Vector3, spread: float, radius: float) -> Vector3:
 func _clear(p: Vector3, radius: float) -> bool:
 	for t in _taken:
 		if t.y == -1.0:
-			if absf(p.x - t.x) < 4.0 + radius:
+			if absf(p.x - road_x(roundi(t.x / CHUNK), p.z)) < 4.0 + radius:
 				return false
 		elif t.y == -2.0:
-			if absf(p.z - t.z) < 4.0 + radius:
+			if absf(p.z - road_z(roundi(t.z / CHUNK), p.x)) < 4.0 + radius:
 				return false
 		elif Vector2(p.x - t.x, p.z - t.z).length() < radius + t.y:
 			return false
@@ -622,18 +681,26 @@ func _herd(kind: String, at: Vector3, count: int, spread: float) -> void:
 
 
 func _farm() -> void:
+	var kind := field(_chunk)
+	_fences()
+	if kind != Field.PASTURE and kind != Field.NONE:
+		_crops(kind)
+		return
+	# Pasture: trees, cows, and most often a farmstead (a farmhouse with its porch, a barn and a silo
+	# or two, a haystack and bales, pens of animals)
 	for i in _rng.randi_range(3, 7):
 		_plant("tree", 0.75, 1.05, Vector3.INF, 2.5)
-	var farm_at := _spot(16.0) if _rng.randf() < 0.4 else Vector3.INF
+	var farm_at := _spot(17.0) if _rng.randf() < 0.75 else Vector3.INF
 	if farm_at != Vector3.INF:
 		var at := farm_at
 		var turn := _rng.randi_range(0, 3) * PI / 2
 		var basis := Basis(Vector3.UP, turn)
 		_prop("barn", at + basis * Vector3(-6, 0, -6), turn, 0.6)
 		_prop("farmhouse", at + basis * Vector3(9, 0, -8), turn, 0.85)
-		if _rng.randf() < 0.6:
-			_prop("silo", at + basis * Vector3(-12, 0, -12), 0.0, 0.48)
-		_take(at, 16.0)
+		_prop("silo", at + basis * Vector3(-12, 0, -12), 0.0, 0.48)
+		if _rng.randf() < 0.45:
+			_prop("silo", at + basis * Vector3(-15.5, 0, -9), 0.0, 0.42)
+		_take(at, 17.0)
 		var pen := at + basis * Vector3(-2, 0, 10)
 		_pen(pen, turn, 6, 4)
 		_herd("cow", pen, _rng.randi_range(2, 4), 6.0)
@@ -642,26 +709,72 @@ func _farm() -> void:
 		_spawn("farmer", at + basis * Vector3(4, 0, 2))
 		if _rng.randf() < 0.5:
 			_spawn("tractor", at + basis * Vector3(12, 0, 6))
-		_herd("hay_bale", at + basis * Vector3(-12, 0, 4), _rng.randi_range(1, 3), 3.0)
+		_prop("hay_pile", at + basis * Vector3(-13, 0, 3), _rng.randf() * TAU, _rng.randf_range(0.8, 1.1))
+		_herd("hay_bale", at + basis * Vector3(-12, 0, 8), _rng.randi_range(2, 4), 3.0)
 		if _rng.randf() < 0.4:
 			_spawn("outhouse", at + basis * Vector3(14, 0, -2))
-	# Rows of crops out in the fields, a patch or two of one kind each: wheat, corn or pumpkins
-	for patch in _rng.randi_range(1, 2):
-		var crop: String = ["wheat", "corn", "pumpkin"][_rng.randi() % 3]
+	elif _rng.randf() < 0.15:
+		# (a country church on its own)
+		var at := _spot(9.0)
+		if at != Vector3.INF:
+			_take(at, 9.0)
+			_prop("church", at, _rng.randi_range(0, 3) * PI / 2, 0.8)
+	elif _rng.randf() < 0.5:
+		# (a field barn on its own, with hay)
 		var at := _spot(8.0)
-		if at == Vector3.INF or not crops_here(at):
-			continue
-		_take(at, 8.0)
-		var rows := Basis(Vector3.UP, _rng.randi_range(0, 1) * PI / 2)
-		var gap := 2.2 if crop == "pumpkin" else 1.5
-		for row in 4:
-			for col in 7:
-				var p := at + rows * Vector3((col - 3) * gap, 0, (row - 1.5) * 2.4) + Vector3(_rng.randf_range(-0.2, 0.2), 0, _rng.randf_range(-0.2, 0.2))
-				_plant_at(crop, p, _rng.randf() * TAU)
-	for i in _rng.randi_range(0, 2):
-		_spawn("scarecrow", _spot(2.0))
-	if _rng.randf() < 0.3:
+		if at != Vector3.INF:
+			_take(at, 8.0)
+			_prop("barn", at, _rng.randi_range(0, 3) * PI / 2, 0.55)
+			_herd("hay_bale", at + Vector3(7, 0, 4), _rng.randi_range(1, 3), 3.0)
+	if _rng.randf() < 0.5:
 		_herd("cow", _spot(6.0), _rng.randi_range(2, 4), 5.0)
+
+
+## A field of a crop, in rows right across the chunk (but for the road), and what goes with it
+func _crops(kind: int) -> void:
+	var base := centre_of(_chunk)
+	var across := rows_across(_chunk)
+	var crop: String = {Field.WHEAT: "wheat", Field.CORN: "corn", Field.PUMPKIN: "pumpkin"}.get(kind, "")
+	if crop != "":
+		var gap := 2.6 if crop == "pumpkin" else 2.2
+		var row := -CHUNK * 0.5 + 1.5
+		while row < CHUNK * 0.5:
+			var along := -CHUNK * 0.5 + 1.0
+			while along < CHUNK * 0.5:
+				var p := base + (Vector3(row, 0, along) if across else Vector3(along, 0, row))
+				p += Vector3(_rng.randf_range(-0.25, 0.25), 0, _rng.randf_range(-0.25, 0.25))
+				if not on_road(p, 1.5):
+					_plant_at(crop, p, _rng.randf() * TAU)
+				along += gap
+			row += 3.0
+	match kind:
+		Field.WHEAT:
+			if _rng.randf() < 0.4:
+				_spawn("scarecrow", _spot(2.0))
+		Field.PLOUGHED:
+			if _rng.randf() < 0.35:
+				_spawn("tractor", _spot(4.0))
+			if _rng.randf() < 0.5:
+				_prop("hay_pile", _spot(4.0), _rng.randf() * TAU, _rng.randf_range(0.8, 1.1))
+		Field.GREEN:
+			if _rng.randf() < 0.5:
+				_herd("hay_bale", _spot(3.0), _rng.randi_range(2, 5), 6.0)
+
+
+## Fences along the field's west and north edges where the field next door is farmland too (each
+## field fences its own two, so every edge is fenced once), with gaps where a road crosses
+func _fences() -> void:
+	var base := centre_of(_chunk)
+	for side in 2:
+		var next := _chunk + (Vector2i(-1, 0) if side == 0 else Vector2i(0, -1))
+		if field(next) == Field.NONE:
+			continue
+		var k := -CHUNK * 0.5 + 1.5
+		while k < CHUNK * 0.5:
+			var p := base + (Vector3(-CHUNK * 0.5, 0, k) if side == 0 else Vector3(k, 0, -CHUNK * 0.5))
+			if not on_road(p, 2.0):
+				_plant_at("fence", p, PI / 2 if side == 0 else 0.0)
+			k += 3.0
 
 
 ## A pen of fence, w by d lengths, with a gap for a gate
@@ -794,13 +907,20 @@ func _edge_of_town(b: int, axis: String) -> void:
 	var dry := b == Biome.DESERT or b == Biome.MESA
 	var paint: Array[Color] = [Color(0.92, 0.9, 0.82), Color(0.75, 0.82, 0.9), Color(0.95, 0.85, 0.6), Color(0.8, 0.9, 0.75), Color(0.9, 0.7, 0.65)]
 	var base := centre_of(_chunk)
+	# (now and then one of the houses is a church instead)
+	var church := _rng.randi_range(0, 5) if _rng.randf() < 0.3 else -1
+	var slot := -1
 	for k: float in [-15.0, 0.0, 15.0]:
 		for side: float in [-1.0, 1.0]:
-			var p := base + (Vector3(side * 10.0, 0, k) if axis == "z" else Vector3(k, 0, side * 10.0))
+			slot += 1
+			var out := 12.5 if slot == church else 10.0
+			var p := base + (Vector3(side * out, 0, k) if axis == "z" else Vector3(k, 0, side * out))
 			if not _clear(p, 4.5) or _rng.randf() < 0.2:
 				continue
 			var turn := (PI / 2 * side if axis == "z" else (0.0 if side < 0.0 else PI))
-			if dry:
+			if slot == church:
+				_prop("church", p, turn, 0.8)
+			elif dry:
 				_prop("adobe", p, turn, 0.8)
 			else:
 				_prop("house", p, turn, 0.85, {"walls": paint[_rng.randi() % paint.size()]})
@@ -866,14 +986,14 @@ func _spawn_at(kind: String, at: Vector3, turn: float) -> void:
 
 
 ## Those who watch the sky: an observatory up high or in the desert, a row of radio dishes on the
-## plains and mesas (New Mexico's Very Large Array)
+## plains and mesas (New Mexico's Very Large Array), or a single dish out in the country
 func _watchers(c: Vector2i, b: int) -> void:
 	if hash3(c.x, c.y, 91) < 0.04 and b in [Biome.MOUNTAIN, Biome.DESERT]:
 		var at := _spot(7.0)
 		if at != Vector3.INF:
 			_take(at, 7.0)
 			_prop("observatory", at, _rng.randf() * TAU)
-	elif hash3(c.x, c.y, 92) < 0.05 and b in [Biome.MESA, Biome.PLAINS, Biome.DESERT]:
+	elif hash3(c.x, c.y, 92) < 0.12 and b in [Biome.MESA, Biome.PLAINS, Biome.DESERT]:
 		var along := _rng.randf() < 0.5
 		var base := centre_of(c)
 		for k in range(-2, 3):
@@ -881,10 +1001,17 @@ func _watchers(c: Vector2i, b: int) -> void:
 			if _clear(at, 4.0):
 				_take(at, 4.5)
 				_prop("seti_dish", at, 0.0)
+	elif hash3(c.x, c.y, 93) < 0.08 and b != Biome.MOUNTAIN and field(c) in [Field.NONE, Field.PASTURE]:
+		# (or a single dish on its own)
+		var at := _spot(4.5)
+		if at != Vector3.INF:
+			_take(at, 4.5)
+			_prop("seti_dish", at, 0.0)
 
 
 ## A town where two roads cross: main street (shops with sign boards and awnings, in a row facing
-## the road, houses behind them), the police station on a corner, a diner, a clock tower or a water
+## the road, houses behind them), a town square with its city hall, the police station on a corner, a
+## diner, a clock tower or a water
 ## tower, and plenty of people about (more, and more worth taking, than out in the country)
 func _town(b: int) -> void:
 	var dry := b == Biome.DESERT or b == Biome.MESA
@@ -898,6 +1025,9 @@ func _town(b: int) -> void:
 	_take(station, 8.0)
 	for qx: float in [-1.0, 1.0]:
 		for qz: float in [-1.0, 1.0]:
+			# (the town square takes this corner)
+			if qx < 0.0 and qz > 0.0:
+				continue
 			for i in 2:
 				var p := base + Vector3(qx * (9.0 + i * 9.5), 0, qz * _rng.randf_range(9.0, 16.0))
 				var turn := PI / 2 * -qx
@@ -918,6 +1048,17 @@ func _town(b: int) -> void:
 			_prop("clock_tower", base + Vector3(12, 0, -9), PI)
 		elif _rng.randf() < 0.6:
 			_prop("water_tower", base + Vector3(12, 0, -9))
+	# The town square on one corner: paved, a fountain in the middle, trees, and the city hall on its
+	# far side looking over it
+	var square := base + Vector3(-12.5, 0, 10.0)
+	Ps1.part(_node, BoxMesh.new(), Ps1.flat(Color(0.5, 0.48, 0.45)), square + Vector3(0, 0.04, 0), Vector3(13.0, 0.08, 11.0))
+	_prop("fountain", square, 0.0, 0.8)
+	for corner: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+		_plant("tree", 0.6, 0.8, square + Vector3(corner.x * 5.2, 0, corner.y * 4.2))
+	_take(square, 7.5)
+	var hall := base + Vector3(-12.5, 0, 20.0)
+	_prop("city_hall", hall, PI, 0.72)
+	_take(hall, 6.0)
 	for i in _rng.randi_range(7, 11):
 		_spawn("person", base + Vector3(_rng.randf_range(-16, 16), 0, _rng.randf_range(-16, 16)))
 
@@ -971,11 +1112,13 @@ func _phone_line(c: Vector2i, axis: String) -> void:
 		var at: Vector3
 		var next: Vector3
 		if axis == "z":
-			at = Vector3(base.x + 4.5, 0, base.z + k * 16.0)
-			next = at + Vector3(0, 0, 16)
+			var z: float = base.z + k * 16.0
+			at = Vector3(road_x(c.x, z) + 4.5, 0, z)
+			next = Vector3(road_x(c.x, z + 16.0) + 4.5, 0, z + 16.0)
 		else:
-			at = Vector3(base.x + k * 16.0, 0, base.z - 4.5)
-			next = at + Vector3(16, 0, 0)
+			var x: float = base.x + k * 16.0
+			at = Vector3(x, 0, road_z(c.y, x) - 4.5)
+			next = Vector3(x + 16.0, 0, road_z(c.y, x + 16.0) - 4.5)
 		# (none standing in the other road where two cross)
 		if has_road(c.x) and has_road(c.y) and (absf(at.x - base.x) < 5.0 and absf(at.z - base.z) < 5.0):
 			continue
@@ -983,9 +1126,9 @@ func _phone_line(c: Vector2i, axis: String) -> void:
 	# A phone booth across the road from the poles, mostly, its door to the road
 	if hash3(c.x, c.y, 133 if axis == "z" else 134) < 0.6:
 		if axis == "z":
-			game.spawn_later("phone_booth", Vector3(base.x - 4.0, 0, base.z + 8.0), {"turn": PI / 2, "chunk": c})
+			game.spawn_later("phone_booth", Vector3(road_x(c.x, base.z + 8.0) - 4.0, 0, base.z + 8.0), {"turn": PI / 2, "chunk": c})
 		else:
-			game.spawn_later("phone_booth", Vector3(base.x + 8.0, 0, base.z + 4.0), {"turn": PI, "chunk": c})
+			game.spawn_later("phone_booth", Vector3(base.x + 8.0, 0, road_z(c.y, base.x + 8.0) + 4.0), {"turn": PI, "chunk": c})
 
 
 func _car(b: int, axis: String) -> void:
@@ -997,7 +1140,7 @@ func _car(b: int, axis: String) -> void:
 	var dir := 1.0 if _rng.randf() < 0.5 else -1.0
 	var base := centre_of(_chunk)
 	var along := _rng.randf_range(-20, 20)
-	var at := base + (Vector3(1.5 * dir, 0, along) if axis == "z" else Vector3(along, 0, -1.5 * dir))
+	var at := Vector3(road_x(_chunk.x, base.z + along) + 1.5 * dir, 0, base.z + along) if axis == "z" else Vector3(base.x + along, 0, road_z(_chunk.y, base.x + along) - 1.5 * dir)
 	if game != null:
 		game.spawn_car(kinds[_rng.randi() % kinds.size()], at, axis, dir)
 
@@ -1059,3 +1202,46 @@ func _lake() -> void:
 		var shore := _ring_spot(at, r + 1.0, r + 4.0)
 		if _clear(shore, 1.2):
 			_plant("tree" if _rng.randf() < 0.6 else "pine", 0.7, 1.1, shore)
+
+
+## The nearest point in the middle of a road to `p`, and which way that road runs ("z" or "x")
+func nearest_road(p: Vector3) -> Array:
+	var n := roundi(p.x / (CHUNK * ROAD_EVERY)) * ROAD_EVERY
+	var m := roundi(p.z / (CHUNK * ROAD_EVERY)) * ROAD_EVERY
+	var on_z := Vector3(road_x(n, p.z), 0, p.z)
+	var on_x := Vector3(p.x, 0, road_z(m, p.x))
+	return [on_z, "z"] if on_z.distance_to(p) < on_x.distance_to(p) else [on_x, "x"]
+
+
+# ------------------------------------------------------------------ the fields
+# Out in farm country each chunk is one field, fenced along its edges: pasture (where the farms,
+# lakes and hills are), wheat, corn, pumpkins, ploughed earth, or young green crops. The ground is
+# painted for it (the green of `_biome_img`, see shaders/ground.gdshader), and a field of a crop
+# has rows of it right across (see `_crops`).
+
+enum Field { NONE, PASTURE, WHEAT, CORN, PUMPKIN, PLOUGHED, GREEN }
+
+
+static func field(c: Vector2i) -> int:
+	if biome(c) != Biome.FARM or is_town(c) or is_edge_of_town(c) or facility(c) != "" or is_base(c) or airfield(c):
+		return Field.NONE
+	# (always pasture right round where the game starts, for a farm to be seen at once)
+	if maxi(absi(c.x), absi(c.y)) <= 1:
+		return Field.PASTURE
+	var h := hash3(c.x, c.y, 151)
+	if h < 0.3:
+		return Field.PASTURE
+	if h < 0.5:
+		return Field.WHEAT
+	if h < 0.65:
+		return Field.CORN
+	if h < 0.75:
+		return Field.PUMPKIN
+	if h < 0.9:
+		return Field.PLOUGHED
+	return Field.GREEN
+
+
+## Which way a field's rows run: across x (true) or along z
+static func rows_across(c: Vector2i) -> bool:
+	return hash3(c.x, c.y, 152) < 0.5

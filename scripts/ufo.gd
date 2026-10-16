@@ -113,6 +113,9 @@ var _rock := -1.0
 var _gulp := 0.0
 var _gulp_size := 1.0
 var _hull_scale := Vector3.ONE
+## The bounce as the beam comes on (1 just on, down to 0), and how far back it tilts while beaming
+var _kick := 0.0
+const BEAM_TILT := 0.28
 ## Smoke and sparks off the ship (with its shield gone), and the beam's whirl of dust
 var puffs: Puffs
 var _smoke_wait := 0.0
@@ -430,7 +433,11 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	_safe -= delta
 	dash_left -= delta
 	# (no beam while dashing: whatever was in it drops)
+	var was_beaming := beaming
 	beaming = beam_on and dash_left <= 0.0
+	if beaming and not was_beaming:
+		# (a little bounce as the beam comes on)
+		_kick = 1.0
 	var top := speed * (BEAM_SLOW if beaming else 1.0)
 	var want := Vector3(steer.x, 0, steer.y) * top
 	if dash_left > 0.0:
@@ -440,7 +447,8 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	position += velocity * delta
 	position.y = altitude + descent + sin(_t * 1.7) * 0.15
 	# Banks into the way it is going
-	body.rotation.x = lerpf(body.rotation.x, velocity.z / speed * 0.25, minf(delta * 5.0, 1.0))
+	# (tilted back while beaming, its underside and the beam toward the camera)
+	body.rotation.x = lerpf(body.rotation.x, velocity.z / speed * 0.25 - (BEAM_TILT if beaming else 0.0), minf(delta * 5.0, 1.0))
 	body.rotation.z = lerpf(body.rotation.z, -velocity.x / speed * 0.25, minf(delta * 5.0, 1.0))
 	_steer = steer
 	if _spin > 0.0:
@@ -512,14 +520,12 @@ func dodge(dir: Vector2) -> bool:
 	if dead or charge < 1.0 or dir.length() < 0.01:
 		return false
 	_dash_dir = Vector3(dir.x, 0, dir.y).normalized()
-	# Every full charge goes into it: one is a short hop with one afterimage, three the whole dash
-	var used := floori(charge)
-	charge -= used
-	var share := (used + 1) / float(CHARGES + 1)
-	dash_left = DASH_TIME * share
-	_safe = DASH_SAFE * share
-	_spin = DASH_SAFE * share
-	_ghosts_left = used if used < CHARGES else GHOSTS + 2 * dash_level
+	# One charge a dash, each the whole dash (up to three in a row)
+	charge -= 1.0
+	dash_left = DASH_TIME
+	_safe = DASH_SAFE
+	_spin = DASH_SAFE
+	_ghosts_left = GHOSTS + 2 * dash_level
 	_ghost_wait = 0.0
 	alien.feel("tossed", DASH_SAFE + 0.35)
 	_toss = DASH_SAFE + 0.35
@@ -603,17 +609,22 @@ func sparkle() -> void:
 		var c := Color(0.7, 1.0, 0.75) if i % 3 else Color(1.0, 1.0, 0.85)
 		puffs.spark(belly, Vector3(cos(a), randf_range(0.2, 1.4), sin(a)) * randf_range(3.0, 7.0), c)
 
+
 func _gulping(delta: float) -> void:
-	if _gulp <= 0.0:
-		return
-	_gulp = maxf(_gulp - delta * 1.6, 0.0)
-	var t := 1.0 - _gulp
-	var wobble := sin(t * 20.0) * exp(-4.0 * t) * 0.16 * _gulp_size
-	hull_model.scale = _hull_scale * Vector3(1.0 + wobble, 1.0 - wobble * 0.9, 1.0 + wobble)
-	body.position.y = -sin(t * 14.0) * exp(-5.0 * t) * 0.35 * _gulp_size
-	if _gulp <= 0.0:
-		hull_model.scale = _hull_scale
-		body.position.y = 0.0
+	var dip := 0.0
+	if _kick > 0.0:
+		_kick = maxf(_kick - delta * 1.8, 0.0)
+		var k := 1.0 - _kick
+		dip -= sin(k * 13.0) * exp(-4.0 * k) * 0.28
+	if _gulp > 0.0:
+		_gulp = maxf(_gulp - delta * 1.6, 0.0)
+		var t := 1.0 - _gulp
+		var wobble := sin(t * 20.0) * exp(-4.0 * t) * 0.16 * _gulp_size
+		hull_model.scale = _hull_scale * Vector3(1.0 + wobble, 1.0 - wobble * 0.9, 1.0 + wobble)
+		dip -= sin(t * 14.0) * exp(-5.0 * t) * 0.35 * _gulp_size
+		if _gulp <= 0.0:
+			hull_model.scale = _hull_scale
+	body.position.y = dip
 
 
 ## With its shield gone the ship smokes, trailing dark puffs off its rim, and throws sparks

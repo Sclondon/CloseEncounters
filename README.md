@@ -36,10 +36,10 @@ and while on the moon the world stays loaded round where the run starts (no stut
   whatever is in the beam, and throws the pilot about.
 - **Pause**: Esc / P / Start, or the pause button in the top right; from there, RESUME or QUIT TO MENU (the run is given up).
 
-The HUD: top left, the shield as a glass orb of blue energy, and three pistons that pop up as
-the dodge recharges (three lamps on the front of the ship light with them); under them a round **radar**, and
-under that a log of everything taken, typed out in glowing green. Top right, beside the pause button, the score
-in alien money and its multiplier.
+The HUD: top left, the shield as a glass orb of blue energy, and three arrows that light up as the dodge
+recharges, one for each dash (every dash is a full one; three lamps on the front of the ship light with them);
+under them a round **radar**. Top right, beside the pause button, the score in alien money and its multiplier,
+and under them a log of everything taken, typed out in glowing green.
 The radar shows the nearest trader, secret facility, substation and rare
 find (on the rim, pointing the way, when out of range), and the police and army about in red. The touch stick
 shows only while a thumb is on it.

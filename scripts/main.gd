@@ -34,6 +34,7 @@ const NEW_STAR := 8.0
 var _new_star := 0.0
 ## How many of each thing the farm keeps about (taken ones are replaced, somewhere else)
 const CAMERA_OFFSET := Vector3(0, 25.8, 19.8)
+const WIDE_OFFSET := Vector3(0, 14.5, 30.0)
 ## (tests try others)
 var camera_offset := CAMERA_OFFSET
 ## Each run opens with the ship coming down from space: this long, from this high
@@ -102,6 +103,12 @@ var _circle_done := false
 var shops: Array[Shop] = []
 var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "fleet": 0}
 var _hot_wait := 0.0
+## The level reached this run (see `_levels`), levels still to pick for, and the picker
+var level := 0
+var _levels_due := 0
+var _picker: VBoxContainer
+var _picker_title: Label
+var _picks: VBoxContainer
 ## Things the world has asked for, waiting to be put down: [kind, where, extra]
 var _to_spawn: Array = []
 const SPAWN_A_FRAME := 6
@@ -144,7 +151,9 @@ var score_label: Label
 var mult_label: Label
 var coin: Control
 ## How wide the score's box is, right-aligned beside the pause button
-const SCORE_WIDTH := 300.0
+const SCORE_WIDTH := 360.0
+## How wide the log of what was taken is, right-aligned under the score
+const LOG_WIDTH := 640.0
 var radar: Control
 ## The secret facilities near enough to show on the radar, looked for every few seconds
 var _facilities: Array[Vector3] = []
@@ -167,6 +176,8 @@ var _title_label: Label
 var _title_gap: Control
 var _arrows: Array[Button] = []
 var _title_row: HBoxContainer
+## The gap above the title's second row of buttons
+var _title_drop: Control
 ## The log (a field guide): every ship, every kind of thing there is to take (with how many of each
 ## have been taken, ever), and every kind of hunter met; filled in as they are, and kept with the best
 var _log_box: Control
@@ -392,6 +403,9 @@ func start(from_launch := false) -> void:
 	if not from_launch:
 		alien_seed = randi()
 	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "fleet": 0}
+	level = 0
+	_levels_due = 0
+	_picker.visible = false
 	_clear_fleet()
 	_laser_wait = 0.0
 	_cuts.clear()
@@ -540,6 +554,7 @@ func _process(delta: float) -> void:
 		t.tick(delta, ufo)
 	things = things.filter(func(t: Thing) -> bool: return t.state != "gone")
 	_pull_scenery(delta)
+	_beam_shadows()
 	_shops(delta)
 	_watchers(delta)
 	_crop_circles(delta)
@@ -553,6 +568,7 @@ func _process(delta: float) -> void:
 	shots = shots.filter(func(s: Shot) -> bool: return not s.done)
 	_jets(delta)
 	if mode == "play" and intro <= 0.0:
+		_levels()
 		time_alive += delta
 		_heat(delta)
 		_forces(delta)
@@ -658,10 +674,17 @@ func _patrols(delta: float) -> void:
 			have += 1
 	if have >= mini(2 + int(time_alive / 90.0) + int((danger() - 1.0) * 1.5), 7):
 		return
+	# (on the nearest road, cruising it: none when no road is near)
 	var a := randf() * TAU
-	var at := world.push_out(ufo.ground() + Vector3(sin(a), 0, cos(a)) * randf_range(45.0, 60.0), 3.0)
+	var road: Array = world.nearest_road(ufo.ground() + Vector3(sin(a), 0, cos(a)) * randf_range(45.0, 60.0))
+	var at: Vector3 = road[0]
+	if at.distance_to(ufo.ground()) > 90.0 or at.distance_to(ufo.ground()) < 35.0:
+		return
 	var b := world.biome_at(at)
-	spawn("patrol_jeep" if b in [World.Biome.DESERT, World.Biome.PLAINS, World.Biome.MOUNTAIN] else "patrol_car", at)
+	var t := spawn("patrol_jeep" if b in [World.Biome.DESERT, World.Biome.PLAINS, World.Biome.MOUNTAIN] else "patrol_car", at)
+	t.road_axis = road[1]
+	t.road_dir = 1.0 if randf() < 0.5 else -1.0
+	t.heading = (0.0 if t.road_dir > 0.0 else PI) if road[1] == "z" else (PI / 2 if t.road_dir > 0.0 else -PI / 2)
 
 
 ## A patrol's searchlight has the ship in it: the heat goes up fast, and does not cool while it does
@@ -708,8 +731,10 @@ func _watchers(delta: float) -> void:
 			t.watching = maxf(t.watching - delta, 0.0)
 
 
-## Crop circles: hold the beam still over a field of crops and a circle presses into it, growing
-## as long as the beam stays, and scoring once it is full size
+## Crop circles: hold the beam still over a field of crops and a circle presses into it at once,
+## growing slowly
+## as long as the beam stays, and scoring once it is full size; one pressed near another is joined
+## to it by a line (see World.crop_circle)
 func _crop_circles(delta: float) -> void:
 	var here := ufo.ground()
 	var over := ufo.beaming and not ufo.dead and ufo.velocity.length() < 5.0 and world.crops_at(here)
@@ -718,14 +743,19 @@ func _crop_circles(delta: float) -> void:
 		_circle_time = 0.0
 		return
 	_circle_time += delta
-	if _circle_time < 0.5:
+	if _circle_time < 0.05:
 		return
 	var full := ufo.beam_foot * 2.2
 	if _circle_at == Vector3.INF:
 		_circle_at = here
-		world.crop_circle(here, 1.0)
+		# (joined by a line pressed through the crop to any other circle near it)
+		var links := world.crop_circle(here, 1.0)
+		if links > 0 and mode == "play":
+			var bonus := 25 * links * multiplier()
+			score += bonus
+			log_line("CROP CIRCLES JOINED", bonus)
 		_circle_done = false
-	var r := minf(1.0 + (_circle_time - 0.5) * 2.5, full)
+	var r := minf(1.0 + (_circle_time - 0.05) * 1.0, full)
 	world.grow_circle(r)
 	if r >= full and not _circle_done and mode == "play":
 		_circle_done = true
@@ -842,24 +872,23 @@ func spawn_shop(at: Vector3, c: Vector2i) -> void:
 	view.add_child(s)
 	s.setup(self, at, c, randi())
 	shops.append(s)
-	var stock: Array = GOODS.duplicate()
+	# (one thing to be had: two levels of an upgrade at once, beamed up for nothing)
+	var stock: Array = GOODS.filter(func(g: String) -> bool: return g != "patch")
 	stock.shuffle()
-	for i in 3:
-		var what: String = stock[i]
-		var pod := spawn("pod", world.off_road(at + Vector3((i - 1) * 4.5, 0, 6.5 - absf(i - 1) * 1.5), 1.0),
-			{"chunk": c, "turn": 0.0, "tints": {"pod_glow": UPGRADES[what]["colour"]}})
-		pod.set_meta("shop", s)
-		pod.set_meta("goods", what)
-		var tag := Label3D.new()
-		tag.font = font
-		tag.font_size = 48
-		tag.pixel_size = 0.016
-		tag.outline_size = 10
-		tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		tag.position = Vector3(0, 2.4, 0)
-		pod.add_child(tag)
-		pod.set_meta("tag", tag)
-		s.pods.append(pod)
+	var what: String = stock[0]
+	var pod := spawn("pod", world.off_road(at + Vector3(0, 0, 6.5), 1.0), {"chunk": c, "turn": 0.0, "tints": {"pod_glow": UPGRADES[what]["colour"]}})
+	pod.set_meta("shop", s)
+	pod.set_meta("goods", what)
+	var tag := Label3D.new()
+	tag.font = font
+	tag.font_size = 48
+	tag.pixel_size = 0.016
+	tag.outline_size = 10
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.position = Vector3(0, 2.4, 0)
+	pod.add_child(tag)
+	pod.set_meta("tag", tag)
+	s.pods.append(pod)
 
 
 func _shops(delta: float) -> void:
@@ -869,27 +898,15 @@ func _shops(delta: float) -> void:
 		if s.gone:
 			shops.erase(s)
 			s.queue_free()
-	# Each pod's tag: what it is, what it costs, green if it can be had and red if not
+	# Each pod's tag: what it is, green if it can be had and red if not
 	for s in shops:
 		for pod: Thing in s.pods:
 			if not is_instance_valid(pod) or pod.state == "gone":
 				continue
 			var what: String = pod.get_meta("goods")
 			var tag: Label3D = pod.get_meta("tag")
-			var price := goods_price(what)
-			if price < 0:
-				tag.text = "%s\n%s" % [UPGRADES[what]["title"], "SHIELD FULL" if what == "patch" else "THE BEST THERE IS"]
-			else:
-				var level := "" if what == "patch" else " %d" % (upgrades[what] + 1)
-				tag.text = "%s%s\n%d" % [UPGRADES[what]["title"], level, price]
+			tag.text = "%s +2\n%s" % [UPGRADES[what]["title"], "THE BEST THERE IS" if upgrades[what] >= MAX_UPGRADE else "BEAM IT UP"]
 			tag.modulate = Color(0.6, 1.0, 0.65) if why_not(pod) == "" else Color(1.0, 0.45, 0.35)
-
-
-## What a pod of these goods costs now (-1: nothing more to be had)
-func goods_price(what: String) -> int:
-	if what == "patch":
-		return repair_price() if repair_price() > 0 else -1
-	return upgrade_price(what) if upgrades[what] < MAX_UPGRADE else -1
 
 
 ## Why a pod cannot be taken just now ("" if it can)
@@ -897,22 +914,17 @@ func why_not(pod: Thing) -> String:
 	var shop: Shop = pod.get_meta("shop")
 	if heat_level() >= 1:
 		return "%s WON'T TRADE WHILE THEY'RE LOOKING FOR YOU" % shop.keeper_name.to_upper()
-	var price := goods_price(pod.get_meta("goods"))
-	if price < 0:
-		return "THE SHIELD IS ALREADY FULL" if pod.get_meta("goods") == "patch" else "NOTHING MORE TO BE HAD THERE"
-	if score < price:
-		return "NOT ENOUGH ALIEN MONEY"
+	if upgrades[pod.get_meta("goods")] >= MAX_UPGRADE:
+		return "NOTHING MORE TO BE HAD THERE"
 	return ""
 
 
-## A pod has come up the beam: it is paid for, and the trader packs the rest away and is off
+## A trader's pod has come up the beam: two levels of what was in it, and the trader is off
 func _bought(pod: Thing) -> void:
 	var what: String = pod.get_meta("goods")
 	var shop: Shop = pod.get_meta("shop")
-	if what == "patch":
-		repair()
-	else:
-		buy(what)
+	buy(what)
+	buy(what)
 	if is_instance_valid(shop):
 		log_line("TRADED WITH %s" % shop.keeper_name.to_upper(), 0)
 		_pack_up(shop)
@@ -934,9 +946,6 @@ func trader_fled(s: Shop) -> void:
 		_banner("%s FLED THE HEAT" % s.keeper_name.to_upper(), 1.8)
 
 
-func upgrade_price(what: String) -> int:
-	return int(round(float(UPGRADES[what]["price"]) * pow(1.8, upgrades[what]) / 10.0)) * 10
-
 
 ## What has been bought, on the ship: faster, a stronger beam, a bigger shield, a quicker dodge, the
 ## laser under it and the fleet round it
@@ -952,14 +961,72 @@ func _apply_upgrades() -> void:
 	_build_fleet()
 
 
+# ------------------------------------------------------------------ levelling up
+
+## The score that brings level `n`: each further off than the last
+static func level_at(n: int) -> int:
+	return int(round(250.0 * pow(float(n), 1.6) / 50.0)) * 50
+
+
+## A level for every LEVEL_AT reached: one at a time, a pick of three upgrades
+func _levels() -> void:
+	while score >= level_at(level + 1):
+		level += 1
+		_levels_due += 1
+	if _levels_due > 0 and not _picker.visible and not ufo.dead:
+		_levels_due -= 1
+		_level_up()
+
+
+## LEVEL UP: the game holds still while one of three upgrades is picked (and the shield patched up
+## is one of them when it is low). Tests and the autopilot take the first.
+func _level_up() -> void:
+	var offers: Array = GOODS.filter(func(g: String) -> bool: return g != "patch" and upgrades[g] < MAX_UPGRADE)
+	offers.shuffle()
+	offers = offers.slice(0, 3)
+	if ufo.hull < ufo.hull_max * 0.6:
+		if offers.size() >= 3:
+			offers[2] = "patch"
+		else:
+			offers.append("patch")
+	if offers.is_empty():
+		return
+	if autopilot or testing:
+		_pick(offers[0])
+		return
+	sfx.play("fanfare", 1.2, -2.0)
+	for b in _picks.get_children():
+		b.queue_free()
+	_picker_title.text = "LEVEL %d" % level
+	for what: String in offers:
+		var spec: Dictionary = UPGRADES[what]
+		var heading := "%s" % spec["title"] if what == "patch" else "%s %d" % [spec["title"], upgrades[what] + 1]
+		var b := _button("%s\n%s" % [heading, spec["about"]], func() -> void: _pick(what))
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		b.custom_minimum_size = Vector2(700, 120)
+		b.add_theme_font_size_override("font_size", 28)
+		b.add_theme_color_override("font_color", (spec["colour"] as Color).lerp(Color.WHITE, 0.35))
+		_picks.add_child(b)
+	_forget_fingers()
+	_picker.visible = true
+	get_tree().paused = true
+
+
+func _pick(what: String) -> void:
+	if what == "patch":
+		repair()
+	else:
+		buy(what)
+	_picker.visible = false
+	get_tree().paused = false
+
+## An upgrade: one more level of it (up to MAX_UPGRADE), for nothing (see `_level_up`)
 func buy(what: String) -> bool:
-	var price := upgrade_price(what)
-	if score < price or upgrades[what] >= MAX_UPGRADE:
+	if upgrades[what] >= MAX_UPGRADE:
 		return false
-	score -= price
 	upgrades[what] += 1
 	_apply_upgrades()
-	log_line("%s UPGRADED TO %d" % [UPGRADES[what]["title"], upgrades[what]], -price)
+	log_line("%s UPGRADED TO %d" % [UPGRADES[what]["title"], upgrades[what]], 0)
 	if what == "shield":
 		ufo.hull = minf(ufo.hull + 25.0, ufo.hull_max)
 	if what == "laser" and upgrades[what] == 1:
@@ -970,18 +1037,17 @@ func buy(what: String) -> bool:
 	return true
 
 
-## Patching the shield back up: a point of score for each point of shield
+## Patching the shield back up, full (a pick at a level-up)
 func repair_price() -> int:
 	return int(ceil(ufo.hull_max - ufo.hull))
 
 
 func repair() -> void:
-	var price := mini(repair_price(), score)
-	if price <= 0:
+	var mend := repair_price()
+	if mend <= 0:
 		return
-	score -= price
-	ufo.hull = minf(ufo.hull + price, ufo.hull_max)
-	log_line("SHIELD PATCHED", -price)
+	ufo.hull = ufo.hull_max
+	log_line("SHIELD PATCHED", 0)
 	sfx.play("bloop", 1.2)
 
 
@@ -1159,6 +1225,24 @@ func captive(held: String, c: Vector2i) -> String:
 		return held
 	return left[posmod(c.x * 7 + c.y * 13, left.size())]
 
+
+
+## Whatever stands under the beam throws a shadow in its light while it is on (not only what it has
+## hold of); what it leaves behind stops
+var _shadowed: Array[Thing] = []
+func _beam_shadows() -> void:
+	var now: Array[Thing] = []
+	if ufo.beaming and not ufo.dead:
+		var foot := ufo.beam_axis(0.0)
+		for t in things:
+			if t.state == "walk" and t.ground().distance_to(foot) < ufo.beam_foot + 3.0:
+				now.append(t)
+	for t in _shadowed:
+		if is_instance_valid(t) and t.state == "walk" and not t in now:
+			t.shade(false)
+	for t in now:
+		t.shade(true)
+	_shadowed = now
 ## The beam pulls up the scenery under it that it is strong enough for, a piece at a time
 func _pull_scenery(delta: float) -> void:
 	_pull_wait -= delta
@@ -1475,7 +1559,8 @@ func _crash(delta: float) -> void:
 
 ## A line for the log under the score: typed out a letter at a time (`points` after it, if any)
 func log_line(text: String, points: int) -> void:
-	var line := _label(20, Color(0.55, 1.0, 0.62))
+	var line := _label(27, Color(0.55, 1.0, 0.62))
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var tail := ""
 	if points > 0:
 		tail = "  +%d" % points + (" x%d" % multiplier() if multiplier() > 1 else "")
@@ -1612,7 +1697,7 @@ func _intro_camera() -> void:
 	var away := _away()
 	var normal_from := _camera_offset() - Vector3(0, ufo.altitude, 0)
 	camera.position = ufo.position + _chase(away).slerp(normal_from, settle)
-	var normal_way := (Vector3(0, -ufo.altitude, 0) - normal_from).normalized()
+	var normal_way := (Vector3(0, -ufo.altitude * (1.0 if _upright() else 0.55), 0) - normal_from).normalized()
 	camera.look_at(camera.position + away.slerp(normal_way, settle), Vector3.UP)
 	RenderingServer.global_shader_parameter_set("bend_focus", Vector3(ufo.position.x, 0.0, ufo.position.z - 1.0))
 	RenderingServer.global_shader_parameter_set("saucer_pos", ufo.position)
@@ -1715,10 +1800,11 @@ func _layout_title(size: Vector2) -> void:
 	_title_label.add_theme_constant_override("shadow_outline_size", maxi(name_size / 2, 12))
 	ship_label.add_theme_font_size_override("font_size", 56 if upright else 34)
 	ship_label.custom_minimum_size = Vector2(620 if upright else 420, 0)
+	_title_drop.custom_minimum_size = Vector2(0, 40 if upright else 18)
 	for b in _arrows:
-		b.custom_minimum_size = Vector2(130, 130) if upright else Vector2(70, 70)
+		b.custom_minimum_size = Vector2(120, 130) if upright else Vector2(70, 70)
 		b.add_theme_font_size_override("font_size", 64 if upright else 40)
-	_play_button.custom_minimum_size = Vector2(520, 150) if upright else Vector2(260, 70)
+	_play_button.custom_minimum_size = Vector2(340, 130) if upright else Vector2(260, 70)
 	_play_button.add_theme_font_size_override("font_size", 76 if upright else 40)
 	for b in _title_row.get_children():
 		(b as Button).custom_minimum_size = Vector2(250, 110) if upright else Vector2(170, 60)
@@ -1851,7 +1937,10 @@ func quit_game() -> void:
 
 ## Further up and back for a ship that flies higher
 func _camera_offset() -> Vector3:
-	return camera_offset + Vector3(0, 1.3, 0.5) * (ufo.altitude - 8.0)
+	# (on a wide screen, lower and further back, looking out more than down, for the curve of the
+	# world and the night sky over it to show at the top of the picture)
+	var from := camera_offset if _upright() or camera_offset != CAMERA_OFFSET else WIDE_OFFSET
+	return from + Vector3(0, 1.3, 0.5) * (ufo.altitude - 8.0)
 
 
 func _camera(delta: float) -> void:
@@ -1879,6 +1968,10 @@ func _camera(delta: float) -> void:
 	# (looking at the ground under the ship, where the beam will fall and the reticle shows, the ship
 	# itself a little above the middle of the picture)
 	var look_at_point := camera.position - _camera_offset()
+	if not _upright():
+		# (a wide screen's lower camera looks partway up to the ship, for it not to sit up under the
+		# score)
+		look_at_point.y += ufo.altitude * 0.45
 	if mode == "title":
 		look_at_point = camera.position - Vector3(0, 11.0, 15.0) + Vector3(0, 4.0, -6.0)
 	camera.look_at(look_at_point)
@@ -1914,42 +2007,46 @@ func _build_hud() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(root)
 
-	# Top left: the shield (and the dodge's three pistons beside it), and the radar under it
+	# Top left: the shield (and the dodge's three arrows beside it), and the radar under it
 	shield_bar = Shield.new()
 	shield_bar.main = self
 	shield_bar.position = Vector2(6, 6)
+	shield_bar.scale = Vector2.ONE * 1.4
 	shield_bar.size = Vector2(200, 112)
 	shield_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(shield_bar)
 	radar = Radar.new()
 	radar.main = self
-	radar.position = Vector2(14, 126)
-	radar.size = Vector2(108, 108)
+	radar.position = Vector2(14, 170)
+	radar.size = Vector2(152, 152)
 	radar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(radar)
-	log_box = VBoxContainer.new()
-	log_box.position = Vector2(16, 244)
-	log_box.custom_minimum_size = Vector2(560, 0)
-	log_box.add_theme_constant_override("separation", 2)
-	log_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(log_box)
 
 	# Top right, beside the pause button: the score (its coin before it) and the multiplier under it
-	score_label = _label(40, Color(0.75, 1.0, 0.78))
+	score_label = _label(54, Color(0.75, 1.0, 0.78))
 	score_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	score_label.position = Vector2(-96 - SCORE_WIDTH, 10)
-	score_label.size = Vector2(SCORE_WIDTH, 50)
+	score_label.size = Vector2(SCORE_WIDTH, 66)
 	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_glow(score_label, Color(0.3, 1.0, 0.45, 0.55))
 	root.add_child(score_label)
-	mult_label = _label(24, Color(0.6, 1.0, 0.6))
+	mult_label = _label(32, Color(0.6, 1.0, 0.6))
 	mult_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	mult_label.position = Vector2(-96 - SCORE_WIDTH, 58)
-	mult_label.size = Vector2(SCORE_WIDTH, 30)
+	mult_label.position = Vector2(-96 - SCORE_WIDTH, 72)
+	mult_label.size = Vector2(SCORE_WIDTH, 40)
 	mult_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	root.add_child(mult_label)
+	# (and under them, everything taken, typed out: see `log_line`)
+	log_box = VBoxContainer.new()
+	log_box.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	log_box.position = Vector2(-20 - LOG_WIDTH, 118)
+	log_box.custom_minimum_size = Vector2(LOG_WIDTH, 0)
+	log_box.add_theme_constant_override("separation", 2)
+	log_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(log_box)
 	coin = Coin.new()
-	coin.size = Vector2(38, 38)
+	coin.font = font
+	coin.size = Vector2(46, 46)
 	coin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(coin)
 
@@ -2000,19 +2097,24 @@ func _build_hud() -> void:
 	_title_gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_title_gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_box.add_child(_title_gap)
+	# (the ship's name, then the arrows to pick another either side of PLAY, then a little lower the
+	# LOG (and the arcade's) buttons)
+	ship_label = _label(34, Color(0.75, 1.0, 0.78))
+	ship_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ship_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title_box.add_child(ship_label)
 	var picker := HBoxContainer.new()
 	picker.alignment = BoxContainer.ALIGNMENT_CENTER
 	picker.add_theme_constant_override("separation", 16)
 	_arrows = [_button("<", func() -> void: _pick_ship(-1)), _button(">", func() -> void: _pick_ship(1))]
+	_play_button = _button("PLAY", begin_launch)
 	picker.add_child(_arrows[0])
-	ship_label = _label(34, Color(0.75, 1.0, 0.78))
-	ship_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ship_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	picker.add_child(ship_label)
+	picker.add_child(_play_button)
 	picker.add_child(_arrows[1])
 	title_box.add_child(picker)
-	_play_button = _button("PLAY", begin_launch)
-	title_box.add_child(_play_button)
+	_title_drop = Control.new()
+	_title_drop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_box.add_child(_title_drop)
 	_title_row = HBoxContainer.new()
 	_title_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_title_row.add_theme_constant_override("separation", 20)
@@ -2023,6 +2125,22 @@ func _build_hud() -> void:
 	if _in_arcade() or not OS.has_feature("web"):
 		_title_row.add_child(_button("QUIT", quit_game))
 	title_box.add_child(_title_row)
+	# The level-up picker: the level, and three upgrades to choose between (see `_level_up`)
+	_picker = _panel(root)
+	_picker.position = Vector2(-380, -260)
+	_picker.visible = false
+	_picker_title = _label(56, Color(0.75, 1.0, 0.78))
+	_picker_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_glow(_picker_title, Color(0.3, 1.0, 0.45, 0.55))
+	_picker.add_child(_picker_title)
+	var pick_one := _label(26, Color(0.6, 1.0, 0.65))
+	pick_one.text = "PICK AN UPGRADE"
+	pick_one.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_picker.add_child(pick_one)
+	_picks = VBoxContainer.new()
+	_picks.add_theme_constant_override("separation", 14)
+	_picks.alignment = BoxContainer.ALIGNMENT_CENTER
+	_picker.add_child(_picks)
 	_build_log(root)
 
 
@@ -2303,7 +2421,7 @@ func _forget_fingers() -> void:
 
 
 func set_paused(on: bool) -> void:
-	if mode != "play":
+	if mode != "play" or (_picker != null and _picker.visible):
 		return
 	get_tree().paused = on
 	_pause_box.visible = on
@@ -2338,8 +2456,8 @@ func _hud(delta: float) -> void:
 	score_label.text = "%d" % score
 	mult_label.text = "x%d" % multiplier()
 	# (the coin just before the score, however long it has grown)
-	var width := font.get_string_size(score_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 40).x
-	coin.position = Vector2(score_label.position.x + score_label.size.x - width - 46.0, score_label.position.y + 10.0)
+	var width := font.get_string_size(score_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 54).x
+	coin.position = Vector2(score_label.position.x + score_label.size.x - width - 52.0, score_label.position.y + 14.0)
 	stars.queue_redraw()
 	shield_bar.queue_redraw()
 	stick_ring.queue_redraw()
@@ -2716,31 +2834,20 @@ class Radar extends Control:
 		draw_arc(c, r, 0, TAU, 40, Color(0.6, 1.0, 0.7, 0.7), 2.0)
 
 
-## The alien money the score is counted in: a green coin stamped with an alien's head
+## The alien money the score is counted in: a dollar sign, glowing green
 class Coin extends Control:
+	var font: Font
+
 	func _draw() -> void:
-		var r := size.x * 0.5
-		var c := Vector2(r, r)
-		draw_circle(c, r, Color(0.2, 0.6, 0.3))
-		draw_circle(c, r * 0.86, Color(0.45, 0.95, 0.55))
-		draw_arc(c, r * 0.72, 0, TAU, 32, Color(0.2, 0.6, 0.3), 1.5)
-		var head := PackedVector2Array()
-		for k in 20:
-			var a := TAU * k / 20.0
-			var squeeze := 0.62 if sin(a) > 0.0 else 1.0
-			head.append(c + Vector2(cos(a) * r * 0.42 * squeeze, sin(a) * r * 0.5 - r * 0.05))
-		draw_colored_polygon(head, Color(0.12, 0.35, 0.18))
-		for side: float in [-1.0, 1.0]:
-			var eye := PackedVector2Array()
-			for k in 10:
-				var a := TAU * k / 10.0
-				var p := Vector2(cos(a) * r * 0.15, sin(a) * r * 0.07).rotated(0.45 * side)
-				eye.append(c + Vector2(side * r * 0.17, -r * 0.08) + p)
-			draw_colored_polygon(eye, Color(0.75, 1.0, 0.8))
+		var big := int(size.y * 1.15)
+		var at := Vector2(size.x * 0.12, size.y * 0.92)
+		draw_string_outline(font, at, "$", HORIZONTAL_ALIGNMENT_LEFT, -1, big, 10, Color(0.25, 1.0, 0.4, 0.35))
+		draw_string_outline(font, at, "$", HORIZONTAL_ALIGNMENT_LEFT, -1, big, 5, Color(0, 0, 0, 0.85))
+		draw_string(font, at, "$", HORIZONTAL_ALIGNMENT_LEFT, -1, big, Color(0.6, 1.0, 0.65))
 
 
 ## The shield: a glass orb of blue energy, its level the shield left, sloshing; beside it three
-## pistons that pop up one by one as the dodge recharges
+## arrows that light up one by one as the dodge recharges (one dash each)
 class Shield extends Control:
 	var main: Node
 
@@ -2774,17 +2881,18 @@ class Shield extends Control:
 		draw_arc(c + Vector2(-r * 0.3, -r * 0.35), r * 0.45, PI * 1.05, PI * 1.45, 12, Color(1, 1, 1, 0.5), 3.0)
 		if bare and fmod(t * 2.5, 2.0) < 1.0:
 			draw_string(main.font, c + Vector2(-r, 6), "NO SHIELD", HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, 18, Color(1.0, 0.35, 0.25))
-		# three pistons: each pops up when its third of the recharge is done
+		# three arrows, one for each dash ready: lit green once charged, filling as it charges
 		var ready: float = main.ufo.dodge_ready()
 		for i in 3:
-			var px := c.x + r + 20.0 + i * 24.0
-			var base_y := c.y + r * 0.75
+			var ax := c.x + r + 18.0 + i * 26.0
+			var ay := c.y + r * 0.45
 			var fill := clampf(ready * 3.0 - i, 0.0, 1.0)
-			var up := 34.0 * ease(fill, 0.3) if fill >= 1.0 else 34.0 * fill * 0.4
-			draw_rect(Rect2(px - 10, base_y - 6, 20, 12), Color(0.3, 0.33, 0.38))
-			draw_rect(Rect2(px - 4, base_y - 6 - up, 8, up), Color(0.7, 0.72, 0.76))
-			var cap := Color(0.45, 1.0, 0.55) if fill >= 1.0 else Color(0.45, 0.2, 0.18)
-			draw_rect(Rect2(px - 9, base_y - 14 - up, 18, 8), cap)
+			var tip := [Vector2(ax, ay - 16), Vector2(ax + 16, ay), Vector2(ax, ay + 16), Vector2(ax + 7, ay + 16), Vector2(ax + 23, ay), Vector2(ax + 7, ay - 16)]
+			var lit := Color(0.45, 1.0, 0.55) if fill >= 1.0 else Color(0.25, 0.3, 0.28).lerp(Color(0.35, 0.6, 0.4), fill)
+			if fill >= 1.0:
+				draw_colored_polygon(PackedVector2Array([tip[0], tip[5], tip[4], tip[1]]), lit)
+				draw_colored_polygon(PackedVector2Array([tip[1], tip[4], tip[3], tip[2]]), lit)
+			draw_polyline(PackedVector2Array(tip + [tip[0]]), Color(0.75, 1.0, 0.78) if fill >= 1.0 else lit, 2.0)
 
 
 ## Where the thumb is on the touch stick

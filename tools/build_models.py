@@ -47,6 +47,7 @@ COLOURS = {
     "crow": (0.06, 0.06, 0.08), "hawk": (0.45, 0.3, 0.18), "hawk_light": (0.85, 0.78, 0.65), "pole": (0.36, 0.25, 0.16),
     "insulator": (0.4, 0.7, 0.6), "sasquatch": (0.3, 0.2, 0.13), "sasquatch_face": (0.18, 0.13, 0.1),
     "satellite": (0.75, 0.75, 0.7), "panel": (0.12, 0.18, 0.4), "gold": (1.0, 0.78, 0.2),
+    "stone_pale": (0.78, 0.76, 0.7), "dome_green": (0.35, 0.6, 0.5), "water": (0.15, 0.3, 0.45),
     "awning": (0.75, 0.15, 0.12), "wheat_head": (0.92, 0.75, 0.3), "corn_leaf": (0.35, 0.55, 0.2), "corn_cob": (0.95, 0.82, 0.3),
     "pumpkin": (0.95, 0.5, 0.08), "hill": (0.3, 0.38, 0.2), "asphalt": (0.13, 0.13, 0.15),
     "brick": (0.55, 0.3, 0.22), "police_blue": (0.15, 0.25, 0.55), "concrete": (0.6, 0.6, 0.58), "hangar": (0.45, 0.48, 0.42),
@@ -325,7 +326,7 @@ def tank():
     tur = [drum(1.1, 0.7, (0, 0.2, 1.75), "olive", 8), box((1.6, 1.8, 0.5), (0, 0.4, 1.75), "olive"),
            drum(0.12, 3.2, (0, -2.2, 1.8), "olive_dark", 6, (math.pi / 2, 0, 0)), drum(0.3, 0.2, (0.4, 0.8, 2.15), "olive_dark", 6)]
     turret = join("turret", tur)
-    turret.parent = body
+    attach(turret, body)
     return body
 
 
@@ -1019,6 +1020,50 @@ def helicopter():
     attach(tail, body)
     return body
 
+
+def city_hall():
+    """A town's city hall: two storeys of pale stone, a portico of columns up steps at the front (-Y),
+    a pediment over it, and a small dome with a flagpole on top"""
+    p = [box((14.0, 9.0, 7.0), (0, 0, 3.5), "stone_pale"), box((14.6, 9.6, 0.5), (0, 0, 7.25), "trim"),
+         box((6.4, 2.4, 0.5), (0, -5.6, 0.25), "stone_pale"), box((7.0, 3.0, 0.3), (0, -5.8, 0.6), "stone_pale"),
+         box((7.4, 2.6, 0.4), (0, -5.6, 6.2), "trim"), gable(7.6, 2.8, 1.6, (0, -5.6, 6.4), "stone_pale"),
+         drum(2.2, 1.8, (0, 0, 8.4), "stone_pale", 12), ball((4.2, 4.2, 3.4), (0, 0, 9.3), "dome_green", 12, 6),
+         drum(0.06, 3.0, (0, 0, 12.3), "metal", 4), box((1.2, 0.04, 0.7), (0.62, 0, 13.4), "red"),
+         box((1.6, 0.12, 2.8), (0, -4.52, 1.4), "door")]
+    for x in (-2.7, -0.9, 0.9, 2.7):
+        p.append(drum(0.32, 5.6, (x, -6.4, 3.4), "trim", 8))
+    for x in (-5.6, -4.0, 4.0, 5.6):
+        for z in (2.0, 5.0):
+            p.append(box((1.0, 0.1, 1.5), (x, -4.52, z), "window"))
+    return join("city_hall", p)
+
+
+def church():
+    """A white wooden church: a long nave with a steep roof, a steeple over the door (-Y) with a
+    belfry and spire, and tall lit windows down its sides"""
+    p = [box((6.0, 11.0, 4.5), (0, 0, 2.25), "white"), gable(6.6, 11.6, 3.6, (0, 0, 4.5), "roof"),
+         box((3.0, 3.0, 7.0), (0, -6.4, 3.5), "white"), box((2.4, 2.4, 2.0), (0, -6.4, 8.0), "white"),
+         cone(1.8, 4.6, (0, -6.4, 11.3), "roof", 4, (0, 0, math.pi / 4)), box((0.08, 0.08, 1.2), (0, -6.4, 14.0), "gold"),
+         box((0.6, 0.08, 0.08), (0, -6.4, 14.2), "gold"), box((1.2, 0.12, 2.2), (0, -7.92, 1.1), "door"),
+         box((1.2, 0.1, 1.2), (0, -7.6, 8.0), "black")]
+    for y in (-3.5, -1.0, 1.5, 4.0):
+        p.append(box((0.1, 0.8, 2.0), (3.02, y, 2.4), "window"))
+        p.append(box((0.1, 0.8, 2.0), (-3.02, y, 2.4), "window"))
+    return join("church", p)
+
+
+def fountain():
+    """A town square's fountain: a round stone basin of water, a pillar, a bowl on top"""
+    p = [drum(3.0, 0.6, (0, 0, 0.3), "stone_pale", 16), drum(2.7, 0.62, (0, 0, 0.32), "water", 16),
+         drum(0.35, 2.0, (0, 0, 1.3), "stone_pale", 8), drum(1.1, 0.3, (0, 0, 2.3), "stone_pale", 12, top=0.7),
+         drum(0.9, 0.32, (0, 0, 2.35), "water", 12)]
+    return join("fountain", p)
+
+
+def hay_pile():
+    """A haystack: a big rounded pile of loose hay, a little pole through its top"""
+    return join("hay_pile", [ball((4.2, 4.2, 3.6), (0, 0, 1.0), "hay", 10, 6), drum(0.06, 1.0, (0, 0, 3.0), "wood", 4)])
+
 def phone_booth():
     """A roadside phone booth: glass on three sides, the door to the road, a lit TELEPHONE sign on
     the roof and an aerial above it (the game sends radio waves out of its tip, BOOTH_TIP, while
@@ -1137,7 +1182,7 @@ def observatory():
     scope = drum(0.45, 3.4, (0, -0.8, 1.6), "metal_dark", 8, (0.8, 0, 0))
     cupola = join("cupola", [cup, slit, scope])
     cupola.location = (0, 0, 5.1)
-    cupola.parent = body
+    attach(cupola, body)
     return body
 
 
@@ -1154,7 +1199,7 @@ def seti_dish():
     dish = join("dish", feed)
     dish.location = (0, 0, 6.6)
     dish.rotation_euler = (0.9, 0, 0)
-    dish.parent = body
+    attach(dish, body)
     return body
 
 def pod():
@@ -1265,7 +1310,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
             diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
-            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, sasquatch, meteorite, satellite,
+            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, sasquatch, meteorite, satellite,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox]
 
 

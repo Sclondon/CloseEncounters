@@ -19,6 +19,7 @@ const KINDS := {
 	"pig": {"points": 30, "weight": 1.2, "heat": 0.04, "move": "graze", "speed": 1.3, "size": 0.9, "voice": "oink"},
 	"cow": {"points": 50, "weight": 1.7, "heat": 0.06, "move": "graze", "speed": 1.0, "size": 1.3, "voice": "moo"},
 	"hay_bale": {"points": 15, "weight": 1.0, "heat": 0.04, "move": "still", "size": 1.0},
+	"hay_pile": {"points": 30, "weight": 1.6, "heat": 0.05, "move": "still", "size": 2.6},
 	"scarecrow": {"points": 40, "weight": 1.0, "heat": 0.06, "move": "still", "size": 0.8},
 	"outhouse": {"points": 90, "weight": 2.2, "heat": 0.2, "move": "still", "size": 1.2, "voice": "scream"},
 	"farmer": {"points": 100, "weight": 1.3, "heat": 0.4, "move": "flee", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "shotgun", "caller": true},
@@ -75,6 +76,10 @@ const KINDS := {
 	# Main street, in the towns: shops with sign boards and awnings, and a clock tower
 	"storefront": {"points": 500, "weight": 4.5, "heat": 0.6, "move": "still", "size": 3.2, "tier": 3, "voice": "scream"},
 	"clock_tower": {"points": 1200, "weight": 6.0, "heat": 0.8, "move": "still", "size": 2.6, "tier": 3},
+	"city_hall": {"points": 1500, "weight": 7.0, "heat": 0.9, "move": "still", "size": 5.0, "tier": 3, "voice": "scream"},
+	"fountain": {"points": 250, "weight": 3.0, "heat": 0.4, "move": "still", "size": 2.6, "tier": 2},
+	# Now and then a white wooden church, by a road out of town or out in the country
+	"church": {"points": 800, "weight": 5.5, "heat": 0.7, "move": "still", "size": 3.6, "tier": 3},
 	# The airfield: its control tower and little planes
 	"control_tower": {"points": 900, "weight": 5.5, "heat": 0.7, "move": "still", "size": 2.6, "tier": 3},
 	"plane": {"points": 600, "weight": 3.5, "heat": 0.5, "move": "still", "size": 3.0, "tier": 2},
@@ -99,7 +104,7 @@ const KINDS := {
 	# The law, the army, and those who watch the sky (tier 3, but for the jets and the parked ones)
 	"police_station": {"points": 600, "weight": 5.0, "heat": 0.8, "move": "still", "size": 4.0, "tier": 3, "station": "police"},
 	"hangar": {"points": 800, "weight": 6.0, "heat": 0.8, "move": "still", "size": 5.0, "tier": 3, "station": "army"},
-	"watchtower": {"points": 300, "weight": 4.0, "heat": 0.5, "move": "still", "size": 2.0, "tier": 3, "searchlight": true, "light_y": 9.0, "station": "army"},
+	"watchtower": {"points": 300, "weight": 4.0, "heat": 0.5, "move": "still", "size": 2.0, "tier": 3, "searchlight": true, "light_y": 9.0, "station": "army", "guard": true},
 	"tent": {"points": 40, "weight": 1.0, "heat": 0.1, "move": "still", "size": 2.0, "tier": 2},
 	"fighter_jet": {"model": "jet", "points": 1500, "weight": 3.0, "heat": 0.8, "move": "still", "size": 3.0, "tier": 2, "rest_y": 1.1},
 	"parked_jeep": {"model": "jeep", "points": 300, "weight": 3.0, "heat": 0.5, "move": "still", "size": 2.2},
@@ -195,6 +200,8 @@ const STRIP := preload("res://shaders/searchlight.gdshader")
 ## The visual layer the beam's shadow-casting light shines on (the ground, and what is in the beam)
 const BEAM_LAYER := 2
 var _beam_lit := false
+## A police car's light bar, red and blue
+var _siren: Array[MeshInstance3D] = []
 var beacon: MeshInstance3D
 ## How far its model sits off the ground (a jet on its wheels)
 var model_y := 0.0
@@ -209,8 +216,10 @@ var beam_arm: Node3D
 ## A patrol's searchlight: the lamp turns on `light`, whose +Y is where it points
 var light: Node3D
 var _sweep := 0.0
-const LIGHT_LONG := 28.0
-const LIGHT_WIDE := 3.2
+const LIGHT_LONG := 40.0
+const LIGHT_WIDE := 5.5
+## How near the ship must be for a searchlight to lock on to it (once there is heat)
+const LIGHT_LOCK := 36.0
 ## For a car on the road: which way it goes (+1 or -1) and along which axis ("x" or "z")
 var road_axis := "z"
 var road_dir := 1.0
@@ -265,6 +274,12 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 		_beacon()
 	turret = model.find_child("turret*", true, false) as Node3D
 	beam_arm = model.find_child("beam*", true, false) as Node3D
+	if info.get("model", k) == "police_car":
+		# (the light bar, red and blue, flashing when they are after the ship: see `_flash_siren`)
+		for side in 2:
+			var lamp := Ps1.part(model, BoxMesh.new(), Ps1.flat(Color(1.0, 0.15, 0.1) if side == 0 else Color(0.2, 0.4, 1.0)), Vector3(-0.3 if side == 0 else 0.3, 1.5, -0.15), Vector3(0.56, 0.2, 0.36))
+			lamp.visible = false
+			_siren.append(lamp)
 	if k == "phone_booth":
 		broadcast = Broadcast.new()
 		add_child(broadcast)
@@ -343,7 +358,8 @@ func _rise(delta: float, ufo: Ufo) -> void:
 		game.world.remove_obstacle(chunk, obstacle)
 		obstacle = Vector4.ZERO
 	lift += delta * ufo.lift_rate / float(info["weight"])
-	var top := ufo.position.y - 0.9
+	# (up to just under the belly: it shrinks away into the ship from there, never into its hull)
+	var top := ufo.position.y - 1.6
 	var axis := ufo.beam_axis(position.y)
 	position = position.lerp(axis, minf(delta * 3.0, 1.0))
 	position.y = lerpf(0.0, top, ease(clampf(lift, 0.0, 1.0), 1.6))
@@ -353,8 +369,8 @@ func _rise(delta: float, ufo: Ufo) -> void:
 		_beam_layer(model, true)
 	spin += delta * (1.5 + lift * 4.0)
 	# (the big things shrink as they go up, to fit inside)
-	var shrink := ease(clampf(lift, 0.0, 1.0), 0.6) if tier() >= 3 else clampf((lift - 0.8) / 0.2, 0.0, 1.0)
-	model.scale = Vector3.ONE * base_size * lerpf(1.0, 0.3 if tier() < 3 else 0.12, shrink)
+	var shrink := ease(clampf(lift, 0.0, 1.0), 0.6) if tier() >= 3 else smoothstep(0.7, 1.0, lift)
+	model.scale = Vector3.ONE * base_size * maxf(lerpf(1.0, 0.0, shrink), 0.02)
 	if info["move"] in ["peck", "graze", "flee", "fly"]:
 		# People and animals panic: thrashing end over end, kicking, squirming
 		model.rotation = Vector3(sin(_t * 17.0) * 0.7, spin * 1.6, cos(_t * 13.0) * 0.6)
@@ -441,7 +457,7 @@ func _walk(delta: float, ufo: Ufo) -> void:
 					want = (goal - here).normalized()
 					pace *= 0.4
 		"road":
-			want = Vector3(0, 0, road_dir) if road_axis == "z" else Vector3(road_dir, 0, 0)
+			want = _along_road()
 		"police":
 			pace = _police(delta, ufo, to_ufo, near, pace)
 			want = _chase_want
@@ -457,12 +473,8 @@ func _walk(delta: float, ufo: Ufo) -> void:
 				pace = _police(delta, ufo, to_ufo, near, pace) if info.get("police", false) else _chase(delta, ufo, to_ufo, near, pace)
 				want = _chase_want
 			else:
-				think -= delta
-				if think <= 0.0 or here.distance_to(goal) < 3.0:
-					think = randf_range(6.0, 12.0)
-					var a := randf() * TAU
-					goal = here + Vector3(sin(a), 0, cos(a)) * randf_range(20.0, 40.0)
-				want = (goal - here).normalized()
+				# (cruising the road it is on)
+				want = _along_road()
 		"fly":
 			if near < 10.0 or panic > 0.0:
 				want = -to_ufo.normalized() if near > 0.01 else Vector3.FORWARD
@@ -504,6 +516,7 @@ func _walk(delta: float, ufo: Ufo) -> void:
 	if speed > 0.05:
 		position = game.world.push_out(position, size() * 0.5)
 	rotation.y = heading
+	_flash_siren()
 	if rotor != null:
 		rotor.rotation.y += delta * 22.0
 	if tail_rotor != null:
@@ -642,7 +655,7 @@ func _build_searchlight() -> void:
 	add_child(light)
 	Ps1.part(light, BoxMesh.new(), Ps1.flat(Color(1.0, 0.97, 0.85)), Vector3.ZERO, Vector3(0.45, 0.25, 0.45))
 	# (the beam: a strip of light along the lamp's +Y, see searchlight.gdshader)
-	light_strip(light, Color(1.0, 0.95, 0.75), 0.7, LIGHT_LONG, 0.25, LIGHT_WIDE, 0.7)
+	light_strip(light, Color(1.0, 0.95, 0.75), 0.75, LIGHT_LONG, 0.3, LIGHT_WIDE, 0.85)
 	_sweep = randf() * TAU
 
 ## Sweeps the sky with no heat; locks on to the ship with heat. Tells the game when the ship is in it.
@@ -650,13 +663,15 @@ func _aim_light(delta: float, ufo: Ufo) -> void:
 	var yaw: float
 	var tilt: float
 	var to := ufo.position - light.global_position
-	if game.heat_level() >= 1 and not leaving and to.length() < LIGHT_LONG * 1.3:
+	var guard: bool = info.get("guard", false)
+	if (game.heat_level() >= 1 or guard) and not leaving and to.length() < LIGHT_LOCK:
 		yaw = atan2(to.x, to.z)
 		tilt = acos(clampf(to.normalized().y, -1.0, 1.0))
 	else:
 		_sweep += delta * 0.7
 		yaw = _sweep
-		tilt = 0.55 + 0.35 * sin(_t * 0.37)
+		# (a guard tower sweeps the ground round the base; the rest sweep the sky)
+		tilt = (1.95 + 0.3 * sin(_t * 0.37)) if guard else 0.55 + 0.35 * sin(_t * 0.37)
 	# (the light is the world's way up, not the car's: the car turns under it)
 	var want := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, tilt)
 	light.global_basis = light.global_basis.slerp(want.orthonormalized(), minf(delta * 4.0, 1.0)).orthonormalized()
@@ -820,3 +835,39 @@ static func light_strip(parent: Node3D, tint: Color, power: float, reach: float,
 	mi.extra_cull_margin = reach + far_width
 	parent.add_child(mi)
 	return mi
+
+
+## The way along the road it is on, keeping to its lane (on the right) as the road bends: toward
+## its lane a few metres ahead
+func _along_road() -> Vector3:
+	var lane := (1.0 if World.dirt_x(roundi(position.x / World.CHUNK / World.ROAD_EVERY) * World.ROAD_EVERY) else 1.5) if road_axis == "z" \
+		else (1.0 if World.dirt_z(roundi(position.z / World.CHUNK / World.ROAD_EVERY) * World.ROAD_EVERY) else 1.5)
+	var ahead: Vector3
+	if road_axis == "z":
+		var n := roundi(position.x / (World.CHUNK * World.ROAD_EVERY)) * World.ROAD_EVERY
+		var z := position.z + road_dir * 5.0
+		ahead = Vector3(World.road_x(n, z) + lane * road_dir, 0, z)
+	else:
+		var m := roundi(position.z / (World.CHUNK * World.ROAD_EVERY)) * World.ROAD_EVERY
+		var x := position.x + road_dir * 5.0
+		ahead = Vector3(x, 0, World.road_z(m, x) - lane * road_dir)
+	return (ahead - ground()).normalized()
+
+
+## A police car's light bar flashing red and blue while they are after the ship (two stars and up,
+## or chasing it anyway); dark otherwise
+func _flash_siren() -> void:
+	if _siren.is_empty():
+		return
+	var on: bool = not leaving and (game.heat_level() >= 2 or info["move"] == "police" and speed > 1.0)
+	var red := fmod(_t, 0.5) < 0.25
+	_siren[0].visible = on and red
+	_siren[1].visible = on and not red
+
+
+## Throws a shadow in the beam's light (or stops): see Main._beam_shadows
+func shade(on: bool) -> void:
+	if on == _beam_lit:
+		return
+	_beam_lit = on
+	_beam_layer(model, on)
