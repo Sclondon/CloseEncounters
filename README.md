@@ -97,7 +97,7 @@ Chosen on the title screen (left / right, or the arrows), and remembered.
 | STARZOID (`saturn`), a ball in a ring of lights | 10.5 | x1.6 (strongest pull) | 55 | 8.5 m | 2: trees and rocks |
 | KRYSTALLIX-9 (`diamond`), a violet crystal | 11 | x0.9 | 75 | 9 m | 3: buildings |
 | BLOOPUS-7 (`jelly`), a glowing pink jellyfish trailing tentacles | 13 | x1.1, widest | 45 | 7.5 m | 2: trees and rocks |
-| MUTHURBLOB (`tug`), a hauler after the Nostromo | 9.5 | x1.3 | 110 | 10 m | 3: buildings |
+| YESTROMO (`tug`), a hauler after the Nostromo | 9.5 | x1.3 | 110 | 10 m | 3: buildings |
 | NEBULONK-B (`frigate`), after the Nebulon-B frigate | 13.5 | x0.95, narrow | 65 | 11 m | 2: trees and rocks |
 | ENTERBLORPRISE (`trek`), a starship of the Federation sort | 14.5 | x1.2 | 70 | 9.5 m | 2: trees and rocks |
 

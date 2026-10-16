@@ -133,7 +133,7 @@ const KINDS := {
 	"captured_saturn": {"title": "YOU FOUND THE STARZOID: IT'S YOURS", "model": "saturn", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.9, "rare": true, "unlock": "saturn", "rest_y": 1.25},
 	"captured_diamond": {"title": "YOU FOUND THE KRYSTALLIX-9: IT'S YOURS", "model": "diamond", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.2, "rare": true, "unlock": "diamond", "rest_y": 1.7},
 	"captured_jelly": {"title": "YOU FOUND THE BLOOPUS-7: IT'S YOURS", "model": "jelly", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "jelly", "rest_y": 2.0},
-	"captured_tug": {"title": "YOU FOUND THE MUTHURBLOB: IT'S YOURS", "model": "tug", "points": 3000, "weight": 3.5, "heat": 1.5, "move": "still", "size": 3.4, "rare": true, "unlock": "tug", "rest_y": 0.8},
+	"captured_tug": {"title": "YOU FOUND THE YESTROMO: IT'S YOURS", "model": "tug", "points": 3000, "weight": 3.5, "heat": 1.5, "move": "still", "size": 3.4, "rare": true, "unlock": "tug", "rest_y": 0.8},
 	"captured_frigate": {"title": "YOU FOUND THE NEBULONK-B: IT'S YOURS", "model": "frigate", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.6, "rare": true, "unlock": "frigate", "rest_y": 1.2},
 	"captured_trek": {"title": "YOU FOUND THE ENTERBLORPRISE: IT'S YOURS", "model": "trek", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "trek", "rest_y": 1.0},
 	# The railway: a train runs the line (`move` "rail", see main.gd _trains), a car of it at a time to take
@@ -176,6 +176,18 @@ const KINDS := {
 	"highway_sign": {"points": 60, "weight": 2.0, "heat": 0.2, "move": "still", "size": 2.0, "tier": 2},
 	"trash_can": {"points": 10, "weight": 0.4, "heat": 0.02, "move": "still", "size": 0.5},
 	"bush": {"points": 8, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
+	# Motorcycles (one model, painted for who rides it): riders on the roads, biker gangs riding in packs,
+	# and motorcycle cops, quick, who chase and fire
+	"motorcycle": {"tints": {"paint": Color(0.75, 0.12, 0.1)}, "points": 130, "weight": 1.6, "heat": 0.35, "move": "road", "speed": 12.0, "size": 1.2},
+	"biker": {"model": "motorcycle", "tints": {"paint": Color(0.08, 0.08, 0.09), "shirt": Color(0.1, 0.1, 0.11), "denim": Color(0.15, 0.15, 0.2)}, "points": 170, "weight": 1.6, "heat": 0.4, "move": "road", "speed": 11.0, "size": 1.2},
+	"moto_cop": {"model": "motorcycle", "tints": {"paint": Color(0.95, 0.95, 0.95), "shirt": Color(0.15, 0.25, 0.55)}, "points": 280, "weight": 1.6, "heat": 0.6, "move": "chase", "speed": 12.5, "size": 1.2, "keep": 9.0, "enemy": true, "police": true, "gun": "pistol"},
+	# A cult's compound: robed cultists round their altar, who want to be taken (as true believers do)
+	"cultist": {"model": "person", "tints": {"shirt": Color(0.4, 0.15, 0.5), "denim": Color(0.4, 0.15, 0.5)}, "points": 180, "weight": 1.3, "heat": 0.1, "move": "believer", "speed": 3.0, "size": 0.7, "voice": "star"},
+	"cult_altar": {"points": 800, "weight": 4.0, "heat": 0.3, "move": "still", "size": 3.0, "tier": 3},
+	# What they bring out once the ship has held five stars long enough (see main.gd ESCALATE)
+	"helicarrier": {"points": 5000, "weight": 15.0, "heat": 1.0, "move": "hover", "speed": 6.0, "size": 10.0, "tier": 4, "enemy": true, "gun": "railgun", "hover_up": 13.0},
+	"railgun": {"points": 1200, "weight": 6.0, "heat": 0.8, "move": "chase", "speed": 0.5, "size": 3.0, "tier": 3, "keep": 30.0, "enemy": true, "gun": "railgun"},
+	"laser_truck": {"points": 900, "weight": 5.0, "heat": 0.8, "move": "chase", "speed": 8.0, "size": 3.0, "tier": 3, "keep": 14.0, "enemy": true, "gun": "laser"},
 	"goalpost": {"points": 60, "weight": 1.5, "heat": 0.1, "move": "still", "size": 1.5},
 	# Players at a game: they run about the field (and scatter from the ship)
 	"player": {"model": "person", "points": 110, "weight": 1.3, "heat": 0.35, "move": "graze", "speed": 4.5, "size": 0.7, "voice": "scream"},
@@ -207,6 +219,8 @@ const GUNS := {
 	"shotgun": {"range": 15.0, "reload": 2.6},
 	"pistol": {"range": 20.0, "reload": 1.3},
 	"rifle": {"range": 28.0, "reload": 2.4},
+	"laser": {"range": 34.0, "reload": 1.2},
+	"railgun": {"range": 48.0, "reload": 5.0},
 	# (the men in black's: a ray gun, a glowing green bolt)
 	"ray": {"range": 24.0, "reload": 1.6},
 	"mg": {"range": 24.0, "reload": 4.5},
@@ -997,7 +1011,7 @@ func _hover(delta: float, ufo: Ufo, here: Vector3) -> float:
 	if leaving:
 		goal = here + (here - ufo.ground()).normalized() * 20.0
 	# (at the saucer's own height, level with it)
-	position.y = lerpf(position.y, ufo.position.y, minf(delta * 0.8, 1.0))
+	position.y = lerpf(position.y, ufo.position.y + float(info.get("hover_up", 0.0)), minf(delta * 0.8, 1.0))
 	_chase_want = (goal - here).normalized() if here.distance_to(goal) > 1.0 else Vector3.ZERO
 	# (an army Chinook's door gunner fires on the ship)
 	if info.has("gun") and not leaving:
@@ -1499,7 +1513,7 @@ static func category(of: String) -> String:
 	var info: Dictionary = KINDS[of]
 	if info.get("rare", false) or of in ["golden_cow", "jackalope", "sasquatch", "meteorite", "satellite", "crash_site"]:
 		return "RARE FINDS"
-	if info.get("caller", false) or info.get("enemy", false) and info["move"] == "guard" or of in ["scarecrow", "believer", "hunter", "player"]:
+	if info.get("caller", false) or info.get("enemy", false) and info["move"] == "guard" or of in ["scarecrow", "believer", "hunter", "player", "cultist"]:
 		return "EARTHLINGS"
 	if of in ["wheat", "corn", "pumpkin", "hay_bale", "hay_pile"]:
 		return "CROPS"

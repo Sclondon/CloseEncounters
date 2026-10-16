@@ -193,6 +193,24 @@ static func has_road(n: int) -> bool:
 	return posmod(n, ROAD_EVERY) == 0
 
 
+## Havens: now and then up in the mountains a hidden valley, ringed all round by low peaks that the
+## police and army on the ground cannot get past (the ship flies over them). Inside one, the ship is
+## hidden from them (see main.gd `_hideout`)
+const HAVEN_RING := 16.0
+const HAVEN_PEAKS := 14
+
+
+static func is_haven(c: Vector2i) -> bool:
+	return biome(c) == Biome.MOUNTAIN and not has_road(c.x) and not has_road(c.y) and not has_rail(c.y) \
+		and not near_tower(c) and hash3(c.x, c.y, 171) < 0.18
+
+
+## Whether `p` is inside a haven's ring
+static func in_haven(p: Vector3) -> bool:
+	var c := chunk_of(p)
+	return is_haven(c) and Vector2(p.x - centre_of(c).x, p.z - centre_of(c).z).length() < HAVEN_RING - 3.0
+
+
 ## Railways run straight along x down the middle of every row of chunks `m` with this: a few rows
 ## apart, and never on a road's row or the rows of houses either side of one (z = m * CHUNK)
 static func has_rail(m: int) -> bool:
@@ -537,12 +555,16 @@ func remove_obstacle(c: Vector2i, block: Vector4) -> void:
 		(obstacles[c] as Array).erase(block)
 
 
-## Pushes a point (and anything `radius` round it) out of the mesas, buttes, peaks and the tower
-func push_out(p: Vector3, radius: float) -> Vector3:
+## Pushes a point (and anything `radius` round it) out of the mesas, buttes, peaks and the tower (but
+## for those lower than `over`, for the ship flying over them)
+func push_out(p: Vector3, radius: float, over := -1.0) -> Vector3:
 	var c := chunk_of(p)
 	for x in range(-1, 2):
 		for z in range(-1, 2):
 			for o: Vector4 in obstacles.get(c + Vector2i(x, z), []):
+				# (something flying `over` this high passes over what is lower)
+				if over >= 0.0 and o.w <= over:
+					continue
 				var off := Vector2(p.x - o.x, p.z - o.y)
 				var reach := o.z + radius
 				if off.length() < reach:
@@ -683,6 +705,15 @@ static func landforms(c: Vector2i) -> Array[Dictionary]:
 		return found
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(hash3(c.x, c.y, 91) * 1000000.0) + 7
+	if is_haven(c):
+		# (a hidden valley: a closed ring of low jagged peaks, too low to stop the ship, but no way
+		# through for anything on the ground)
+		for i in HAVEN_PEAKS:
+			var a := i * TAU / HAVEN_PEAKS + rng.randf_range(-0.05, 0.05)
+			var size := rng.randf_range(0.21, 0.24)
+			found.append({"name": "peak", "at": centre_of(c) + Vector3(sin(a), 0, cos(a)) * HAVEN_RING, "turn": rng.randf() * TAU,
+				"size": size, "radius": 20.0 * size, "skirt": 24.0 * size, "height": 22.0 * size})
+		return found
 	var b := biome(c)
 	var r := rng.randf()
 	var pick := ""
@@ -700,7 +731,7 @@ static func landforms(c: Vector2i) -> Array[Dictionary]:
 		return found
 	# [radius it blocks, skirt on the ground, height] at size 1, and the sizes it comes in
 	var spec: Array = {"devils_tower": [11.0, 19.0, 26.0, 1.0, 1.0], "butte": [7.0, 10.0, 16.0, 0.85, 1.25],
-		"mesa": [14.5, 19.0, 12.0, 0.8, 1.1], "peak": [20.0, 24.0, 37.0, 0.75, 1.0]}[pick]
+		"mesa": [14.5, 19.0, 12.0, 0.8, 1.1], "peak": [20.0, 24.0, 22.0, 0.75, 1.0]}[pick]
 	var size := rng.randf_range(spec[3], spec[4])
 	var skirt: float = spec[1] * size
 	var room := maxf(CHUNK * 0.5 - skirt, 0.0)
@@ -1391,8 +1422,18 @@ func _car(b: int, axis: String) -> void:
 	var base := centre_of(_chunk)
 	var along := _rng.randf_range(-20, 20)
 	var at := Vector3(road_x(_chunk.x, base.z + along) + 1.5 * dir, 0, base.z + along) if axis == "z" else Vector3(base.x + along, 0, road_z(_chunk.y, base.x + along) - 1.5 * dir)
-	if game != null:
-		game.spawn_car(kinds[_rng.randi() % kinds.size()], at, axis, dir)
+	if game == null:
+		return
+	# (now and then a motorcycle; or a biker gang, riding in a pack)
+	var roll := _rng.randf()
+	if roll < 0.1:
+		var step := Vector3(0, 0, -dir * 3.2) if axis == "z" else Vector3(-dir * 3.2, 0, 0)
+		for i in _rng.randi_range(3, 4):
+			game.spawn_car("biker", at + step * i + (Vector3(0.6 * (i % 2), 0, 0) if axis == "z" else Vector3(0, 0, 0.6 * (i % 2))), axis, dir)
+		return
+	if roll < 0.28:
+		kinds = ["motorcycle"]
+	game.spawn_car(kinds[_rng.randi() % kinds.size()], at, axis, dir)
 
 
 ## The railway through a chunk: a bed of grey gravel right across it, the rails on their sleepers
@@ -1477,17 +1518,17 @@ func _water(at: Vector3, r: float) -> void:
 
 const VENUES := {
 	Biome.FARM: ["school", "park", "carnival", "drive_in", "junkyard", "football", "baseball"],
-	Biome.PLAINS: ["rodeo", "carnival", "drive_in", "junkyard", "school", "football", "baseball"],
-	Biome.DESERT: ["drive_in", "junkyard", "construction", "rodeo"],
+	Biome.PLAINS: ["rodeo", "carnival", "drive_in", "junkyard", "school", "football", "baseball", "cult"],
+	Biome.DESERT: ["drive_in", "junkyard", "construction", "rodeo", "cult"],
 	Biome.MESA: ["rodeo", "school", "junkyard", "carnival", "baseball"],
-	Biome.MOUNTAIN: ["park", "construction", "school"],
+	Biome.MOUNTAIN: ["park", "construction", "school", "cult"],
 }
 const PAINTS: Array[Color] = [Color(0.75, 0.12, 0.1), Color(0.2, 0.45, 0.75), Color(0.95, 0.95, 0.92), Color(0.15, 0.15, 0.17), Color(0.95, 0.75, 0.15), Color(0.3, 0.55, 0.3)]
 
 
 ## Whether a place went down here (taking the middle of the chunk; the rest filled round it as usual)
 func _venue(c: Vector2i, b: int) -> bool:
-	if hash3(c.x, c.y, 211) > 0.14 or maxi(absi(c.x - 1), absi(c.y - 1)) < 1:
+	if hash3(c.x, c.y, 211) > 0.11 or maxi(absi(c.x - 1), absi(c.y - 1)) < 1:
 		return false
 	var pick: Array = VENUES[b]
 	var name: String = pick[mini(int(hash3(c.x, c.y, 212) * pick.size()), pick.size() - 1)]
@@ -1550,6 +1591,16 @@ func _venue(c: Vector2i, b: int) -> bool:
 			_prop("mixer", at + basis * Vector3(7, 0, 7), turn + PI / 2)
 			_prop("girders", at + basis * Vector3(-5, 0, 6), turn)
 			_herd("person", at, _rng.randi_range(2, 4), 6.0)
+		"cult":
+			# (a cult's compound: a fence round it, cabins, and robed cultists in a ring round their
+			# glowing altar, waiting to be taken)
+			_pen(at, turn, 9, 9)
+			_prop("cult_altar", at, turn)
+			_prop("cabin", at + basis * Vector3(-9, 0, -8), turn)
+			_prop("cabin", at + basis * Vector3(9, 0, -8), turn)
+			for i in _rng.randi_range(5, 7):
+				var a := i * TAU / 9.0
+				_spawn("cultist", at + Vector3(sin(a), 0, cos(a)) * 5.0)
 		"football":
 			# (a striped field, end zones and goalposts, bleachers along one side, a game on)
 			var turf := Ps1.flat(Color(0.2, 0.48, 0.2))
@@ -1561,7 +1612,7 @@ func _venue(c: Vector2i, b: int) -> bool:
 				_prop("goalpost", at + basis * Vector3(end * 15.0, 0, 0), turn + PI / 2)
 			_prop("bleachers", at + basis * Vector3(0, 0, -11.5), turn + PI)
 			_herd("person", at + basis * Vector3(0, 0, -13.5), _rng.randi_range(4, 7), 5.0)
-			for i in 10:
+			for i in 6:
 				var shirt := Color(0.75, 0.12, 0.1) if i % 2 == 0 else Color(0.2, 0.35, 0.75)
 				_player(at + basis * Vector3(_rng.randf_range(-11, 11), 0, _rng.randf_range(-5, 5)), shirt)
 			_prop("cooler", at + basis * Vector3(9, 0, -10), turn, 1.8)
@@ -1577,8 +1628,8 @@ func _venue(c: Vector2i, b: int) -> bool:
 			_plant_at("fence", at + basis * Vector3(1.5, 0, 11.5), turn)
 			_prop("bleachers", at + basis * Vector3(9, 0, 9), turn + PI * 0.75)
 			_herd("person", at + basis * Vector3(10, 0, 11), _rng.randi_range(3, 6), 4.0)
-			for i in 9:
-				_player(at + basis * Vector3(_rng.randf_range(-9, 9), 0, _rng.randf_range(-6, 9)), Color(0.9, 0.9, 0.92) if i < 5 else Color(0.2, 0.3, 0.6))
+			for i in 6:
+				_player(at + basis * Vector3(_rng.randf_range(-9, 9), 0, _rng.randf_range(-6, 9)), Color(0.9, 0.9, 0.92) if i < 3 else Color(0.2, 0.3, 0.6))
 		"rodeo":
 			# (a ring of fence, bleachers either side, riders and a bull in it)
 			for i in 18:
@@ -1665,9 +1716,10 @@ enum Field { NONE, PASTURE, WHEAT, CORN, PUMPKIN, PLOUGHED, GREEN }
 static func field(c: Vector2i) -> int:
 	if biome(c) != Biome.FARM or is_town(c) or is_edge_of_town(c) or facility(c) != "" or is_base(c) or airfield(c):
 		return Field.NONE
-	# (corn under the ship where the game starts, and pasture round it, for a farm to be seen at once)
+	# (a crop under the ship where the game starts, wheat, corn or pumpkins as the country has it, and
+	# pasture round it, for a farm to be seen at once)
 	if c == chunk_of(START):
-		return Field.CORN
+		return [Field.WHEAT, Field.CORN, Field.PUMPKIN][mini(int(hash3(c.x, c.y, 152) * 3.0), 2)]
 	if maxi(absi(c.x), absi(c.y)) <= 1:
 		return Field.PASTURE
 	var h := hash3(c.x, c.y, 151)
@@ -1699,7 +1751,7 @@ func _country_folk(c: Vector2i, b: int) -> void:
 	if b in [Biome.MOUNTAIN, Biome.PLAINS] and _rng.randf() < 0.25:
 		_herd("hunter", _spot(2.0), _rng.randi_range(1, 2), 5.0)
 	if b in [Biome.PLAINS, Biome.MESA] and _rng.randf() < 0.3:
-		_herd("rider", _spot(2.0), _rng.randi_range(1, 3), 7.0)
+		_herd("rider", _spot(2.0), _rng.randi_range(1, 2), 7.0)
 	if _rng.randf() < 0.08:
 		_spawn("believer", _spot(1.0))
 	if b != Biome.FARM and hash3(c.x, c.y, 161) < 0.09:

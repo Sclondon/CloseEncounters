@@ -51,24 +51,6 @@ func _process(_delta: float) -> bool:
 			main.autopilot = true
 		return false
 	main.ufo.hull = maxf(main.ufo.hull, 60.0)
-	# (the heat climbing once the descent is over, and a rival saucer at work nearby; no upgrades,
-	# just the ship as a new run has it)
-	match frame - began:
-		90:
-			# (a few items, for the beam to show blue and the item bar to fill)
-			for what: String in ["beam", "beam", "wide", "magnet", "gold", "coolant"]:
-				main.upgrades[what] += 1
-			main._apply_upgrades()
-			var c: Thing = main.spawn("canister", main.ufo.ground() + Vector3(-6, 0, -4), {"tints": {"pod_glow": main.BOOSTS["double"]["colour"]}})
-			c.set_meta("boost", "double")
-		200:
-			# (a rival saucer at work nearby)
-			var r: Thing = main.spawn_rival(main.ufo.ground() + Vector3(16, 0, -12))
-			r.position.y = 12.0
-		300:
-			main.heat = 1.6
-		420:
-			main.heat = 3.2
-		530:
-			main.heat = 4.3
+	# (nothing staged: the ship as a new run has it, flying itself as a player would, the heat and
+	# the police coming as they come)
 	return frame - began >= 135 + FLYING

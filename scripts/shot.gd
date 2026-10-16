@@ -11,6 +11,8 @@ const SPECS := {
 	"tracer": {"speed": 36.0, "damage": 2.5, "life": 1.4, "colour": Color(1.0, 0.5, 0.2), "size": Vector3(0.12, 0.12, 1.3)},
 	"shell": {"speed": 20.0, "damage": 18.0, "life": 3.0, "colour": Color(1.0, 0.4, 0.1), "size": Vector3(0.35, 0.35, 0.6)},
 	"missile": {"speed": 17.0, "damage": 14.0, "life": 6.0, "colour": Color(0.9, 0.9, 0.9), "size": Vector3(0.22, 0.22, 1.2)},
+	"laser": {"speed": 60.0, "damage": 6.0, "life": 0.8, "colour": Color(1.0, 0.2, 0.25), "size": Vector3(0.12, 0.12, 3.0)},
+	"slug": {"speed": 70.0, "damage": 22.0, "life": 1.4, "colour": Color(0.6, 0.85, 1.0), "size": Vector3(0.25, 0.25, 2.2)},
 }
 
 var kind := "bullet"

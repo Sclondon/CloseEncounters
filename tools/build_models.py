@@ -665,8 +665,26 @@ def devils_tower():
 
 
 def peak():
-    return join("peak", [lathe("peak", [(24, 0), (18, 8), (12, 18), (7.5, 26), (3.5, 33), (0.3, 37)],
-                               ["mountain", "mountain", "mountain", "snow", "snow", "snow"], 10, 1.6, seed=11)])
+    """A Rocky Mountain peak: craggy and lower than it was, its main summit with two shoulders, rock
+    outcrops on its flanks, snow only on its top"""
+    main = lathe("peak", [(24, 0), (20.5, 3.5), (16, 8), (11.5, 12.5), (7, 16.5), (3.2, 20), (0.4, 22)],
+                 ["mountain", "mountain", "mountain", "mountain", "snow", "snow", "snow"], 14, 2.4, seed=11)
+    left = lathe("peak_l", [(11, 0), (8.5, 4), (5.5, 8.5), (2.4, 12), (0.3, 13.5)],
+                 ["mountain", "mountain", "mountain", "snow", "snow"], 10, 1.5, seed=12)
+    left.location = (12.5, 6.0, 0)
+    right = lathe("peak_r", [(9, 0), (7, 3.5), (4.4, 7), (1.8, 9.5), (0.3, 10.5)],
+                  ["mountain", "mountain", "mountain", "snow", "snow"], 9, 1.3, seed=13)
+    right.location = (-11.0, -9.0, 0)
+    p = [main, left, right]
+    rnd = random.Random(14)
+    for i in range(8):
+        a = rnd.uniform(0, math.tau)
+        r = rnd.uniform(9.0, 17.0)
+        z = max(0.5, 16.0 - r * 0.9)
+        p.append(roughen(ball((rnd.uniform(3.5, 6.0), rnd.uniform(3.0, 5.0), rnd.uniform(2.0, 3.5)), (r * math.cos(a), r * math.sin(a), z), "rock", 7, 4), 0.35, 60 + i))
+    return join("peak", p)
+
+
 
 
 def saguaro():
@@ -2151,11 +2169,70 @@ def trek():
     return body
 
 
+def motorcycle():
+    """A motorcycle and its rider (the game paints the bike and the rider's clothes for who rides it:
+    a rider, a motorcycle cop, a biker)"""
+    p = wheel(0.34, 0.14, (0, -0.75, 0.34)) + wheel(0.34, 0.14, (0, 0.75, 0.34))
+    p += [box((0.3, 1.2, 0.3), (0, 0, 0.6), "paint"), box((0.34, 0.5, 0.32), (0, -0.25, 0.85), "paint"),
+          box((0.32, 0.55, 0.12), (0, 0.3, 0.86), "black"), box((0.7, 0.06, 0.06), (0, -0.7, 1.15), "metal"),
+          box((0.06, 0.3, 0.06), (0, -0.62, 1.0), "metal", (0.5, 0, 0)), drum(0.1, 0.08, (0, -0.85, 0.85), "headlight", 8, (math.pi / 2, 0, 0)),
+          box((0.12, 0.6, 0.1), (0.2, 0.4, 0.4), "metal")]
+    bike = join("motorcycle_body", p)
+    man = figure("motorcycle_rider", False, False)
+    man.location = (0, 0.25, 0.5)
+    bpy.context.view_layer.update()
+    return join("motorcycle", [bike, man])
+
+
+def cult_altar():
+    """A cult's altar: a ring of standing stones round a black obelisk with a glowing green eye, and
+    braziers burning"""
+    p = [drum(3.2, 0.12, (0, 0, 0.06), "stone", 16), cone(0.8, 4.2, (0, 0, 2.2), "black", 4),
+         ball((0.6, 0.2, 0.4), (0, -0.4, 2.6), "lights_under", 8, 4)]
+    for i in range(8):
+        a = i / 8 * math.tau
+        p.append(box((0.5, 0.35, 1.6), (2.8 * math.cos(a), 2.8 * math.sin(a), 0.8), "stone", (0, 0, a)))
+    for i in range(4):
+        a = i / 4 * math.tau + 0.4
+        x, y = 1.8 * math.cos(a), 1.8 * math.sin(a)
+        p += [drum(0.2, 0.7, (x, y, 0.35), "metal_dark", 6), ball((0.35, 0.35, 0.4), (x, y, 0.85), "camp", 6, 3)]
+    return join("cult_altar", p)
+
+
+def helicarrier():
+    """A flying aircraft carrier: a long grey deck with its island, held up on four great rotors in
+    rings, glowing blue beneath"""
+    p = [box((7.0, 20.0, 1.2), (0, 0, 0), "metal"), box((6.6, 19.6, 0.1), (0, 0, 0.65), "metal_dark"),
+         box((1.6, 4.0, 3.0), (2.6, 2.0, 2.0), "metal"), box((1.0, 1.0, 1.6), (2.6, 2.0, 4.2), "metal_dark"),
+         box((0.12, 18.0, 0.04), (-0.2, 0, 0.72), "white")]
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            at = (5.2 * sx, 6.5 * sy, 0)
+            p += [drum(2.3, 0.5, at, "metal_dark", 16), drum(2.0, 0.3, (at[0], at[1], -0.2), "light_blue", 16)]
+    return join("helicarrier", p)
+
+
+def railgun():
+    """A rail gun: a turret on a heavy base, its long twin rails ringed with glowing blue coils"""
+    p = [box((3.0, 3.0, 0.8), (0, 0, 0.4), "olive"), drum(1.1, 0.8, (0, 0, 1.2), "olive_dark", 10),
+         box((0.25, 6.0, 0.25), (-0.25, -2.8, 1.9), "metal_dark", (0.35, 0, 0)), box((0.25, 6.0, 0.25), (0.25, -2.8, 1.9), "metal_dark", (0.35, 0, 0))]
+    for i in range(5):
+        p.append(drum(0.5, 0.12, (0, -1.0 - i * 0.9, 1.6 + i * 0.33), "light_blue", 10, (math.pi / 2 + 0.35, 0, 0)))
+    return join("railgun", p)
+
+
+def laser_truck():
+    """A truck carrying a laser: an olive cab and bed, a mast on the back with the red-glowing lens"""
+    p = car_body_parts(5.6, "olive") + [box((0.3, 0.3, 1.4), (0, 1.4, 1.8), "metal_dark"), drum(0.6, 0.5, (0, 1.2, 2.6), "metal_dark", 10, (math.pi / 2, 0, 0)),
+                                       drum(0.42, 0.1, (0, 0.92, 2.6), "light_red", 10, (math.pi / 2, 0, 0))]
+    return join("laser_truck", p)
+
+
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
-            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek,
+            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek, motorcycle, cult_altar, helicarrier, railgun, laser_truck,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,

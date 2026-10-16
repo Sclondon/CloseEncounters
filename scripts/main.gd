@@ -25,8 +25,8 @@ const COOL_RATE := 0.07
 const FORCES: Array[Dictionary] = [
 	{},
 	{},
-	{"police_car": 2},
-	{"helicopter": 1, "police_car": 2, "agent_car": 1},
+	{"police_car": 2, "moto_cop": 1},
+	{"helicopter": 1, "police_car": 2, "agent_car": 1, "moto_cop": 1},
 	{"chinook": 1, "jeep": 2, "police_car": 1},
 	{"chinook": 1, "tank": 2, "jeep": 2},
 ]
@@ -155,7 +155,7 @@ const FLEET_MOST := 6
 ## The defence laser (see `_laser`): how far it reaches before upgrades (+2 m a level), and the hits
 ## that blow each of the police and army up (one less is only a moment's stun)
 const LASER_REACH := 7.0
-const LASER_HITS := {"police_car": 2, "patrol_car": 2, "jeep": 3, "patrol_jeep": 3, "tank": 5, "helicopter": 4, "chinook": 6, "agent_car": 3}
+const LASER_HITS := {"police_car": 2, "patrol_car": 2, "jeep": 3, "patrol_jeep": 3, "tank": 5, "helicopter": 4, "chinook": 6, "agent_car": 3, "moto_cop": 1, "helicarrier": 14, "railgun": 5, "laser_truck": 4}
 var _laser_wait := 0.0
 ## The mini fleet: a little saucer for each level of FLEET (see Drone)
 var fleet: Array[Drone] = []
@@ -266,6 +266,7 @@ const HUNTERS := {
 	"police_car": "POLICE CAR", "patrol_car": "POLICE PATROL", "jeep": "ARMY JEEP",
 	"patrol_jeep": "ARMY PATROL", "tank": "TANK", "jet": "FIGHTER JET", "officer": "POLICE OFFICER",
 	"helicopter": "POLICE HELICOPTER", "agent_car": "MEN IN BLACK", "agent": "AGENT", "chinook": "ARMY CHINOOK",
+	"moto_cop": "MOTORCYCLE COP", "helicarrier": "HELICARRIER", "railgun": "RAIL GUN", "laser_truck": "LASER TRUCK",
 }
 ## The first few frames draw the farm under a black cover, so its shaders are ready before the
 ## ship comes down to it (else the arrival stutters while they are made)
@@ -516,6 +517,9 @@ func start(from_launch := false) -> void:
 		if n[3] != null:
 			(n[3] as Node3D).queue_free()
 	_nukes.clear()
+	for o: Array in _orbitals:
+		(o[2] as Node).queue_free()
+	_orbitals.clear()
 	for m: Array in _missiles:
 		(m[0] as Node).queue_free()
 	_missiles.clear()
@@ -690,7 +694,7 @@ func _process(delta: float) -> void:
 		_stand_in.tick(delta, Vector2.ZERO, false)
 	if not ufo.dead:
 		var held := ufo.position
-		ufo.position = world.push_out(ufo.position, 2.6)
+		ufo.position = world.push_out(ufo.position, 2.6, ufo.altitude)
 		ufo.position.y = held.y
 		if mode == "play" and ufo.position.distance_to(held) > 0.01:
 			var was := ufo.hull
@@ -1014,6 +1018,39 @@ func _station_for(kind: String) -> Vector3:
 
 
 ## Keeps the police and army up to strength for the heat, bringing them in from out of sight
+## Ramming what flies at the ship's height (helicopters, Chinooks, the helicarrier): both take a hit
+## and the ship bounces off; dashing into one hits it twice, and with RAM_DASH or more DASH items the
+## dash leaves the ship unhurt
+const RAM_DASH := 2
+const RAM_HURT := 9.0
+var _ram_wait := 0.0
+
+
+func _ramming(delta: float) -> void:
+	_ram_wait -= delta
+	if _ram_wait > 0.0 or ufo.dead or mode != "play":
+		return
+	for t: Thing in things.duplicate():
+		if t.state != "walk" or not t.is_enemy() or t.info["move"] != "hover":
+			continue
+		var off := ufo.position - t.position
+		if absf(off.y) > 3.0 + t.size() * 0.2 or Vector2(off.x, off.z).length() > ufo.radius + t.size() * 0.5:
+			continue
+		_ram_wait = 0.7
+		var dashing := ufo.dodging()
+		sfx.play("clang", 0.7, 2.0)
+		_shake = maxf(_shake, 0.35)
+		boom((ufo.position + t.position) * 0.5, 1.6)
+		for i in (2 if dashing else 1):
+			if t.state == "walk":
+				_laser_hit(t, t.global_position)
+		if not (dashing and upgrades["dash"] >= RAM_DASH):
+			ufo.hurt(RAM_HURT, t.position)
+			_hurt = 1.0
+		ufo.bump(off)
+		return
+
+
 ## Somewhere to run to: over the mountains the police and army on the ground cannot follow. None of them
 ## are sent there and those after the ship give up after a few seconds; but helicopters and jets still
 ## come, and the heat only cools a little quicker
@@ -1024,10 +1061,10 @@ const HIDE_LOSES := 4.0
 
 func _hideout(delta: float) -> void:
 	var was := hidden
-	hidden = mode == "play" and not ufo.dead and World.biome(World.chunk_of(ufo.ground())) == World.Biome.MOUNTAIN
+	hidden = mode == "play" and not ufo.dead and World.in_haven(ufo.ground())
 	_hidden_for = _hidden_for + delta if hidden else 0.0
 	if hidden and not was and heat_level() >= 1:
-		_heat_note("INTO THE MOUNTAINS: THE CARS CAN'T FOLLOW", 2.5)
+		_heat_note("A HIDDEN VALLEY: THE CARS CAN'T FOLLOW", 2.5)
 	if hidden and _hidden_for > HIDE_LOSES and _hidden_for - delta <= HIDE_LOSES:
 		var lost := false
 		for t: Thing in things:
@@ -1041,12 +1078,17 @@ func _hideout(delta: float) -> void:
 func _forces(delta: float) -> void:
 	_spawn_wait -= delta
 	_hideout(delta)
+	_ramming(delta)
 	for t in things:
 		if t.leaving and t.ground().distance_to(ufo.ground()) > 70.0:
 			_remove(t)
 	if _spawn_wait > 0.0 or ufo.dead:
 		return
 	var wanted: Dictionary = FORCES[heat_level()].duplicate()
+	# (five stars held long enough: the heavy stuff, see ESCALATE)
+	if heat_level() >= 5 and _five_for > ESCALATE:
+		for k: String in ESCALATION:
+			wanted[k] = ESCALATION[k]
 	# (over the mountains only what flies comes after the ship)
 	if hidden:
 		for k: String in wanted.keys():
@@ -2139,15 +2181,80 @@ const NUKE_EVERY := 20.0
 const NUKE_FUSE := 5.0
 const NUKE_REACH := 30.0
 var _five_for := 0.0
+## Five stars held this long and they bring out a helicarrier, rail guns and laser trucks; longer, and
+## laser satellites strike from orbit (see `_orbital`)
+const ESCALATE := 50.0
+const ESCALATION := {"helicarrier": 1, "railgun": 1, "laser_truck": 2}
+const ORBITAL_AFTER := 80.0
+const ORBITAL_EVERY := 11.0
+const ORBITAL_FUSE := 2.2
+const ORBITAL_REACH := 5.0
+var _orbital_wait := 0.0
+## Each orbital strike on its way: [where, seconds left, its ring]
+var _orbitals: Array = []
 var _nuke_wait := 0.0
 ## Each strike on its way: [where, seconds left, its ring, its missile]
 var _nukes: Array = []
 var _nuke_flash: ColorRect
 
 
+## Laser satellites: a red ring where the ship is going, and a moment later a beam of red light
+## straight down from orbit onto it
+func _orbital(delta: float) -> void:
+	_orbital_wait -= delta
+	if _five_for > ORBITAL_AFTER and _orbital_wait <= 0.0 and not ufo.dead:
+		_orbital_wait = ORBITAL_EVERY / sqrt(danger())
+		var at := ufo.ground() + Vector3(ufo.velocity.x, 0, ufo.velocity.z) * 1.2
+		var ring := MeshInstance3D.new()
+		var torus := TorusMesh.new()
+		torus.inner_radius = ORBITAL_REACH - 0.4
+		torus.outer_radius = ORBITAL_REACH
+		ring.mesh = torus
+		ring.material_override = Ps1.flat(Color(1.0, 0.15, 0.2))
+		ring.position = at + Vector3(0, 0.1, 0)
+		ring.scale = Vector3(1, 0.05, 1)
+		view.add_child(ring)
+		_orbitals.append([at, ORBITAL_FUSE, ring])
+		_heat_note("ORBITAL LASER LOCKED ON!", 2.0)
+		sfx.play("zap", 0.5, 2.0)
+	for o: Array in _orbitals.duplicate():
+		o[1] -= delta
+		var ring: MeshInstance3D = o[2]
+		ring.visible = fmod(o[1], 0.25) > 0.1
+		if o[1] > 0.0:
+			continue
+		_orbitals.erase(o)
+		ring.queue_free()
+		var at: Vector3 = o[0]
+		# (the beam: a column of red light from the sky, there and gone)
+		var beam := MeshInstance3D.new()
+		var rod := CylinderMesh.new()
+		rod.top_radius = ORBITAL_REACH * 0.7
+		rod.bottom_radius = ORBITAL_REACH * 0.7
+		rod.height = 80.0
+		beam.mesh = rod
+		var m := ShaderMaterial.new()
+		m.shader = load("res://shaders/beam.gdshader")
+		m.set_shader_parameter("tint", Color(1.0, 0.2, 0.25))
+		m.set_shader_parameter("power", 2.0)
+		beam.material_override = m
+		beam.position = at + Vector3(0, 40.0, 0)
+		view.add_child(beam)
+		var tw := create_tween()
+		tw.tween_property(beam, "scale", Vector3(0.05, 1.0, 0.05), 0.5).set_delay(0.25)
+		tw.tween_callback(beam.queue_free)
+		boom(at + Vector3(0, 0.5, 0), 3.0)
+		sfx.play("boom", 0.6, 3.0)
+		_shake = maxf(_shake, 0.4)
+		if ufo.ground().distance_to(at) < ORBITAL_REACH + ufo.radius * 0.5 and not ufo.dodging():
+			ufo.hurt(28.0, at + Vector3(0, 60.0, 0))
+			_hurt = 1.0
+
+
 func _nuking(delta: float) -> void:
 	if mode != "play" or intro > 0.0:
 		return
+	_orbital(delta)
 	if heat_level() >= 5:
 		_five_for += delta
 	else:
@@ -2747,6 +2854,15 @@ func fire(from: Thing, gun: String, target: Ufo) -> void:
 		"pistol":
 			_shot("bullet", muzzle, lead + Vector3(randf_range(-1.5, 1.5), 0, randf_range(-1.5, 1.5)))
 			sfx.play("pop", 1.0, _near_db(from))
+		"laser":
+			# (a laser truck's: a red bolt, very fast)
+			_shot("laser", muzzle, lead + Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0)))
+			sfx.play("zap", 0.7, _near_db(from))
+		"railgun":
+			# (a rail gun's slug: hardly any time to dodge it)
+			_shot("slug", muzzle, mark + going * (muzzle.distance_to(mark) / 70.0))
+			sfx.play("boom", 2.0, _near_db(from))
+			_shake = maxf(_shake, 0.15)
 		"rifle":
 			# (a hunter's: one careful shot, close to the mark)
 			_shot("bullet", muzzle, lead + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))
