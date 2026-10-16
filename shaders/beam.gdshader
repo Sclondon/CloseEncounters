@@ -9,11 +9,6 @@ render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabl
 uniform vec3 tint : source_color = vec3(0.55, 1.0, 0.65);
 uniform float power = 1.0;
 uniform float core = 0.0;
-// 1 = a searchlight: brightest down its middle and at the lamp, fading all the way along to nothing
-// at its far end and softly away to its edges and where it meets the ground, so no cone shows
-uniform float soft = 0.0;
-// A searchlight's length, its lamp at its bottom end (-reach / 2 along its own Y)
-uniform float reach = 28.0;
 
 void fragment() {
 	float edge = 1.0 - abs(dot(NORMAL, VIEW));
@@ -22,11 +17,4 @@ void fragment() {
 	float lines = pow(0.5 + 0.5 * sin(up * (core > 0.5 ? 22.0 : 34.0) + TIME * speed), 8.0);
 	float a = (0.1 + 0.5 * pow(edge, 3.0) + 0.6 * lines) * power;
 	ALBEDO = tint * a * mix(1.0, 0.5, up) * (core > 0.5 ? 0.35 : 0.6);
-	if (soft > 0.5) {
-		float middle = smoothstep(0.0, 1.0, abs(dot(NORMAL, VIEW)));
-		float along = clamp(0.5 - local.y / reach, 0.0, 1.0);
-		along = along * along * along;
-		float ground = smoothstep(0.0, 2.5, world.y);
-		ALBEDO = tint * power * middle * middle * along * ground * 0.8;
-	}
 }

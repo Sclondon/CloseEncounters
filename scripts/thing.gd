@@ -191,6 +191,7 @@ var _booth_way := Vector3.ZERO
 var broadcast: Broadcast
 ## How far a caller will run to a phone booth
 const BOOTH_REACH := 60.0
+const STRIP := preload("res://shaders/searchlight.gdshader")
 ## The visual layer the beam's shadow-casting light shines on (the ground, and what is in the beam)
 const BEAM_LAYER := 2
 var _beam_lit := false
@@ -214,7 +215,6 @@ const LIGHT_WIDE := 3.2
 var road_axis := "z"
 var road_dir := 1.0
 var _t := 0.0
-
 
 ## `extra` may give the model to wear ("model"), recolourings ("tints"), which way it faces ("turn"),
 ## its size ("size"), the chunk it belongs to ("chunk") and the obstacle it is in the world ("obstacle")
@@ -272,32 +272,25 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 		_build_searchlight()
 	rotation.y = heading
 
-
 func is_enemy() -> bool:
 	return info.get("enemy", false)
-
 
 func size() -> float:
 	return info["size"]
 
-
 func tier() -> int:
 	return info.get("tier", 1)
-
 
 ## Buildings and scenery stay where they are until their chunk goes
 func fixed() -> bool:
 	return chunk != NO_CHUNK
 
-
 func points() -> int:
 	return info["points"]
-
 
 ## The ground point it stands on (y = 0), even while it is in the air
 func ground() -> Vector3:
 	return Vector3(position.x, 0.0, position.z)
-
 
 func tick(delta: float, ufo: Ufo) -> void:
 	_t += delta
@@ -322,7 +315,6 @@ func tick(delta: float, ufo: Ufo) -> void:
 		"walk":
 			_walk(delta, ufo)
 	held = false
-
 
 ## Pulled up the beam toward the saucer, turning slowly and kicking its legs
 func _rise(delta: float, ufo: Ufo) -> void:
@@ -375,8 +367,6 @@ func _rise(delta: float, ufo: Ufo) -> void:
 	if lift >= 1.0:
 		game.abducted(self)
 
-
-
 ## Puts every mesh of `n` in (or out of) the layer the beam's shadow-casting light shines on, and has it
 ## cast a shadow (nothing else does)
 func _beam_layer(n: Node, on: bool) -> void:
@@ -400,7 +390,6 @@ func _fall(delta: float) -> void:
 		model.scale = Vector3.ONE * base_size
 		panic = 6.0
 		game.landed(self, fall_from)
-
 
 func _walk(delta: float, ufo: Ufo) -> void:
 	var here := ground()
@@ -537,7 +526,6 @@ func _walk(delta: float, ufo: Ufo) -> void:
 	if aim != null:
 		_aim(delta, ufo)
 
-
 var _chase_want := Vector3.ZERO
 ## A police car's officer out of it (see `_police`), and how many are still in it to get out; an
 ## officer's car, and whether it is called back to it
@@ -551,7 +539,6 @@ var _far := 0.0
 var _orbit := randf() * TAU
 const HOVER_OUT := 15.0
 const HOVER_Y := 15.0
-
 
 ## As "chase" moves: closes to its range, circles there, and fires (for a patrol once there is heat)
 func _chase(delta: float, ufo: Ufo, to_ufo: Vector3, near: float, pace: float) -> float:
@@ -569,8 +556,6 @@ func _chase(delta: float, ufo: Ufo, to_ufo: Vector3, near: float, pace: float) -
 	if not leaving:
 		_shoot(delta, ufo, near)
 	return pace
-
-
 
 ## A police car (or patrol): after the ship until it is in pistol range, then it pulls up and an
 ## officer gets out to shoot (the car cannot). If the ship gets well away, the officer gets back in
@@ -610,7 +595,6 @@ func _police(delta: float, ufo: Ufo, to_ufo: Vector3, near: float, pace: float) 
 		pace *= 0.5
 	return pace
 
-
 ## The officer out of the driver's door (once the frame's things have all been seen to)
 func _get_out() -> void:
 	if state != "walk" or not is_instance_valid(game):
@@ -619,7 +603,6 @@ func _get_out() -> void:
 	officer = game.spawn(info.get("crew_kind", "officer"), door)
 	officer.car = self
 	officer.heading = heading
-
 
 ## An officer out of a police car: stands by it and shoots; called back, walks back and gets in;
 ## with the car gone, runs like anyone
@@ -643,7 +626,6 @@ func _guard(delta: float, ufo: Ufo, to_ufo: Vector3, near: float, pace: float) -
 	_shoot(delta, ufo, near)
 	return 0.0
 
-
 ## A helicopter: circling the ship high up, its searchlight on it
 func _hover(delta: float, ufo: Ufo, here: Vector3) -> float:
 	_orbit += delta * 0.3
@@ -659,26 +641,9 @@ func _build_searchlight() -> void:
 	light.position = Vector3(0, info.get("light_y", 2.3), 0)
 	add_child(light)
 	Ps1.part(light, BoxMesh.new(), Ps1.flat(Color(1.0, 0.97, 0.85)), Vector3.ZERO, Vector3(0.45, 0.25, 0.45))
-	var cone := CylinderMesh.new()
-	cone.top_radius = LIGHT_WIDE
-	cone.bottom_radius = 0.2
-	cone.height = LIGHT_LONG
-	cone.radial_segments = 12
-	cone.rings = 1
-	cone.cap_top = false
-	cone.cap_bottom = false
-	var m := ShaderMaterial.new()
-	m.shader = load("res://shaders/beam.gdshader")
-	m.set_shader_parameter("tint", Color(1.0, 0.95, 0.75))
-	m.set_shader_parameter("power", 0.7)
-	m.set_shader_parameter("soft", 1.0)
-	var mi := MeshInstance3D.new()
-	mi.mesh = cone
-	mi.material_override = m
-	mi.position.y = LIGHT_LONG * 0.5
-	light.add_child(mi)
+	# (the beam: a strip of light along the lamp's +Y, see searchlight.gdshader)
+	light_strip(light, Color(1.0, 0.95, 0.75), 0.7, LIGHT_LONG, 0.25, LIGHT_WIDE, 0.7)
 	_sweep = randf() * TAU
-
 
 ## Sweeps the sky with no heat; locks on to the ship with heat. Tells the game when the ship is in it.
 func _aim_light(delta: float, ufo: Ufo) -> void:
@@ -702,13 +667,11 @@ func _aim_light(delta: float, ufo: Ufo) -> void:
 		if off < 0.2 + along * (LIGHT_WIDE / LIGHT_LONG) + ufo.radius * 0.6:
 			game.spotted(self, delta)
 
-
 ## Too heavy for the beam that has hold of it: it shakes where it stands
 func rattle() -> void:
 	_rattling = true
 	model.position = Vector3(randf_range(-0.1, 0.1), model_y + randf() * 0.08, randf_range(-0.1, 0.1))
 	model.rotation.z = randf_range(-0.04, 0.04)
-
 
 ## A dish or an observatory turns to look at the ship when it is about
 func _aim(delta: float, ufo: Ufo) -> void:
@@ -723,7 +686,6 @@ func _aim(delta: float, ufo: Ufo) -> void:
 	else:
 		aim.rotation.y = lerp_angle(aim.rotation.y, yaw, minf(delta * 0.8, 1.0))
 
-
 ## Starts for the phone to call the police (if it can phone, is not already, and is about): runs to
 ## the nearest phone booth and calls from it (see `_to_booth`), or with none near calls from where it
 ## is
@@ -734,7 +696,6 @@ func witness() -> void:
 	if booth == null:
 		calling = 4.0 / sqrt(game.danger())
 	_show_call()
-
 
 ## The "!" over a caller's head, flashing while it runs for the phone and while it calls
 func _show_call() -> void:
@@ -750,7 +711,6 @@ func _show_call() -> void:
 		_call_label.no_depth_test = true
 		_call_label.position = Vector3(0, 2.6, 0)
 		add_child(_call_label)
-
 
 ## A caller's way to its phone booth's door (none once there, on the phone): true while it has one
 ## to go to or is calling from it. A booth taken (or gone) sends it looking for another
@@ -775,7 +735,6 @@ func _to_booth() -> bool:
 		_booth_way = (door - ground()).normalized()
 	return true
 
-
 func _string_wires(to: Vector3) -> void:
 	wire_to = to
 	wires = Node3D.new()
@@ -798,35 +757,14 @@ func _string_wires(to: Vector3) -> void:
 	# (the wires belong to the world, not to the pole's turning)
 	wires.top_level = false
 
-
 ## A tall shaft of gold light over a rare find, so it can be seen from far off
 func _beacon() -> void:
-	beacon = MeshInstance3D.new()
-	var shaft := CylinderMesh.new()
-	shaft.top_radius = 0.6
-	shaft.bottom_radius = 0.9
-	shaft.height = 40.0
-	shaft.radial_segments = 8
-	shaft.cap_top = false
-	shaft.cap_bottom = false
-	beacon.mesh = shaft
-	var m := ShaderMaterial.new()
-	m.shader = load("res://shaders/beam.gdshader")
-	m.set_shader_parameter("tint", Color(1.0, 0.8, 0.3))
-	m.set_shader_parameter("power", 0.8)
-	m.set_shader_parameter("soft", 1.0)
-	m.set_shader_parameter("reach", 40.0)
-	beacon.material_override = m
-	beacon.position.y = 20.0
-	beacon.extra_cull_margin = 60.0
-	add_child(beacon)
-
+	beacon = light_strip(self, Color(1.0, 0.8, 0.3), 0.8, 40.0, 0.9, 0.6, 1.0)
 
 func _arm_gun() -> void:
 	if gun_node != null:
 		return
 	gun_node = Ps1.part(model, BoxMesh.new(), Ps1.mat(Color(0.15, 0.12, 0.1)), Vector3(0.18, 1.35, 0.35), Vector3(0.06, 0.06, 0.8), Vector3(-0.7, 0, 0))
-
 
 func _shoot(delta: float, ufo: Ufo, near: float) -> void:
 	var gun: String = info.get("gun", "")
@@ -850,7 +788,6 @@ func _shoot(delta: float, ufo: Ufo, near: float) -> void:
 	else:
 		game.fire(self, gun, ufo)
 
-
 ## Where shots leave it from
 func muzzle() -> Vector3:
 	match kind:
@@ -861,3 +798,25 @@ func muzzle() -> Vector3:
 		"jeep":
 			return global_position + Vector3(0, 2.1, 0)
 	return global_position + Vector3(0, 1.4, 0)
+
+## A beam of light from a lamp at `parent`'s origin along its +Y, `reach` long, `lamp_width` across
+## at the lamp and `far_width` at its end, faded to nothing `fade_at` of the way along: a strip that
+## turns about the beam to face the camera, so no mesh shows (searchlight.gdshader)
+static func light_strip(parent: Node3D, tint: Color, power: float, reach: float, lamp_width: float, far_width: float, fade_at: float) -> MeshInstance3D:
+	var strip := QuadMesh.new()
+	strip.subdivide_depth = 10
+	var m := ShaderMaterial.new()
+	m.shader = STRIP
+	m.set_shader_parameter("tint", tint)
+	m.set_shader_parameter("power", power)
+	m.set_shader_parameter("reach", reach)
+	m.set_shader_parameter("lamp_width", lamp_width)
+	m.set_shader_parameter("far_width", far_width)
+	m.set_shader_parameter("fade_at", fade_at)
+	var mi := MeshInstance3D.new()
+	mi.mesh = strip
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.extra_cull_margin = reach + far_width
+	parent.add_child(mi)
+	return mi

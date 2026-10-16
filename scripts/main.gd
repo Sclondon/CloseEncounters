@@ -143,6 +143,8 @@ var hud: CanvasLayer
 var score_label: Label
 var mult_label: Label
 var coin: Control
+## How wide the score's box is, right-aligned beside the pause button
+const SCORE_WIDTH := 300.0
 var radar: Control
 ## The secret facilities near enough to show on the radar, looked for every few seconds
 var _facilities: Array[Vector3] = []
@@ -1272,7 +1274,7 @@ func _warm_effects() -> void:
 	sky.follow(Vector3.ZERO, Vector3(0, 30, 0), 0.0)
 	# (brought down from up in the sky to where the camera looks)
 	sky.position = Vector3(0, -Clouds.HEIGHT + 2.0, 0)
-	for shader: String in ["reticle", "water", "beam", "shield"]:
+	for shader: String in ["reticle", "water", "beam", "shield", "searchlight"]:
 		var m := ShaderMaterial.new()
 		m.shader = load("res://shaders/%s.gdshader" % shader)
 		var mi := MeshInstance3D.new()
@@ -1912,24 +1914,44 @@ func _build_hud() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(root)
 
-	coin = Coin.new()
-	coin.position = Vector2(20, 22)
-	coin.size = Vector2(38, 38)
-	coin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(coin)
-	score_label = _label(40, Color(0.75, 1.0, 0.78))
-	score_label.position = Vector2(66, 12)
-	_glow(score_label, Color(0.3, 1.0, 0.45, 0.55))
-	root.add_child(score_label)
-	mult_label = _label(24, Color(0.6, 1.0, 0.6))
-	mult_label.position = Vector2(68, 58)
-	root.add_child(mult_label)
+	# Top left: the shield (and the dodge's three pistons beside it), and the radar under it
+	shield_bar = Shield.new()
+	shield_bar.main = self
+	shield_bar.position = Vector2(6, 6)
+	shield_bar.size = Vector2(200, 112)
+	shield_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(shield_bar)
+	radar = Radar.new()
+	radar.main = self
+	radar.position = Vector2(14, 126)
+	radar.size = Vector2(108, 108)
+	radar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(radar)
 	log_box = VBoxContainer.new()
-	log_box.position = Vector2(22, 100)
+	log_box.position = Vector2(16, 244)
 	log_box.custom_minimum_size = Vector2(560, 0)
 	log_box.add_theme_constant_override("separation", 2)
 	log_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(log_box)
+
+	# Top right, beside the pause button: the score (its coin before it) and the multiplier under it
+	score_label = _label(40, Color(0.75, 1.0, 0.78))
+	score_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	score_label.position = Vector2(-96 - SCORE_WIDTH, 10)
+	score_label.size = Vector2(SCORE_WIDTH, 50)
+	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_glow(score_label, Color(0.3, 1.0, 0.45, 0.55))
+	root.add_child(score_label)
+	mult_label = _label(24, Color(0.6, 1.0, 0.6))
+	mult_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	mult_label.position = Vector2(-96 - SCORE_WIDTH, 58)
+	mult_label.size = Vector2(SCORE_WIDTH, 30)
+	mult_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	root.add_child(mult_label)
+	coin = Coin.new()
+	coin.size = Vector2(38, 38)
+	coin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(coin)
 
 	stars = Stars.new()
 	stars.main = self
@@ -1938,22 +1960,6 @@ func _build_hud() -> void:
 	stars.size = Vector2(300, 64)
 	stars.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(stars)
-
-	radar = Radar.new()
-	radar.main = self
-	radar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	radar.position = Vector2(-404, 8)
-	radar.size = Vector2(108, 108)
-	radar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(radar)
-
-	shield_bar = Shield.new()
-	shield_bar.main = self
-	shield_bar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	shield_bar.position = Vector2(-292, 8)
-	shield_bar.size = Vector2(200, 112)
-	shield_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(shield_bar)
 
 	banner = _label(40, Color(1.0, 0.85, 0.4))
 	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -2022,7 +2028,12 @@ func _build_hud() -> void:
 
 	# A pause button in the corner, and what pausing shows
 
-	_pause_button = _button("II", func() -> void: set_paused(true))
+	_pause_button = _button("", func() -> void: set_paused(true))
+	# (two bars drawn in the middle of it, a pause sign, not the letters II)
+	var bars := PauseBars.new()
+	bars.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pause_button.add_child(bars)
 	_pause_button.custom_minimum_size = Vector2(64, 56)
 	_pause_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	_pause_button.position = Vector2(-80, 14)
@@ -2326,6 +2337,9 @@ func _hud(delta: float) -> void:
 		_find_facilities()
 	score_label.text = "%d" % score
 	mult_label.text = "x%d" % multiplier()
+	# (the coin just before the score, however long it has grown)
+	var width := font.get_string_size(score_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 40).x
+	coin.position = Vector2(score_label.position.x + score_label.size.x - width - 46.0, score_label.position.y + 10.0)
 	stars.queue_redraw()
 	shield_bar.queue_redraw()
 	stick_ring.queue_redraw()
@@ -2819,3 +2833,14 @@ class BeamButton extends Control:
 		draw_colored_polygon(hull, glow)
 		draw_circle(c + Vector2(0, -r * 0.3), r * 0.15, glow)
 		draw_arc(c, r * 0.98, 0, TAU, 48, Color(0.7, 1.0, 0.75, 0.5 if on else 0.15), 2.0)
+
+
+## The pause sign on the pause button: two upright bars, in the middle of it
+class PauseBars extends Control:
+	func _draw() -> void:
+		var bar := Vector2(size.x * 0.13, size.y * 0.44)
+		var gap := size.x * 0.12
+		var c := size * 0.5
+		for side: float in [-1.0, 1.0]:
+			var x := c.x + side * (gap * 0.5 + bar.x * 0.5) - bar.x * 0.5
+			draw_rect(Rect2(x, c.y - bar.y * 0.5, bar.x, bar.y), Color(0.75, 1.0, 0.78))

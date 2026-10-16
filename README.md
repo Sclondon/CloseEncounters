@@ -34,11 +34,13 @@ and while on the moon the world stays loaded round where the run starts (no stut
 - **Dodge**: Shift (or X, K), gamepad B / left shoulder, or a quick swipe: a dash that spins the ship like a
   top and leaves afterimages, untouchable while it lasts, then 2.5 s before the next (the DODGE bar). It drops
   whatever is in the beam, and throws the pilot about.
-- **Pause**: Esc / P / Start, or the II button in the top right; from there, RESUME or QUIT TO MENU (the run is given up).
+- **Pause**: Esc / P / Start, or the pause button in the top right; from there, RESUME or QUIT TO MENU (the run is given up).
 
-The HUD: the score in alien money top left, and under it a log of everything taken, typed out in glowing green.
-Top right, beside the pause button, the shield as a glass orb of blue energy, and three pistons that pop up as
-the dodge recharges (three lamps on the front of the ship light with them). Below them, a round **radar**: the nearest trader, secret facility, substation and rare
+The HUD: top left, the shield as a glass orb of blue energy, and three pistons that pop up as
+the dodge recharges (three lamps on the front of the ship light with them); under them a round **radar**, and
+under that a log of everything taken, typed out in glowing green. Top right, beside the pause button, the score
+in alien money and its multiplier.
+The radar shows the nearest trader, secret facility, substation and rare
 find (on the rim, pointing the way, when out of range), and the police and army about in red. The touch stick
 shows only while a thumb is on it.
 
@@ -172,7 +174,7 @@ Anything between the camera and the ship is drawn see-through (`shaders/ps1.gdsh
   `moon.gd` (the title's moon, and the lift-off blast), `dust.gd` (dust in space and wind lines), `clouds.gd`, `tornado.gd` (the
   whirl up the beam), `puffs.gd` (smoke and sparks), `broadcast.gd` (a phone booth's aerial: radio waves, or sparks with the lines cut).
 - `shaders/`: `bend.gdshaderinc` (the bend and PS1 snap), `ps1` (with the see-through), `ps1_flat`, `glass`,
-  `beam` (the tractor beam's two cones and the searchlights), `reticle` (where the beam will fall), `cloud`, `ground`
+  `beam` (the tractor beam's two cones), `searchlight` (searchlights and beacons: a strip of light turned to the camera), `reticle` (where the beam will fall), `cloud`, `ground`
   (each region, the roads), `sky`, `screen`.
 
 ## Music
