@@ -2018,11 +2018,44 @@ def bush():
     return join("bush", p)
 
 
+def stealth():
+    """A stealth bomber: a black flying wing, saw-toothed behind, the cockpit a dark ridge"""
+    mesh = bpy.data.meshes.new("stealth")
+    v = [(0, -4.0, 0), (9.0, 2.0, 0), (6.0, 3.0, 0), (3.0, 1.8, 0), (0, 3.2, 0), (-3.0, 1.8, 0), (-6.0, 3.0, 0), (-9.0, 2.0, 0)]
+    top = [(x, y, 0.35 if abs(x) < 3 else 0.12) for x, y, z in v]
+    mesh.from_pydata(v + top, [], [tuple(range(7, -1, -1)), tuple(range(8, 16))] + [(i, (i + 1) % 8, 8 + (i + 1) % 8, 8 + i) for i in range(8)])
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(mesh)
+    bm.free()
+    wing = bpy.data.objects.new("stealth", mesh)
+    bpy.context.collection.objects.link(wing)
+    _done(wing, "black")
+    return join("stealth", [wing, box((1.6, 2.4, 0.4), (0, -1.6, 0.4), "metal_dark"), box((1.0, 0.8, 0.2), (0, -2.4, 0.62), "glass"),
+                            drum(0.3, 0.3, (1.4, 2.4, 0.2), "flame", 8, (math.pi / 2, 0, 0)), drum(0.3, 0.3, (-1.4, 2.4, 0.2), "flame", 8, (math.pi / 2, 0, 0))])
+
+
+def warthog():
+    """A ground-attack jet: a grey body with its big gun at the nose, straight wings, two engines on
+    pods up behind, and twin tails"""
+    p = [drum(0.6, 8.0, (0, 0, 0), "jet", 8, (math.pi / 2, 0, 0)), cone(0.6, 1.4, (0, -4.6, 0), "jet", 8, (-math.pi / 2, 0, 0)),
+         drum(0.12, 1.2, (0, -5.6, -0.1), "metal_dark", 6, (math.pi / 2, 0, 0)), box((1.0, 1.4, 0.45), (0, -2.8, 0.55), "glass"),
+         box((12.0, 1.6, 0.18), (0, -0.2, -0.1), "jet"), box((5.0, 1.0, 0.14), (0, 3.6, 0.4), "jet")]
+    for s in (-1, 1):
+        p += [drum(0.5, 2.2, (0.9 * s, 2.0, 0.9), "metal_dark", 8, (math.pi / 2, 0, 0)), drum(0.42, 0.3, (0.9 * s, 3.2, 0.9), "flame", 8, (math.pi / 2, 0, 0)),
+              box((0.12, 1.0, 1.6), (2.4 * s, 3.8, 1.1), "jet")]
+        for x in (2.5, 4.0):
+            p.append(box((0.16, 0.9, 0.16), (x * s, -0.4, -0.35), "olive_dark"))
+    return join("warthog", p)
+
+
 BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: figure("person", False), scarecrow,
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, fence, tent, floodlight, ufo,
             mesa, butte, devils_tower, peak, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
-            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush,
+            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, track, locomotive, boxcar, caboose, rider, balloon, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,

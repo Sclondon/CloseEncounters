@@ -173,12 +173,14 @@ const KINDS := {
 	"highway_sign": {"points": 60, "weight": 2.0, "heat": 0.2, "move": "still", "size": 2.0, "tier": 2},
 	"trash_can": {"points": 10, "weight": 0.4, "heat": 0.02, "move": "still", "size": 0.5},
 	"bush": {"points": 8, "weight": 0.5, "heat": 0.01, "move": "still", "size": 0.8},
+	# Hunters, in blaze orange with rifles, out in the hills: they shoot at the ship whatever the heat
+	"hunter": {"model": "person", "tints": {"shirt": Color(1.0, 0.45, 0.05), "denim": Color(0.3, 0.33, 0.2)}, "points": 140, "weight": 1.3, "heat": 0.4, "move": "flee", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "rifle", "hunter": true},
 	"floodlight": {"points": 150, "weight": 2.5, "heat": 0.3, "move": "still", "size": 1.2, "tier": 3},
 	# A trader's goods (see main.gd spawn_shop): beam one up to buy it
 	"pod": {"points": 0, "weight": 0.9, "heat": 0.0, "move": "still", "size": 1.0},
 	"canister": {"points": 0, "weight": 0.5, "heat": 0.0, "move": "still", "size": 0.8},
 	# (the police cannot shoot from the car: they pull up and an officer gets out, see `_police`)
-	"police_car": {"points": 300, "weight": 3.0, "heat": 0.6, "move": "police", "speed": 7.5, "size": 2.2, "keep": 10.0, "enemy": true, "police": true},
+	"police_car": {"points": 300, "weight": 3.0, "heat": 0.6, "move": "police", "speed": 7.5, "size": 2.2, "keep": 10.0, "enemy": true, "police": true, "searchlight": true},
 	"officer": {"model": "person", "tints": {"shirt": Color(0.15, 0.25, 0.55)}, "points": 150, "weight": 1.3, "heat": 0.5, "move": "guard", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "pistol", "enemy": true, "crew": true},
 	# The men in black: a black sedan at three stars, agents in black suits getting out of it
 	"agent_car": {"model": "car", "tints": {"paint": Color(0.06, 0.06, 0.08)}, "points": 500, "weight": 3.0, "heat": 0.7, "move": "police", "speed": 8.0, "size": 2.2, "keep": 11.0, "enemy": true, "police": true, "crew_kind": "agent"},
@@ -195,6 +197,7 @@ const KINDS := {
 const GUNS := {
 	"shotgun": {"range": 15.0, "reload": 2.6},
 	"pistol": {"range": 20.0, "reload": 1.3},
+	"rifle": {"range": 28.0, "reload": 2.4},
 	# (the men in black's: a ray gun, a glowing green bolt)
 	"ray": {"range": 24.0, "reload": 1.6},
 	"mg": {"range": 24.0, "reload": 4.5},
@@ -382,6 +385,8 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 		add_child(broadcast)
 	if info.get("searchlight", false):
 		_build_searchlight()
+	if k == "officer":
+		_build_flashlight()
 	rotation.y = heading
 
 func is_enemy() -> bool:
@@ -555,7 +560,7 @@ func _walk(delta: float, ufo: Ufo) -> void:
 					want = (goal - here).normalized()
 		"flee":
 			var gun: String = info.get("gun", "")
-			var armed: bool = gun != "" and game.heat_level() >= 1 and not leaving
+			var armed: bool = gun != "" and (game.heat_level() >= 1 or info.get("hunter", false)) and not leaving
 			var to_wreck := Vector3(game.wreck.x, here.y, game.wreck.z) - here if game.wreck != Vector3.INF else Vector3.INF
 			if info.get("caller", false) and not hiding and to_wreck != Vector3.INF and to_wreck.length() < 80.0 and not has_meta("forgot"):
 				# (the saucer down: out they come to have a look, edging up and standing round it)
@@ -828,7 +833,9 @@ func _noticed(delta: float, ufo: Ufo, near: float) -> bool:
 		_wonder_show(delta)
 		return true
 	var sight: float = SIGHT + 10.0 * game.heat_level()
-	if near < sight and not ufo.dead:
+	# (they see only what their light shows them: the ship has to be in its beam)
+	var lit := light == null or _in_lamp(light, ufo, LIGHT_LONG, LIGHT_WIDE) or light2 != null and _in_lamp(light2, ufo, LIGHT_LONG, LIGHT_WIDE)
+	if near < sight and not ufo.dead and lit:
 		var rate: float = lerpf(0.75, 0.3, near / sight) * (1.6 if ufo.beaming else 1.0) * (1.0 + 0.6 * game.heat_level())
 		alert = minf(alert + rate * delta, 1.0)
 	else:
@@ -895,8 +902,50 @@ func _guard(delta: float, ufo: Ufo, to_ufo: Vector3, near: float, pace: float) -
 		return pace * 1.3
 	_chase_want = Vector3.ZERO
 	heading = lerp_angle(heading, atan2(to_ufo.x, to_ufo.z), minf(delta * 6.0, 1.0))
+	# (an officer sees only by the flashlight, swung after the ship: no shot till it is lit)
+	if flashlight != null:
+		_aim_flashlight(delta, ufo)
+		if not _in_lamp(flashlight, ufo, FLASH_LONG, FLASH_WIDE):
+			return 0.0
 	_shoot(delta, ufo, near)
 	return 0.0
+
+
+## An officer's flashlight: a little beam from the hand, swung after the ship (slower than it can
+## dodge), sweeping about when it is not near
+const FLASH_LONG := 18.0
+const FLASH_WIDE := 2.4
+var flashlight: Node3D
+
+
+func _build_flashlight() -> void:
+	flashlight = Node3D.new()
+	flashlight.position = Vector3(0.3, 1.0, 0.2)
+	add_child(flashlight)
+	Ps1.part(flashlight, BoxMesh.new(), Ps1.flat(Color(1.0, 0.97, 0.85)), Vector3.ZERO, Vector3(0.12, 0.25, 0.12))
+	light_strip(flashlight, Color(1.0, 0.95, 0.75), 0.55, FLASH_LONG, 0.08, FLASH_WIDE, 0.7)
+
+
+func _aim_flashlight(delta: float, ufo: Ufo) -> void:
+	var to := ufo.position - flashlight.global_position
+	var want: Basis
+	if to.length() < FLASH_LONG + 4.0 and not ufo.dead:
+		want = Basis(Vector3.UP, atan2(to.x, to.z)) * Basis(Vector3.RIGHT, acos(clampf(to.normalized().y, -1.0, 1.0)))
+	else:
+		want = Basis(Vector3.UP, _t * 0.8) * Basis(Vector3.RIGHT, 0.9 + 0.3 * sin(_t * 0.7))
+	flashlight.global_basis = flashlight.global_basis.slerp(want.orthonormalized(), minf(delta * 2.2, 1.0)).orthonormalized()
+
+
+## Whether the ship is in a lamp's beam (along its +Y, `long` long, `wide` across at its end)
+func _in_lamp(lamp: Node3D, ufo: Ufo, long: float, wide: float) -> bool:
+	if lamp == null or not is_instance_valid(lamp) or ufo.dead:
+		return false
+	var to := ufo.position - lamp.global_position
+	var axis := lamp.global_basis.y.normalized()
+	var along := to.dot(axis)
+	if along <= 0.0 or along > long:
+		return false
+	return (to - axis * along).length() < 0.2 + along * (wide / long) + ufo.radius * 0.6
 
 ## A helicopter (or a Chinook): circling the ship high up, its searchlight on it
 func _hover(delta: float, ufo: Ufo, here: Vector3) -> float:
@@ -1407,7 +1456,7 @@ static func category(of: String) -> String:
 	var info: Dictionary = KINDS[of]
 	if info.get("rare", false) or of in ["golden_cow", "jackalope", "sasquatch", "meteorite", "satellite", "crash_site"]:
 		return "RARE FINDS"
-	if info.get("caller", false) or info.get("enemy", false) and info["move"] == "guard" or of in ["scarecrow", "believer"]:
+	if info.get("caller", false) or info.get("enemy", false) and info["move"] == "guard" or of in ["scarecrow", "believer", "hunter"]:
 		return "EARTHLINGS"
 	if of in ["wheat", "corn", "pumpkin", "hay_bale", "hay_pile"]:
 		return "CROPS"

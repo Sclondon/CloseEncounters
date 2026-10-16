@@ -254,6 +254,8 @@ ring of fence, bleachers, cowboys on horseback and a bull). By the roads (`_road
 dealerships** with their lots of cars and **wacky waving inflatable tube men**. Farm ponds; hot air balloons hanging
 over the fields; cowboys on horseback out on the plains and mesas; town roads have **sidewalks** with **street lights**, benches and trash cans; country roads have **stop signs**, and **highway signs** on the way into a crossing; parks have lamp posts; **bushes** round towns, farms and parks.
 
+The police see only by their lights: a police car notices the ship only while its searchlight is on it, and an officer, out of the car, swings a **flashlight** after the ship and fires only while it is lit. **Hunters** in blaze orange (mountains and plains) shoot at the ship with rifles whatever the heat. At five stars the jets are fighters, black **stealth** bombers (higher, faster, three missiles) or **warthogs** (low and slow, strafing). Every word on the screen is a hologram, and the results bob gently.
+
 **People are curious** until something frightens them (a beam on near them, a blast, a laser, seeing something
 taken): they edge up to look at the ship from a way off, and come to stand round any crop circle near. **True
 believers** (in green shirts) want to be taken: they come running to stand under the ship, hopping and shouting

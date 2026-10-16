@@ -1050,27 +1050,42 @@ func _forces(delta: float) -> void:
 			return
 
 
+## The jets that fly over at five stars, each kind its own height, speed and shots
+const JETS := {
+	"jet": {"height": 15.0, "speed": 45.0, "shots": 2, "spacing": 6.0, "shot": "missile"},
+	"stealth": {"height": 22.0, "speed": 60.0, "shots": 3, "spacing": 5.0, "shot": "missile"},
+	"warthog": {"height": 11.0, "speed": 30.0, "shots": 8, "spacing": 2.5, "shot": "bullet"},
+}
+
+
 func _jets(delta: float) -> void:
 	if mode == "play" and heat_level() >= 5 and not ufo.dead:
 		_jet_wait -= delta
 		if _jet_wait <= 0.0:
 			# Fighter jets from four stars, twice as often at five
 			_jet_wait = randf_range(7.0, 10.0) if heat_level() >= 5 else randf_range(13.0, 18.0)
-			var jet := Ps1.model("jet")
-			jet.position = ufo.ground() + Vector3(randf_range(-20, 20), 15.0, -90.0)
+			# (a fighter, a stealth bomber high and fast with three missiles, or a warthog low and slow
+			# strafing with its cannon: see JETS)
+			var kind: String = JETS.keys().pick_random()
+			var spec: Dictionary = JETS[kind]
+			var jet := Ps1.model(kind)
+			jet.position = ufo.ground() + Vector3(randf_range(-20, 20), float(spec["height"]), -90.0)
 			jet.set_meta("fired", 0)
+			jet.set_meta("kind", kind)
 			view.add_child(jet)
 			jets.append(jet)
 			if not "jet" in _log_met:
 				_log_met.append("jet")
 			sfx.play("whoosh", 0.7, 3.0)
 	for jet in jets:
-		jet.position.z += delta * 45.0
+		var spec: Dictionary = JETS[jet.get_meta("kind", "jet")]
+		jet.position.z += delta * float(spec["speed"])
 		var fired: int = jet.get_meta("fired")
-		if fired < 2 and jet.position.z > ufo.position.z - 30.0 + fired * 6.0:
+		if fired < int(spec["shots"]) and jet.position.z > ufo.position.z - 30.0 + fired * float(spec["spacing"]):
 			jet.set_meta("fired", fired + 1)
-			var s := _shot("missile", jet.position + Vector3(0, -1, 0), ufo.position)
-			s.velocity = Vector3(0, -0.2, 1).normalized() * 17.0
+			var s := _shot(spec["shot"], jet.position + Vector3(0, -1, 0), ufo.position)
+			if spec["shot"] == "missile":
+				s.velocity = Vector3(0, -0.2, 1).normalized() * 17.0
 	for jet in jets.duplicate():
 		if jet.position.z > ufo.position.z + 80.0:
 			jets.erase(jet)
@@ -2667,6 +2682,10 @@ func fire(from: Thing, gun: String, target: Ufo) -> void:
 		"pistol":
 			_shot("bullet", muzzle, lead + Vector3(randf_range(-1.5, 1.5), 0, randf_range(-1.5, 1.5)))
 			sfx.play("pop", 1.0, _near_db(from))
+		"rifle":
+			# (a hunter's: one careful shot, close to the mark)
+			_shot("bullet", muzzle, lead + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))
+			sfx.play("bang", 0.8, _near_db(from))
 		"ray":
 			_shot("ray", muzzle, lead + Vector3(randf_range(-1.2, 1.2), 0, randf_range(-1.2, 1.2)))
 			sfx.play("zap", 1.5, _near_db(from))
@@ -2783,6 +2802,8 @@ func _fit_results(size: Vector2) -> void:
 var _over_items: VBoxContainer
 ## The results' heading
 var _over_head: Label
+## How far the results are bobbed from their place just now
+var _over_bob := 0.0
 var _over_items_head: Label
 var _over_icons: HFlowContainer
 
@@ -3145,6 +3166,9 @@ func _clear_wreck() -> void:
 	_mib_b = null
 	_mib_bag = null
 	_mib_flashed = false
+	if over_box != null:
+		over_box.position.y -= _over_bob
+	_over_bob = 0.0
 	_news_vans.clear()
 	_news_crew.clear()
 	_news_light = null
@@ -3215,6 +3239,10 @@ func _wreck_burning(delta: float) -> void:
 	if wreck == Vector3.INF:
 		return
 	_wreck_t += delta
+	# (the results bobbing slowly up and down, hanging there like a hologram)
+	var bob := sin(_wreck_t * 1.1) * 7.0
+	over_box.position.y += bob - _over_bob
+	_over_bob = bob
 	if randf() < delta * 9.0 and not _wreck_lifted:
 		ufo.puffs.puff(wreck + Vector3(randf_range(-1.5, 1.5), 1.2, randf_range(-1.5, 1.5)), Color(0.15, 0.15, 0.17, 0.8), randf_range(0.8, 1.4), Vector3(0.3, 2.5, 0.1), 2.2)
 	if randf() < delta * 5.0 and not _wreck_lifted:
@@ -4173,6 +4201,11 @@ func _label(size: int, c := Color(0.92, 0.95, 0.88)) -> Label:
 	l.add_theme_color_override("font_color", c)
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	l.add_theme_constant_override("outline_size", maxi(size / 6, 4))
+	# (every word on the screen a hologram, as the buttons are: see holo_button.gdshader)
+	if _holo_mat == null:
+		_holo_mat = ShaderMaterial.new()
+		_holo_mat.shader = load("res://shaders/holo_button.gdshader")
+	l.material = _holo_mat
 	return l
 
 

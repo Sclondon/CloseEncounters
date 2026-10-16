@@ -1648,6 +1648,8 @@ func _country_folk(c: Vector2i, b: int) -> void:
 	if not wild:
 		return
 	# (cowboys out on horseback; and now and then a true believer, waiting to be taken)
+	if b in [Biome.MOUNTAIN, Biome.PLAINS] and _rng.randf() < 0.25:
+		_herd("hunter", _spot(2.0), _rng.randi_range(1, 2), 5.0)
 	if b in [Biome.PLAINS, Biome.MESA] and _rng.randf() < 0.3:
 		_herd("rider", _spot(2.0), _rng.randi_range(1, 3), 7.0)
 	if _rng.randf() < 0.08:
