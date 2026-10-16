@@ -319,11 +319,20 @@ func _seat_riders() -> void:
 		for i in range(0, 10, 2):
 			var a := i / 10.0 * TAU
 			_rider(spin_part, Vector3(3.0 * cos(a), 1.55 + 0.3 * (i % 2), -3.0 * sin(a)))
+	elif kind == "bleachers":
+		# (a crowd watching the rodeo or the game, on the benches up the rows, facing the front)
+		var seats: Array = []
+		for row in 5:
+			for x in range(-4, 5):
+				seats.append(Vector3(x * 1.05 + randf_range(-0.2, 0.2), 0.51 + 0.5 * row, -0.7 * row - 0.05))
+		seats.shuffle()
+		for i in randi_range(9, 16):
+			_rider(model, seats[i], 0.95)
 
 
-func _rider(on: Node3D, at: Vector3) -> void:
+func _rider(on: Node3D, at: Vector3, size := 0.6) -> void:
 	var r := Ps1.model("person", {"shirt": RIDER_SHIRTS[randi() % RIDER_SHIRTS.size()]})
-	r.scale = Vector3.ONE * 0.6
+	r.scale = Vector3.ONE * size
 	r.position = at
 	on.add_child(r)
 	_riders.append(r)
@@ -894,6 +903,10 @@ func _walk(delta: float, ufo: Ufo) -> void:
 		for r: Node3D in _riders:
 			if r.get_parent() == fan:
 				r.rotation.z = -fan.rotation.z
+	if kind == "bleachers" and state == "walk":
+		# (the crowd swaying and cheering)
+		for i in _riders.size():
+			_riders[i].rotation.z = sin(_t * 3.0 + i * 1.7) * 0.1
 	if beam_arm != null:
 		beam_arm.rotation.x = sin(_t * 1.6) * 0.35
 	# Walkers bob and waddle; anything on wheels only rocks a little

@@ -1800,10 +1800,10 @@ func _venue(c: Vector2i, b: int) -> bool:
 			for i in 6:
 				_player(at + basis * Vector3(_rng.randf_range(-9, 9), 0, _rng.randf_range(-6, 9)), Color(0.9, 0.9, 0.92) if i < 3 else Color(0.2, 0.3, 0.6))
 		"rodeo":
-			# (a ring of fence, bleachers either side, riders and a bull in it)
+			# (a ring of fence, bleachers either side full of people, riders and a bull in it)
 			for i in 18:
 				var a := i / 18.0 * TAU
-				_plant_at("fence", at + Vector3(sin(a), 0, cos(a)) * 8.5, a + PI / 2)
+				_plant_at("fence", at + Vector3(sin(a), 0, cos(a)) * 8.5, a)
 			_prop("bleachers", at + basis * Vector3(0, 0, -12.5), turn)
 			_prop("bleachers", at + basis * Vector3(0, 0, 12.5), turn + PI)
 			_herd("rider", at, _rng.randi_range(2, 3), 4.0)
