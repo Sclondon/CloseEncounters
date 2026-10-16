@@ -413,15 +413,11 @@ func lounge(on: bool) -> void:
 			_drink = null
 
 
-## The pilot's drink, held upside down: every few seconds shaken for the last of it, the drops
-## spilling out of its mouth and falling away
+## The pilot's drink, held upside down: every few seconds shaken for the last of it
 func _shake_drink(delta: float) -> void:
 	var cycle := fmod(_t, 4.5)
 	var shaking := cycle > 3.3
 	_drink.rotation = Vector3(PI, 0, sin(_t * 32.0) * 0.35 if shaking else 0.0)
-	if shaking and randf() < delta * 26.0:
-		var mouth := _drink.to_global(Vector3(0, 0.27, 0))
-		puffs.spark(mouth, Vector3(randf_range(-0.6, 0.6), randf_range(-1.5, -0.3), randf_range(-0.6, 0.6)), Color(0.95, 0.75, 0.25))
 
 
 ## Home on the moon: the canopy opens and the pilot climbs out of the cockpit and up into the chair,
