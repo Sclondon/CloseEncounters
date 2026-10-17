@@ -53,6 +53,37 @@ void fragment() {
 	// (a merged model carries each part's colour on its corners, and how much it glows in their alpha:
 	// see ps1.gd _merged; anything else has white corners)
 	vec3 c = patterned(tint * COLOR.rgb * texture(tex, affine.xy / affine.z).rgb, local);
+	if (sway > 0.001) {
+		// Leaves: the crown cut into little leaves, each a shade of its own, dark in the gaps between
+		// them, and its edge ragged where it turns away from the eye (a gap there lets the sky through)
+		vec3 q = local * 3.2;
+		vec3 cell = floor(q);
+		vec3 f = fract(q);
+		float d1 = 8.0;
+		float d2 = 8.0;
+		vec3 near_cell = cell;
+		for (int x = -1; x <= 1; x++) {
+			for (int y = -1; y <= 1; y++) {
+				for (int z = -1; z <= 1; z++) {
+					vec3 o = vec3(float(x), float(y), float(z));
+					vec3 h = fract(sin(vec3(dot(cell + o, vec3(127.1, 311.7, 74.7)), dot(cell + o, vec3(269.5, 183.3, 246.1)), dot(cell + o, vec3(113.5, 271.9, 124.6)))) * 43758.5453);
+					float d = length(o + h - f);
+					if (d < d1) {
+						d2 = d1;
+						d1 = d;
+						near_cell = cell + o;
+					} else if (d < d2) {
+						d2 = d;
+					}
+				}
+			}
+		}
+		float gap = d2 - d1;
+		float own = fract(sin(dot(near_cell, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+		c *= mix(0.55, 1.0, smoothstep(0.02, 0.16, gap)) * (0.82 + 0.36 * own);
+		float graze = 1.0 - abs(dot(normalize(NORMAL), VIEW));
+		if (graze > 0.55 && gap < (graze - 0.55) * 0.9) discard;
+	}
 	ALBEDO = c;
 	EMISSION = c * (glow + (1.0 - COLOR.a) * 3.2) + flash;
 	ROUGHNESS = 1.0;

@@ -80,6 +80,8 @@ static func part(parent: Node, mesh: Mesh, material: Material, at: Vector3, size
 static func model(name: String, tints := {}, own_mats := false) -> Node3D:
 	if name == "pine":
 		return _grown_pine(own_mats)
+	if name in GROWN:
+		return _grown(name, own_mats)
 	if not _scenes.has(name):
 		_scenes[name] = load("res://models/%s.glb" % name)
 	var n: Node3D = (_scenes[name] as PackedScene).instantiate()
@@ -120,6 +122,67 @@ static func pine_mesh() -> ArrayMesh:
 	_pine = ArrayMesh.new()
 	_pine.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return _pine
+
+
+## The leafy trees are grown too (GameCommon's LeafyTree), each its own kind, about the size its
+## Blender model was, in the game's colours: a lumpy crown of leaf clumps ragged with tufts, and in
+## UV2.y how much each corner sways in the wind (see bend.gdshaderinc; ps1.gdshader draws leaves on it)
+const GROWN := ["tree", "aspen", "cottonwood", "willow", "pinyon"]
+static var _grown_meshes := {}
+
+
+static func is_grown(name: String) -> bool:
+	return name == "pine" or name in GROWN
+
+
+static func grown_mesh(name: String) -> ArrayMesh:
+	if _grown_meshes.has(name):
+		return _grown_meshes[name]
+	var shape: LeafyTree
+	match name:
+		"tree":
+			shape = LeafyTree.oak()
+			shape.height = 6.2
+			shape.spread = 0.62
+		"aspen":
+			shape = LeafyTree.aspen()
+			shape.height = 6.8
+		"cottonwood":
+			shape = LeafyTree.cottonwood()
+			shape.height = 8.0
+		"willow":
+			shape = LeafyTree.willow()
+			shape.height = 6.0
+		_:
+			shape = LeafyTree.pinyon()
+			shape.height = 3.0
+	shape.seed = 11
+	var grown := shape.mesh()
+	# (its colours are sRGB; the PS1 shader takes a model's corner colours as linear, see _merged)
+	var arrays := grown.surface_get_arrays(0)
+	var colours: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	for i in colours.size():
+		var c := colours[i].srgb_to_linear()
+		c.a = 1.0
+		colours[i] = c
+	arrays[Mesh.ARRAY_COLOR] = colours
+	var made := ArrayMesh.new()
+	made.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_grown_meshes[name] = made
+	return made
+
+
+static func _grown(name: String, own_mats: bool) -> Node3D:
+	var n := Node3D.new()
+	n.name = name
+	var mi := MeshInstance3D.new()
+	mi.mesh = grown_mesh(name)
+	mi.material_override = own(Color.WHITE, 0.0, 0.3) if own_mats else mat(Color.WHITE, 0.0, 0.3)
+	mi.extra_cull_margin = CULL_MARGIN
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.visibility_range_end = DRAW_TO
+	n.add_child(mi)
+	return n
 
 
 static func _grown_pine(own_mats: bool) -> Node3D:

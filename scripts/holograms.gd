@@ -129,7 +129,7 @@ func _process(_delta: float) -> void:
 			return
 		model_name = info.get("model", kind)
 		tints = info.get("tints", {})
-		if model_name != "pine" and not ResourceLoader.exists("res://models/%s.glb" % model_name):
+		if not Ps1.is_grown(model_name) and not ResourceLoader.exists("res://models/%s.glb" % model_name):
 			return
 	_drawing = Node3D.new()
 	_drawing.set_meta("kind", kind)

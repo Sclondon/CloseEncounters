@@ -3228,10 +3228,9 @@ func _crash(delta: float) -> void:
 	_report(score)
 	# (the run over for good: nothing kept to carry on with)
 	_saved_run = {}
-	over_label.text = _results(is_best)
+	_set_results(is_best)
 	_fill_over_items()
 	_fit_results(get_viewport().get_visible_rect().size / hud.scale.x)
-	over_label.visible_characters = 0
 	_over_typing = 0.0
 	# (the panel up once the wreck has been seen to, see `_wreck_burning`)
 	_over_show = 2.2
@@ -3277,14 +3276,37 @@ func _results(is_best: bool) -> String:
 	lines.append("BEST  %d%s" % [best, "  (NEW!)" if is_best and score > 0 else ""])
 	return "\n".join(lines)
 
+## The results put up to be typed out: on a wide screen, what was destroyed in a column of its own
+## beside the rest (`_over_kills`), typed after it, so a long run's results are half as tall
+func _set_results(is_best: bool) -> void:
+	var text := _results(is_best)
+	var right := ""
+	var at := text.find("\n\nDESTROYED")
+	var end := text.find("\n\nTOTAL")
+	if not _upright() and at >= 0 and end > at:
+		right = text.substr(at + 2, end - at - 2)
+		text = text.substr(0, at) + text.substr(end)
+	over_label.text = text
+	_over_kills.text = right
+	_over_kills.visible = right != ""
+	over_label.visible_characters = 0
+	_over_kills.visible_characters = 0
+
+
 ## The results sized for the screen: big for thumbs on an upright phone, and smaller again, a step at
-## a time, until all of them (a long run's many lines too) fit its height
+## a time, until all of them (a long run's many lines, the items' pictures and the buttons under them,
+## though those only show once it is typed out) fit its height; and if they still do not at the
+## smallest size that reads well, the whole panel drawn smaller (its scale, about its left edge on a
+## wide screen, its middle on a phone: see `_wreck_burning`)
 func _fit_results(size: Vector2) -> void:
 	var upright := size.x < size.y
 	var room := size.y - (220.0 if upright else 80.0)
 	var text := 62 if upright else 34
+	var need := 0.0
 	while true:
 		over_label.add_theme_font_size_override("font_size", text)
+		_over_kills.add_theme_font_size_override("font_size", text)
+		_over_kills.add_theme_constant_override("outline_size", maxi(text / 6, 4))
 		_over_head.add_theme_font_size_override("font_size", int(text * 1.75))
 		_over_items_head.add_theme_font_size_override("font_size", text)
 		over_label.add_theme_constant_override("outline_size", maxi(text / 6, 4))
@@ -3292,15 +3314,59 @@ func _fit_results(size: Vector2) -> void:
 		for b in _over_row.get_children():
 			(b as Button).custom_minimum_size = Vector2(500, 140) if big else Vector2(0, 70)
 			(b as Button).add_theme_font_size_override("font_size", 62 if big else 40)
-		if over_box.get_combined_minimum_size().y <= room or text <= 22:
+		# (the items' pictures in step with the text)
+		for cell in _over_icons.get_children():
+			if cell.is_queued_for_deletion() or cell.get_child_count() < 2:
+				continue
+			(cell.get_child(0) as Control).custom_minimum_size = Vector2.ONE * _over_icon(upright, text)
+			(cell.get_child(1) as Control).add_theme_font_size_override("font_size", int(text * 0.8))
+		need = _results_height(upright, text)
+		if need <= room or text <= (38 if upright else 22):
 			break
 		text -= 4
+	over_box.scale = Vector2.ONE * minf(1.0, room / maxf(need, 1.0))
+
+
+## How big an item's picture is under results of text `text` high
+func _over_icon(upright: bool, text: int) -> float:
+	return text * (2.1 if upright else 1.6)
+
+
+## How tall the results will be once all typed out, with their items and buttons, at text `text` high
+func _results_height(upright: bool, text: int) -> float:
+	var typed := over_label.visible_characters
+	var typed_kills := _over_kills.visible_characters
+	var row_was := _over_row.visible
+	var items_was := _over_items.visible
+	over_label.visible_characters = -1
+	_over_kills.visible_characters = -1
+	_over_row.visible = true
+	_over_items.visible = false
+	var whole := over_box.get_combined_minimum_size()
+	var h := whole.y
+	over_label.visible_characters = typed
+	_over_kills.visible_characters = typed_kills
+	_over_row.visible = row_was
+	_over_items.visible = items_was
+	var count := 0
+	for cell in _over_icons.get_children():
+		if not cell.is_queued_for_deletion():
+			count += 1
+	if count > 0:
+		# (the pictures flow in rows across the panel's width)
+		var icon := _over_icon(upright, text)
+		var cell_w := icon + 2.0 + text * 1.7
+		var per_row := maxi(int((maxf(over_box.custom_minimum_size.x, whole.x) + 14.0) / (cell_w + 14.0)), 1)
+		var rows := ceili(float(count) / per_row)
+		h += 18.0 + text * 1.4 + 6.0 + rows * icon + (rows - 1) * 8.0
+	return h
 
 
 ## The items had this run, under the results: each its hologram and how many
 var _over_items: VBoxContainer
-## The results' heading
+## The results' heading, and the column of what was destroyed beside them on a wide screen
 var _over_head: Label
+var _over_kills: Label
 ## How far the results are bobbed from their place just now
 var _over_bob := 0.0
 var _over_items_head: Label
@@ -3492,10 +3558,31 @@ func _men_in_black() -> void:
 
 
 # The news, once the men in black have gone: two vans pull up by the meteorite, a reporter and a
-# camera crew get out, and the camera's light comes on
+# camera crew get out, and the camera's light comes on. The vans are two rival stations', each with
+# its dish up and its name on its sides
+const NEWS_STATIONS := [["KBLP 7", "ACTION NEWS", Color(0.8, 0.12, 0.14)], ["WOOO 13", "EYEWITNESS NEWS", Color(0.14, 0.32, 0.75)]]
 var _news_vans: Array[Node3D] = []
 var _news_crew: Array[Node3D] = []
 var _news_light: OmniLight3D
+
+
+## A station's name painted on both sides of its van: its call letters big, what it calls its news under
+func _station_name(van: Node3D, station: Array) -> void:
+	for side: float in [-1.0, 1.0]:
+		for line in 2:
+			var l := Label3D.new()
+			l.text = station[line]
+			l.font = font
+			l.font_size = 64 if line == 0 else 40
+			l.pixel_size = 0.010
+			l.modulate = station[2] if line == 0 else Color(0.1, 0.1, 0.12)
+			l.outline_size = 8 if line == 0 else 0
+			l.outline_modulate = Color(0.05, 0.05, 0.08)
+			l.double_sided = false
+			l.shaded = false
+			l.position = Vector3(side * 1.07, 1.9 if line == 0 else 1.38, -0.55)
+			l.rotation.y = side * PI / 2.0
+			van.add_child(l)
 
 
 func _news(t: float) -> void:
@@ -3503,8 +3590,10 @@ func _news(t: float) -> void:
 		return
 	if _news_vans.is_empty():
 		for i in 2:
-			var van := Ps1.model("rv", {"paint": Color(0.92, 0.92, 0.9)})
-			van.scale = Vector3.ONE * 0.85
+			var station: Array = NEWS_STATIONS[i]
+			var van := Ps1.model("news_van", {"paint": station[2]})
+			van.scale = Vector3.ONE * 0.95
+			_station_name(van, station)
 			view.add_child(van)
 			_wreck_bits.append(van)
 			_news_vans.append(van)
@@ -3641,9 +3730,11 @@ func _mib_rock(t: float) -> void:
 		_rock_hung = Node3D.new()
 		view.add_child(_rock_hung)
 		_wreck_bits.append(_rock_hung)
-		Ps1.part(_rock_hung, Ps1.ball(), Ps1.mat(Color(0.06, 0.06, 0.07)), Vector3(0, -0.75, 0), Vector3(2.1, 1.45, 1.75))
-		for glow: Vector3 in [Vector3(0.55, -0.45, 0.45), Vector3(-0.6, -0.9, 0.35), Vector3(0.1, -1.1, -0.65)]:
-			Ps1.part(_rock_hung, Ps1.ball(), Ps1.mat(Color(0.4, 1.0, 0.5), 1.6), glow, Vector3(0.75, 0.6, 0.75))
+		# (a little moon, the size of the meteorite's: see `moonlet` and `meteorite` in build_models.py)
+		var moon := Ps1.model("moonlet")
+		moon.scale = Vector3.ONE * 1.6
+		moon.position = Vector3(0, -1.2, 0)
+		_rock_hung.add_child(moon)
 	for r: Node3D in _rock_heli.find_children("rotor*", "Node3D", true, false):
 		r.rotation.y += 0.9
 	var at := over
@@ -3665,7 +3756,8 @@ func _mib_rock(t: float) -> void:
 	_rock_heli.position = at + Vector3(0, sin(t * 2.3) * 0.18, 0)
 	var hook := _rock_heli.position + Vector3(0, 0.3, 0)
 	# The rock: hanging under it, swinging a little, let down into the crater, and let go
-	var ground_top := wreck + Vector3(0, 1.4, 0)
+	# (where the top of the moonlet lies in the meteorite: the one swaps for the other in place)
+	var ground_top := wreck + Vector3(0, 1.88, 0)
 	var top: Vector3
 	if t < ROCK_OVER:
 		top = hook + Vector3(sin(t * 1.3) * 0.3, -ROCK_HANG, 0)
@@ -3834,6 +3926,8 @@ func _wreck_burning(delta: float) -> void:
 	var bob := sin(_wreck_t * 1.1) * 7.0
 	over_box.position.y += bob - _over_bob
 	_over_bob = bob
+	# (drawn smaller about its left edge on a wide screen, about its middle on a phone: see `_fit_results`)
+	over_box.pivot_offset = over_box.size * Vector2(0.5 if _upright() else 0.0, 0.5)
 	if randf() < delta * 9.0 and not _wreck_lifted:
 		ufo.puffs.puff(wreck + Vector3(randf_range(-1.5, 1.5), 1.2, randf_range(-1.5, 1.5)), Color(0.15, 0.15, 0.17, 0.8), randf_range(0.8, 1.4), Vector3(0.3, 2.5, 0.1), 2.2)
 	if randf() < delta * 5.0 and not _wreck_lifted:
@@ -3856,20 +3950,27 @@ func _wreck_burning(delta: float) -> void:
 		_over_show -= delta
 		if _over_show <= 0.0:
 			over_box.visible = true
-	# (the results typed out a letter at a time, with the log's ticking key)
-	if over_box.visible and over_label.visible_characters >= 0 and over_label.visible_characters < over_label.text.length():
+	# (the results typed out a letter at a time, with the log's ticking key: the column of what was
+	# destroyed after the rest, on a wide screen)
+	var typing: Label = null
+	for l: Label in [over_label, _over_kills]:
+		if l.visible and l.visible_characters >= 0 and l.visible_characters < l.text.length():
+			typing = l
+			break
+	if over_box.visible and typing != null:
 		_over_typing += delta * RESULTS_SPEED
 		var more := int(_over_typing)
 		_over_typing -= more
 		if more > 0:
-			over_label.visible_characters = mini(over_label.visible_characters + more, over_label.text.length())
+			typing.visible_characters = mini(typing.visible_characters + more, typing.text.length())
 			# (a typewriter: a key struck for each letter, the bell at the end of a line)
-			var ch := over_label.text[over_label.visible_characters - 1]
+			var ch := typing.text[typing.visible_characters - 1]
 			if ch == "\n":
 				sfx.play("ding", 1.0, -10.0)
 			elif ch != " ":
 				sfx.play("key", randf_range(0.9, 1.15), -8.0)
-		_over_row.visible = over_label.visible_characters >= over_label.text.length()
+		_over_row.visible = typing == _over_kills and typing.visible_characters >= typing.text.length() \
+			or typing == over_label and typing.visible_characters >= typing.text.length() and not _over_kills.visible
 		_over_items.visible = _over_row.visible and _over_icons.get_child_count() > 0
 		_replay_button.visible = not coop.active()
 
@@ -5122,7 +5223,20 @@ func _build_hud() -> void:
 	over_label = _label(34, Color(0.55, 1.0, 0.62))
 	over_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_glow(over_label, Color(0.25, 1.0, 0.4, 0.5))
-	over_box.add_child(over_label)
+	# (laid out whole from the start, however much is typed yet: it does not grow as it is typed, and
+	# `_fit_results` sizes it for all of it)
+	over_label.visible_characters_behavior = TextServer.VC_CHARS_AFTER_SHAPING
+	# (beside it on a wide screen, what was destroyed: see `_set_results`)
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 48)
+	columns.add_child(over_label)
+	_over_kills = _label(34, Color(0.55, 1.0, 0.62))
+	_over_kills.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_glow(_over_kills, Color(0.25, 1.0, 0.4, 0.5))
+	_over_kills.visible_characters_behavior = TextServer.VC_CHARS_AFTER_SHAPING
+	_over_kills.visible = false
+	columns.add_child(_over_kills)
+	over_box.add_child(columns)
 	# (the items had, as their pictures with their counts, under a heading)
 	_over_items = VBoxContainer.new()
 	_over_items.add_theme_constant_override("separation", 6)
@@ -7329,12 +7443,14 @@ func _sling(delta: float) -> void:
 		return
 	_sling_wait = maxf(16.0 - 3.0 * level, 6.0)
 	var to := best.ground()
-	var rock := Ps1.model("meteorite")
+	# (a little moon, glowing hot from its fall, fire streaming off it: see `_slinging`)
+	var rock := Ps1.model("moonlet", {}, true)
 	rock.scale = Vector3.ONE * (1.2 + 0.2 * level)
-	var glow := MeshInstance3D.new()
-	glow.mesh = Ps1.ball()
-	glow.material_override = Ps1.own(Color(1.0, 0.5, 0.15), 3.0)
-	glow.scale = Vector3.ONE * 1.6
+	Ps1.flash(rock, Color(0.75, 0.3, 0.05))
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(1.0, 0.55, 0.2)
+	glow.light_energy = 3.0
+	glow.omni_range = 9.0
 	rock.add_child(glow)
 	view.add_child(rock)
 	var from := to + Vector3(randf_range(-25, 25), 70.0, randf_range(-25, 25))

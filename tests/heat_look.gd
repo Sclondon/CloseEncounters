@@ -99,11 +99,12 @@ func _process(delta: float) -> bool:
 				var mt: float = (wt - main.MIB_COME) * main.MIB_PACE
 				_shot("mib_%02d" % int(mt))
 				print("mib t %.1f  a %s  b %s  car %s" % [mt, main._mib_a.visible, main._mib_b.visible, main._mib_car.visible])
-			if wt > main.MIB_COME + 30.0 / main.MIB_PACE:
+			# (on past the men in black to the news vans pulling up)
+			if wt > main.MIB_COME + 40.0 / main.MIB_PACE:
 				var ok: bool = main._mib_a != null and not main._mib_a.visible and not main._mib_b.visible and not main._mib_car.visible
 				print("MIB ALL GONE: ", ok)
 				return true
-			if frame - _crash_at > 3000:
+			if frame - _crash_at > 9000:
 				print("no wreck sequence?")
 				return true
 	return false

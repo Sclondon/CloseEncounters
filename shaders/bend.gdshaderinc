@@ -13,6 +13,8 @@ varying vec3 world;
 // The point in its own model's terms, and which simple texture its material has (ps1.gd PATTERNS)
 varying vec3 local;
 varying float pattern;
+// How much it sways in the wind (a grown tree's leaves: ps1.gd GROWN), and so whether it is leaves
+varying float sway;
 
 vec3 bent(vec3 w) {
 	float d = w.z - bend_focus.z;
@@ -26,6 +28,16 @@ void vertex() {
 	world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	local = VERTEX;
 	pattern = UV2.x;
+	sway = UV2.y;
+	if (sway > 0.0) {
+		// (leaves moving in the wind: a slow lean, gusting through, and a quick flutter)
+		float t = TIME + world.x * 0.21 + world.z * 0.13;
+		float lean = sin(t * 0.9) * 0.6 + sin(t * 2.3 + 1.7) * 0.3;
+		float flutter = sin(TIME * 7.0 + VERTEX.x * 3.1 + VERTEX.y * 2.3 + VERTEX.z * 2.7) * 0.25;
+		world.x += (lean + flutter) * 0.13 * sway;
+		world.z += (lean * 0.5 - flutter) * 0.08 * sway;
+		world.y += flutter * 0.04 * sway;
+	}
 	vec4 clip = PROJECTION_MATRIX * (VIEW_MATRIX * vec4(bent(world), 1.0));
 	if (clip.w > 0.0) {
 		vec2 grid = VIEWPORT_SIZE * 0.5;

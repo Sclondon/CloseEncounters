@@ -979,6 +979,26 @@ def rv():
     return join("rv", p)
 
 
+def news_van():
+    """A TV news van: a white box van with a band of the station's colour round it ("paint", tinted per
+    van), a mast up from its roof with a satellite dish on top tipped to the sky, a roof rack, and the
+    station's name painted on its sides (in the game, see main.gd `_news`)"""
+    p = [box((2.0, 4.2, 1.9), (0, 0.6, 1.35), "white"), box((2.0, 1.5, 1.3), (0, -2.15, 1.05), "white"),
+         box((2.12, 4.32, 0.36), (0, 0.6, 1.0), "paint"), box((2.12, 1.62, 0.36), (0, -2.15, 1.0), "paint"),
+         box((1.7, 0.08, 0.5), (0, -2.94, 1.38), "black"), box((0.08, 0.7, 0.45), (1.03, -2.2, 1.4), "black"),
+         box((0.08, 0.7, 0.45), (-1.03, -2.2, 1.4), "black"), box((1.6, 2.4, 0.12), (0, 1.0, 2.36), "metal_dark")]
+    for side in (-1, 1):
+        for y in (-2.0, 1.8):
+            p += wheel(0.4, 0.3, (0.95 * side, y, 0.4))
+        p.append(box((0.32, 0.06, 0.16), (0.68 * side, -2.94, 0.95), "headlight"))
+        p.append(box((0.22, 0.06, 0.3), (0.82 * side, 2.73, 1.2), "light_red"))
+    # (the mast, and the dish on it facing up and out to the satellite)
+    p += [box((0.5, 0.5, 0.24), (0, -0.6, 2.4), "metal_dark"), drum(0.08, 1.5, (0, -0.6, 3.25), "metal", 6),
+          drum(0.25, 0.3, (0, -0.6, 4.15), "white", 14, (0.6, 0, 0), top=0.85),
+          rod(0.03, (0, -0.6, 4.1), (0, -1.15, 4.75), "metal", 4), ball((0.16, 0.16, 0.16), (0, -1.15, 4.75), "metal_dark", 6, 3)]
+    return join("news_van", p)
+
+
 def cabin():
     p = [box((6.0, 5.0, 2.8), (0, 0, 1.4), "logs"), gable(6.8, 5.8, 2.4, (0, 0, 2.8), "roof"),
          box((1.0, 0.1, 2.0), (0.8, -2.52, 1.0), "door"), box((0.9, 0.1, 0.8), (-1.6, -2.52, 1.6), "window"),
@@ -1478,10 +1498,34 @@ def sasquatch():
     return join("sasquatch", p)
 
 
+def _moonlet(radius, at, seed, craters=9, segs=16, rings=10):
+    """A little moon, as the KRAKKATOOM is (see `meteor`): a pale grey ball `radius` across at `at`,
+    pocked with `craters` craters, each a darker floor in a raised rim, placed by `seed`"""
+    from mathutils import Vector
+    rnd = random.Random(seed)
+    p = [roughen(ball((radius * 2, radius * 2, radius * 1.9), at, "moon_pale", segs, rings), radius * 0.02, seed)]
+    centre = Vector(at)
+    for i in range(craters):
+        az = i * 2.39996 + rnd.uniform(-0.3, 0.3)
+        el = math.asin(rnd.uniform(-0.85, 0.95))
+        size = radius * rnd.uniform(0.14, 0.3)
+        normal = Vector((math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el)))
+        spot = centre + Vector((normal.x * radius, normal.y * radius, normal.z * radius * 0.95))
+        rot = tuple(Vector((0, 0, 1)).rotation_difference(normal).to_euler())
+        p.append(drum(size, radius * 0.09, spot + normal * radius * 0.007, "moon_dark", 10, rot))
+        p.append(_ring(size + radius * 0.013, radius * 0.03 + size * 0.05, spot + normal * radius * 0.02, "moon_pale", 12, 4, rot))
+    return p
+
+
+def moonlet():
+    """A moonlet on its own, about its middle (1.5 m across): the GRAVITY SLING's, and the one the
+    men in black's helicopter brings in to lie in the crater"""
+    return join("moonlet", _moonlet(0.75, (0, 0, 0), 41))
+
+
 def meteorite():
-    return join("meteorite", [roughen(ball((1.3, 1.1, 0.9), (0, 0, 0.4), "black", 7, 4), 0.15, 5),
-                              roughen(ball((0.7, 0.7, 0.6), (0.2, -0.1, 0.7), "meteor_glow", 6, 4), 0.08, 6),
-                              roughen(ball((2.6, 2.6, 0.3), (0, 0, 0.0), "talus", 8, 3), 0.1, 7)])
+    """A meteorite: a little moon come down, sunk in a ring of rubble"""
+    return join("meteorite", _moonlet(0.75, (0, 0, 0.55), 41) + [roughen(ball((2.6, 2.6, 0.3), (0, 0, 0.0), "talus", 8, 3), 0.1, 7)])
 
 
 def crash_site():
@@ -2202,19 +2246,18 @@ def item_armor():
 
 def item_sling():
     """GRAVITY SLING: a slingshot (a wooden Y with a wrapped grip), its bands drawn back to a pouch
-    holding a blazing meteor, a ring of orbiting rock round the fork"""
+    holding a little moon, fire streaming off it, and a ring of moonlets orbiting round the fork"""
     p = [drum(0.06, 0.32, (0, 0, 0.16), "wood_dark", 6), drum(0.068, 0.14, (0, 0, 0.12), "denim", 6),
          drum(0.05, 0.3, (-0.09, 0, 0.42), "wood_dark", 6, (0, -0.5, 0)), drum(0.05, 0.3, (0.09, 0, 0.42), "wood_dark", 6, (0, 0.5, 0))]
     for s in (-1, 1):
         p.append(drum(0.06, 0.05, (0.17 * s, 0, 0.56), "metal", 6))
         p.append(box((0.025, 0.36, 0.025), (0.1 * s, 0.17, 0.53), "red", (0, 0, -0.45 * s)))
     p += [box((0.16, 0.06, 0.1), (0, 0.33, 0.5), "boot"),
-          roughen(ball((0.22, 0.22, 0.22), (0, 0.36, 0.6), "rock", 7, 5), 0.02, 95),
-          ball((0.3, 0.3, 0.3), (0, 0.36, 0.6), "flame", 6, 4),
-          cone(0.12, 0.3, (0, 0.55, 0.68), "flame", 6, (-1.2, 0, 0))]
+          cone(0.11, 0.34, (0, 0.6, 0.66), "flame", 6, (-1.2, 0, 0))]
+    p += _moonlet(0.13, (0, 0.36, 0.6), 95, craters=4, segs=10, rings=6)
     for k in range(5):
         a = k / 5 * math.tau
-        p.append(roughen(ball((0.06, 0.06, 0.05), (0.3 * math.cos(a), 0.3 * math.sin(a), 0.42 + 0.05 * math.sin(a * 2)), "rock", 5, 3), 0.01, 96 + k))
+        p.append(roughen(ball((0.06, 0.06, 0.055), (0.3 * math.cos(a), 0.3 * math.sin(a), 0.42 + 0.05 * math.sin(a * 2)), "moon_pale", 6, 4), 0.004, 96 + k))
     return join("item_sling", p)
 
 
@@ -3172,7 +3215,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             mesa, butte, devils_tower, peak, crag, hydrant, bank, fort_knox, rocket, launch_pad, mission_control, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
             diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, carnival, meteor, track, locomotive, boxcar, caboose, rider, balloon, fish, catfish, frog, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek, sunflower, cabbage, melon, pepper, motorcycle, cult_altar, helicarrier, railgun, laser_truck, fire_truck, ambulance, hospital, fire_station, prison, grain_elevator, chicken_coop, irrigation, feed_bin,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
-            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site, crash_dirt,
+            lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, moonlet, news_van, satellite, crash_site, crash_dirt,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,
             item_engine, item_beam, item_shield, item_dash, item_laser, item_turret, item_missiles, item_cloak,
             item_magnet, item_wide, item_scanner, item_jammer, item_coolant, item_lucky, item_armor, item_swivel, item_sling, item_starbits, item_second_wind, canister, item_nanobots, item_gold, item_emp]

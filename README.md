@@ -43,13 +43,13 @@ lines), DITHER (the PlayStation dither and 15-bit colour, on or off), SHAKE (scr
 (30, 60 or as fast as the screen goes).
 
 **After a crash**: the wreck lies half in the ground in a ring of heaped dirt, burning; the pilot runs for it and
-is gunned down. The score and level orb leave the corner and the **RESULTS** (left-justified under a centred heading, typed out) give the **threat level** they had reached (LOW, GUARDED, ELEVATED, HIGH or SEVERE), what was **analyzed** (taken) by category, the police
+is gunned down. The score and level orb leave the corner and the **RESULTS** (left-justified under a centred heading, typed out; on a wide screen what was destroyed in a column of its own beside the rest; always sized to fit the screen, smaller for a long run, `_fit_results`, `tests/results_look.gd`) give the **threat level** they had reached (LOW, GUARDED, ELEVATED, HIGH or SEVERE), what was **analyzed** (taken) by category, the police
 and army **destroyed** by kind (each section's lines indented under it), the total and best, and the **items**
 had as their holograms with their counts. TO THE MOON flies home; **REPLAY** flies straight up off the wreck into
 the stars and down again onto a new country, the new ship dropping into the picture from above. Watch long enough
 and the **men in black** take over: a black car drives up; one agent zips the pilot into a body bag and carries it
 off to the car and gets in; their Chinook comes in over the wreck, lowers a cable and flies off with it hanging
-underneath; as it goes a second helicopter, a black one, comes in from the other side with a meteorite hanging
+underneath; as it goes a second helicopter, a black one, comes in from the other side with a meteorite (a little pale moon, pocked with craters, as the KRAKKATOOM is: `moonlet` in build_models.py) hanging
 on its own cable, lets it down into the crater in the wreck's place (a thud, a ring of dust), lets go and flies
 off (`_mib_rock`); and only then does the other agent flash the crowd with a memory eraser (they forget and
 wander away) and get back in, before they drive off. `tests/heat_look.gd` (with `mib`) plays it through and
@@ -141,7 +141,7 @@ Everything has a goofy alien name in the pilot's log (`Thing.ALIEN_NAMES` and `M
 **Spaceports**: now and then out in the desert or on the plains, a launch pad with its red service tower and a rocket on it, mission control with its dish, and scientists. Come within 70 m and the countdown starts (T-10 called over the pad), smoke rolls out at ignition, and the rocket lifts off on a column of fire, faster and faster, until it is gone; beam it up first and it is yours ($6000; `main.gd _rocket_launches`). Rodeos and ball games have crowds swaying in the bleachers.
 
 **Rivals hunted**: the police and army shoot at a rival saucer near them as well as at the ship, and police not busy with the ship drive after one. Shot down (`Thing.rival_hp`), it spirals smoking into the ground and leaves its wreck in a ring of heaped dirt, a crashed saucer like any other (`main.gd rival_crashed`). Beaming up a crashed saucer takes only the wreck: its dirt (`crash_dirt`) stays in the ground.
-**Trees**: besides the round deciduous tree, pines, aspens and pinyons there are weeping **willows** leaning over ponds and lakes, tall forked **cottonwoods** in the pastures and out on the plains, and **Joshua trees** among the saguaros in the desert.
+**Trees**: besides the round deciduous tree, pines, aspens and pinyons there are weeping **willows** leaning over ponds and lakes, tall forked **cottonwoods** in the pastures and out on the plains, and **Joshua trees** among the saguaros in the desert. The trees are grown, not modelled: the pines by GameCommon's `PineTree`, and the round tree (an oak), aspens, cottonwoods, willows and pinyons by its `LeafyTree` (`Ps1.GROWN`, `grown_mesh`): a forked trunk under a crown of lumpy leaf clumps ragged with tufts, every facet a shade of its own. Their leaves sway in the wind (`bend.gdshaderinc`, by how much each corner may, in UV2.y), and `ps1.gdshader` cuts them into little leaves, a shade each and dark between, with the sky showing through the crown's edge (`tests/tree_look.gd`).
 
 The moon menu's buttons flicker on like a hologram warming up instead of popping in. Police circling a wreck keep to a ring round it, easing in and out, instead of jittering at its edge.
 
@@ -198,7 +198,7 @@ it holds you. Once there is heat, the patrols lock their lights on and join in, 
 MARKET** opens: its carnival-painted trading saucer appears at once in a puff of confetti and smoke, lit (`MarketShip`; from above by a stage light and left out of the dark laid over the picture, `market_dim.gdshader`), and its beam throws the market onto the screen (`ProjectorBeam`: from above on a phone, from the side on a wide screen), with a choice
 of upgrades (sized for thumbs, biggest on an upright phone). They are items that stack, as in Risk of Rain: each pick is one more of it (up to ten), small at first and growing with the stack (the fleet up to six saucers, rates with floors). The items had show as a row of little tiles under the heat's stars, each a small 3D model of the item (built in Blender, `item_*` in tools/build_models.py) with its stack count, as in Risk of Rain 2; the level-up choices show them too:
 ENGINE (+7% speed), BEAM (lifts faster, and every second level one tier stronger), SHIELD (+15), DASH (one more
-dash charge, refilling a little sooner, two more afterimages), MAGNET (small things drift to the beam), WIDE BEAM, SWIVEL MOUNT (the beam leans a third further out from under the ship), GRAVITY SLING (rare: every 16 s or so, sooner with more, a blazing meteor slung down onto the thickest knot of police and army near, blowing up most of what it lands among), STAR BIT BLASTER (uncommon: sprays Mario Galaxy-style star bits by itself at what the defence laser would aim at, many times as fast but wild and very weak, about sixteen hits adding up to a laser hit; each one knocks what it hits back away from the ship, and they are faceted jewels running through every colour of the rainbow),
+dash charge, refilling a little sooner, two more afterimages), MAGNET (small things drift to the beam), WIDE BEAM, SWIVEL MOUNT (the beam leans a third further out from under the ship), GRAVITY SLING (rare: every 16 s or so, sooner with more, a little moon, glowing hot and trailing fire, slung down onto the thickest knot of police and army near, blowing up most of what it lands among), STAR BIT BLASTER (uncommon: sprays Mario Galaxy-style star bits by itself at what the defence laser would aim at, many times as fast but wild and very weak, about sixteen hits adding up to a laser hit; each one knocks what it hits back away from the ship, and they are faceted jewels running through every colour of the rainbow),
 SCANNER (the radar sees further), JAMMER (they stop looking sooner), COOLANT (the heat cools quicker), NANOBOTS
 (the shield mends itself), GOLD (everything taken worth a tenth more), EMP (a dash sets off a crackling electric blast that stuns and freezes the police and army caught in it; bigger with each, and from the second it paralyses people and animals too), LUCKY CHARM (power-ups turn up more often, and more of them), ARMOR (an eighth less damage a stack), SECOND WIND (each stack shrugs off one fatal hit, the shield back to two fifths), CLOAK, MISSILES, and:
 
@@ -309,7 +309,7 @@ for it.
 **Runs keep**: TO THE MOON from the pause flies home with the run kept (score, level, items, what was taken);
 PLAY becomes CONTINUE for that ship and carries on with it. A crash ends the run for good. QUIT is in the pause
 menu too (in the arcade, or off the web). After a crash the men in black's work is slower, and once they have gone
-two **news vans** pull up by the meteorite, a reporter and a camera crew get out, and the camera's light comes on.
+two **news vans** from rival stations pull up by the meteorite (KBLP 7 ACTION NEWS and WOOO 13 EYEWITNESS NEWS, painted on their sides, each with its satellite dish up on a mast: `news_van`, `NEWS_STATIONS`), a reporter and a camera crew get out, and the camera's light comes on.
 
 ## Layout
 
