@@ -56,7 +56,7 @@ COLOURS = {
     "chrome_leg": (0.75, 0.77, 0.8), "drink": (0.35, 0.95, 0.5), "umbrella": (1.0, 0.5, 0.75), "black_hull": (0.09, 0.09, 0.11), "hull_edge": (0.2, 0.2, 0.24),
     "cooler_red": (0.8, 0.12, 0.1), "cooler_white": (0.93, 0.93, 0.9), "beer": (0.66, 0.38, 0.12), "beer_green": (0.22, 0.6, 0.28), "can_red": (0.85, 0.15, 0.15), "can_silver": (0.8, 0.82, 0.86), "beer_cap": (0.9, 0.75, 0.25),
     "ice": (0.8, 0.92, 1.0), "radio_body": (0.12, 0.12, 0.14), "radio_trim": (0.7, 0.72, 0.75), "speaker": (0.05, 0.05, 0.05),
-    "meteor_rock": (0.24, 0.19, 0.17),
+    "moon_pale": (0.82, 0.81, 0.78), "moon_dark": (0.44, 0.43, 0.42),
     "cloak_dark": (0.2, 0.18, 0.4), "gold_dark": (0.72, 0.5, 0.1), "copper": (0.78, 0.42, 0.18),
 }
 GLOWS = {
@@ -69,7 +69,6 @@ GLOWS = {
     "foo_glow": ((0.85, 0.22, 0.03), 2.5), "booth_sign": ((0.75, 0.88, 1.0), 2.0), "clock_face": ((1.0, 0.95, 0.8), 1.3),
     "sign": ((1.0, 0.85, 0.55), 1.2),
     "laser_glow": ((1.0, 0.3, 0.42), 3.0),
-    "lava": ((1.0, 0.38, 0.06), 3.0), "meteor_fire": ((1.0, 0.85, 0.35), 3.0),
 }
 
 _mats = {}
@@ -1188,23 +1187,24 @@ def carnival():
 
 
 def meteor():
-    """A meteor to fly: a lump of dark space rock, cracked through with glowing lava, its fire streaming
-    out behind it, the pilot under glass in a ring set into its top"""
-    p = [roughen(ball((3.0, 3.0, 2.4), (0, 0, 0), "meteor_rock", 10, 6), 0.11, 21),
-         drum(0.72, 0.5, (0, 0, 1.06), "metal_dark", 14),
-         roughen(ball((1.0, 1.0, 0.5), (0, 0, -1.1), "lava", 8, 4), 0.06, 22)]
-    for i in range(7):
-        a = i / 7 * math.tau + 0.4
-        z = (-0.35, 0.3, -0.05)[i % 3]
-        r = 1.42 * math.sqrt(1.0 - (z / 1.2) ** 2)
-        p.append(roughen(ball((0.62, 0.62, 0.42), (r * math.cos(a), r * math.sin(a), z), "lava", 6, 4), 0.06, 30 + i))
-    # (its fire, streaming back off its tail: a wide orange flame round a bright core)
-    p += [cone(1.1, 2.8, (0, 1.6, 0.0), "flame", 9, (-math.pi / 2, 0, 0)),
-          cone(0.6, 3.4, (0, 1.95, 0.05), "meteor_fire", 7, (-math.pi / 2, 0, 0)),
-          cone(0.55, 1.4, (0.7, 1.2, 0.5), "flame", 6, (-math.pi / 2, 0, 0)),
-          cone(0.55, 1.4, (-0.65, 1.2, -0.3), "flame", 6, (-math.pi / 2, 0, 0))]
+    """A little moon to fly: a pale grey ball pocked with craters, each a darker floor in a raised
+    rim, a faint glow underneath, the pilot under glass in a ring set into its top"""
+    from mathutils import Vector
+    rx, rz = 1.5, 1.4
+    p = [roughen(ball((rx * 2, rx * 2, rz * 2), (0, 0, 0), "moon_pale", 20, 12), 0.03, 21),
+         drum(0.74, 0.5, (0, 0, 1.3), "moon_dark", 14), drum(0.5, 0.12, (0, 0, -1.42), "lights_under", 12)]
+    # (azimuth, elevation, size): none on the very top, where the pilot sits
+    for az, el, size in ((0.3, 0.25, 0.42), (1.4, -0.1, 0.3), (2.3, 0.45, 0.24), (2.9, -0.35, 0.46), (3.9, 0.15, 0.34),
+                         (4.6, 0.55, 0.22), (5.3, -0.2, 0.38), (5.9, 0.6, 0.2), (0.9, -0.65, 0.3), (3.4, -0.75, 0.26),
+                         (1.9, 0.75, 0.18), (4.9, -0.55, 0.22), (0.6, 0.95, 0.2), (3.6, 0.95, 0.22)):
+        at = Vector((rx * math.cos(el) * math.cos(az), rx * math.cos(el) * math.sin(az), rz * math.sin(el)))
+        normal = Vector((at.x / rx ** 2, at.y / rx ** 2, at.z / rz ** 2)).normalized()
+        rot = tuple(Vector((0, 0, 1)).rotation_difference(normal).to_euler())
+        # (the floor a drum standing out of the surface, its face clear of it; the rim round it hides its side)
+        p.append(drum(size, 0.14, at + normal * 0.01, "moon_dark", 10, rot))
+        p.append(_ring(size + 0.02, 0.045 + size * 0.05, at + normal * 0.03, "moon_pale", 14, 5, rot))
     body = join("meteor", p)
-    dome = _dome(0.62, 1.28, 1.0)
+    dome = _dome(0.62, 1.52, 1.0)
     dome.parent = body
     return body
 

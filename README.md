@@ -103,7 +103,7 @@ Chosen on the title screen (left / right, or the arrows), and remembered. Balanc
 | YESTROMO (`tug`), a hauler after the Nostromo | 9.5 | x1.1 | 110 | 10 m | 2: trees and rocks |
 | NEBULONK-B (`frigate`), after the Nebulon-B frigate | 13.5 | x0.85, narrow | 65 | 11 m | 2: trees and rocks |
 | ENTERBLORPRISE (`trek`), a starship of the Federation sort | 12 | x0.8 | 70 | 9.5 m | 2: trees and rocks |
-| KRAKKATOOM (`meteor`), a lump of space rock cracked with lava, its fire streaming behind | 14 | x1.15 | 60 | 9 m | 2: trees and rocks |
+| KRAKKATOOM (`meteor`), a meteorite of a ship: a little pale moon pocked with craters | 14 | x1.15 | 60 | 9 m | 2: trees and rocks |
 | CARNIVORB (`carnival`), the Moon Market's own saucer, held in a facility only once every other ship has been found | 12.5 | x1.0 | 70 | 8.5 m | 2: trees and rocks |
 
 The beam is green, turns **blue** from the second BEAM item and **purple** from the fourth.

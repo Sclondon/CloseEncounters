@@ -157,7 +157,7 @@ const KINDS := {
 	"captured_tug": {"title": "YOU FOUND THE YESTROMO: IT'S YOURS", "model": "tug", "points": 3000, "weight": 3.5, "heat": 1.5, "move": "still", "size": 2.7, "rare": true, "unlock": "tug", "rest_y": 0.55},
 	"captured_frigate": {"title": "YOU FOUND THE NEBULONK-B: IT'S YOURS", "model": "frigate", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "frigate", "rest_y": 0.9},
 	"captured_trek": {"title": "YOU FOUND THE ENTERBLORPRISE: IT'S YOURS", "model": "trek", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "trek", "rest_y": 0.55},
-	"captured_meteor": {"title": "YOU FOUND THE KRAKKATOOM: IT'S YOURS", "model": "meteor", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.2, "rare": true, "unlock": "meteor", "rest_y": 1.3},
+	"captured_meteor": {"title": "YOU FOUND THE KRAKKATOOM: IT'S YOURS", "model": "meteor", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 1.8, "rare": true, "unlock": "meteor", "rest_y": 1.5},
 	# The railway: a train runs the line (`move` "rail", see main.gd _trains), a car of it at a time to take
 	"locomotive": {"points": 700, "weight": 5.0, "heat": 0.5, "move": "rail", "speed": 11.0, "size": 3.6, "tier": 3},
 	"boxcar": {"points": 350, "weight": 4.0, "heat": 0.3, "move": "rail", "speed": 11.0, "size": 3.6, "tier": 2},
