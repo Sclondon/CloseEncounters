@@ -44,6 +44,11 @@ const INTRO_HEIGHT := 320.0
 
 @export var start_mode := "title"
 var autopilot := false
+## The strongest things the autopilot goes for (tests/balance.gd lets it take whatever the beam can)
+var pilot_tier := 1
+## The dev room (`?dev` on the address): every ship unlocked to try, scores not reported or kept
+var dev := false
+var _kept_unlocked: Array[String] = []
 ## Tests run without the title screen's script check and must never save bests
 var testing := false
 ## Leaves the camera where a test put it
@@ -1690,9 +1695,11 @@ func _laser(delta: float) -> void:
 				nearest = j.position.distance_to(ufo.position)
 				target = j
 	if target == null and heat_level() >= 1:
+		# (the police and army by how far off they are on the ground, not up to the ship)
+		nearest = 14.0 + 3.0 * level
 		for t in things:
-			if t.is_enemy() and t.state == "walk" and not t.leaving and t.position.distance_to(ufo.position) < nearest:
-				nearest = t.position.distance_to(ufo.position)
+			if t.is_enemy() and t.state == "walk" and not t.leaving and t.ground().distance_to(ufo.ground()) < nearest:
+				nearest = t.ground().distance_to(ufo.ground())
 				target = t
 	if target == null:
 		return
@@ -3125,7 +3132,7 @@ func _crash(delta: float) -> void:
 	_crush_under_wreck()
 	mode = "over"
 	_over_wait = 2.6
-	var is_best := score > best
+	var is_best := score > best and not dev
 	if is_best:
 		best = score
 		_save_best()
@@ -3762,7 +3769,7 @@ func _glow(l: Label, c: Color) -> void:
 
 ## A finished game's score, told to the arcade page the game is in (it saves it to the board)
 func _report(points: int) -> void:
-	if OS.has_feature("web") and points > 0 and not testing:
+	if OS.has_feature("web") and points > 0 and not testing and not dev:
 		JavaScriptBridge.eval("window.parent.postMessage({ type: 'PLAYER_DIED', score: %d }, '*')" % points)
 
 
@@ -3777,7 +3784,7 @@ func _pilot(delta: float) -> Array:
 		var best_score := -INF
 		for t in things:
 			# (it never catches up with a car)
-			if t.state == "gone" or (t.is_enemy() and mode == "title") or t.info["move"] == "road" or t.tier() > 1 or t.fixed():
+			if t.state == "gone" or (t.is_enemy() and mode == "title") or t.info["move"] == "road" or t.tier() > mini(pilot_tier, ufo.tier) or (t.fixed() and pilot_tier <= 1) or t.kind in ["rival", "pod"]:
 				continue
 			var d := t.ground().distance_to(ufo.ground())
 			if d > 60.0:
@@ -5880,6 +5887,11 @@ func _load_best() -> void:
 		for met: String in cfg.get_value("log", "met", []):
 			if HUNTERS.has(met) and not met in _log_met:
 				_log_met.append(met)
+	# (the dev room: ?dev on the page's address, every ship to try, none of it kept or scored)
+	if OS.has_feature("web") and str(JavaScriptBridge.eval("window.location.search")).contains("dev"):
+		dev = true
+		_kept_unlocked.assign(unlocked)
+		unlocked.assign(Ufo.ORDER)
 
 func _save_best() -> void:
 	if testing:
@@ -5887,7 +5899,7 @@ func _save_best() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("best", "score", best)
 	cfg.set_value("best", "ship", ship)
-	cfg.set_value("best", "unlocked", unlocked)
+	cfg.set_value("best", "unlocked", _kept_unlocked if dev else unlocked)
 	cfg.set_value("log", "taken", _log_taken)
 	cfg.set_value("run", "saved", _saved_run)
 	cfg.set_value("log", "met", _log_met)
@@ -6744,17 +6756,18 @@ func _star_bits(delta: float) -> void:
 	_star_bit_wait -= delta
 	if level == 0 or ufo.dead or mode != "play" or intro > 0.0 or _star_bit_wait > 0.0:
 		return
-	var reach := LASER_REACH + 2.0 * level
+	# (on the ground round about, not as the crow flies from up where the ship is)
+	var reach := 20.0 + 3.0 * level
 	var target: Node3D
 	var nearest := reach
 	for s in shots:
 		if s.kind in ["shell", "missile"] and not s.done and s.position.distance_to(ufo.position) < nearest:
 			nearest = s.position.distance_to(ufo.position)
 			target = s
-	if target == null and heat_level() >= 1:
+	if target == null:
 		for t in things:
-			if t.is_enemy() and t.state == "walk" and not t.leaving and t.position.distance_to(ufo.position) < nearest:
-				nearest = t.position.distance_to(ufo.position)
+			if t.is_enemy() and t.state == "walk" and not t.leaving and t.ground().distance_to(ufo.ground()) < nearest:
+				nearest = t.ground().distance_to(ufo.ground())
 				target = t
 	if target == null:
 		return
