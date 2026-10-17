@@ -2172,6 +2172,9 @@ func _vaporise(t: Thing, how := "BURNT DOWN") -> void:
 	log_line("%s %s" % [Thing.alien_name(t.kind), how], points, t.kind)
 	if t.kind == "prison":
 		_prison_break(at)
+	# (a building comes apart in the very parts it was made of, thrown out and falling back)
+	if t.piecemeal():
+		t.fly_apart(at + Vector3(0, -1.0, 0))
 	_remove(t)
 
 

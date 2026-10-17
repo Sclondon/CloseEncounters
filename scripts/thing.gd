@@ -578,9 +578,10 @@ func piecemeal() -> bool:
 	return category(kind) == "BUILDINGS"
 
 
-## A building in the beam: it stays where it stands, shaking, and comes apart from the top down, its
-## roof and walls breaking off and streaming up into the ship, until there is nothing left of it.
-## Let go, it stands as much of it as is left, and the beam picks up again where it stopped.
+## A building in the beam: it stays where it stands, shaking, and comes apart from the top down, the
+## very parts it was built of (roof, chimney, walls, porch...) breaking off one by one and tumbling up
+## into the ship (see `_split`), until there is nothing left of it. Let go, it stands as much of it as
+## is left, and the beam picks up again where it stopped.
 func _dismantle(delta: float, ufo: Ufo) -> void:
 	if not held:
 		state = "walk"
@@ -594,8 +595,19 @@ func _dismantle(delta: float, ufo: Ufo) -> void:
 		obstacle = Vector4.ZERO
 	lift += delta * ufo.lift_rate / float(info["weight"])
 	var gone := clampf(lift, 0.0, 1.0)
-	# (lower and lower, a little narrower, as it is stripped from the top)
-	model.scale = base_size * Vector3(lerpf(1.0, 0.55, gone), maxf(1.0 - gone, 0.02), lerpf(1.0, 0.55, gone))
+	_split()
+	# (its parts go one by one, the highest first, the last as it is taken)
+	var due := mini(int(gone * float(_parts.size()) + 0.35), _parts.size())
+	while _parts_gone < due:
+		var part: Array = _parts[_parts_gone]
+		_parts_gone += 1
+		if part[4]:
+			continue
+		_take(part, ufo)
+		# (and what is fixed to it and smaller, a window to its wall, so nothing is left in the air)
+		for other: Array in _parts:
+			if not other[4] and float(other[3]) < float(part[3]) and (other[2] as AABB).intersects((part[2] as AABB).grow(0.06)):
+				_take(other, ufo)
 	model.position = Vector3(sin(_t * 31.0) * 0.06, model_y, cos(_t * 27.0) * 0.06)
 	model.rotation = Vector3(sin(_t * 23.0) * 0.02, model.rotation.y, cos(_t * 19.0) * 0.02)
 	Ps1.flash(model, Color(0.15, 0.4, 0.2) * (0.6 + 0.4 * sin(_t * 12.0)))
@@ -604,7 +616,7 @@ func _dismantle(delta: float, ufo: Ufo) -> void:
 		_come_apart(0.0, ufo, 1.0)
 	_piece_wait -= delta
 	while _piece_wait <= 0.0:
-		_piece_wait += 0.02
+		_piece_wait += 0.07
 		var reach := size() * base_size * 0.5
 		var top_y := (1.0 - gone) * size() * base_size * 1.2 + 0.3
 		var at := position + Vector3(randf_range(-reach, reach), top_y * randf_range(0.7, 1.0), randf_range(-reach, reach))
@@ -614,6 +626,206 @@ func _dismantle(delta: float, ufo: Ufo) -> void:
 		game.puff(position + Vector3(randf_range(-1, 1), 0.4, randf_range(-1, 1)), Color(0.55, 0.5, 0.45), 1.4)
 	if lift >= 1.0:
 		game.abducted(self)
+
+
+## A building's own parts, once it has begun to come apart: [the part, the height of its middle, its
+## box in the model, its volume, whether it has gone], the highest first; and how far through them
+## the beam has got
+var _parts: Array = []
+var _parts_gone := 0
+var _was_split := false
+## Each mesh's parts, worked out once a mesh (see `islands`)
+static var _islands := {}
+
+
+## The parts a mesh was put together from in Blender (the boxes, gables and drums joined into it):
+## each a run of triangles whose corners meet, made a mesh of its own about its middle, as
+## [mesh, middle, its box, which surface]
+static func islands(mesh: Mesh) -> Array:
+	var key := mesh.get_instance_id()
+	if _islands.has(key):
+		return _islands[key]
+	var out := []
+	for si in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(si)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var idx = arrays[Mesh.ARRAY_INDEX]
+		var tris := PackedInt32Array()
+		if idx is PackedInt32Array and idx.size() > 0:
+			tris = idx
+		else:
+			for i in verts.size():
+				tris.append(i)
+		# (corners at one place are one corner: flat shading gives each face its own copies)
+		var root: Array[int] = []
+		root.resize(verts.size())
+		var first := {}
+		for i in verts.size():
+			var spot := (verts[i] * 1000.0).round()
+			root[i] = first.get(spot, i)
+			if not first.has(spot):
+				first[spot] = i
+		for t in range(0, tris.size(), 3):
+			var a := _find(root, tris[t])
+			for k in [1, 2]:
+				var b := _find(root, tris[t + k])
+				if a != b:
+					root[b] = a
+		var groups := {}
+		for t in range(0, tris.size(), 3):
+			var g := _find(root, tris[t])
+			if not groups.has(g):
+				groups[g] = []
+			(groups[g] as Array).append_array([tris[t], tris[t + 1], tris[t + 2]])
+		for g in groups:
+			out.append(_island(arrays, groups[g], si))
+	_islands[key] = out
+	return out
+
+
+static func _find(root: Array[int], i: int) -> int:
+	while root[i] != i:
+		root[i] = root[root[i]]
+		i = root[i]
+	return i
+
+
+## One part of a mesh's surface (`arrays`), from its triangles' corners, as a mesh about its middle
+static func _island(arrays: Array, corners: Array, surface: int) -> Array:
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var box := AABB(verts[corners[0]], Vector3.ZERO)
+	for c in corners:
+		box = box.expand(verts[c])
+	var middle := box.get_center()
+	var remap := {}
+	var out := []
+	out.resize(Mesh.ARRAY_MAX)
+	var nv := PackedVector3Array()
+	var nn := PackedVector3Array()
+	var nc := PackedColorArray()
+	var nu := PackedVector2Array()
+	var nu2 := PackedVector2Array()
+	var ni := PackedInt32Array()
+	var normals = arrays[Mesh.ARRAY_NORMAL]
+	var colours = arrays[Mesh.ARRAY_COLOR]
+	var uvs = arrays[Mesh.ARRAY_TEX_UV]
+	var uvs2 = arrays[Mesh.ARRAY_TEX_UV2]
+	for c in corners:
+		if not remap.has(c):
+			remap[c] = nv.size()
+			nv.append(verts[c] - middle)
+			if normals is PackedVector3Array and normals.size() > c:
+				nn.append(normals[c])
+			if colours is PackedColorArray and colours.size() > c:
+				nc.append(colours[c])
+			if uvs is PackedVector2Array and uvs.size() > c:
+				nu.append(uvs[c])
+			if uvs2 is PackedVector2Array and uvs2.size() > c:
+				nu2.append(uvs2[c])
+		ni.append(remap[c])
+	out[Mesh.ARRAY_VERTEX] = nv
+	if nn.size() == nv.size():
+		out[Mesh.ARRAY_NORMAL] = nn
+	if nc.size() == nv.size():
+		out[Mesh.ARRAY_COLOR] = nc
+	if nu.size() == nv.size():
+		out[Mesh.ARRAY_TEX_UV] = nu
+	if nu2.size() == nv.size():
+		out[Mesh.ARRAY_TEX_UV2] = nu2
+	out[Mesh.ARRAY_INDEX] = ni
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, out)
+	return [mesh, middle, box, surface]
+
+
+## Swaps the model's meshes for their parts, each where it was, to come away one at a time
+func _split() -> void:
+	if _was_split:
+		return
+	_was_split = true
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null or not mi.visible:
+			continue
+		var xf := Transform3D.IDENTITY
+		var up: Node = mi
+		while up != model and up is Node3D:
+			xf = (up as Node3D).transform * xf
+			up = up.get_parent()
+		for isl: Array in islands(mi.mesh):
+			var piece := MeshInstance3D.new()
+			piece.mesh = isl[0]
+			var surface: int = isl[3]
+			piece.material_override = mi.material_override if mi.material_override != null \
+				else (mi.get_surface_override_material(surface) if mi.get_surface_override_material(surface) != null else mi.mesh.surface_get_material(surface))
+			piece.transform = Transform3D(xf.basis, xf * (isl[1] as Vector3))
+			piece.layers = mi.layers
+			piece.cast_shadow = mi.cast_shadow
+			piece.extra_cull_margin = mi.extra_cull_margin
+			piece.visibility_range_end = mi.visibility_range_end
+			model.add_child(piece)
+			var box: AABB = xf * (isl[2] as AABB)
+			_parts.append([piece, box.get_center().y, box, box.size.x * box.size.y * box.size.z, false])
+		mi.visible = false
+	_parts.sort_custom(func(a: Array, b: Array) -> bool: return float(a[1]) > float(b[1]))
+
+
+func _take(part: Array, ufo: Ufo) -> void:
+	part[4] = true
+	_take_part(part[0], ufo)
+
+
+## One part breaking away and tumbling up the beam into the ship, shrinking away as it goes in
+func _take_part(piece: MeshInstance3D, ufo: Ufo) -> void:
+	if not is_instance_valid(piece):
+		return
+	piece.reparent(get_parent())
+	var from := piece.global_position
+	var into := ufo.global_position + Vector3(0, -0.8, 0)
+	var turn := piece.rotation + Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * randf_range(3.0, 7.0)
+	var side := Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)) * size() * 0.4
+	var time := randf_range(0.8, 1.2)
+	var tw := piece.create_tween().set_parallel()
+	tw.tween_method(func(k: float) -> void:
+		if is_instance_valid(piece):
+			piece.global_position = from.lerp(into, k * k) + side * sin(k * PI), 0.0, 1.0, time)
+	tw.tween_property(piece, "rotation", turn, time)
+	tw.tween_property(piece, "scale", piece.scale * 0.15, time).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tw.chain().tween_callback(piece.queue_free)
+	if game != null and game.has_method("puff") and randf() < 0.6:
+		game.puff(from, Color(0.55, 0.5, 0.45), 0.8)
+
+
+## Blown up: every part of it still standing thrown out from `from` and up, tumbling, falling back
+## to the ground and lying there a moment before it is gone
+func fly_apart(from: Vector3) -> void:
+	_split()
+	var ground_y := position.y
+	for part: Array in _parts:
+		var piece: MeshInstance3D = part[0]
+		if part[4] or not is_instance_valid(piece):
+			continue
+		part[4] = true
+		piece.reparent(get_parent())
+		var p0 := piece.global_position
+		var out := p0 - from
+		out.y = 0.0
+		out = (out.normalized() if out.length() > 0.05 else Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized())
+		var v0 := out * randf_range(3.0, 8.0) + Vector3(0, randf_range(4.0, 9.0), 0)
+		var spin0 := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * randf_range(4.0, 10.0)
+		var r0 := piece.rotation
+		var rest := maxf(ground_y + 0.15, 0.1)
+		var tw := piece.create_tween()
+		tw.tween_method(func(t: float) -> void:
+			if not is_instance_valid(piece):
+				return
+			var p := p0 + v0 * t + Vector3(0, -9.8, 0) * t * t * 0.5
+			if p.y < rest:
+				p.y = rest
+			piece.global_position = p
+			piece.rotation = r0 + spin0 * minf(t, 1.2), 0.0, 2.0, 2.0)
+		tw.tween_property(piece, "scale", Vector3.ONE * 0.01, 0.5).set_ease(Tween.EASE_IN)
+		tw.tween_callback(piece.queue_free)
+	_parts_gone = _parts.size()
 
 
 func _rise(delta: float, ufo: Ufo) -> void:
