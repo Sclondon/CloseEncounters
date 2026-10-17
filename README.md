@@ -83,24 +83,24 @@ its power runs up the beam into the shield until the station goes dark.
 
 ### Ships
 
-Chosen on the title screen (left / right, or the arrows), and remembered.
+Chosen on the title screen (left / right, or the arrows), and remembered. Balanced with `tools/balance.sh` (2026-10-17): with no upgrades and kept from dying, each earns 30k to 68k in 150 s over the same three countries (the run-to-run spread is about a third either way); the slow-beamed KRYSTALLIX-9 and the very tough BLORPMOTHER earn least.
 
 | Ship | Speed | Beam | Shield | Flies | Beam strength |
 | --- | --- | --- | --- | --- | --- |
 | ZEEBZER (`saucer`), the classic | 12 | x1 | 50 | 8 m | 2: trees and rocks |
-| GLORBULON (`orb`, after the scout ships of *Close Encounters of the Third Kind*) | 9.5 | x1.5, wide | 80 | 6 m (low) | 2: trees and rocks |
-| XELETRON-22 (`triangle`), the black triangle | 15 | x0.6, narrow | 35 | 10.5 m (high) | 1: small things only |
-| FIZZWIGGLER (`foo`), a foo fighter (the balls of light pilots saw in the war): tiny, so hard to hit | 16 | x1.3, narrow | 25 | 5 m (lowest) | 1: small things only |
-| BLORPMOTHER (`cigar`), the cigar-shaped mother ship of the 1950s: huge, so hard to miss | 8.5 | x0.9, widest | 120 | 11 m (highest) | 2: trees and rocks |
-| DINGDONGULUS (`bell`), the bell-shaped scout ship of the 1952 photographs | 10.5 | x0.7 | 40 | 9 m | 4: the land itself |
+| GLORBULON (`orb`, after the scout ships of *Close Encounters of the Third Kind*) | 12.5 | x1.6, wide | 80 | 7 m (low) | 2: trees and rocks |
+| XELETRON-22 (`triangle`), the black triangle | 15 | x1.05, narrow | 35 | 10.5 m (high) | 1: small things only |
+| FIZZWIGGLER (`foo`), a foo fighter (the balls of light pilots saw in the war): tiny, so hard to hit | 16 | x1.3, narrow | 25 | 6.5 m (lowest) | 1: small things only |
+| BLORPMOTHER (`cigar`), the cigar-shaped mother ship of the 1950s: huge, so hard to miss | 8.5 | x0.8, widest | 120 | 11 m (highest) | 2: trees and rocks |
+| DINGDONGULUS (`bell`), the bell-shaped scout ship of the 1952 photographs | 11 | x1.35 | 40 | 9 m | 2: trees and rocks |
 | TIKTAKKORAX (`tictac`), the Nimitz tic tac of 2004: the fastest | 18 | x0.75, narrow | 30 | 7 m | 1: small things only |
-| STARZOID (`saturn`), a ball in a ring of lights | 10.5 | x1.6 (strongest pull) | 55 | 8.5 m | 2: trees and rocks |
-| KRYSTALLIX-9 (`diamond`), a violet crystal | 11 | x0.4 (very slow) | 75 | 9 m | 3: buildings (the only ship that starts able to) |
-| BLOOPUS-7 (`jelly`), a glowing pink jellyfish trailing tentacles | 13 | x1.1, widest | 45 | 7.5 m | 2: trees and rocks |
-| YESTROMO (`tug`), a hauler after the Nostromo | 9.5 | x1.3 | 110 | 10 m | 2: trees and rocks |
-| NEBULONK-B (`frigate`), after the Nebulon-B frigate | 13.5 | x0.95, narrow | 65 | 11 m | 2: trees and rocks |
-| ENTERBLORPRISE (`trek`), a starship of the Federation sort | 14.5 | x1.2 | 70 | 9.5 m | 2: trees and rocks |
-| CARNIVORB (`carnival`), the Moon Market's own saucer, held in a facility only once every other ship has been found | 13 | x1.25 | 70 | 8.5 m | 2: trees and rocks |
+| STARZOID (`saturn`), a ball in a ring of lights | 10.5 | x1.4 | 55 | 8.5 m | 2: trees and rocks |
+| KRYSTALLIX-9 (`diamond`), a violet crystal | 11 | x0.5 (very slow) | 75 | 9 m | 3: buildings (the only ship that starts able to) |
+| BLOOPUS-7 (`jelly`), a glowing pink jellyfish trailing tentacles | 12.5 | x0.95, widest | 45 | 7.5 m | 2: trees and rocks |
+| YESTROMO (`tug`), a hauler after the Nostromo | 9.5 | x1.1 | 110 | 10 m | 2: trees and rocks |
+| NEBULONK-B (`frigate`), after the Nebulon-B frigate | 13.5 | x0.85, narrow | 65 | 11 m | 2: trees and rocks |
+| ENTERBLORPRISE (`trek`), a starship of the Federation sort | 12 | x0.8 | 70 | 9.5 m | 2: trees and rocks |
+| CARNIVORB (`carnival`), the Moon Market's own saucer, held in a facility only once every other ship has been found | 12.5 | x1.0 | 70 | 8.5 m | 2: trees and rocks |
 
 The beam is green, turns **blue** from the second BEAM item and **purple** from the fourth.
 

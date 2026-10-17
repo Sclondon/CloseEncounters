@@ -196,6 +196,11 @@ var _hurt := 0.0
 var _over_wait := 0.0
 var _last_level := 0
 var _pilot_target: Thing
+## How long it has been after its target (it gives up on one it cannot get, see `_pilot`), and the way
+## it roams when there is nothing near worth taking
+var _pilot_for := 0.0
+var _pilot_roam := Vector2(0.6, -0.8)
+var _pilot_roam_for := 0.0
 var _pilot_wander := Vector3.ZERO
 
 # The HUD
@@ -3780,11 +3785,17 @@ func _report(points: int) -> void:
 func _pilot(delta: float) -> Array:
 	if _pilot_target != null and (not is_instance_valid(_pilot_target) or _pilot_target.state == "gone"):
 		_pilot_target = null
+	# (after the same one too long without it coming up: it cannot be got, so on to another)
+	_pilot_for += delta
+	if _pilot_target != null and _pilot_for > 8.0 and _pilot_target.state != "lifted":
+		_pilot_target.set_meta("pilot_skip", true)
+		_pilot_target = null
 	if _pilot_target == null:
+		_pilot_for = 0.0
 		var best_score := -INF
 		for t in things:
 			# (it never catches up with a car)
-			if t.state == "gone" or (t.is_enemy() and mode == "title") or t.info["move"] == "road" or t.tier() > mini(pilot_tier, ufo.tier) or (t.fixed() and pilot_tier <= 1) or t.kind in ["rival", "pod"]:
+			if t.state == "gone" or (t.is_enemy() and mode == "title") or t.info["move"] == "road" or t.tier() > mini(pilot_tier, ufo.tier) or (t.fixed() and pilot_tier <= 1) or t.kind in ["rival", "pod"] or t.has_meta("pilot_skip"):
 				continue
 			var d := t.ground().distance_to(ufo.ground())
 			if d > 60.0:
@@ -3794,7 +3805,14 @@ func _pilot(delta: float) -> Array:
 				best_score = worth
 				_pilot_target = t
 	if _pilot_target == null:
-		return [Vector2.ZERO, false]
+		if mode != "play":
+			return [Vector2.ZERO, false]
+		# (nothing near worth taking: on across the country, turning now and then, to find some)
+		_pilot_roam_for -= delta
+		if _pilot_roam_for <= 0.0:
+			_pilot_roam_for = randf_range(6.0, 12.0)
+			_pilot_roam = _pilot_roam.rotated(randf_range(-1.2, 1.2))
+		return [_pilot_roam, false]
 	var to := _pilot_target.ground() - ufo.ground()
 	var flat := Vector2(to.x, to.z)
 	var over := flat.length() < 1.2 or _pilot_target.state == "lifted"
@@ -6616,11 +6634,13 @@ class DashOrb extends Control:
 			var ay := c.y
 			var fill := clampf(charge - i, 0.0, 1.0)
 			var tip := [Vector2(ax, ay - 16 * k), Vector2(ax + 16 * k, ay), Vector2(ax, ay + 16 * k), Vector2(ax + 7 * k, ay + 16 * k), Vector2(ax + 23 * k, ay), Vector2(ax + 7 * k, ay - 16 * k)]
-			var lit := Color(0.45, 1.0, 0.55) if fill >= 1.0 else Color(0.25, 0.3, 0.28).lerp(Color(0.35, 0.6, 0.4), fill)
+			# (bright over the liquid behind them: near white when ready, grey while filling)
+			var lit := Color(0.92, 1.0, 0.9) if fill >= 1.0 else Color(0.5, 0.55, 0.52).lerp(Color(0.8, 0.9, 0.82), fill)
+			draw_polyline(PackedVector2Array(tip + [tip[0]]), Color(0.0, 0.08, 0.03, 0.85), 5.0)
 			if fill >= 1.0:
 				draw_colored_polygon(PackedVector2Array([tip[0], tip[5], tip[4], tip[1]]), lit)
 				draw_colored_polygon(PackedVector2Array([tip[1], tip[4], tip[3], tip[2]]), lit)
-			draw_polyline(PackedVector2Array(tip + [tip[0]]), Color(0.75, 1.0, 0.78) if fill >= 1.0 else lit, 2.0)
+			draw_polyline(PackedVector2Array(tip + [tip[0]]), lit, 2.0)
 		draw_arc(c, r, 0, TAU, 48, Color(0.6, 1.0, 0.7, 0.9), 3.0)
 		draw_arc(c + Vector2(-r * 0.3, -r * 0.35), r * 0.45, PI * 1.05, PI * 1.45, 12, Color(1, 1, 1, 0.5), 3.0)
 
@@ -6632,7 +6652,7 @@ class DashOrb extends Control:
 		var t := Time.get_ticks_msec() / 1000.0
 		var dy := r - 2.0 * r * level
 		if level >= 0.99:
-			draw_circle(c, r, Color(0.25, 0.9, 0.4, 0.5 + 0.08 * sin(t * 4.0)))
+			draw_circle(c, r, Color(0.15, 0.6, 0.28, 0.45 + 0.08 * sin(t * 4.0)))
 			return
 		var half := sqrt(maxf(r * r - dy * dy, 0.0))
 		# (the surface laps less the shallower it is, so it never dips through the bottom of the orb)
@@ -6646,7 +6666,7 @@ class DashOrb extends Control:
 		var y := dy + wave
 		while y < r:
 			var w := sqrt(maxf(r * r - y * y, 0.0))
-			draw_line(c + Vector2(-w, y), c + Vector2(w, y), Color(0.2, 0.75, 0.32, 0.55), 2.0)
+			draw_line(c + Vector2(-w, y), c + Vector2(w, y), Color(0.13, 0.55, 0.24, 0.5), 2.0)
 			y += 2.0
 		draw_polyline(points.slice(0, WAVE + 1), Color(0.6, 1.0, 0.65, 0.85), 2.0)
 		# (bubbles rising through it)
