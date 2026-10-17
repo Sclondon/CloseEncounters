@@ -49,6 +49,9 @@ var pilot_tier := 1
 ## The dev room (`?dev` on the address): every ship unlocked to try, scores not reported or kept
 var dev := false
 var _kept_unlocked: Array[String] = []
+var _dev_typed := ""
+var _dev_taps := 0
+var _dev_tapped := 0.0
 ## Tests run without the title screen's script check and must never save bests
 var testing := false
 ## Leaves the camera where a test put it
@@ -5745,6 +5748,21 @@ func _layout_touch() -> void:
 ## Touches are read here, before the interface sees them (as Liquid Metal does), so nothing on the
 ## screen can swallow them; only a finger that comes down on the pause button is left to it
 func _input(event: InputEvent) -> void:
+	# The dev room, on the title: D, E, V typed, or seven quick taps on the game's name
+	if mode == "title" and title_box.visible:
+		if event is InputEventKey and event.pressed and not event.echo:
+			_dev_typed = (_dev_typed + OS.get_keycode_string(event.keycode)).right(3).to_upper()
+			if _dev_typed == "DEV":
+				_dev_typed = ""
+				toggle_dev()
+		var tap: bool = event is InputEventScreenTouch and event.pressed or event is InputEventMouseButton and event.pressed
+		if tap and _title_label != null and screen_rect(_title_label).grow(20).has_point(event.position):
+			var now := Time.get_ticks_msec() / 1000.0
+			_dev_taps = _dev_taps + 1 if now - _dev_tapped < 0.6 else 1
+			_dev_tapped = now
+			if _dev_taps >= 7:
+				_dev_taps = 0
+				toggle_dev()
 	if _touch_debug and (event is InputEventScreenTouch or event is InputEventMouseButton or (event is InputEventScreenDrag and Engine.get_process_frames() % 12 == 0)):
 		_debug_line("%s | %s%s" % [event.as_text(), mode, " PAUSED" if get_tree().paused else ""])
 	# Five quick taps on the alien coin turn the touch readout on or off (to see what a phone sends)
@@ -5905,7 +5923,7 @@ func _load_best() -> void:
 		for met: String in cfg.get_value("log", "met", []):
 			if HUNTERS.has(met) and not met in _log_met:
 				_log_met.append(met)
-	# (the dev room: ?dev on the page's address, every ship to try, none of it kept or scored)
+	# (the dev room straight away with ?dev on the page's address, outside the arcade: see `toggle_dev`)
 	if OS.has_feature("web") and str(JavaScriptBridge.eval("window.location.search")).contains("dev"):
 		dev = true
 		_kept_unlocked.assign(unlocked)
@@ -7124,3 +7142,20 @@ func _rocket_launches(delta: float) -> void:
 			puff(foot + Vector3(randf_range(-1, 1), -2.0, randf_range(-1, 1)), Color(0.8, 0.8, 0.78), randf_range(2.0, 3.0))
 		if t.position.y > 220.0:
 			_remove(t)
+
+
+## The dev room on or off (D-E-V typed on the title, or seven taps on its name): every ship to try
+## while it is on, the ships really found kept aside; nothing from it saved or sent to the scoreboard
+func toggle_dev() -> void:
+	dev = not dev
+	if dev:
+		_kept_unlocked.assign(unlocked)
+		unlocked.assign(Ufo.ORDER)
+	else:
+		unlocked.assign(_kept_unlocked)
+		if not ship in unlocked:
+			ship = "saucer"
+	_show_ship()
+	sfx.play("ding", 0.8 if dev else 0.5, 0.0)
+	# (said over the ship parked on the moon, where it shows on the title)
+	_popup("DEV ROOM: EVERY SHIP" if dev else "DEV ROOM OFF", ufo.position + Vector3(0, 3.0, 0), Color(1.0, 0.85, 0.4))
