@@ -6981,13 +6981,17 @@ func _title_flicker(delta: float) -> void:
 
 
 ## The STAR BIT BLASTER: star bits sprayed by themselves at whatever the defence laser would aim
-## at, far quicker than it fires, but wild and weak: each one that hits does a fraction of a laser
-## hit (STAR_BIT_HIT, more with each level; enough of them add up to one, see `_laser_hit`), and
-## now and then one knocks a shell or a missile out of the air
+## at, far quicker than it fires, but wild and weak: each one that hits does a small fraction of a
+## laser hit (STAR_BIT_HIT, a little more with each level; enough of them add up to one, see
+## `_laser_hit`) and knocks what it hits back away from the ship (STAR_BIT_SHOVE), and now and then
+## one knocks a shell or a missile out of the air. They are jewels, every colour of the rainbow,
+## each running through them as it flies.
 const STAR_BIT_EVERY := 0.11
 const STAR_BIT_SPEED := 30.0
-const STAR_BIT_HIT := 0.18
-const STAR_BIT_COLOURS: Array[Color] = [Color(1.0, 0.95, 0.35), Color(1.0, 0.45, 0.75), Color(0.45, 0.8, 1.0), Color(0.55, 1.0, 0.5), Color(0.8, 0.55, 1.0), Color(1.0, 0.6, 0.3)]
+const STAR_BIT_HIT := 0.06
+## How hard a star bit knocks what it hits away (m/s, added up and dying away; at most STAR_BIT_SHOVE_MAX)
+const STAR_BIT_SHOVE := 3.2
+const STAR_BIT_SHOVE_MAX := 9.0
 var _star_bit_wait := 0.0
 var _star_bit_mesh: ArrayMesh
 ## In the air: {node, velocity, life}
@@ -7022,21 +7026,24 @@ func _star_bits(delta: float) -> void:
 	way = way.rotated(way.cross(Vector3.UP).normalized() if absf(way.y) < 0.98 else Vector3.RIGHT, randf_range(-0.2, 0.2))
 	var bit := MeshInstance3D.new()
 	bit.mesh = _star_bit()
-	bit.material_override = Ps1.own(STAR_BIT_COLOURS.pick_random(), 2.2)
+	var hue := randf()
+	bit.material_override = Ps1.own(Color.from_hsv(hue, 0.9, 1.0), 1.1, 0.6)
 	bit.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	bit.position = from
 	bit.rotation = Vector3(randf() * TAU, randf() * TAU, 0)
 	view.add_child(bit)
-	_star_bits_out.append({"node": bit, "velocity": way * STAR_BIT_SPEED, "life": 1.2, "spin": Vector3(randf_range(-12, 12), randf_range(-12, 12), 0)})
+	_star_bits_out.append({"node": bit, "velocity": way * STAR_BIT_SPEED, "life": 1.2, "hue": hue, "spin": Vector3(randf_range(-12, 12), randf_range(-12, 12), 0)})
 	if randf() < 0.3:
 		sfx.play("ding", randf_range(2.2, 2.8), -18.0)
 
 
 func _fly_star_bits(delta: float) -> void:
-	var hit_power: float = STAR_BIT_HIT * (1.0 + 0.25 * (int(upgrades["starbits"]) - 1))
+	var hit_power: float = STAR_BIT_HIT * (1.0 + 0.15 * (int(upgrades["starbits"]) - 1))
 	for b: Dictionary in _star_bits_out.duplicate():
 		var node: MeshInstance3D = b["node"]
 		b["life"] -= delta
+		# (a jewel running through the colours of the rainbow as it flies)
+		(node.material_override as ShaderMaterial).set_shader_parameter("tint", Color.from_hsv(fposmod(float(b["hue"]) + float(b["life"]) * 1.4, 1.0), 0.9, 1.0))
 		node.position += (b["velocity"] as Vector3) * delta
 		node.rotation += (b["spin"] as Vector3) * delta
 		var done: bool = b["life"] <= 0.0 or node.position.y < 0.1
@@ -7053,6 +7060,10 @@ func _fly_star_bits(delta: float) -> void:
 				if t.is_enemy() and t.state == "walk" and t.ground().distance_to(Vector3(node.position.x, 0, node.position.z)) < t.size() * 0.6 + 0.5 and node.position.y < 3.0:
 					done = true
 					ufo.puffs.spark(node.position, Vector3(randf_range(-2, 2), 3.0, randf_range(-2, 2)), (node.material_override as ShaderMaterial).get_shader_parameter("tint"))
+					var away := t.ground() - ufo.ground()
+					away.y = 0.0
+					if away.length() > 0.01:
+						t.shove = (t.shove + away.normalized() * STAR_BIT_SHOVE).limit_length(STAR_BIT_SHOVE_MAX)
 					var dealt: float = float(t.get_meta("star_bits", 0.0)) + hit_power
 					if dealt >= 1.0:
 						dealt -= 1.0
@@ -7065,25 +7076,29 @@ func _fly_star_bits(delta: float) -> void:
 			_star_bits_out.erase(b)
 
 
-## A star bit: a little five-pointed star, puffed out front and back (made once)
+## A star bit: a little five-pointed star, puffed out front and back and cut in facets like a jewel
+## (made once)
 func _star_bit() -> ArrayMesh:
 	if _star_bit_mesh != null:
 		return _star_bit_mesh
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# (flat: no facet shares its corners' normals with the next)
+	st.set_smooth_group(0xFFFFFFFF)
 	var rim: Array[Vector3] = []
 	for i in 10:
 		var a := i * TAU / 10.0
-		var r := 0.28 if i % 2 == 0 else 0.12
+		var r := 0.46 if i % 2 == 0 else 0.2
 		rim.append(Vector3(cos(a) * r, sin(a) * r, 0.0))
 	for face: float in [1.0, -1.0]:
-		var tip := Vector3(0, 0, 0.1 * face)
+		var tip := Vector3(0, 0, 0.18 * face)
 		for i in 10:
 			var a: Vector3 = rim[i]
 			var b: Vector3 = rim[(i + 1) % 10]
 			for v: Vector3 in ([tip, a, b] if face > 0.0 else [tip, b, a]):
-				st.set_normal(Vector3(0, 0, face))
 				st.add_vertex(v)
+	# (each facet its own way, so they catch the light one by one as it tumbles)
+	st.generate_normals()
 	_star_bit_mesh = st.commit()
 	return _star_bit_mesh
 

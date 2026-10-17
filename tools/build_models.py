@@ -65,7 +65,7 @@ GLOWS = {
     "lights_under": ((0.5, 1.0, 0.6), 3.0), "headlight": ((1.0, 0.95, 0.8), 2.0),
     "flame": ((1.0, 0.55, 0.15), 3.0), "neon": ((1.0, 0.35, 0.6), 3.0),
     "light_red": ((1.0, 0.2, 0.15), 3.0), "light_blue": ((0.3, 0.5, 1.0), 3.0), "light_white": ((1.0, 1.0, 0.95), 3.0),
-    "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "pod_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0), "crystal": ((0.5, 0.28, 0.85), 0.55), "neon_pink": ((1.0, 0.3, 0.6), 2.5), "neon_blue": ((0.3, 0.7, 1.0), 2.5), "screen_glow": ((0.75, 0.85, 1.0), 1.3), "jelly": ((0.95, 0.28, 0.62), 0.3), "jelly_glow": ((0.6, 0.9, 1.0), 2.0),
+    "light_amber": ((1.0, 0.65, 0.2), 3.0), "meteor_glow": ((0.4, 1.0, 0.5), 2.5), "pod_glow": ((0.4, 1.0, 0.5), 2.5), "spark": ((0.5, 0.8, 1.0), 3.0), "orb_glow": ((1.0, 0.6, 0.25), 2.0), "crystal": ((0.22, 0.6, 1.0), 0.55), "neon_pink": ((1.0, 0.3, 0.6), 2.5), "neon_blue": ((0.3, 0.7, 1.0), 2.5), "screen_glow": ((0.75, 0.85, 1.0), 1.3), "jelly": ((0.95, 0.28, 0.62), 0.3), "jelly_glow": ((0.6, 0.9, 1.0), 2.0),
     "foo_glow": ((0.85, 0.22, 0.03), 2.5), "booth_sign": ((0.75, 0.88, 1.0), 2.0), "clock_face": ((1.0, 0.95, 0.8), 1.3),
     "sign": ((1.0, 0.85, 0.55), 1.2),
     "laser_glow": ((1.0, 0.3, 0.42), 3.0),
@@ -1239,7 +1239,7 @@ def saturn():
 
 
 def diamond():
-    """A crystal of light: two six-sided pyramids point to point, glowing violet, a ring of white
+    """A crystal of light: two six-sided pyramids point to point, glowing pale blue, a ring of white
     lights round its widest, the pilot under glass in its top"""
     p = [lathe("diamond_hull", [(0.02, -1.7), (2.1, 0.0), (0.7, 1.2), (0.02, 1.25)],
                ["crystal", "crystal", "hull_edge", "hull_edge"], sides=6),
@@ -2944,20 +2944,49 @@ def tug():
     return _ship("tug", p, 0.5, 0.69, shift=(0, -0.74, 0), k=0.68)
 
 
+def _taper(name, back, front, m):
+    """A block tapering from one end to the other along y: each end is (y, width, height, middle z)"""
+    import bmesh
+    verts = []
+    for y, w, h, z in (back, front):
+        verts += [(-w / 2, y, z - h / 2), (w / 2, y, z - h / 2), (w / 2, y, z + h / 2), (-w / 2, y, z + h / 2)]
+    faces = [(0, 1, 2, 3), (7, 6, 5, 4), (0, 4, 5, 1), (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0)]
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(mesh)
+    bm.free()
+    o = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(o)
+    return _done(o, m)
+
+
 def frigate():
-    """A frigate after the Nebulon-B: a tall forward section with a strut and crossbar hung under it,
-    a long thin spine with the pilot's pod at its middle, and a deep engine section behind glowing blue"""
-    p = [box((1.4, 2.8, 1.8), (0, -3.6, 0.9), "white"), box((0.9, 2.0, 0.5), (0, -4.0, 2.0), "metal"),
-         rod(0.15, (0, -4.0, 0.1), (0, -3.4, -1.1), "metal_dark", 6), box((2.8, 0.2, 0.2), (0, -3.4, -1.1), "metal"),
-         box((0.35, 4.4, 0.35), (0, -0.2, 0.1), "metal"), box((0.2, 4.4, 0.6), (0, -0.2, -0.3), "metal_dark"),
-         box((2.6, 2.6, 1.6), (0, 2.8, -0.2), "white"), box((2.0, 0.2, 1.1), (0, 4.15, -0.2), "light_blue"),
-         box((1.2, 1.4, 0.6), (0, 2.4, 0.9), "metal"), drum(0.8, 0.5, (0, -0.375, 0.2), "metal", 14)]
+    """A frigate after the Nebulon-B: a tall wedge of a bow with the bridge on its back and a keel boom
+    hung under it carrying a sensor pod, a slim spine back to the engines with the pilot's pod at its
+    middle, and a tapered six-sided engine block with three blue engines, two engine pods beside it
+    and red fins above and below"""
+    p = [_taper("frigate_bow", (-1.4, 1.3, 2.2, 0.5), (-3.4, 0.5, 0.9, 0.5), "white"),
+         box((0.8, 0.7, 0.3), (0, -1.75, 1.7), "metal"), box((0.6, 0.05, 0.12), (0, -2.125, 1.72), "window"),
+         rod(0.12, (0, -2.4, -0.2), (0, -1.6, -1.5), "metal_dark", 6),
+         ball((0.7, 1.1, 0.6), (0, -1.55, -1.6), "white", 10, 6), ball((0.24, 0.24, 0.24), (0, -2.08, -1.6), "light_red", 6, 3),
+         box((0.3, 3.2, 0.35), (0, -0.1, 0.0), "metal"), drum(0.6, 0.45, (0, 0, 0.05), "metal", 14),
+         drum(0.35, 0.14, (0, 0, -0.22), "lights_under", 10),
+         drum(1.0, 2.0, (0, 2.2, 0.0), "white", 6, (math.pi / 2, 0, 0), top=0.75),
+         box((0.08, 1.2, 0.7), (0, 2.4, 1.1), "red"), box((0.08, 1.2, 0.7), (0, 2.4, -1.1), "red")]
+    for x, z in ((-0.45, 0.25), (0.45, 0.25), (0.0, -0.45)):
+        p.append(drum(0.26, 0.16, (x, 3.28, z), "light_blue", 10, (math.pi / 2, 0, 0)))
     for s in (-1, 1):
-        p.append(box((0.6, 2.0, 0.9), (1.5 * s, 2.6, -0.4), "white"))
-        p.append(box((0.5, 0.15, 0.7), (1.5 * s, 3.65, -0.4), "light_blue"))
-    # (seven tenths the size it was, about its middle: at 12 m it filled a phone's screen, and with the
-    # pilot at the bow the stern swung far out on every turn)
-    return _ship("frigate", p, 0.48, 0.3, shift=(0, 0.375, 0), k=0.7)
+        p += [drum(0.3, 1.6, (1.05 * s, 2.3, -0.2), "white", 8, (math.pi / 2, 0, 0)),
+              drum(0.22, 0.12, (1.05 * s, 3.14, -0.2), "light_blue", 8, (math.pi / 2, 0, 0)),
+              ball((0.2, 0.2, 0.2), (1.05 * s, 1.5, -0.2), "light_red" if s < 0 else "light_white", 6, 3)]
+    # (built about the pilot's seat, in the pod at the middle of the spine)
+    body = join("frigate", p)
+    dome = _dome(0.45, 0.27, 1.0)
+    dome.parent = body
+    return body
 
 
 def trek():

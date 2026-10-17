@@ -155,7 +155,7 @@ const KINDS := {
 	"captured_jelly": {"title": "YOU FOUND THE BLOOPUS-7: IT'S YOURS", "model": "jelly", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "jelly", "rest_y": 2.0},
 	"captured_carnival": {"title": "YOU FOUND THE CARNIVORB: IT'S YOURS", "model": "carnival", "points": 5000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "carnival", "rest_y": 0.9},
 	"captured_tug": {"title": "YOU FOUND THE YESTROMO: IT'S YOURS", "model": "tug", "points": 3000, "weight": 3.5, "heat": 1.5, "move": "still", "size": 2.7, "rare": true, "unlock": "tug", "rest_y": 0.55},
-	"captured_frigate": {"title": "YOU FOUND THE NEBULONK-B: IT'S YOURS", "model": "frigate", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "frigate", "rest_y": 0.9},
+	"captured_frigate": {"title": "YOU FOUND THE NEBULONK-B: IT'S YOURS", "model": "frigate", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "frigate", "rest_y": 1.9},
 	"captured_trek": {"title": "YOU FOUND THE ENTERBLORPRISE: IT'S YOURS", "model": "trek", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "trek", "rest_y": 0.55},
 	"captured_meteor": {"title": "YOU FOUND THE KRAKKATOOM: IT'S YOURS", "model": "meteor", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 1.8, "rare": true, "unlock": "meteor", "rest_y": 1.5},
 	# The railway: a train runs the line (`move` "rail", see main.gd _trains), a car of it at a time to take
@@ -715,7 +715,15 @@ func _fall(delta: float) -> void:
 		game.landed(self, fall_from, thrown)
 
 
+## Knocked back along the ground (by star bits, see main.gd `_fly_star_bits`), dying away
+var shove := Vector3.ZERO
+
+
 func _walk(delta: float, ufo: Ufo) -> void:
+	if shove.length_squared() > 0.01:
+		position += shove * delta
+		position = game.world.push_out(position, size() * 0.5)
+		shove = shove.lerp(Vector3.ZERO, minf(delta * 3.5, 1.0))
 	if net_to != Vector3.INF:
 		# (another player's game is the one moving it: it goes where that says, see Coop)
 		position = position.lerp(net_to, 1.0 - exp(-8.0 * delta))

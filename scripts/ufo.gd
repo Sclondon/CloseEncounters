@@ -47,7 +47,7 @@ const SHIPS := {
 		"about": "A ball in a ring. The strongest pull of any beam.", "ghost": Color(0.5, 0.75, 1.0)},
 	"diamond": {"title": "KRYSTALLIX-9", "model": "diamond", "speed": 11.0, "lift": 0.5, "hull": 75.0, "tier": 3, "altitude": 9.0,
 		"radius": 2.2, "beam_foot": 3.0, "alien_y": 1.2, "alien_size": 0.5, "spin": true,
-		"about": "A crystal of light. Takes buildings, but its beam is painfully slow.", "ghost": Color(0.75, 0.45, 1.0)},
+		"about": "A crystal of light. Takes buildings, but its beam is painfully slow.", "ghost": Color(0.55, 0.85, 1.0)},
 	"jelly": {"title": "BLOOPUS-7", "model": "jelly", "speed": 12.5, "lift": 0.95, "hull": 45.0, "tier": 2, "altitude": 7.5,
 		"radius": 2.5, "beam_foot": 3.5, "alien_y": 1.4, "alien_size": 0.5, "spin": true,
 		"about": "A jellyfish of a ship. The widest, gentlest beam.", "ghost": Color(1.0, 0.5, 0.8)},
