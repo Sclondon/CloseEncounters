@@ -1,8 +1,8 @@
 extends SceneTree
 ## Pictures of the newer ships and upgrades to look over (needs a window; try a phone's shape too,
 ## --resolution 390x844 or 844x390):
-##   godot --path . --fixed-fps 60 --resolution 1280x720 -s res://tests/look_ships.gd -- <out dir>
-## fly_<ship> and close_<ship> for the tic tac, saturn and diamond; laser (a bolt at the police);
+##   godot --path . --fixed-fps 60 --resolution 1280x720 -s res://tests/look_ships.gd -- <out dir> [ship,ship,...|all] [only]
+## fly_<ship> and close_<ship> for each ship named (the jelly if none; "only" skips the rest); laser (a bolt at the police);
 ## fleet (the little saucers beaming up chickens); captured (a ship held in a secret facility)
 
 var main: Node
@@ -25,7 +25,10 @@ func _initialize() -> void:
 	main.testing = true
 	main.start_mode = "play"
 	root.add_child(main)
-	for s: String in ["jelly"]:
+	var ships: Array = ["jelly"]
+	if args.size() > 1:
+		ships = Array(Ufo.ORDER) if args[1] == "all" else Array(args[1].split(","))
+	for s: String in ships:
 		plan.append(func() -> String:
 			close = false
 			main.hold_camera = false
@@ -37,6 +40,8 @@ func _initialize() -> void:
 			close = true
 			main.hold_camera = true
 			return "close_" + s)
+	if args.size() > 2 and args[2] == "only":
+		return
 	plan.append(func() -> String:
 		close = false
 		main.hold_camera = false
@@ -92,6 +97,9 @@ func _process(_delta: float) -> bool:
 		var r: float = main.ufo.radius
 		c.position = main.ufo.position + Vector3(r * 0.9, 1.0 + r * 0.45, r * 2.0)
 		c.look_at(main.ufo.position + Vector3(0, 0.3, 0))
+		# (a held camera leaves these where they were: the ship would be drawn see-through)
+		RenderingServer.global_shader_parameter_set("saucer_pos", main.ufo.position)
+		RenderingServer.global_shader_parameter_set("bend_focus", Vector3(main.ufo.position.x, 0.0, main.ufo.position.z))
 	if wait == 1:
 		var name: String = plan[at].call()
 		set_meta("name", name)

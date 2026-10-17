@@ -56,6 +56,7 @@ COLOURS = {
     "chrome_leg": (0.75, 0.77, 0.8), "drink": (0.35, 0.95, 0.5), "umbrella": (1.0, 0.5, 0.75), "black_hull": (0.09, 0.09, 0.11), "hull_edge": (0.2, 0.2, 0.24),
     "cooler_red": (0.8, 0.12, 0.1), "cooler_white": (0.93, 0.93, 0.9), "beer": (0.66, 0.38, 0.12), "beer_green": (0.22, 0.6, 0.28), "can_red": (0.85, 0.15, 0.15), "can_silver": (0.8, 0.82, 0.86), "beer_cap": (0.9, 0.75, 0.25),
     "ice": (0.8, 0.92, 1.0), "radio_body": (0.12, 0.12, 0.14), "radio_trim": (0.7, 0.72, 0.75), "speaker": (0.05, 0.05, 0.05),
+    "meteor_rock": (0.24, 0.19, 0.17),
     "cloak_dark": (0.2, 0.18, 0.4), "gold_dark": (0.72, 0.5, 0.1), "copper": (0.78, 0.42, 0.18),
 }
 GLOWS = {
@@ -68,6 +69,7 @@ GLOWS = {
     "foo_glow": ((0.85, 0.22, 0.03), 2.5), "booth_sign": ((0.75, 0.88, 1.0), 2.0), "clock_face": ((1.0, 0.95, 0.8), 1.3),
     "sign": ((1.0, 0.85, 0.55), 1.2),
     "laser_glow": ((1.0, 0.3, 0.42), 3.0),
+    "lava": ((1.0, 0.38, 0.06), 3.0), "meteor_fire": ((1.0, 0.85, 0.35), 3.0),
 }
 
 _mats = {}
@@ -699,8 +701,8 @@ def floodlight():
 
 def ufo():
     p = [ball((5.2, 5.2, 0.9), (0, 0, 0), "metal", 16, 6), drum(2.65, 0.14, (0, 0, 0), "metal_dark", 16),
-         drum(1.5, 0.5, (0, 0, -0.35), "metal_dark", 12, top=1.0), drum(1.0, 0.06, (0, 0, -0.6), "lights_under", 12),
-         drum(1.05, 0.24, (0, 0, 0.42), "metal_dark", 12)]
+         drum(1.5, 0.5, (0, 0, -0.35), "metal_dark", 12, top=1.0), drum(1.0, 0.12, (0, 0, -0.62), "lights_under", 12),
+         drum(1.06, 0.36, (0, 0, 0.38), "metal_dark", 12)]
     for i in range(12):
         a = i / 12 * math.tau
         p.append(ball((0.28, 0.28, 0.2), (2.62 * math.cos(a), 2.62 * math.sin(a), 0), "lights", 6, 3))
@@ -1012,6 +1014,20 @@ def _dome(radius, z, squash=1.1):
     return dome
 
 
+def _ship(name, parts, dome_r, dome_z, squash=1.0, shift=(0, 0, 0), k=1.0):
+    """Joins a ship's parts, moves them by `shift` and scales them by `k` about the pilot's seat
+    (the origin, where the game seats the pilot), and seats the glass on top at `dome_z`. The glass
+    keeps its size (the pilot does too), so a ship made smaller keeps a cockpit that reads."""
+    from mathutils import Matrix
+    body = join(name, parts)
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    body.data.transform(Matrix.Scale(k, 4) @ Matrix.Translation(shift))
+    body.data.update()
+    dome = _dome(dome_r, dome_z, squash)
+    dome.parent = body
+    return body
+
+
 def orb():
     """After the little scout ships of Close Encounters of the Third Kind: a ball ringed with lights
     of every colour, glowing from underneath, with the pilot under glass on top"""
@@ -1035,7 +1051,7 @@ def triangle():
     """The black triangle: flat, dark, a white light at each corner and a red one in the middle"""
     front, back, half = 3.6, 2.0, 3.1
     mesh = bpy.data.meshes.new("triangle")
-    verts = [(0, -front, 0), (half, back, 0), (-half, back, 0), (0, -front, -0.3), (half, back, -0.3), (-half, back, -0.3), (0, 0, 0.45)]
+    verts = [(0, -front, 0), (half, back, 0), (-half, back, 0), (0, -front, -0.3), (half, back, -0.3), (-half, back, -0.3), (0, 0, 0.3)]
     faces = [(0, 6, 1), (1, 6, 2), (2, 6, 0), (3, 4, 5), (0, 1, 4, 3), (1, 2, 5, 4), (2, 0, 3, 5)]
     mesh.from_pydata(verts, [], faces)
     import bmesh
@@ -1047,11 +1063,12 @@ def triangle():
     hull = bpy.data.objects.new("triangle", mesh)
     bpy.context.collection.objects.link(hull)
     _done(hull, "black_hull")
-    p = [hull, box((0.5, 4.6, 0.12), (0, -0.8, -0.33), "hull_edge"), drum(0.55, 0.12, (0, 0.2, -0.38), "light_red", 10)]
+    p = [hull, box((0.5, 4.6, 0.12), (0, -0.8, -0.33), "hull_edge"), drum(0.55, 0.14, (0, 0.2, -0.43), "light_red", 10),
+         drum(0.8, 0.3, (0, 0, 0.12), "hull_edge", 16)]
     for x, y in ((0, -front + 0.45), (half - 0.55, back - 0.3), (-half + 0.55, back - 0.3)):
         p.append(ball((0.6, 0.6, 0.3), (x, y, -0.33), "light_white", 8, 4))
     body = join("triangle", p)
-    dome = _dome(0.75, 0.2, 1.0)
+    dome = _dome(0.75, 0.25, 1.0)
     dome.parent = body
     return body
 
@@ -1060,7 +1077,7 @@ def foo():
     """A foo fighter, the balls of light that flew beside the bombers in the war: a small glowing ball
     with a ring of metal round its middle, lights in the ring, and the pilot under glass on top"""
     p = [ball((1.8, 1.8, 1.7), (0, 0, 0), "foo_glow", 12, 7), drum(1.0, 0.16, (0, 0, 0), "hull_edge", 14),
-         drum(0.52, 0.14, (0, 0, 0.72), "hull_edge", 10), drum(0.3, 0.1, (0, 0, -0.82), "light_white", 8)]
+         drum(0.54, 0.3, (0, 0, 0.64), "hull_edge", 12), drum(0.3, 0.12, (0, 0, -0.86), "light_white", 8)]
     for i in range(8):
         a = i / 8 * math.tau
         p.append(ball((0.24, 0.24, 0.2), (1.0 * math.cos(a), 1.0 * math.sin(a), 0), "light_white" if i % 2 else "light_red", 5, 3))
@@ -1074,9 +1091,11 @@ def cigar():
     """The cigar-shaped mother ship of the 1950s sightings: long and silver, a row of lit portholes
     down each side, a fin at the tail, a glowing hatch underneath and the pilot under glass on its back"""
     half = 4.5
-    p = [ball((2.2, 2.0, half * 2.0), (0, 0, 0), "metal", 12, 10, (math.pi / 2, 0, 0)),
-         ball((2.24, 2.2, 0.5), (0, 0, -0.05), "hull_edge", 12, 4, (math.pi / 2, 0, 0)),
-         ball((1.1, 2.6, 0.3), (0, 0.2, -0.92), "lights_under", 8, 3),
+    band = drum(1.0, 0.36, (0, 0, 0), "hull_edge", 12, (math.pi / 2, 0, 0))
+    band.scale = (1.16, 1.06, 1.0)
+    p = [ball((2.2, 2.0, half * 2.0), (0, 0, 0), "metal", 12, 10, (math.pi / 2, 0, 0)), band,
+         ball((0.8, 2.4, 0.5), (0, 0.2, -0.95), "lights_under", 8, 4),
+         drum(1.0, 0.5, (0, 0, 0.78), "hull_edge", 14),
          ball((0.34, 0.34, 0.34), (0, -half + 0.05, 0), "light_red", 6, 3),
          box((0.12, 1.4, 0.9), (0, half - 1.0, 0.75), "metal_dark", (0.3, 0, 0)),
          box((1.8, 0.9, 0.1), (0, half - 0.9, 0.0), "metal_dark")]
@@ -1084,11 +1103,9 @@ def cigar():
         for k in range(7):
             y = -3.0 + k * 1.0
             x = 1.1 * math.sqrt(1.0 - (y / half) ** 2)
-            p.append(ball((0.14, 0.4, 0.4), (side * x * 0.97, y, 0.22), "window", 6, 3))
-    body = join("cigar", p)
-    dome = _dome(0.75, 0.82, 1.0)
-    dome.parent = body
-    return body
+            p.append(ball((0.22, 0.4, 0.4), (side * x * 0.99, y, 0.22), "window", 6, 3))
+    # (four fifths the size it was: at 9 m it filled a phone's screen)
+    return _ship("cigar", p, 0.75, 0.8, k=0.8)
 
 
 def bell():
@@ -1096,7 +1113,7 @@ def bell():
     wide flat rim ringed with lights, three balls underneath for landing gear, the pilot under glass"""
     p = [lathe("bell_hull", [(2.7, 0.0), (2.7, 0.18), (1.75, 0.36), (1.55, 1.12), (1.05, 1.34)],
                ["hull_edge", "metal", "metal", "metal", "metal"], sides=16),
-         drum(2.7, 0.06, (0, 0, 0.0), "metal_dark", 16), drum(1.0, 0.06, (0, 0, -0.04), "lights_under", 12),
+         drum(2.76, 0.1, (0, 0, -0.03), "metal_dark", 16), drum(1.0, 0.1, (0, 0, -0.1), "lights_under", 12),
          drum(1.0, 0.1, (0, 0, 1.38), "hull_edge", 12)]
     for i in range(8):
         a = i / 8 * math.tau + math.pi / 8
@@ -1115,25 +1132,28 @@ def bell():
 def jelly():
     """A jellyfish of a ship: a glowing pink bell, a pale rim, glowing tentacles trailing under it, the
     pilot under glass on top"""
-    p = [lathe("jelly_bell", [(2.4, 0.0), (2.35, 0.45), (1.9, 1.05), (1.0, 1.45), (0.05, 1.58)],
+    p = [lathe("jelly_bell", [(2.4, 0.0), (2.35, 0.45), (1.9, 1.05), (1.0, 1.42), (0.66, 1.5)],
                ["jelly", "jelly", "jelly", "jelly", "jelly"], sides=14, wobble=0.04, seed=11),
-         drum(2.45, 0.12, (0, 0, 0.02), "white", 16), drum(1.2, 0.08, (0, 0, -0.02), "lights_under", 12)]
+         drum(2.55, 0.12, (0, 0, 0.0), "white", 16), drum(1.2, 0.1, (0, 0, -0.11), "lights_under", 12)]
     for i in range(12):
         a = i / 12 * math.tau
         r = 1.9 if i % 2 else 1.2
         long = 1.9 if i % 2 else 1.3
-        p.append(drum(0.07, long, (r * math.cos(a), r * math.sin(a), -long / 2), "jelly_glow", 5, (0.12 * math.sin(a), 0.12 * math.cos(a), 0)))
-        p.append(ball((0.2, 0.2, 0.2), (r * math.cos(a), r * math.sin(a), -long), "jelly_glow", 5, 3))
+        top = (r * math.cos(a), r * math.sin(a), 0.05)
+        tip = (r * 1.08 * math.cos(a), r * 1.08 * math.sin(a), -long)
+        p.append(rod(0.07, top, tip, "jelly_glow", 5))
+        p.append(ball((0.2, 0.2, 0.2), tip, "jelly_glow", 5, 3))
     body = join("jelly", p)
-    dome = _dome(0.6, 1.4, 1.0)
+    dome = _dome(0.62, 1.47, 1.0)
     dome.parent = body
     return body
 
 
 def _market_parts(k, tent=True):
     """The Moon Market saucer's parts, `k` times as big: its tent top only if `tent`"""
-    p = [ball((6.0 * k, 6.0 * k, 1.1 * k), (0, 0, 0), "red", 18, 6), drum(3.02 * k, 0.16 * k, (0, 0, 0), "yellow", 20),
-         drum(2.2 * k, 0.12 * k, (0, 0, 0.42 * k), "white", 18), drum(1.4 * k, 0.3 * k, (0, 0, -0.5 * k), "lights_under", 14)]
+    p = [ball((6.0 * k, 6.0 * k, 1.1 * k), (0, 0, 0), "red", 18, 6), drum(3.1 * k, 0.16 * k, (0, 0, 0), "yellow", 20),
+         drum(2.2 * k, 0.26 * k, (0, 0, 0.5 * k), "white", 18), drum(1.25 * k, 0.1 * k, (0, 0, 0.66 * k), "red", 18),
+         drum(1.4 * k, 0.3 * k, (0, 0, -0.5 * k), "lights_under", 14)]
     if tent:
         p += [cone(1.7 * k, 1.5 * k, (0, 0, 1.2 * k), "red", 12), drum(0.05 * k, 0.9 * k, (0, 0, 2.3 * k), "metal", 4),
               box((0.5 * k, 0.04 * k, 0.3 * k), (0.26 * k, 0, 2.6 * k), "yellow")]
@@ -1143,7 +1163,7 @@ def _market_parts(k, tent=True):
     bulbs = ["light_red", "light_amber", "light_blue", "light_white"]
     for i in range(20):
         a = i / 20 * math.tau
-        p.append(ball((0.26 * k, 0.26 * k, 0.2 * k), (3.0 * k * math.cos(a), 3.0 * k * math.sin(a), 0), bulbs[i % 4], 6, 3))
+        p.append(ball((0.26 * k, 0.26 * k, 0.2 * k), (3.1 * k * math.cos(a), 3.1 * k * math.sin(a), 0), bulbs[i % 4], 6, 3))
     return p
 
 
@@ -1160,9 +1180,31 @@ def carnival():
     p = _market_parts(0.8, False)
     for i in range(10):
         a = i / 10 * math.tau
-        p.append(cone(0.16, 0.3, (1.45 * math.cos(a), 1.45 * math.sin(a), 0.62), "yellow" if i % 2 else "white", 4))
+        p.append(cone(0.16, 0.3, (1.45 * math.cos(a), 1.45 * math.sin(a), 0.63), "yellow" if i % 2 else "white", 4))
     body = join("carnival", p)
-    dome = _dome(0.75, 0.38, 1.0)
+    dome = _dome(0.75, 0.5, 1.0)
+    dome.parent = body
+    return body
+
+
+def meteor():
+    """A meteor to fly: a lump of dark space rock, cracked through with glowing lava, its fire streaming
+    out behind it, the pilot under glass in a ring set into its top"""
+    p = [roughen(ball((3.0, 3.0, 2.4), (0, 0, 0), "meteor_rock", 10, 6), 0.11, 21),
+         drum(0.72, 0.5, (0, 0, 1.06), "metal_dark", 14),
+         roughen(ball((1.0, 1.0, 0.5), (0, 0, -1.1), "lava", 8, 4), 0.06, 22)]
+    for i in range(7):
+        a = i / 7 * math.tau + 0.4
+        z = (-0.35, 0.3, -0.05)[i % 3]
+        r = 1.42 * math.sqrt(1.0 - (z / 1.2) ** 2)
+        p.append(roughen(ball((0.62, 0.62, 0.42), (r * math.cos(a), r * math.sin(a), z), "lava", 6, 4), 0.06, 30 + i))
+    # (its fire, streaming back off its tail: a wide orange flame round a bright core)
+    p += [cone(1.1, 2.8, (0, 1.6, 0.0), "flame", 9, (-math.pi / 2, 0, 0)),
+          cone(0.6, 3.4, (0, 1.95, 0.05), "meteor_fire", 7, (-math.pi / 2, 0, 0)),
+          cone(0.55, 1.4, (0.7, 1.2, 0.5), "flame", 6, (-math.pi / 2, 0, 0)),
+          cone(0.55, 1.4, (-0.65, 1.2, -0.3), "flame", 6, (-math.pi / 2, 0, 0))]
+    body = join("meteor", p)
+    dome = _dome(0.62, 1.28, 1.0)
     dome.parent = body
     return body
 
@@ -1171,8 +1213,7 @@ def tictac():
     """The tic tac the Navy pilots filmed off the Nimitz in 2004: a smooth white capsule, no wings, no
     windows, a faint glow along its belly, the pilot under a little glass on top"""
     p = [ball((1.5, 4.4, 1.3), (0, 0, 0), "white", 14, 8),
-         ball((0.7, 3.0, 0.2), (0, 0, -0.56), "lights_under", 8, 3),
-         ball((1.52, 4.0, 0.1), (0, 0, 0.0), "hull_edge", 14, 3)]
+         ball((0.6, 2.6, 0.3), (0, 0, -0.62), "lights_under", 8, 3)]
     body = join("tictac", p)
     dome = _dome(0.42, 0.5, 1.0)
     dome.parent = body
@@ -1185,14 +1226,14 @@ def saturn():
     tilt = 0.32
     p = [ball((2.5, 2.5, 2.4), (0, 0, 0), "orb_shell", 16, 8),
          drum(2.9, 0.08, (0, 0, 0), "hull_edge", 24, (tilt, 0, 0)),
-         drum(2.0, 0.1, (0, 0, 0), "metal_dark", 20, (tilt, 0, 0)),
-         drum(0.6, 0.1, (0, 0, -1.18), "lights_under", 12)]
+         drum(2.0, 0.2, (0, 0, 0), "metal_dark", 20, (tilt, 0, 0)),
+         drum(0.6, 0.12, (0, 0, -1.22), "lights_under", 12), drum(0.66, 0.3, (0, 0, 1.0), "hull_edge", 14)]
     for i in range(16):
         a = i / 16 * math.tau
         x, y = 2.7 * math.cos(a), 2.7 * math.sin(a)
         p.append(ball((0.22, 0.22, 0.16), (x, y * math.cos(tilt), y * math.sin(tilt)), "light_blue" if i % 2 else "light_white", 5, 3))
     body = join("saturn", p)
-    dome = _dome(0.62, 1.05, 1.0)
+    dome = _dome(0.62, 1.1, 1.0)
     dome.parent = body
     return body
 
@@ -1202,7 +1243,7 @@ def diamond():
     lights round its widest, the pilot under glass in its top"""
     p = [lathe("diamond_hull", [(0.02, -1.7), (2.1, 0.0), (0.7, 1.2), (0.02, 1.25)],
                ["crystal", "crystal", "hull_edge", "hull_edge"], sides=6),
-         drum(2.12, 0.08, (0, 0, 0), "hull_edge", 6)]
+         drum(2.14, 0.1, (0, 0, 0), "hull_edge", 6, (0, 0, math.pi / 2))]
     for i in range(6):
         a = i / 6 * math.tau
         p.append(ball((0.3, 0.3, 0.24), (2.1 * math.cos(a), 2.1 * math.sin(a), 0), "light_white", 6, 3))
@@ -2886,71 +2927,57 @@ def goalpost():
 
 def tug():
     """A deep-space hauler after the Nostromo: a long dark industrial hull, the bridge stepped up at the
-    front, towers and masts along its back, two great engine blocks glowing behind"""
+    front, towers and masts along its back, two great engine blocks glowing behind, and the pilot under
+    an observation blister on the deck amidships"""
     p = [box((2.6, 6.4, 1.4), (0, 0, 0), "metal_dark"), box((2.0, 2.2, 0.9), (0, -2.2, 1.0), "metal"),
-         box((1.4, 1.2, 0.6), (0, -2.8, 1.6), "metal_dark"), box((1.2, 0.08, 0.3), (0, -3.42, 1.7), "window"),
-         box((0.9, 1.0, 1.6), (-0.7, 1.0, 1.4), "metal"), box((0.7, 0.8, 1.1), (0.8, 0.4, 1.2), "metal_dark"),
-         drum(0.05, 2.2, (0.4, -0.6, 2.2), "metal", 4), drum(0.05, 1.6, (-0.3, 2.0, 2.0), "metal", 4),
-         box((3.4, 0.5, 0.3), (0, -1.0, -0.6), "metal")]
+         box((1.4, 1.2, 0.6), (0, -2.8, 1.6), "metal_dark"), box((1.2, 0.08, 0.3), (0, -3.44, 1.7), "window"),
+         box((0.9, 1.0, 1.6), (-0.75, 2.2, 1.4), "metal"), box((0.7, 0.8, 1.1), (0.85, 2.0, 1.2), "metal_dark"),
+         drum(0.05, 1.4, (0.85, 2.0, 2.4), "metal", 4), drum(0.05, 1.2, (-0.75, 2.4, 2.75), "metal", 4),
+         box((3.4, 0.5, 0.3), (0, -1.0, -0.65), "metal"), drum(0.95, 0.4, (0, 0.74, 0.85), "hull_edge", 14)]
     for s in (-1, 1):
-        p += [box((1.3, 2.4, 1.5), (1.25 * s, 3.6, 0.1), "metal_dark"), drum(0.5, 0.2, (1.25 * s, 4.85, 0.1), "flame", 10, (math.pi / 2, 0, 0)),
+        p += [box((1.3, 2.4, 1.6), (1.25 * s, 3.6, 0.0), "metal_dark"), drum(0.5, 0.16, (1.25 * s, 4.88, 0.0), "flame", 10, (math.pi / 2, 0, 0)),
               box((0.4, 4.0, 0.3), (1.45 * s, -0.6, 0.4), "metal")]
-    for i in range(6):
-        p.append(box((0.3, 0.3, 0.2), (-0.9 + (i % 3) * 0.9, -0.8 + (i // 3) * 1.4, 0.8), "metal"))
-    body = join("tug", p)
-    # (moved back so the cockpit sits over the middle, where the game seats the pilot)
-    body.location = (0, 2.3, 0)
-    bpy.context.view_layer.update()
-    dome = _dome(0.55, 1.9, 1.0)
-    dome.location = (0, 0, dome.location.z)
-    attach(dome, body)
-    return body
+    for x, y in ((-0.95, -0.7), (0.95, -0.7), (-0.95, 0.1), (0.95, 0.1)):
+        p.append(box((0.3, 0.3, 0.2), (x, y, 0.8), "metal"))
+    # (the blister amidships over the pilot's seat, and two thirds the size it was: at 8.4 m long it
+    # filled a phone's screen, and its far end swung out where the game draws things see-through)
+    return _ship("tug", p, 0.5, 0.69, shift=(0, -0.74, 0), k=0.68)
 
 
 def frigate():
-    """A frigate after the Nebulon-B: a tall forward section hung with struts, a long thin spine, and
-    a deep engine section behind glowing blue"""
+    """A frigate after the Nebulon-B: a tall forward section with a strut and crossbar hung under it,
+    a long thin spine with the pilot's pod at its middle, and a deep engine section behind glowing blue"""
     p = [box((1.4, 2.8, 1.8), (0, -3.6, 0.9), "white"), box((0.9, 2.0, 0.5), (0, -4.0, 2.0), "metal"),
-         box((0.3, 0.3, 1.6), (0, -4.4, -0.4), "metal_dark", (0.3, 0, 0)), box((2.8, 0.2, 0.2), (0, -3.2, -0.3), "metal"),
+         rod(0.15, (0, -4.0, 0.1), (0, -3.4, -1.1), "metal_dark", 6), box((2.8, 0.2, 0.2), (0, -3.4, -1.1), "metal"),
          box((0.35, 4.4, 0.35), (0, -0.2, 0.1), "metal"), box((0.2, 4.4, 0.6), (0, -0.2, -0.3), "metal_dark"),
          box((2.6, 2.6, 1.6), (0, 2.8, -0.2), "white"), box((2.0, 0.2, 1.1), (0, 4.15, -0.2), "light_blue"),
-         box((1.2, 1.4, 0.6), (0, 2.4, 0.9), "metal")]
+         box((1.2, 1.4, 0.6), (0, 2.4, 0.9), "metal"), drum(0.8, 0.5, (0, -0.375, 0.2), "metal", 14)]
     for s in (-1, 1):
         p.append(box((0.6, 2.0, 0.9), (1.5 * s, 2.6, -0.4), "white"))
         p.append(box((0.5, 0.15, 0.7), (1.5 * s, 3.65, -0.4), "light_blue"))
-    body = join("frigate", p)
-    # (moved back so the cockpit sits over the middle, where the game seats the pilot)
-    body.location = (0, 3.5, 0)
-    bpy.context.view_layer.update()
-    dome = _dome(0.5, 2.25, 1.0)
-    dome.location = (0, 0, dome.location.z)
-    attach(dome, body)
-    return body
+    # (seven tenths the size it was, about its middle: at 12 m it filled a phone's screen, and with the
+    # pilot at the bow the stern swung far out on every turn)
+    return _ship("frigate", p, 0.48, 0.3, shift=(0, 0.375, 0), k=0.7)
 
 
 def trek():
-    """A starship of the Federation sort: the great saucer in front, the slim neck down to the
-    secondary hull, and two warp nacelles up on pylons behind, glowing red at the front and blue
-    along their sides"""
+    """A starship of the Federation sort: the great saucer in front with the pilot under glass on top
+    of it, the slim neck down to the secondary hull, and two warp nacelles up on pylons behind, glowing
+    red at the front and blue along their sides"""
     p = [drum(2.5, 0.42, (0, -1.6, 0.9), "white", 24), drum(1.0, 0.3, (0, -1.6, 1.2), "metal", 16),
          box((0.5, 1.4, 1.0), (0, 0.2, 0.4), "white", (0.5, 0, 0)), drum(0.55, 3.4, (0, 1.4, -0.2), "white", 12, (math.pi / 2, 0, 0)),
-         drum(0.4, 0.2, (0, -0.3, -0.2), "light_amber", 10, (math.pi / 2, 0, 0))]
+         drum(0.4, 0.2, (0, -0.35, -0.2), "light_amber", 10, (math.pi / 2, 0, 0))]
     for s in (-1, 1):
-        p += [box((0.16, 0.9, 1.2), (0.85 * s, 1.8, 0.4), "white", (0, 0.55 * s, 0)),
+        p += [rod(0.11, (0.3 * s, 1.9, -0.05), (1.5 * s, 2.1, 1.1), "white", 6),
               drum(0.3, 3.8, (1.5 * s, 2.0, 1.1), "white", 10, (math.pi / 2, 0, 0)),
               ball((0.5, 0.5, 0.5), (1.5 * s, 0.1, 1.1), "light_red", 8, 4),
-              box((0.08, 3.0, 0.3), (1.78 * s, 2.0, 1.1), "light_blue")]
-    for i in range(10):
-        a = i / 10 * math.tau
-        p.append(ball((0.12, 0.12, 0.1), (2.3 * math.cos(a), -1.6 + 2.3 * math.sin(a), 1.1), "window", 4, 2))
-    body = join("trek", p)
-    # (moved back so the cockpit sits over the middle, where the game seats the pilot)
-    body.location = (0, 1.6, 0)
-    bpy.context.view_layer.update()
-    dome = _dome(0.55, 1.3, 1.0)
-    dome.location = (0, 0, dome.location.z)
-    attach(dome, body)
-    return body
+              box((0.1, 3.0, 0.3), (1.8 * s, 2.0, 1.1), "light_blue")]
+    for i in range(16):
+        a = i / 16 * math.tau
+        p.append(ball((0.18, 0.18, 0.14), (2.5 * math.cos(a), -1.6 + 2.5 * math.sin(a), 0.9), "window", 4, 2))
+    # (the saucer's middle over the pilot's seat, and two thirds the size it was: at 8 m it filled a
+    # phone's screen)
+    return _ship("trek", p, 0.5, 0.86, shift=(0, 1.6, 0), k=0.66)
 
 
 def motorcycle():
@@ -3114,7 +3141,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             car, police_car, pickup, tractor, jeep, tank, jet, hay_bale, outhouse, barn, farmhouse, house, silo,
             tree, pine, willow, cottonwood, joshua_tree, fence, tent, floodlight, ufo,
             mesa, butte, devils_tower, peak, crag, hydrant, bank, fort_knox, rocket, launch_pad, mission_control, saguaro, prickly_pear, sagebrush, rock, aspen, pinyon, adobe, windmill, pumpjack,
-            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, carnival, track, locomotive, boxcar, caboose, rider, balloon, fish, catfish, frog, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek, sunflower, cabbage, melon, pepper, motorcycle, cult_altar, helicarrier, railgun, laser_truck, fire_truck, ambulance, hospital, fire_station, prison, grain_elevator, chicken_coop, irrigation, feed_bin,
+            diner, water_tower, horse, bison, longhorn, coyote, rv, cabin, camp_tent, lambda: figure("cowboy", False, True), orb, triangle, foo, cigar, bell, tictac, saturn, diamond, jelly, market, carnival, meteor, track, locomotive, boxcar, caboose, rider, balloon, fish, catfish, frog, tube_man, gas_station, dealership, schoolhouse, playground, crane, excavator, girders, mixer, tire_stack, scrap_pile, bench, gazebo, screen, speaker_post, bleachers, ferris_wheel, carousel, circus_tent, booth, street_light, lamp_post, road_sign, highway_sign, trash_can, bush, stealth, warthog, beer_can, liquor_store, goalpost, tug, frigate, trek, sunflower, cabbage, melon, pepper, motorcycle, cult_altar, helicarrier, railgun, laser_truck, fire_truck, ambulance, hospital, fire_station, prison, grain_elevator, chicken_coop, irrigation, feed_bin,
             bear, mountain_goat, elk, pronghorn, rabbit, lambda: rabbit("jackalope", True), roadrunner,
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, satellite, crash_site, crash_dirt,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,

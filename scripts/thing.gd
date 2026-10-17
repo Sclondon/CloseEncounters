@@ -147,16 +147,17 @@ const KINDS := {
 	"captured_orb": {"title": "YOU FOUND THE GLORBULON: IT'S YOURS", "model": "orb", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "orb", "rest_y": 1.5},
 	"captured_triangle": {"title": "YOU FOUND THE XELETRON-22: IT'S YOURS", "model": "triangle", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "triangle", "rest_y": 0.6},
 	"captured_foo": {"title": "YOU FOUND THE FIZZWIGGLER: IT'S YOURS", "model": "foo", "points": 3000, "weight": 2.0, "heat": 1.5, "move": "still", "size": 1.5, "rare": true, "unlock": "foo", "rest_y": 0.9},
-	"captured_cigar": {"title": "YOU FOUND THE BLORPMOTHER: IT'S YOURS", "model": "cigar", "points": 3000, "weight": 3.5, "heat": 1.5, "move": "still", "size": 3.5, "rare": true, "unlock": "cigar", "rest_y": 1.05},
+	"captured_cigar": {"title": "YOU FOUND THE BLORPMOTHER: IT'S YOURS", "model": "cigar", "points": 3000, "weight": 3.5, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "cigar", "rest_y": 0.95},
 	"captured_bell": {"title": "YOU FOUND THE DINGDONGULUS: IT'S YOURS", "model": "bell", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.8, "rare": true, "unlock": "bell", "rest_y": 0.72},
 	"captured_tictac": {"title": "YOU FOUND THE TIKTAKKORAX: IT'S YOURS", "model": "tictac", "points": 3000, "weight": 2.5, "heat": 1.5, "move": "still", "size": 2.3, "rare": true, "unlock": "tictac", "rest_y": 0.7},
 	"captured_saturn": {"title": "YOU FOUND THE STARZOID: IT'S YOURS", "model": "saturn", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.9, "rare": true, "unlock": "saturn", "rest_y": 1.25},
 	"captured_diamond": {"title": "YOU FOUND THE KRYSTALLIX-9: IT'S YOURS", "model": "diamond", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.2, "rare": true, "unlock": "diamond", "rest_y": 1.7},
 	"captured_jelly": {"title": "YOU FOUND THE BLOOPUS-7: IT'S YOURS", "model": "jelly", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "jelly", "rest_y": 2.0},
 	"captured_carnival": {"title": "YOU FOUND THE CARNIVORB: IT'S YOURS", "model": "carnival", "points": 5000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "carnival", "rest_y": 0.9},
-	"captured_tug": {"title": "YOU FOUND THE YESTROMO: IT'S YOURS", "model": "tug", "points": 3000, "weight": 3.5, "heat": 1.5, "move": "still", "size": 3.4, "rare": true, "unlock": "tug", "rest_y": 0.8},
-	"captured_frigate": {"title": "YOU FOUND THE NEBULONK-B: IT'S YOURS", "model": "frigate", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.6, "rare": true, "unlock": "frigate", "rest_y": 1.2},
-	"captured_trek": {"title": "YOU FOUND THE ENTERBLORPRISE: IT'S YOURS", "model": "trek", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "trek", "rest_y": 1.0},
+	"captured_tug": {"title": "YOU FOUND THE YESTROMO: IT'S YOURS", "model": "tug", "points": 3000, "weight": 3.5, "heat": 1.5, "move": "still", "size": 2.7, "rare": true, "unlock": "tug", "rest_y": 0.55},
+	"captured_frigate": {"title": "YOU FOUND THE NEBULONK-B: IT'S YOURS", "model": "frigate", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 3.0, "rare": true, "unlock": "frigate", "rest_y": 0.9},
+	"captured_trek": {"title": "YOU FOUND THE ENTERBLORPRISE: IT'S YOURS", "model": "trek", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.5, "rare": true, "unlock": "trek", "rest_y": 0.55},
+	"captured_meteor": {"title": "YOU FOUND THE KRAKKATOOM: IT'S YOURS", "model": "meteor", "points": 3000, "weight": 3.0, "heat": 1.5, "move": "still", "size": 2.2, "rare": true, "unlock": "meteor", "rest_y": 1.3},
 	# The railway: a train runs the line (`move` "rail", see main.gd _trains), a car of it at a time to take
 	"locomotive": {"points": 700, "weight": 5.0, "heat": 0.5, "move": "rail", "speed": 11.0, "size": 3.6, "tier": 3},
 	"boxcar": {"points": 350, "weight": 4.0, "heat": 0.3, "move": "rail", "speed": 11.0, "size": 3.6, "tier": 2},
@@ -526,8 +527,14 @@ func tier() -> int:
 func fixed() -> bool:
 	return chunk != NO_CHUNK
 
+## Every score in the game is WORTH times what is written down (the points in KINDS, a crop circle, a
+## bank's cash...); the level-ups and how seriously they take the ship go by the score over WORTH, so
+## raising it raises the scores and changes nothing else (tuned with tools/balance.sh, see README)
+const WORTH := 2.5
+
+## What taking it scores (before the heat multiplies it): its listed points, WORTH times over
 func points() -> int:
-	return info["points"]
+	return int(round(float(info["points"]) * WORTH))
 
 ## The ground point it stands on (y = 0), even while it is in the air
 func ground() -> Vector3:
@@ -1247,13 +1254,15 @@ func _aim_light(delta: float, ufo: Ufo) -> void:
 
 
 ## One searchlight: sweeping (the sky, or a guard tower's ground), or locked on to the ship once
-## there is heat and it is near; the ship in its beam is spotted
+## there is heat and it is near; the ship swept by its beam is spotted, and held in it once locked
+## on (the heat no hotter for that, but slow to cool: see Main.held)
 func _aim_lamp(lamp: Node3D, delta: float, ufo: Ufo, apart: float) -> void:
 	var yaw: float
 	var tilt: float
 	var to := ufo.position - lamp.global_position
 	var guard: bool = info.get("guard", false)
-	if (game.heat_level() >= 1 or guard) and not leaving and to.length() < LIGHT_LOCK:
+	var locked: bool = (game.heat_level() >= 1 or guard) and not leaving and to.length() < LIGHT_LOCK
+	if locked:
 		yaw = atan2(to.x, to.z) + apart * 0.08
 		tilt = acos(clampf(to.normalized().y, -1.0, 1.0))
 	else:
@@ -1268,7 +1277,10 @@ func _aim_lamp(lamp: Node3D, delta: float, ufo: Ufo, apart: float) -> void:
 	if along > 0.0 and along < LIGHT_LONG and not ufo.dead:
 		var off := (to - axis * along).length()
 		if off < 0.2 + along * (LIGHT_WIDE / LIGHT_LONG) + ufo.radius * 0.6:
-			game.spotted(self, delta)
+			if locked and not guard:
+				game.held(self)
+			else:
+				game.spotted(self, delta)
 
 ## Too heavy for the beam that has hold of it: it shakes where it stands
 func rattle() -> void:

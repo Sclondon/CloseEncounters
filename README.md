@@ -48,9 +48,12 @@ and army **destroyed** by kind (each section's lines indented under it), the tot
 had as their holograms with their counts. TO THE MOON flies home; **REPLAY** flies straight up off the wreck into
 the stars and down again onto a new country, the new ship dropping into the picture from above. Watch long enough
 and the **men in black** take over: a black car drives up; one agent zips the pilot into a body bag and carries it
-off to the car; their Chinook comes in over the wreck, lowers a cable and flies off with it hanging underneath;
-a meteorite is set down in the crater in its place; and only then does the other agent flash the crowd with a
-memory eraser (they forget and wander away), before they drive off.
+off to the car and gets in; their Chinook comes in over the wreck, lowers a cable and flies off with it hanging
+underneath; as it goes a second helicopter, a black one, comes in from the other side with a meteorite hanging
+on its own cable, lets it down into the crater in the wreck's place (a thud, a ring of dust), lets go and flies
+off (`_mib_rock`); and only then does the other agent flash the crowd with a memory eraser (they forget and
+wander away) and get back in, before they drive off. `tests/heat_look.gd` (with `mib`) plays it through and
+checks both agents are gone with the car.
 
 The menus' buttons are holograms: well rounded, roomy, glowing green, with scanlines, a flicker and a band of light sweeping through them (`shaders/holo_button.gdshader`).
 
@@ -83,7 +86,7 @@ its power runs up the beam into the shield until the station goes dark.
 
 ### Ships
 
-Chosen on the title screen (left / right, or the arrows), and remembered. Balanced with `tools/balance.sh` (2026-10-17): with no upgrades and kept from dying, each earns 30k to 68k in 150 s over the same three countries (the run-to-run spread is about a third either way); the slow-beamed KRYSTALLIX-9 and the very tough BLORPMOTHER earn least.
+Chosen on the title screen (left / right, or the arrows), and remembered. Balanced with `tools/balance.sh` (2026-10-17): with no upgrades and kept from dying, they average about 95k in 150 s over the same three countries (`SEEDS="4242 1234 777" EXTRA=--immortal`), each from about 57k to 131k (the run-to-run spread is wide, a third or more either way); ZEEBZER earns most, and the slow YESTROMO and quick TIKTAKKORAX least. Scores are scaled by `Thing.WORTH` (2.5) to put the average there: everything scores that many times its listed points, and the level-ups and the danger go by the score over it, so nothing else changes.
 
 | Ship | Speed | Beam | Shield | Flies | Beam strength |
 | --- | --- | --- | --- | --- | --- |
@@ -100,6 +103,7 @@ Chosen on the title screen (left / right, or the arrows), and remembered. Balanc
 | YESTROMO (`tug`), a hauler after the Nostromo | 9.5 | x1.1 | 110 | 10 m | 2: trees and rocks |
 | NEBULONK-B (`frigate`), after the Nebulon-B frigate | 13.5 | x0.85, narrow | 65 | 11 m | 2: trees and rocks |
 | ENTERBLORPRISE (`trek`), a starship of the Federation sort | 12 | x0.8 | 70 | 9.5 m | 2: trees and rocks |
+| KRAKKATOOM (`meteor`), a lump of space rock cracked with lava, its fire streaming behind | 14 | x1.15 | 60 | 9 m | 2: trees and rocks |
 | CARNIVORB (`carnival`), the Moon Market's own saucer, held in a facility only once every other ship has been found | 12.5 | x1.0 | 70 | 8.5 m | 2: trees and rocks |
 
 The beam is green, turns **blue** from the second BEAM item and **purple** from the fourth.
@@ -141,7 +145,7 @@ Everything has a goofy alien name in the pilot's log (`Thing.ALIEN_NAMES` and `M
 
 The moon menu's buttons flicker on like a hologram warming up instead of popping in. Police circling a wreck keep to a ring round it, easing in and out, instead of jittering at its edge.
 
-**No flicker**: big flat things on the ground (fields, the town square, the rail bed, ponds, and lots, runways and yards in the models: `World.slab`, `box` in build_models.py) are cut into a grid of 2 to 3 m, so they bend with the ground instead of sinking under it between their corners, and they sit clear of it and of each other. A radio dish's waves now leave from in front of the dish, facing the saucer, and travel out to it.
+**No flicker**: big flat things on the ground (fields, the town square, the rail bed, ponds, and lots, runways and yards in the models: `World.slab`, `box` in build_models.py) are cut into a grid of 2 to 3 m, so they bend with the ground instead of sinking under it between their corners, and they sit clear of it and of each other. The ships are held to the same rule: the corners snap to the low-res pixels, so two faces lying on one another, or crossing at a shallow slant, shimmer as the ship turns; every band, rim and light under a hull stands at least 5 cm clear of the face under it. Every ship's glass sits on a collar or on the hull all the way round, no part is left floating, and no part reaches more than 4 m from the pilot (past that, `ps1.gdshader` draws it see-through when it is between the ship and the camera). The big ones (YESTROMO, NEBULONK-B, ENTERBLORPRISE, BLORPMOTHER) are built about the pilot and scaled to between two thirds and four fifths of what they were; their glass keeps its size. `blender -b --factory-startup --python tools/check_ships.py -- <name>...` builds ships and prints any LOOSE part, a DOME GAP under the glass, and each one's REACH. A radio dish's waves now leave from in front of the dish, facing the saucer, and travel out to it.
 
 Bullets, pellets and tracers are bright, with a white-hot core, a small glow round them and a faint streak behind, and slow enough to dodge (pellets 14 m/s, bullets 17, tracers 21). Shots coming at the ship from off the screen show as pulsing red arrows at its edge where they will come in, bigger and brighter the closer they are (`ThreatMarks`). The dash orb fills with green liquid as its charges come back, bubbling, and glows when full.
 
@@ -150,9 +154,14 @@ Bullets, pellets and tracers are bright, with a white-hot core, a small glow rou
 ### Heat
 
 Points are multiplied by the heat: x1 with no stars, up to x6 at five. Heat cools after 5 seconds without taking
-anything; the shield mends only with no stars.
+anything; the shield mends only with no stars. While anything has the ship **in sight** (a searchlight on it, a
+dish tracking it) the heat cools at only a third of the rate, so shaking them off is the quick way down.
+A searchlight sweeping across the ship raises the heat; one locked on to it (once there is heat) only keeps it
+in sight (`Main.held`). An **eye** left of the stars shows it: wide open, red and throbbing while the ship is
+seen, with a point on its rim toward whoever is watching (north up, as on the radar); shut while nothing is,
+grey until the heat starts to cool and blue while it does (`Eye`).
 
-**It gets harder as the score climbs** (`danger()`, full at 12,000): heat cools later and slower, witnesses
+**It gets harder as the score climbs** (`danger()`, full at 30,000): heat cools later and slower, witnesses
 phone sooner, more patrols and more police and army come, they shoot faster, and their shots hit harder.
 
 Searchlights are soft cones, brightest down the middle and fading to their edges (`beam.gdshader`, `soft`).
@@ -180,11 +189,12 @@ fly over firing missiles at five stars.
 
 **Patrols** rove about whatever the heat: police cars and army jeeps sweeping searchlights over the sky (more
 of them the longer you last). Fly into a beam and you are **spotted**: the heat jumps and keeps rising while
-it holds you. Once there is heat, the patrols lock their lights on and join in.
+it holds you. Once there is heat, the patrols lock their lights on and join in, keeping the ship in sight
+(the heat slow to cool) without raising it further.
 
 ### Level-ups and traders
 
-**Level-ups come with the score** (`level_at`: 600, 2400, 5400, 9600... points): the game pauses and the **MOON
+**Level-ups come with the score** (`level_at`: 1,500, 6,000, 13,500, 24,000... points): the game pauses and the **MOON
 MARKET** opens: its carnival-painted trading saucer appears at once in a puff of confetti and smoke, lit (`MarketShip`; from above by a stage light and left out of the dark laid over the picture, `market_dim.gdshader`), and its beam throws the market onto the screen (`ProjectorBeam`: from above on a phone, from the side on a wide screen), with a choice
 of upgrades (sized for thumbs, biggest on an upright phone). They are items that stack, as in Risk of Rain: each pick is one more of it (up to ten), small at first and growing with the stack (the fleet up to six saucers, rates with floors). The items had show as a row of little tiles under the heat's stars, each a small 3D model of the item (built in Blender, `item_*` in tools/build_models.py) with its stack count, as in Risk of Rain 2; the level-up choices show them too:
 ENGINE (+7% speed), BEAM (lifts faster, and every second level one tier stronger), SHIELD (+15), DASH (one more

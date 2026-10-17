@@ -177,6 +177,12 @@ var fleet: Array[Drone] = []
 var _cuts: Array[Vector3] = []
 const LINE_REACH := 150.0
 var _spotted_for := 0.0
+## Something has the ship in sight (a searchlight on it, a dish tracking it): seconds this stays
+## true, and where the last to see it is (the HUD's eye, see `Eye`). While it lasts the heat cools
+## only at SEEN_COOL of its rate
+var seen := 0.0
+var seen_from := Vector3.INF
+const SEEN_COOL := 0.35
 ## Things further than this from the saucer are let go (their chunk has gone, or soon will)
 const CULL := 216.0
 var _jet_wait := 8.0
@@ -242,6 +248,7 @@ const LOG_SPEED := 45.0
 const LOG_FOR := 5.0
 var _typing := 0.0
 var stars: Control
+var eye: Control
 var shield_bar: Control
 var heat_note: Label
 var item_bar: Control
@@ -584,6 +591,8 @@ func start(from_launch := false) -> void:
 	_make_ufo(World.START)
 	heat = 0.0
 	calm = 0.0
+	seen = 0.0
+	seen_from = Vector3.INF
 	score = 0
 	_threat = 0
 	taken = 0
@@ -666,7 +675,7 @@ func _descend(k: float) -> void:
 
 ## How seriously they take the ship, from its score: 1 at the start, 3 from DANGER_FULL points on.
 ## Everything that hunts it is that much keener (see where it is used)
-const DANGER_FULL := 12000.0
+const DANGER_FULL := 12000.0 * Thing.WORTH
 
 
 func danger() -> float:
@@ -927,10 +936,13 @@ func _heat(delta: float) -> void:
 	_new_star = maxf(_new_star - delta, 0.0)
 	calm += delta
 	# (the more the ship has taken, the longer it takes them to give up looking)
-	# (a JAMMER: they give up looking sooner; COOLANT: the heat drains away quicker)
-	var jam: float = 1.0 + 0.35 * upgrades["jammer"]
+	# (a JAMMER: they give up looking sooner, see `cooling`; COOLANT: the heat drains away quicker)
 	var cool: float = (1.0 + 0.4 * upgrades["coolant"]) * (1.6 if hidden else 1.0)
-	if calm > COOL_AFTER * sqrt(danger()) / jam and heat > 0.0:
+	# (watched, it cools slowly: shake them off and it cools at the full rate)
+	seen = maxf(seen - delta, 0.0)
+	if seen > 0.0:
+		cool *= SEEN_COOL
+	if cooling():
 		heat = maxf(heat - COOL_RATE * cool / danger() * delta, 0.0)
 	var threat := int((danger() - 1.0) * 2.0)
 	if threat > _threat:
@@ -983,10 +995,29 @@ func _patrols(delta: float) -> void:
 	t.heading = (0.0 if t.road_dir > 0.0 else PI) if road[1] == "z" else (PI / 2 if t.road_dir > 0.0 else -PI / 2)
 
 
-## A patrol's searchlight has the ship in it: the heat goes up fast, and does not cool while it does
-func spotted(_by: Thing, delta: float, why := "SPOTTED!") -> void:
+## Whether the heat is cooling now: long enough since the ship last did anything
+func cooling() -> bool:
+	var jam: float = 1.0 + 0.35 * upgrades["jammer"]
+	return calm > COOL_AFTER * sqrt(danger()) / jam and heat > 0.0
+
+
+## A searchlight locked on to the ship (once there is heat) keeps it in sight: no more heat for
+## that, but the heat cools only slowly while it lasts (see `seen`)
+func held(by: Thing) -> void:
 	if mode != "play" or ufo.cloak > 0.0:
 		return
+	seen = 0.6
+	seen_from = by.position
+
+
+## A patrol's searchlight sweeping across the ship (or a dish tracking it): the heat goes up fast,
+## and does not cool while it does
+func spotted(by: Thing, delta: float, why := "SPOTTED!") -> void:
+	if mode != "play" or ufo.cloak > 0.0:
+		return
+	seen = 0.6
+	if by != null:
+		seen_from = by.position
 	if _spotted_for <= 0.0:
 		_heat_note(why, 1.4)
 		sfx.play("star", 1.3)
@@ -1011,7 +1042,7 @@ func _rob(t: Thing, delta: float) -> void:
 		var from := t.position + Vector3(randf_range(-1.5, 1.5), randf_range(0.5, 2.5), randf_range(-1.5, 1.5))
 		ufo.puffs.puff(from, tint, randf_range(0.25, 0.4), (ufo.position - from).normalized() * 9.0, 0.7)
 	if t.robbed >= full * 0.1 or t.cash <= 0.0:
-		var got := int(t.robbed) * multiplier()
+		var got := int(t.robbed * Thing.WORTH) * multiplier()
 		score += got
 		_popup("+$%d" % got, t.position + Vector3(0, 4.0, 0), tint)
 		sfx.play("ding", randf_range(1.2, 1.5), -6.0)
@@ -1019,7 +1050,7 @@ func _rob(t: Thing, delta: float) -> void:
 		t.robbed = 0.0
 	if t.cash <= 0.0:
 		Ps1.flash(t.model, Color(-0.4, -0.4, -0.4))
-		log_line("FORT KNOX CLEANED OUT" if gold else "BANK ROBBED", int(full))
+		log_line("FORT KNOX CLEANED OUT" if gold else "BANK ROBBED", int(full * Thing.WORTH))
 		_heat_note("FORT KNOX CLEANED OUT!" if gold else "BANK ROBBED!", 2.5)
 		add_heat(1.5 if gold else 0.6)
 		sfx.play("cool", 1.3)
@@ -1077,7 +1108,7 @@ func _crop_circles(delta: float) -> void:
 		# (joined by a line pressed through the crop to any other circle near it)
 		var links := world.crop_circle(here, 1.0)
 		if links > 0 and mode == "play":
-			var bonus := 25 * links * multiplier()
+			var bonus := int(25 * Thing.WORTH) * links * multiplier()
 			score += bonus
 			log_line("CROP CIRCLES JOINED", bonus)
 		_circle_done = false
@@ -1086,7 +1117,7 @@ func _crop_circles(delta: float) -> void:
 	if r >= full and not _circle_done and mode == "play":
 		coop.tell("circle", _circle_at, "", full)
 		_circle_done = true
-		var points := 60 * multiplier()
+		var points := int(60 * Thing.WORTH) * multiplier()
 		score += points
 		add_heat(0.02)
 		log_line("CROP CIRCLE PRESSED", points)
@@ -1521,7 +1552,7 @@ func _boost(what: String) -> void:
 
 ## The score that brings level `n`: each further off than the last (600, 2400, 5400, 9600...)
 static func level_at(n: int) -> int:
-	return int(round(600.0 * pow(float(n), 2.0) / 50.0)) * 50
+	return int(round(600.0 * Thing.WORTH * pow(float(n), 2.0) / 50.0)) * 50
 
 
 
@@ -1728,7 +1759,7 @@ func _laser(delta: float) -> void:
 		target.queue_free()
 		boom(at, 3.0)
 		sfx.play("boom", 0.9)
-		var points := 250 * multiplier()
+		var points := int(250 * Thing.WORTH) * multiplier()
 		score += points
 		add_heat(0.25)
 		calm = 0.0
@@ -2753,8 +2784,8 @@ func _rival_bumps() -> void:
 				ufo.knock = out * 4.0
 				sfx.play("boom", 1.3)
 				_shake = maxf(_shake, 0.4)
-				score += 500 * multiplier()
-				log_line("RIVAL RAMMED", 500)
+				score += int(500 * Thing.WORTH) * multiplier()
+				log_line("RIVAL RAMMED", int(500 * Thing.WORTH))
 			else:
 				var was := ufo.hull
 				ufo.bump(out * 0.5)
@@ -3314,6 +3345,8 @@ var _mib_stop := Vector3.ZERO
 var _mib_from := Vector3.ZERO
 var _mib_crowd := Vector3.INF
 var _mib_flashed := false
+## Whether the agents have got out of the car yet (once: each gets back in by itself later)
+var _mib_out := false
 
 
 func _men_in_black() -> void:
@@ -3354,7 +3387,8 @@ func _men_in_black() -> void:
 	var door_a := _mib_stop + (body - _mib_stop).normalized() * 1.6
 	var crowd_spot := _mib_crowd + (_mib_stop - _mib_crowd).normalized() * 3.0 if _mib_crowd != Vector3.INF else door_a + Vector3(2, 0, 0)
 	# Out of the car, to the body and to the crowd
-	if t >= 3.3 and not _mib_a.visible and t < 10.0:
+	if t >= 3.3 and not _mib_out:
+		_mib_out = true
 		_mib_a.visible = true
 		_mib_b.visible = true
 		sfx.play("thud", 1.4, -8.0)
@@ -3455,10 +3489,16 @@ func _news(t: float) -> void:
 		_news_light.light_energy = 3.0 + 0.3 * sin(t * 30.0)
 
 
-# Their helicopter: in over the wreck, a cable down to it, and away with it hanging under; a
-# meteorite set down in the crater in its place, the story everyone will remember
+# Their helicopter: in over the wreck, a cable down to it, and away with it hanging under; then a
+# second, a black one, bringing a meteorite in on its own cable and lowering it into the crater in
+# the wreck's place (the story everyone will remember), and off again
 const MIB_HELI := 6.0
-const MIB_FLASH := 15.5
+## When the second comes in (on the heels of the first going), is over the crater, and has set the
+## meteorite down
+const MIB_ROCK := 12.5
+const ROCK_OVER := 16.5
+const ROCK_DOWN := 18.6
+const MIB_FLASH := 19.6
 const HELI_UP := 9.0
 var _mib_heli: Node3D
 var _mib_cable: MeshInstance3D
@@ -3519,18 +3559,97 @@ func _mib_helicopter(t: float) -> void:
 		_mib_cable.visible = true
 		_mib_cable.position = (hook + bottom) * 0.5
 		_mib_cable.scale = Vector3(0.08, maxf(hook.y - bottom.y, 0.05), 0.08)
-	# The meteorite, set down in the crater once the wreck is up out of it
-	if t >= MIB_HELI + 7.5 and _mib_meteor == null:
-		_mib_meteor = Ps1.model("meteorite")
-		_mib_meteor.position = wreck + Vector3(0, -0.2, 0)
-		_mib_meteor.scale = Vector3.ONE * 1.6
-		view.add_child(_mib_meteor)
-		_wreck_bits.append(_mib_meteor)
-		boom(wreck + Vector3(0, 0.6, 0), 2.0)
-		for i in 8:
-			ufo.puffs.puff(wreck + Vector3(randf_range(-2, 2), 0.4, randf_range(-2, 2)), Color(0.35, 0.28, 0.2, 0.7), randf_range(0.8, 1.3), Vector3(0, 1.4, 0), 1.6)
-		sfx.play("thud", 0.6, 2.0)
-		_shake = maxf(_shake, 0.2)
+	_mib_rock(t)
+
+
+var _rock_heli: Node3D
+var _rock_cable: MeshInstance3D
+var _rock_hung: Node3D
+var _rock_from := Vector3.ZERO
+var _rock_away := Vector3.ZERO
+## How far under the hook the rock's top hangs while it is carried
+const ROCK_HANG := 4.0
+
+
+## The second helicopter: in with the meteorite hanging under it, down over the crater, the rock
+## let down into it on the cable, the cable let go and wound up, and away
+func _mib_rock(t: float) -> void:
+	if t < MIB_ROCK:
+		return
+	var over := Vector3(wreck.x, HELI_UP + 1.5, wreck.z)
+	if _rock_heli == null:
+		_rock_heli = Ps1.model("helicopter", {"police_blue": Color(0.07, 0.07, 0.08), "white": Color(0.2, 0.2, 0.22)})
+		_rock_heli.scale = Vector3.ONE * 1.2
+		view.add_child(_rock_heli)
+		_wreck_bits.append(_rock_heli)
+		# (in from the other side to the first, which is still leaving)
+		_rock_from = over + Vector3(75, 24, 40)
+		_rock_away = over + Vector3(-80, 30, 50)
+		_rock_cable = Ps1.part(view, BoxMesh.new(), Ps1.flat(Color(0.12, 0.12, 0.13)), over, Vector3(0.09, 0.01, 0.09))
+		_wreck_bits.append(_rock_cable)
+		# (the rock as it hangs: the meteorite without the rubble it will lie in, see below)
+		_rock_hung = Node3D.new()
+		view.add_child(_rock_hung)
+		_wreck_bits.append(_rock_hung)
+		Ps1.part(_rock_hung, Ps1.ball(), Ps1.mat(Color(0.06, 0.06, 0.07)), Vector3(0, -0.75, 0), Vector3(2.1, 1.45, 1.75))
+		for glow: Vector3 in [Vector3(0.55, -0.45, 0.45), Vector3(-0.6, -0.9, 0.35), Vector3(0.1, -1.1, -0.65)]:
+			Ps1.part(_rock_hung, Ps1.ball(), Ps1.mat(Color(0.4, 1.0, 0.5), 1.6), glow, Vector3(0.75, 0.6, 0.75))
+	for r: Node3D in _rock_heli.find_children("rotor*", "Node3D", true, false):
+		r.rotation.y += 0.9
+	var at := over
+	if t < ROCK_OVER:
+		var k := smoothstep(0.0, 1.0, (t - MIB_ROCK) / (ROCK_OVER - MIB_ROCK))
+		at = _rock_from.lerp(over, k)
+		_rock_heli.rotation.y = atan2(over.x - _rock_from.x, over.z - _rock_from.z)
+		# (nose down coming in, levelling off over the crater)
+		_rock_heli.rotation.x = 0.25 * (1.0 - k)
+	elif t >= ROCK_DOWN + 1.2:
+		var k := pow(clampf((t - ROCK_DOWN - 1.2) / 5.0, 0.0, 1.0), 1.6)
+		at = over.lerp(_rock_away, k)
+		_rock_heli.rotation.y = lerp_angle(_rock_heli.rotation.y, atan2(_rock_away.x - over.x, _rock_away.z - over.z), 0.05)
+		_rock_heli.rotation.x = 0.2 * minf(k * 4.0, 1.0)
+		if k >= 1.0:
+			_rock_heli.visible = false
+	else:
+		_rock_heli.rotation.x = 0.0
+	_rock_heli.position = at + Vector3(0, sin(t * 2.3) * 0.18, 0)
+	var hook := _rock_heli.position + Vector3(0, 0.3, 0)
+	# The rock: hanging under it, swinging a little, let down into the crater, and let go
+	var ground_top := wreck + Vector3(0, 1.4, 0)
+	var top: Vector3
+	if t < ROCK_OVER:
+		top = hook + Vector3(sin(t * 1.3) * 0.3, -ROCK_HANG, 0)
+	elif t < ROCK_DOWN:
+		var k := smoothstep(0.0, 1.0, (t - ROCK_OVER) / (ROCK_DOWN - ROCK_OVER))
+		top = (hook + Vector3(0, -ROCK_HANG, 0)).lerp(ground_top, k)
+	else:
+		top = ground_top
+	if _mib_meteor == null:
+		_rock_hung.position = top
+		_rock_hung.rotation.y = t * 0.3
+		if t >= ROCK_DOWN:
+			# (down: in its bed of rubble, a thud, dust and a shake)
+			_rock_hung.visible = false
+			_mib_meteor = Ps1.model("meteorite")
+			_mib_meteor.position = wreck + Vector3(0, -0.2, 0)
+			_mib_meteor.rotation.y = _rock_hung.rotation.y
+			_mib_meteor.scale = Vector3.ONE * 1.6
+			view.add_child(_mib_meteor)
+			_wreck_bits.append(_mib_meteor)
+			for i in 10:
+				var a := randf() * TAU
+				ufo.puffs.puff(wreck + Vector3(cos(a), 0, sin(a)) * randf_range(1.2, 2.4) + Vector3(0, 0.3, 0), Color(0.35, 0.28, 0.2, 0.7), randf_range(0.7, 1.2), Vector3(cos(a) * 1.5, 0.9, sin(a) * 1.5), 1.6)
+			sfx.play("thud", 0.6, 2.0)
+			sfx.play("clang", 0.9, -8.0)
+			_shake = maxf(_shake, 0.12)
+	# The cable: down to the rock, then wound back up once it is let go
+	var bottom := top
+	if t >= ROCK_DOWN + 0.2:
+		var wind := clampf((t - ROCK_DOWN - 0.2) / 0.9, 0.0, 1.0)
+		bottom = ground_top.lerp(hook, wind)
+	_rock_cable.visible = _rock_heli.visible and hook.y - bottom.y > 0.06
+	_rock_cable.position = (hook + bottom) * 0.5
+	_rock_cable.scale = Vector3(0.09, maxf(hook.y - bottom.y, 0.05), 0.09)
 
 
 ## A model put at `at` (on the ground), facing `way`
@@ -3584,6 +3703,7 @@ func _clear_wreck() -> void:
 	_mib_b = null
 	_mib_bag = null
 	_mib_flashed = false
+	_mib_out = false
 	if over_box != null:
 		over_box.position.y -= _over_bob
 	_over_bob = 0.0
@@ -3594,6 +3714,9 @@ func _clear_wreck() -> void:
 	_mib_cable = null
 	_mib_meteor = null
 	_wreck_lifted = false
+	_rock_heli = null
+	_rock_cable = null
+	_rock_hung = null
 	if is_instance_valid(_wreck_pilot):
 		_wreck_pilot.queue_free()
 	_wreck_pilot = null
@@ -4503,11 +4626,11 @@ func _fill_log() -> void:
 		var count := int(_log_taken.get(kind, 0))
 		have += 1 if count > 0 else 0
 		# (how many taken, and what one is worth before any bonus)
-		specimens.append([Thing.alien_name(kind), "x%d   $%d" % [count, int(info.get("points", 0))], count > 0, kind])
+		specimens.append([Thing.alien_name(kind), "x%d   $%d" % [count, int(info.get("points", 0) * Thing.WORTH)], count > 0, kind])
 	_log_section("SPECIMENS  %d/%d" % [have, specimens.size()], specimens, big)
 	var hunters: Array = []
 	for h: String in HUNTERS:
-		hunters.append([Thing.alien_name(h), "$%d" % int(Thing.KINDS[h].get("points", 0)) if Thing.KINDS.has(h) else "", h in _log_met, h])
+		hunters.append([Thing.alien_name(h), "$%d" % int(Thing.KINDS[h].get("points", 0) * Thing.WORTH) if Thing.KINDS.has(h) else "", h in _log_met, h])
 	_log_section("HUNTERS  %d/%d" % [_log_met.size(), HUNTERS.size()], hunters, big)
 	var items: Array = []
 	# (common first, then uncommon, then rare; in their usual order within each)
@@ -4736,6 +4859,13 @@ func _build_hud() -> void:
 	stars.size = Vector2(300, 64)
 	stars.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(stars)
+	# (the eye, just left of the stars: whether anything has the ship in sight, see Eye)
+	eye = Eye.new()
+	eye.main = self
+	eye.position = Vector2(-64, 0)
+	eye.size = Vector2(60, 60)
+	eye.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stars.add_child(eye)
 
 	# (the items had, small, in a row just under the stars: see ItemBar)
 	item_bar = ItemBar.new()
@@ -5979,6 +6109,81 @@ class Stars extends Control:
 			draw_polyline(pts, colour, 2.0)
 
 
+## The eye beside the heat's stars: wide open, red and throbbing while anything has the ship in sight
+## (a searchlight on it, a dish tracking it), with a little point on its rim the way the one watching
+## is; shut while nothing does, blue once the heat is cooling. Only while there is heat or a watcher.
+class Eye extends Control:
+	var main: Node
+	## How far open it is (0 shut, 1 open), easing between
+	var _open := 0.0
+
+	func _process(delta: float) -> void:
+		var want := 1.0 if main.seen > 0.0 else 0.0
+		_open = move_toward(_open, want, delta * 6.0)
+		visible = main.stars.visible and (main.heat > 0.0 or _open > 0.0)
+		queue_redraw()
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var t := Time.get_ticks_msec() / 1000.0
+		const W := 26.0
+		const H := 15.0
+		var cool: bool = main.cooling()
+		var shut := Color(0.45, 0.85, 1.0) if cool else Color(0.7, 0.72, 0.75)
+		var red := Color(1.0, 0.25, 0.15)
+		var tone := shut.lerp(red, _open)
+		draw_circle(c, W + 4.0, Color(0, 0, 0, 0.55))
+		if _open > 0.0:
+			# (a halo throbbing round it, as an alarm does)
+			var beat := 0.5 + 0.5 * sin(t * 9.0)
+			draw_circle(c, W + 4.0 + beat * 5.0 * _open, Color(red.r, red.g, red.b, 0.18 * _open))
+		# (the lids: an almond, as open as it is)
+		var top := PackedVector2Array()
+		var bottom := PackedVector2Array()
+		for k in 17:
+			var x := -W + k * W * 2.0 / 16.0
+			var curve := 1.0 - pow(x / W, 2.0)
+			top.append(c + Vector2(x, -H * curve * _open))
+			bottom.append(c + Vector2(x, H * curve * maxf(_open, 0.0)))
+		if _open > 0.05:
+			var shape := top.duplicate()
+			var back := bottom.duplicate()
+			back.reverse()
+			shape.append_array(back)
+			draw_colored_polygon(shape, Color(0.95, 0.92, 0.85, _open))
+			# (the iris and the pupil, darting a little toward whoever is watching)
+			var look := _toward() * 4.0
+			draw_circle(c + look, 9.0 * _open, red)
+			draw_circle(c + look, 4.0 * _open, Color(0.05, 0.02, 0.02))
+			draw_polyline(bottom, tone, 2.5)
+			draw_polyline(top, tone, 3.0)
+		else:
+			# (shut: the lid's curve, sagging, and four lashes hanging off it)
+			var lid := PackedVector2Array()
+			for k in 17:
+				var x := -W + k * W * 2.0 / 16.0
+				lid.append(c + Vector2(x, -3.0 + H * 0.6 * (1.0 - pow(x / W, 2.0))))
+			draw_polyline(lid, tone, 4.0)
+			for x: float in [-15.0, -5.0, 5.0, 15.0]:
+				var at := c + Vector2(x, -3.0 + H * 0.6 * (1.0 - pow(x / W, 2.0)))
+				draw_line(at, at + Vector2(x * 0.3, 8.0), tone, 3.0)
+		# (a point on the rim, toward the one watching)
+		if _open > 0.5 and main.seen_from != Vector3.INF:
+			var way := _toward()
+			var side := Vector2(-way.y, way.x)
+			var tip := c + way * (W + 14.0)
+			var foot := c + way * (W + 4.0)
+			draw_colored_polygon(PackedVector2Array([tip, foot + side * 7.0, foot - side * 7.0]), red)
+
+	## The way to the one watching, on the screen (north up, as on the radar)
+	func _toward() -> Vector2:
+		if main.seen_from == Vector3.INF:
+			return Vector2.ZERO
+		var off: Vector3 = main.seen_from - main.ufo.position
+		var flat := Vector2(off.x, off.z)
+		return flat.normalized() if flat.length() > 0.1 else Vector2.ZERO
+
+
 ## The secret facilities within a dozen chunks or so, for the radar
 func _find_facilities() -> void:
 	_facilities.clear()
@@ -6723,7 +6928,7 @@ func _geysering(delta: float) -> void:
 			ufo.puffs.puff(g + Vector3(0, 0.4, 0), Color(0.65, 0.85, 1.0, 0.75), randf_range(0.25, 0.45), up, 0.9)
 		if drinking and _geyser_wait <= 0.0:
 			_geyser_wait = 0.25
-			score += 5 * multiplier()
+			score += int(5 * Thing.WORTH) * multiplier()
 			heat = maxf(heat - 0.04, 0.0)
 			if randf() < 0.3:
 				_popup("+WATER", g + Vector3(0, 3.0, 0), Color(0.6, 0.85, 1.0))
