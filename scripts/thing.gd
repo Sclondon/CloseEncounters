@@ -565,7 +565,54 @@ func tick(delta: float, ufo: Ufo) -> void:
 	held = false
 
 ## Pulled up the beam toward the saucer, turning slowly and kicking its legs
+## Whether this is taken a piece at a time where it stands (a building), rather than carried up
+## the beam whole
+func piecemeal() -> bool:
+	return category(kind) == "BUILDINGS"
+
+
+## A building in the beam: it stays where it stands, shaking, and comes apart from the top down, its
+## roof and walls breaking off and streaming up into the ship, until there is nothing left of it.
+## Let go, it stands as much of it as is left, and the beam picks up again where it stopped.
+func _dismantle(delta: float, ufo: Ufo) -> void:
+	if not held:
+		state = "walk"
+		model.rotation = Vector3(0, model.rotation.y, 0)
+		model.position = Vector3(0, model_y, 0)
+		Ps1.flash(model, Color.BLACK)
+		return
+	if obstacle != Vector4.ZERO and lift > 0.5:
+		# (half of it gone, it no longer stands in the way)
+		game.world.remove_obstacle(chunk, obstacle)
+		obstacle = Vector4.ZERO
+	lift += delta * ufo.lift_rate / float(info["weight"])
+	var gone := clampf(lift, 0.0, 1.0)
+	# (lower and lower, a little narrower, as it is stripped from the top)
+	model.scale = base_size * Vector3(lerpf(1.0, 0.55, gone), maxf(1.0 - gone, 0.02), lerpf(1.0, 0.55, gone))
+	model.position = Vector3(sin(_t * 31.0) * 0.06, model_y, cos(_t * 27.0) * 0.06)
+	model.rotation = Vector3(sin(_t * 23.0) * 0.02, model.rotation.y, cos(_t * 19.0) * 0.02)
+	Ps1.flash(model, Color(0.15, 0.4, 0.2) * (0.6 + 0.4 * sin(_t * 12.0)))
+	# (pieces breaking off its top, more of them and bigger than from anything carried up)
+	if _pieces.is_empty():
+		_come_apart(0.0, ufo, 1.0)
+	_piece_wait -= delta
+	while _piece_wait <= 0.0:
+		_piece_wait += 0.02
+		var reach := size() * base_size * 0.5
+		var top_y := (1.0 - gone) * size() * base_size * 1.2 + 0.3
+		var at := position + Vector3(randf_range(-reach, reach), top_y * randf_range(0.7, 1.0), randf_range(-reach, reach))
+		var up := (ufo.position - at).normalized()
+		ufo.puffs.chip(at, up * randf_range(6.0, 10.0) + Vector3(randf_range(-1.5, 1.5), 1.0, randf_range(-1.5, 1.5)), _pieces[randi() % _pieces.size()], randf_range(0.3, 0.8) * clampf(base_size, 0.6, 1.5), -1.0, 0.9)
+	if randf() < delta * 3.0:
+		game.puff(position + Vector3(randf_range(-1, 1), 0.4, randf_range(-1, 1)), Color(0.55, 0.5, 0.45), 1.4)
+	if lift >= 1.0:
+		game.abducted(self)
+
+
 func _rise(delta: float, ufo: Ufo) -> void:
+	if piecemeal():
+		_dismantle(delta, ufo)
+		return
 	if not held:
 		state = "falling"
 		fall_v = 0.0

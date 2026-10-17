@@ -793,7 +793,9 @@ func _process(delta: float) -> void:
 					_witnessed(t)
 					coop.tell("take", t.position, t.kind)
 				t.state = "lifted"
-				t.lift = clampf(t.position.y / (ufo.altitude - 0.9), 0.0, 1.0)
+				# (a building keeps how much of it is already gone: see Thing._dismantle)
+				if not t.piecemeal():
+					t.lift = clampf(t.position.y / (ufo.altitude - 0.9), 0.0, 1.0)
 			t.held = true
 		t.tick(delta, ufo)
 	things = things.filter(func(t: Thing) -> bool: return t.state != "gone")

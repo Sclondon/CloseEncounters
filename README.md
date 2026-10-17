@@ -88,19 +88,19 @@ Chosen on the title screen (left / right, or the arrows), and remembered.
 | Ship | Speed | Beam | Shield | Flies | Beam strength |
 | --- | --- | --- | --- | --- | --- |
 | ZEEBZER (`saucer`), the classic | 12 | x1 | 50 | 8 m | 2: trees and rocks |
-| GLORBULON (`orb`, after the scout ships of *Close Encounters of the Third Kind*) | 9.5 | x1.5, wide | 80 | 6 m (low) | 3: buildings |
+| GLORBULON (`orb`, after the scout ships of *Close Encounters of the Third Kind*) | 9.5 | x1.5, wide | 80 | 6 m (low) | 2: trees and rocks |
 | XELETRON-22 (`triangle`), the black triangle | 15 | x0.6, narrow | 35 | 10.5 m (high) | 1: small things only |
 | FIZZWIGGLER (`foo`), a foo fighter (the balls of light pilots saw in the war): tiny, so hard to hit | 16 | x1.3, narrow | 25 | 5 m (lowest) | 1: small things only |
 | BLORPMOTHER (`cigar`), the cigar-shaped mother ship of the 1950s: huge, so hard to miss | 8.5 | x0.9, widest | 120 | 11 m (highest) | 2: trees and rocks |
 | DINGDONGULUS (`bell`), the bell-shaped scout ship of the 1952 photographs | 10.5 | x0.7 | 40 | 9 m | 4: the land itself |
 | TIKTAKKORAX (`tictac`), the Nimitz tic tac of 2004: the fastest | 18 | x0.75, narrow | 30 | 7 m | 1: small things only |
 | STARZOID (`saturn`), a ball in a ring of lights | 10.5 | x1.6 (strongest pull) | 55 | 8.5 m | 2: trees and rocks |
-| KRYSTALLIX-9 (`diamond`), a violet crystal | 11 | x0.9 | 75 | 9 m | 3: buildings |
+| KRYSTALLIX-9 (`diamond`), a violet crystal | 11 | x0.4 (very slow) | 75 | 9 m | 3: buildings (the only ship that starts able to) |
 | BLOOPUS-7 (`jelly`), a glowing pink jellyfish trailing tentacles | 13 | x1.1, widest | 45 | 7.5 m | 2: trees and rocks |
-| YESTROMO (`tug`), a hauler after the Nostromo | 9.5 | x1.3 | 110 | 10 m | 3: buildings |
+| YESTROMO (`tug`), a hauler after the Nostromo | 9.5 | x1.3 | 110 | 10 m | 2: trees and rocks |
 | NEBULONK-B (`frigate`), after the Nebulon-B frigate | 13.5 | x0.95, narrow | 65 | 11 m | 2: trees and rocks |
 | ENTERBLORPRISE (`trek`), a starship of the Federation sort | 14.5 | x1.2 | 70 | 9.5 m | 2: trees and rocks |
-| CARNIVORB (`carnival`), the Moon Market's own saucer, held in a facility only once every other ship has been found | 13 | x1.25 | 70 | 8.5 m | 3: buildings |
+| CARNIVORB (`carnival`), the Moon Market's own saucer, held in a facility only once every other ship has been found | 13 | x1.25 | 70 | 8.5 m | 2: trees and rocks |
 
 The beam is green, turns **blue** from the second BEAM item and **purple** from the fourth.
 
@@ -129,6 +129,8 @@ shows under the heat's news with its seconds left.
 
 Everything has a goofy alien name in the pilot's log (`Thing.ALIEN_NAMES` and `MORE_NAMES`; a captured ship goes by its ship's name). The log and the Moon Market show every model as a hologram turning slowly round (`Holograms`: each drawn once from 16 sides in one picture, stepped through), each tile with what one is worth (an item, its price), and the log is only rebuilt when something new is in it. Some drive-in screens are showing a film: the BLOOPUS-7 burning a town down with the laser (`sh tools/drive_in_film.sh` records it into `textures/drive_in_film.png`, played by `shaders/film.gdshader`). The ITEMS section of the log runs common, uncommon, then rare. Every item has a detailed model (see `item_*` in build_models.py), and `sh tools/look_models.sh <dir> <name>...` builds and renders any model from four sides to check its layout.
 
+
+**Buildings come apart where they stand**: a beam strong enough for one does not carry it up whole. It stays put, shaking, and is stripped from the top down, roof and walls breaking off and streaming up into the ship, until nothing is left; let go, it stands as much of it as is left, and the beam picks up again where it stopped (`Thing._dismantle`). No ship but the slow-beamed KRYSTALLIX-9 starts able to take buildings: the rest need BEAM upgrades.
 
 **Spaceports**: now and then out in the desert or on the plains, a launch pad with its red service tower and a rocket on it, mission control with its dish, and scientists. Come within 70 m and the countdown starts (T-10 called over the pad), smoke rolls out at ignition, and the rocket lifts off on a column of fire, faster and faster, until it is gone; beam it up first and it is yours ($6000; `main.gd _rocket_launches`). Rodeos and ball games have crowds swaying in the bleachers.
 
