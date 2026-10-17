@@ -30,7 +30,7 @@ and while on the moon the world stays loaded round where the run starts (no stut
 - **Beam**: hold Space (or J, Z), gamepad A / right trigger, or a finger held on the right half of a touch screen
   (the beam's mark, which rests in the bottom right corner, comes up under it).
   The beam is on only while held. The ship slows while the beam is on. Things rise slowly (the heavier, the slower) and are taken when they reach the ship.
-  Let go early and they fall. Drop something from high enough onto the police or the army and it crushes them.
+  Let go early and they fall. Drop something from high enough onto the police or the army and it crushes them. A car dropped hard (or thrown, or an oil drum dropped at all) blows up: the police and army near it are destroyed, other cars and drums near it go up after it one by one, buildings, trees and fences round it are damaged (a shed or a tree comes down at once, a house wants two or three blasts), and whatever is loose is thrown back (`explode`, `_blast`; `tests/car_drop.gd`).
 - **Dodge**: Shift (or X, K), gamepad B / left shoulder, or a quick swipe: a dash that spins the ship like a
   top and leaves afterimages, untouchable while it lasts. It starts with **one charge** (6 s to refill), and each
   DASH item adds another. It drops whatever is in the beam, and throws the pilot about. Dash with no charge and

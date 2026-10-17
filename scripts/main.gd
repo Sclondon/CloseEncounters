@@ -2084,6 +2084,25 @@ func _burn(t: Thing) -> void:
 	_vaporise(t)
 
 
+## Caught in an explosion: `hurt` of damage on what it has taken (as the laser's, see `_burn`),
+## shaken and lit up, and brought down once that reaches its size squared
+func _blast(t: Thing, hurt: float) -> void:
+	var taken: float = float(t.get_meta("burnt", 0.0)) + hurt
+	if taken >= ceilf(t.size() * t.size()):
+		_vaporise(t, "BLOWN APART")
+		return
+	t.set_meta("burnt", taken)
+	Ps1.flash(t.model, Color(1.0, 0.45, 0.1))
+	for i in 2 + int(t.size()):
+		ufo.puffs.puff(t.position + Vector3(randf_range(-1, 1), 0.3, randf_range(-1, 1)) * t.size() * 0.4 + Vector3(0, t.size() * 0.4, 0),
+			Color(0.16, 0.14, 0.13, 0.6), 0.4 + t.size() * 0.15, Vector3(0, randf_range(1.0, 2.0), 0), 1.6)
+	var held: WeakRef = weakref(t)
+	create_tween().tween_callback(func() -> void:
+		var still: Thing = held.get_ref()
+		if still != null:
+			Ps1.flash(still.model, Color.BLACK)).set_delay(0.18)
+
+
 ## The biggest thing the laser can burn down, at its level
 func laser_burns() -> float:
 	return 1.5 + upgrades["laser"]
@@ -2129,7 +2148,7 @@ func _crush_under_wreck() -> void:
 			break
 
 
-func _vaporise(t: Thing) -> void:
+func _vaporise(t: Thing, how := "BURNT DOWN") -> void:
 	if t.kind == "hydrant":
 		geysers.append(t.home)
 	if t.kind == "track":
@@ -2150,7 +2169,7 @@ func _vaporise(t: Thing) -> void:
 	score += points
 	add_heat(0.05 + 0.04 * big)
 	calm = 0.0
-	log_line("%s BURNT DOWN" % Thing.alien_name(t.kind), points, t.kind)
+	log_line("%s %s" % [Thing.alien_name(t.kind), how], points, t.kind)
 	if t.kind == "prison":
 		_prison_break(at)
 	_remove(t)
@@ -3042,8 +3061,17 @@ const VEHICLES: Array[String] = ["car", "pickup", "rv", "tractor", "police_car",
 const BLAST_REACH := 7.0
 
 
-## `t` blows up where it lies: a fireball, the police and army near it destroyed (scored), people
-## and animals running for it, and the heat up a little
+## How much an explosion does to what stands in it (buildings, trees, fences...): BLAST_DAMAGE at its
+## middle, less out to its edge, added up toward the thing's size squared, as the laser burns (see
+## `_burn`): a car blown up beside a shed takes it down, a house wants two or three
+const BLAST_DAMAGE := 9.0
+## How hard an explosion throws what is loose round it (m/s at its middle)
+const BLAST_SHOVE := 12.0
+
+
+## `t` blows up where it lies: a fireball, the police and army near it destroyed (scored), other cars
+## going up after it one by one, buildings and the like round it damaged or brought down, whatever is
+## loose thrown back, people and animals running for it, and the heat up a little
 func explode(t: Thing) -> void:
 	if t.kind == "prison":
 		_prison_break(t.position)
@@ -3063,10 +3091,13 @@ func explode(t: Thing) -> void:
 	add_heat(0.3)
 	calm = 0.0
 	_remove(t)
+	var middle := Vector3(at.x, 0, at.z)
 	for other: Thing in things.duplicate():
-		if other.state != "walk":
+		if other.state != "walk" or not is_instance_valid(other):
 			continue
-		var d := other.ground().distance_to(Vector3(at.x, 0, at.z))
+		var d := other.ground().distance_to(middle)
+		# (from its near side: a big building is hit though its middle is well off)
+		var edge := maxf(d - other.size() * 0.5, 0.0)
 		if d < BLAST_REACH and other.is_enemy() and not other.fixed():
 			var got := other.points() / 2 * multiplier()
 			score += got
@@ -3074,8 +3105,24 @@ func explode(t: Thing) -> void:
 			log_line("%s CAUGHT IN THE BLAST" % other.kind.replace("_", " ").to_upper(), got)
 			_count_kill(other.kind)
 			_remove(other)
-		elif d < BLAST_REACH * 1.6:
+			continue
+		if edge < BLAST_REACH * 0.8 and (other.kind in VEHICLES or other.info.get("explosive", false)):
+			# (another car, or a drum: it goes up a moment later, and may set off the next)
+			other.set_meta("blasted", true)
+			var held: WeakRef = weakref(other)
+			create_tween().tween_callback(func() -> void:
+				var still: Thing = held.get_ref()
+				if still != null and still.state == "walk":
+					explode(still)).set_delay(randf_range(0.2, 0.45))
+			continue
+		if edge < BLAST_REACH and other.info["move"] == "still" and not other.kind in FIREPROOF:
+			_blast(other, BLAST_DAMAGE * (1.0 - edge / BLAST_REACH))
+			continue
+		if d < BLAST_REACH * 1.6:
 			other.panic = 6.0
+			var away := other.ground() - middle
+			if away.length() > 0.05 and other.info["move"] != "still":
+				other.shove = (other.shove + away.normalized() * BLAST_SHOVE * (1.0 - d / (BLAST_REACH * 1.6))).limit_length(BLAST_SHOVE)
 
 
 func fire(from: Thing, gun: String, target: Ufo) -> void:
