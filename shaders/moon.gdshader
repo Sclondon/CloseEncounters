@@ -55,8 +55,17 @@ void fragment() {
 	// camera moves, which read as flicker)
 	float px = length(fwidth(p));
 	float grit = (hash(floor(p * 10.0)) - 0.5) * 0.08 * (1.0 - smoothstep(0.04, 0.12, px)) + (fbm(p * 1.3) - 0.5) * 0.18 * (1.0 - smoothstep(0.3, 1.0, px));
-	float pits = craters(p, 4.0) * (1.0 - smoothstep(0.6, 1.8, px)) + craters(p + 31.0, 1.6) * 0.7 * (1.0 - smoothstep(0.25, 0.7, px));
-	ALBEDO = COLOR.rgb * clamp(patches + grit + pits, 0.35, 1.4);
+	// (and big craters, 14 m apart, that stay however far off: without them the far ground was a plain
+	// grey ring)
+	float pits = craters(p, 4.0) * (1.0 - smoothstep(1.2, 3.5, px)) + craters(p + 31.0, 1.6) * 0.7 * (1.0 - smoothstep(0.3, 0.9, px))
+		+ craters(p + 77.0, 14.0) * 0.9;
+	// (only the ground is worked over: a model's coloured parts, its whites and its lights, as the
+	// arena's bank with its rail and bulbs, are left their own colours; see ps1.gdshader for the glow)
+	vec3 c = COLOR.rgb;
+	float hi = max(max(c.r, c.g), c.b);
+	float ground = (1.0 - smoothstep(0.04, 0.14, hi - min(min(c.r, c.g), c.b))) * (1.0 - smoothstep(0.6, 0.8, hi)) * step(0.99, COLOR.a);
+	ALBEDO = c * mix(1.0, clamp(patches + grit + pits, 0.35, 1.4), ground);
+	EMISSION = c * (1.0 - COLOR.a) * 3.2;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.05;
 }

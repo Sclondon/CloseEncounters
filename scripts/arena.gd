@@ -210,9 +210,9 @@ func _build_map() -> void:
 	for name: String in ["arena_floor", "arena_rim"]:
 		var m := Ps1.model(name)
 		_map.add_child(m)
-		if name == "arena_floor":
-			for mi: MeshInstance3D in m.find_children("*", "MeshInstance3D", true, false):
-				mi.material_override = regolith
+		# (the bank too: its ground the moon's, its rail and bulbs their own, see moon.gdshader)
+		for mi: MeshInstance3D in m.find_children("*", "MeshInstance3D", true, false):
+			mi.material_override = regolith
 	# (the moon round about, from under the bank out to the horizon: a ring, cut finer near the rim,
 	# for it to bend with the world as the floor does; none of it under the floor)
 	var outside := MeshInstance3D.new()
