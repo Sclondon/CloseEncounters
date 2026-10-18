@@ -227,14 +227,17 @@ def arena_rocket_tower():
 # ---------------------------------------------------------------- things to take up
 
 def arena_astronaut():
-    """An astronaut: a puffy white suit, a backpack, a gold visor (about 1.6 m)"""
-    p = [box((0.5, 0.4, 0.62), (0, 0, 0.72), "suit"), box((0.56, 0.44, 0.22), (0, 0, 0.48), "suit_grey"),
-         box((0.48, 0.3, 0.6), (0, 0.33, 0.78), "suit_grey"), ball((0.5, 0.5, 0.5), (0, 0, 1.28), "suit", 10, 6),
-         ball((0.38, 0.12, 0.28), (0, -0.2, 1.3), "gold", 8, 4), box((0.2, 0.1, 0.12), (0, -0.21, 0.88), "light_red")]
-    for s in (-1, 1):
-        p += [box((0.18, 0.2, 0.46), (0.13 * s, 0, 0.23), "suit"), box((0.2, 0.28, 0.12), (0.13 * s, -0.04, 0.06), "suit_grey"),
-              box((0.16, 0.16, 0.5), (0.34 * s, 0, 0.8), "suit"), ball((0.18, 0.18, 0.18), (0.34 * s, 0, 0.52), "suit_grey", 6, 3)]
-    return join("arena_astronaut", p)
+    """An astronaut: the same blocky person under the same glass bubble as the tourists, in a space suit
+    (the game paints their clothes white, see Thing.KINDS), a life-support pack on their back and a
+    panel of lights on their chest"""
+    body = figure("arena_astronaut_body", False)
+    pack = [box((0.38, 0.2, 0.44), (0, 0.22, 0.76), "suit_grey"), box((0.3, 0.06, 0.08), (0, 0.33, 0.9), "suit"),
+            box((0.18, 0.05, 0.1), (0, -0.14, 0.8), "suit_grey"), box((0.05, 0.03, 0.04), (-0.04, -0.17, 0.81), "light_red"),
+            box((0.05, 0.03, 0.04), (0.04, -0.17, 0.81), "light_blue")]
+    bubble = ball((0.94, 0.94, 0.94), (0, 0, 1.22), "glass", 16, 10)
+    bubble.name = "dome_bubble"
+    rim = _ring(0.38, 0.05, (0, 0, 0.84), "metal", 16, 5)
+    return _with_glass(join("arena_astronaut", [body, rim] + pack), bubble)
 
 
 def arena_tourist():

@@ -30,7 +30,7 @@ const KINDS := {
 	# The ARENA (scripts/arena.gd): what lies about the aliens' carnival on the moon, to beam up. "arena" is
 	# the group the log and the results put each in (the habitat, the lander and the booth come apart
 	# where they stand, as buildings do). None of it is ever met on Earth.
-	"arena_astronaut": {"title": "ASTRONAUT", "points": 60, "weight": 1.0, "heat": 0.0, "move": "flee", "speed": 1.5, "size": 0.7, "voice": "scream", "arena": "MOON FOLK"},
+	"arena_astronaut": {"title": "ASTRONAUT", "tints": {"shirt": Color(0.94, 0.94, 0.92), "denim": Color(0.86, 0.87, 0.9), "boot": Color(0.45, 0.46, 0.5)}, "points": 60, "weight": 1.0, "heat": 0.0, "move": "flee", "speed": 1.5, "size": 0.7, "voice": "scream", "arena": "MOON FOLK"},
 	"arena_tourist": {"title": "MOON TOURIST", "points": 50, "weight": 0.9, "heat": 0.0, "move": "flee", "speed": 1.9, "size": 0.7, "voice": "scream", "arena": "MOON FOLK"},
 	"arena_flag": {"title": "FLAG", "points": 30, "weight": 0.6, "heat": 0.0, "move": "still", "size": 0.8, "arena": "MOON GEAR"},
 	"arena_rock_small": {"title": "MOON ROCK", "points": 20, "weight": 0.8, "heat": 0.0, "move": "still", "size": 0.8, "arena": "MOON ROCKS"},
