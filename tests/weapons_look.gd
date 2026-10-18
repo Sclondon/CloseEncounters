@@ -59,7 +59,7 @@ func _initialize() -> void:
 		main._picker.custom_minimum_size = Vector2(1200 if main._upright() else 660, 0)
 		main._picker_title.add_theme_font_size_override("font_size", 110 if main._upright() else 56)
 		main._pick_one.add_theme_font_size_override("font_size", 50 if main._upright() else 26)
-		main._ask_drop("lightning")
+		main._level_up()
 		name_now = "market"
 		shots = [20])
 

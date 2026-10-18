@@ -2063,6 +2063,110 @@ def item_laser():
     return join("item_laser", p)
 
 
+def item_damage():
+    """OVERCHARGE: a fat power cell standing on end, a red band round it, its terminal glowing, a jagged
+    bolt across its face and sparks leaping off the top"""
+    cell = lathe("cell", [(0.24, 0.0), (0.26, 0.04), (0.26, 0.6), (0.22, 0.66), (0.1, 0.68)],
+                 ["metal_dark", "metal_dark", "metal", "metal", "metal"], sides=16)
+    p = [cell, drum(0.275, 0.18, (0, 0, 0.33), "red", 16), drum(0.08, 0.08, (0, 0, 0.71), "metal", 10),
+         ball((0.15, 0.15, 0.15), (0, 0, 0.8), "laser_glow", 8, 5)]
+    bolt = [(-0.07, 0.6), (0.09, 0.6), (0.02, 0.43), (0.11, 0.43), (-0.07, 0.12), (0.0, 0.34), (-0.09, 0.34)]
+    p.append(_plate(bolt, 0.05, (0, -0.27, 0), "spark"))
+    for k in range(4):
+        a = k * math.tau / 4 + 0.4
+        p.append(box((0.03, 0.03, 0.16), (0.12 * math.cos(a), 0.12 * math.sin(a), 0.9), "spark", (0.6 * math.sin(a), -0.6 * math.cos(a), 0)))
+    return join("item_damage", p)
+
+
+def item_cooldown():
+    """QUICK COILS: an hourglass in a brass frame, the sand running fast, little wings on its sides and a
+    blue swoosh round it"""
+    p = [drum(0.27, 0.05, (0, 0, 0.025), "gold_dark", 12), drum(0.27, 0.05, (0, 0, 0.745), "gold_dark", 12),
+         cone(0.22, 0.34, (0, 0, 0.22), "ice", 12), cone(0.22, 0.34, (0, 0, 0.55), "ice", 12, (math.pi, 0, 0)),
+         cone(0.14, 0.12, (0, 0, 0.11), "gold", 10), drum(0.012, 0.3, (0, 0, 0.24), "gold", 4),
+         drum(0.15, 0.03, (0, 0, 0.68), "gold", 10)]
+    for k in range(3):
+        a = k * math.tau / 3
+        p.append(drum(0.022, 0.72, (0.24 * math.cos(a), 0.24 * math.sin(a), 0.385), "gold_dark", 6))
+    wing = [(0.0, 0.0), (0.18, 0.08), (0.32, 0.22), (0.24, 0.2), (0.28, 0.3), (0.16, 0.22), (0.14, 0.3), (0.04, 0.14)]
+    for side in (-1, 1):
+        pts = [(side * (0.27 + x), z) for x, z in wing]
+        if side < 0:
+            pts.reverse()
+        p.append(_plate(pts, 0.03, (0, 0, 0.4), "white"))
+    p.append(_ring(0.42, 0.025, (0, 0, 0.42), "neon_blue", 20, 5, (0.35, 0.2, 0)))
+    return join("item_cooldown", p)
+
+
+def item_elite():
+    """TANK BUSTER: an armour-piercing shell standing on its brass case, its red nose up, in the ring of
+    a gun sight"""
+    shell = lathe("shell", [(0.13, 0.0), (0.14, 0.02), (0.14, 0.3), (0.12, 0.32), (0.12, 0.36), (0.13, 0.38), (0.13, 0.62),
+                            (0.1, 0.74), (0.05, 0.82), (0.01, 0.85)],
+                  ["gold_dark", "gold", "gold", "metal_dark", "metal_dark", "olive", "olive", "red", "red", "red"], sides=14)
+    p = [shell, drum(0.16, 0.03, (0, 0, 0.015), "gold_dark", 14)]
+    sight = (math.pi / 2, 0, 0)
+    p += [_ring(0.38, 0.03, (0, 0.05, 0.45), "light_red", 24, 6, sight)]
+    for k in range(4):
+        a = k * math.pi / 2
+        p.append(box((0.03, 0.03, 0.16), (0.38 * math.cos(a), 0.05, 0.45 + 0.38 * math.sin(a)), "light_red", (0, a, 0)))
+    return join("item_elite", p)
+
+
+def item_crowbar():
+    """FIRST STRIKE: a red crowbar leant up, its claw at the foot and its hook at the top, a burst of
+    light where it strikes"""
+    p = [_sweep([(-0.28, 0.06), (0.18, 0.66), (0.24, 0.72), (0.32, 0.72), (0.36, 0.66)], 0.06, 0.06, (0, 0, 0), "red"),
+         box((0.12, 0.05, 0.03), (-0.31, 0, 0.04), "metal", (0, 0.5, 0)), box((0.05, 0.05, 0.06), (-0.27, 0, 0.03), "metal"),
+         _star(0.16, 0.03, (0.36, -0.02, 0.6), "spark", (math.pi / 2, 0, 0), 6, 0.4)]
+    return join("item_crowbar", p)
+
+
+def item_splitter():
+    """SPLITTER: a glass prism, one bolt of light going in and three coming out, fanned"""
+    p = [drum(0.26, 0.3, (0, 0, 0.42), "ice", 3, (math.pi / 2, 0, 0)), rod(0.03, (0, 0, 0.05), (0, 0, 0.32), "metal"),
+         rod(0.035, (-0.62, 0, 0.42), (-0.14, 0, 0.42), "light_white"),
+         rod(0.03, (0.14, 0, 0.42), (0.6, 0, 0.66), "neon_pink"), rod(0.03, (0.14, 0, 0.42), (0.64, 0, 0.42), "light_white"),
+         rod(0.03, (0.14, 0, 0.42), (0.6, 0, 0.18), "neon_blue"), box((0.3, 0.2, 0.06), (0, 0, 0.03), "metal_dark")]
+    return join("item_splitter", p)
+
+
+def item_ignition():
+    """IGNITION TANK: a red gas cylinder with a valve and a gauge, a flame roaring out of its nozzle"""
+    tank = lathe("ignition_tank", [(0.2, 0.0), (0.22, 0.03), (0.22, 0.52), (0.18, 0.6), (0.1, 0.65), (0.06, 0.66)],
+                 ["cooler_red"] * 6, sides=16)
+    p = [tank, drum(0.23, 0.05, (0, 0, 0.12), "metal_dark", 16), drum(0.23, 0.05, (0, 0, 0.42), "metal_dark", 16),
+         drum(0.045, 0.1, (0, 0, 0.7), "metal", 8), box((0.2, 0.04, 0.04), (0, 0, 0.76), "metal_dark"),
+         drum(0.09, 0.03, (0, -0.22, 0.3), "white", 12, (math.pi / 2, 0, 0)), box((0.012, 0.012, 0.07), (0.02, -0.24, 0.31), "black", (0, 0.6, 0)),
+         rod(0.03, (0.04, 0, 0.72), (0.24, 0, 0.8), "metal"),
+         cone(0.08, 0.34, (0.38, 0, 0.86), "flame", 7, (0, math.pi / 2 - 0.35, 0)),
+         cone(0.045, 0.22, (0.33, 0, 0.84), "light_amber", 6, (0, math.pi / 2 - 0.35, 0))]
+    return join("item_ignition", p)
+
+
+def item_gasoline():
+    """GASOLINE: a red jerry can, ribbed, its handles and its spout, standing in a spreading puddle"""
+    p = [box((0.44, 0.17, 0.52), (0, 0, 0.29), "red"), box((0.36, 0.19, 0.04), (0, 0, 0.24), "cooler_red"),
+         box((0.36, 0.19, 0.04), (0, 0, 0.36), "cooler_red"), box((0.04, 0.19, 0.36), (0, 0, 0.3), "cooler_red"),
+         box((0.3, 0.05, 0.05), (-0.04, 0, 0.6), "metal_dark"), box((0.05, 0.05, 0.08), (-0.18, 0, 0.57), "metal_dark"),
+         box((0.05, 0.05, 0.08), (0.1, 0, 0.57), "metal_dark"),
+         drum(0.05, 0.06, (0.16, 0, 0.58), "metal", 8), rod(0.03, (0.16, 0, 0.6), (0.3, 0, 0.74), "metal"),
+         drum(0.42, 0.012, (0.05, 0.02, 0.006), "beer", 14)]
+    return join("item_gasoline", p)
+
+
+def item_wildfire():
+    """WILDFIRE: a log on the ground, burning along its length, the flames leaping high and embers off them"""
+    p = [drum(0.11, 0.7, (0, 0, 0.11), "bark", 8, (0, math.pi / 2, 0)), drum(0.08, 0.02, (0.35, 0, 0.11), "wood", 8, (0, math.pi / 2, 0)),
+         drum(0.08, 0.02, (-0.35, 0, 0.11), "wood", 8, (0, math.pi / 2, 0))]
+    for k, (x, tall) in enumerate(((-0.22, 0.42), (0.0, 0.62), (0.22, 0.48))):
+        p.append(cone(0.11, tall, (x, 0, 0.2 + tall / 2), "flame", 7))
+        p.append(cone(0.06, tall * 0.6, (x, 0, 0.18 + tall * 0.3), "light_amber", 6))
+    for k in range(5):
+        p.append(box((0.03, 0.03, 0.03), (-0.25 + 0.12 * k, 0.04 * (k % 2), 0.75 + 0.06 * (k % 3)), "spark", (0.4 * k, 0.3, 0)))
+    return join("item_wildfire", p)
+
+
 def item_lightning():
     """LIGHTNING GUN: a stubby gun with copper coils wound round its barrel and a glowing ball at its
     tip, a jagged bolt leaping out of it"""
@@ -3247,7 +3351,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, moonlet, news_van, satellite, crash_site, crash_dirt,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,
             item_engine, item_beam, item_shield, item_dash, item_laser, item_turret, item_missiles, item_cloak,
-            item_magnet, item_wide, item_scanner, item_jammer, item_coolant, item_lucky, item_armor, item_swivel, item_sling, item_starbits, item_second_wind, item_lightning, canister, item_nanobots, item_gold, item_emp]
+            item_magnet, item_wide, item_scanner, item_jammer, item_coolant, item_lucky, item_armor, item_swivel, item_sling, item_starbits, item_second_wind, item_lightning, item_damage, item_cooldown, item_elite, item_crowbar, item_splitter, item_ignition, item_gasoline, item_wildfire, canister, item_nanobots, item_gold, item_emp]
 
 
 def main():

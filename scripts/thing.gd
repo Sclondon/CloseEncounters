@@ -27,6 +27,30 @@ const KINDS := {
 	# and never goes, the beam too weak for it, worth nothing
 	"dummy": {"title": "DPS DUMMY", "model": "scarecrow", "points": 0, "weight": 99.0, "heat": 0.0, "move": "still", "size": 1.4, "tier": 9},
 	"outhouse": {"points": 90, "weight": 2.2, "heat": 0.2, "move": "still", "size": 1.2, "voice": "scream"},
+	# The ARENA (scripts/arena.gd): what lies about the aliens' carnival on the moon, to beam up. "arena" is
+	# the group the log and the results put each in (the habitat, the lander and the booth come apart
+	# where they stand, as buildings do). None of it is ever met on Earth.
+	"arena_astronaut": {"title": "ASTRONAUT", "points": 60, "weight": 1.0, "heat": 0.0, "move": "flee", "speed": 1.5, "size": 0.7, "voice": "scream", "arena": "MOON FOLK"},
+	"arena_tourist": {"title": "MOON TOURIST", "points": 50, "weight": 0.9, "heat": 0.0, "move": "flee", "speed": 1.9, "size": 0.7, "voice": "scream", "arena": "MOON FOLK"},
+	"arena_flag": {"title": "FLAG", "points": 30, "weight": 0.6, "heat": 0.0, "move": "still", "size": 0.8, "arena": "MOON GEAR"},
+	"arena_rock_small": {"title": "MOON ROCK", "points": 20, "weight": 0.8, "heat": 0.0, "move": "still", "size": 0.8, "arena": "MOON ROCKS"},
+	"arena_gem_pink": {"title": "PINK MOON GEM", "points": 120, "weight": 0.7, "heat": 0.0, "move": "still", "size": 0.9, "arena": "MOON ROCKS"},
+	"arena_gem_blue": {"title": "BLUE MOON GEM", "points": 120, "weight": 0.7, "heat": 0.0, "move": "still", "size": 0.9, "arena": "MOON ROCKS"},
+	"arena_gem_green": {"title": "GREEN MOON GEM", "points": 120, "weight": 0.7, "heat": 0.0, "move": "still", "size": 0.9, "arena": "MOON ROCKS"},
+	# (a gold gem is a POWER GEM: a weapon, or another of one had, see arena.gd)
+	"arena_gem_gold": {"title": "POWER GEM", "points": 150, "weight": 0.7, "heat": 0.0, "move": "still", "size": 0.9, "arena": "MOON ROCKS"},
+	"arena_solar": {"title": "SOLAR PANELS", "points": 150, "weight": 1.8, "heat": 0.0, "move": "still", "size": 2.2, "tier": 2, "arena": "MOON GEAR"},
+	"arena_rock_big": {"title": "BIG MOON ROCK", "points": 150, "weight": 3.0, "heat": 0.0, "move": "still", "size": 2.0, "tier": 2, "arena": "MOON ROCKS"},
+	"arena_snack_cart": {"title": "SNACK CART", "points": 180, "weight": 2.0, "heat": 0.0, "move": "still", "size": 1.8, "tier": 2, "arena": "MOON GEAR"},
+	"arena_rover": {"title": "MOON BUGGY", "points": 200, "weight": 2.2, "heat": 0.0, "move": "still", "size": 1.8, "tier": 2, "arena": "MOON GEAR"},
+	"arena_dish": {"title": "RADIO DISH", "points": 250, "weight": 2.5, "heat": 0.0, "move": "still", "size": 2.2, "tier": 2, "arena": "MOON GEAR"},
+	"arena_booth": {"title": "CARNIVAL BOOTH", "points": 400, "weight": 3.5, "heat": 0.0, "move": "still", "size": 2.4, "tier": 3, "arena": "BUILDINGS"},
+	"arena_lander": {"title": "LUNAR LANDER", "points": 500, "weight": 4.0, "heat": 0.0, "move": "still", "size": 3.0, "tier": 3, "arena": "BUILDINGS"},
+	"arena_habitat": {"title": "MOON BASE", "points": 700, "weight": 5.0, "heat": 0.0, "move": "still", "size": 4.0, "tier": 3, "arena": "BUILDINGS"},
+	# (a score dropped by a saucer shot down in the arena, worth what it carries: anyone's to take)
+	"arena_drop": {"title": "LOST LOOT", "model": "arena_gem_gold", "points": 0, "weight": 0.6, "heat": 0.0, "move": "still", "size": 0.9, "arena": "MOON ROCKS"},
+	# (another player's saucer, as the weapons see it: an unseen stand-in under it, see arena.gd)
+	"arena_foe": {"title": "SAUCER", "model": "canister", "points": 0, "weight": 99.0, "heat": 0.0, "move": "still", "size": 2.6, "tier": 9, "enemy": true},
 	"farmer": {"points": 100, "weight": 1.3, "heat": 0.4, "move": "flee", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "shotgun", "caller": true},
 	"person": {"points": 100, "weight": 1.3, "heat": 0.35, "move": "flee", "speed": 3.6, "size": 0.7, "voice": "scream", "caller": true},
 	# Out in the country: campers round their tents, hikers in the hills, and stargazers at their
@@ -230,9 +254,9 @@ const KINDS := {
 	"cultist": {"model": "person", "tints": {"shirt": Color(0.4, 0.15, 0.5), "denim": Color(0.4, 0.15, 0.5)}, "points": 180, "weight": 1.3, "heat": 0.1, "move": "believer", "speed": 3.0, "size": 0.7, "voice": "star"},
 	"cult_altar": {"points": 800, "weight": 4.0, "heat": 0.3, "move": "still", "size": 3.0, "tier": 3},
 	# What they bring out once the ship has held five stars long enough (see main.gd ESCALATE)
-	"helicarrier": {"points": 5000, "weight": 15.0, "heat": 1.0, "move": "hover", "speed": 6.0, "size": 10.0, "tier": 4, "enemy": true, "gun": "railgun", "hover_up": 13.0},
-	"railgun": {"points": 1200, "weight": 6.0, "heat": 0.8, "move": "chase", "speed": 0.5, "size": 3.0, "tier": 3, "keep": 30.0, "enemy": true, "gun": "railgun"},
-	"laser_truck": {"points": 900, "weight": 5.0, "heat": 0.8, "move": "chase", "speed": 8.0, "size": 3.0, "tier": 3, "keep": 14.0, "enemy": true, "gun": "laser"},
+	"helicarrier": {"points": 5000, "weight": 15.0, "heat": 1.0, "move": "hover", "speed": 6.0, "size": 10.0, "tier": 4, "enemy": true, "elite": true, "gun": "railgun", "hover_up": 13.0},
+	"railgun": {"points": 1200, "weight": 6.0, "heat": 0.8, "move": "chase", "speed": 0.5, "size": 3.0, "tier": 3, "keep": 30.0, "enemy": true, "elite": true, "gun": "railgun"},
+	"laser_truck": {"points": 900, "weight": 5.0, "heat": 0.8, "move": "chase", "speed": 8.0, "size": 3.0, "tier": 3, "keep": 14.0, "enemy": true, "elite": true, "gun": "laser"},
 	"goalpost": {"points": 60, "weight": 1.5, "heat": 0.1, "move": "still", "size": 1.5},
 	# Players at a game: they run about the field (and scatter from the ship)
 	"player": {"model": "person", "points": 110, "weight": 1.3, "heat": 0.35, "move": "graze", "speed": 4.5, "size": 0.7, "voice": "scream"},
@@ -253,11 +277,11 @@ const KINDS := {
 	"agent": {"model": "person", "tints": {"shirt": Color(0.05, 0.05, 0.06), "denim": Color(0.05, 0.05, 0.06)}, "points": 250, "weight": 1.3, "heat": 0.6, "move": "guard", "speed": 3.8, "size": 0.7, "voice": "scream", "gun": "ray", "enemy": true, "crew": true},
 	# Over you at three stars and up, circling with a searchlight on you (it cannot be reached)
 	"rival": {"title": "RIVAL SAUCER", "model": "ufo", "tints": {"metal": Color(0.5, 0.18, 0.55), "metal_dark": Color(0.25, 0.08, 0.3), "lights": Color(1.0, 0.3, 0.85), "lights_under": Color(1.0, 0.4, 0.9)}, "points": 0, "weight": 99.0, "heat": 0.0, "move": "rival", "speed": 8.5, "size": 4.2, "tier": 99},
-	"helicopter": {"points": 900, "weight": 6.0, "heat": 0.5, "move": "hover", "speed": 9.0, "size": 2.6, "tier": 4, "enemy": true, "searchlight": true, "light_y": -0.4},
+	"helicopter": {"points": 900, "weight": 6.0, "heat": 0.5, "move": "hover", "speed": 9.0, "size": 2.6, "tier": 4, "enemy": true, "elite": true, "searchlight": true, "light_y": -0.4},
 	# The army's Chinook, at four stars and up: two rotors, two searchlights and a door gunner
-	"chinook": {"points": 1400, "weight": 8.0, "heat": 0.7, "move": "hover", "speed": 7.5, "size": 3.4, "tier": 4, "enemy": true, "searchlight": true, "lights": 2, "light_y": -0.2, "gun": "mg"},
+	"chinook": {"points": 1400, "weight": 8.0, "heat": 0.7, "move": "hover", "speed": 7.5, "size": 3.4, "tier": 4, "enemy": true, "elite": true, "searchlight": true, "lights": 2, "light_y": -0.2, "gun": "mg"},
 	"jeep": {"points": 400, "weight": 3.4, "heat": 0.7, "move": "chase", "speed": 7.0, "size": 2.2, "gun": "mg", "keep": 12.0, "enemy": true},
-	"tank": {"points": 800, "weight": 5.0, "heat": 1.0, "move": "chase", "speed": 4.0, "size": 3.0, "gun": "cannon", "keep": 16.0, "enemy": true},
+	"tank": {"points": 800, "weight": 5.0, "heat": 1.0, "move": "chase", "speed": 4.0, "size": 3.0, "gun": "cannon", "keep": 16.0, "enemy": true, "elite": true},
 }
 # How far each gun reaches, and the pause between one go and the next
 const GUNS := {
@@ -433,7 +457,7 @@ func setup(g: Node, k: String, at: Vector3, extra := {}) -> void:
 	_t = randf() * 10.0
 	reload = randf_range(1.0, 2.5)
 	var tints := {}
-	if k in ["farmer", "person", "scarecrow", "cowboy"]:
+	if k in ["farmer", "person", "scarecrow", "cowboy", "arena_tourist"]:
 		tints["shirt"] = SHIRTS[randi() % SHIRTS.size()]
 	if k in ["car"]:
 		tints["paint"] = Color.from_hsv(randf(), randf_range(0.4, 0.7), randf_range(0.5, 0.8))
@@ -1999,7 +2023,7 @@ func _come_apart(delta: float, ufo: Ufo, left: float) -> void:
 
 
 ## The categories of things taken, as the log and the results group them, in this order
-const CATEGORIES := ["EARTHLINGS", "BEASTS", "CROPS", "PLANTS", "MACHINES", "BUILDINGS", "THE LAND", "RARE FINDS", "OTHER"]
+const CATEGORIES := ["EARTHLINGS", "BEASTS", "CROPS", "PLANTS", "MACHINES", "BUILDINGS", "THE LAND", "RARE FINDS", "MOON FOLK", "MOON GEAR", "MOON ROCKS", "OTHER"]
 
 
 ## Which of CATEGORIES a kind of thing is in
@@ -2007,6 +2031,8 @@ static func category(of: String) -> String:
 	if not KINDS.has(of):
 		return "OTHER"
 	var info: Dictionary = KINDS[of]
+	if info.has("arena"):
+		return str(info["arena"])
 	if info.get("rare", false) or of in ["golden_cow", "jackalope", "sasquatch", "meteorite", "satellite", "crash_site"]:
 		return "RARE FINDS"
 	if info.get("caller", false) or info.get("enemy", false) and info["move"] == "guard" or of in ["scarecrow", "believer", "hunter", "player", "cultist", "inmate"]:

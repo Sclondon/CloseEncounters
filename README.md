@@ -32,7 +32,7 @@ and while on the moon the world stays loaded round where the run starts (no stut
   The beam is on only while held. The ship slows while the beam is on. Things rise slowly (the heavier, the slower) and are taken when they reach the ship.
   Let go early and they fall. Drop something from high enough onto the police or the army and it crushes them. A car dropped hard (or thrown, or an oil drum dropped at all) blows up: the police and army near it are destroyed, other cars and drums near it go up after it one by one, buildings, trees and fences round it are damaged (a shed or a tree comes down at once, a house wants two or three blasts), and whatever is loose is thrown back (`explode`, `_blast`; `tests/car_drop.gd`).
 - **Fire and aim**: the beam's button fires whichever weapon is aimed by hand (see **Weapons**): the beam itself, the
-  LASER RAY, the LIGHTNING GUN, and the gravity sling on the KRAKKATOOM or the star bits on the KRYSTALLIX-9. Drag
+  HEAT RAY, the LIGHTNING GUN, and the gravity sling on the KRAKKATOOM or the star bits on the KRYSTALLIX-9. Drag
   the finger holding the button (or the mouse, held) to push their mark out from under the ship; without a finger,
   aim with T F G H (or the keypad's arrows) or the right stick. With two such weapons, L / Tab / C, gamepad Y, or
   the round button over the beam's mark (it shows the weapon aimed) goes over to the other. A ship with no beam
@@ -92,23 +92,23 @@ its power runs up the beam into the shield until the station goes dark.
 
 ### Ships
 
-Chosen on the title screen (left / right, or the arrows), and remembered. Balanced with `tools/balance.sh` (2026-10-17): with no upgrades and kept from dying, they average about 99k in 150 s over the same three countries (`SEEDS="4242 1234 777" EXTRA=--immortal`), each with its own weapons (the autopilot fires the hand-aimed ones at the nearest thing it can hurt, the sling at the thickest crowd, and never swaps a weapon). Averages: STARZOID 148k, FIZZWIGGLER 130k, CARNIVORB 124k, TIKTAKKORAX 121k, YESTROMO 121k, XELETRON-22 112k, ZEEBZER 108k, BLOOPUS-7 103k, NEBULONK-B 99k, DINGDONGULUS 96k, GLORBULON 95k, BLORPMOTHER 85k, ENTERBLORPRISE 77k, KRAKKATOOM about 70k to 100k and KRYSTALLIX-9 about 60k (these two retuned after the full run, measured alone). The run-to-run spread is wide, a third or more either way. Scores are scaled by `Thing.WORTH` (2.5) to put the average there: everything scores that many times its listed points, and the level-ups and the danger go by the score over it, so nothing else changes.
+Chosen on the title screen (left / right, or the arrows), and remembered. Balanced with `tools/balance.sh` (2026-10-17): with no upgrades and kept from dying, they average about 104k in 150 s over the same three countries (`SEEDS="4242 1234 777" EXTRA=--immortal`; rerun with the new items, the autopilot picking its level-ups at random as before), each with its own weapon (the autopilot fires the hand-aimed ones at the nearest thing it can hurt, the sling at the thickest crowd). Averages: KRAKKATOOM 173k, GLORBULON 155k, ZEEBZER 141k, FIZZWIGGLER 137k, XELETRON-22 126k, BLOOPUS-7 112k, DINGDONGULUS 111k, TIKTAKKORAX 111k, NEBULONK-B 95k, BLORPMOTHER 90k, STARZOID 72k, ENTERBLORPRISE 69k, YESTROMO 66k, CARNIVORB 57k, KRYSTALLIX-9 51k. Runs differ by a third or more either way, more than the ships do.
 
 | Ship | Weapons | Speed | Beam | Shield | Flies | Beam strength |
 | --- | --- | --- | --- | --- | --- | --- |
 | ZEEBZER (`saucer`), the classic | beam | 12 | x1 | 50 | 8 m | 2: trees and rocks |
 | GLORBULON (`orb`, after the scout ships of *Close Encounters of the Third Kind*) | beam | 12.5 | x1.6, wide | 80 | 7 m (low) | 2: trees and rocks |
-| XELETRON-22 (`triangle`), the black triangle | beam, missiles | 15 | x1.05, narrow | 35 | 10.5 m (high) | 1: small things only |
+| XELETRON-22 (`triangle`), the black triangle | heat ray (no beam) | 15 | x1.05, narrow | 35 | 10.5 m (high) | 1: small things only |
 | FIZZWIGGLER (`foo`), a foo fighter (the balls of light pilots saw in the war): tiny, so hard to hit | lightning gun (no beam) | 16 | x1.3, narrow | 25 | 6.5 m (lowest) | 1: small things only |
-| BLORPMOTHER (`cigar`), the cigar-shaped mother ship of the 1950s: huge, so hard to miss | beam, auto turret | 8.5 | x0.8, widest | 120 | 11 m (highest) | 2: trees and rocks |
+| BLORPMOTHER (`cigar`), the cigar-shaped mother ship of the 1950s: huge, so hard to miss | beam | 8.5 | x0.8, widest | 120 | 11 m (highest) | 2: trees and rocks |
 | DINGDONGULUS (`bell`), the bell-shaped scout ship of the 1952 photographs | beam | 11 | x1.35 | 40 | 9 m | 2: trees and rocks |
-| TIKTAKKORAX (`tictac`), the Nimitz tic tac of 2004: the fastest | laser ray, EMP (no beam) | 18 | x0.75, narrow | 30 | 7 m | 1: small things only |
-| STARZOID (`saturn`), a ball in a ring of lights | beam, star bits | 10.5 | x1.4 | 55 | 8.5 m | 2: trees and rocks |
+| TIKTAKKORAX (`tictac`), the Nimitz tic tac of 2004: the fastest | heat ray (no beam) | 18 | x0.75, narrow | 30 | 7 m | 1: small things only |
+| STARZOID (`saturn`), a ball in a ring of lights | beam | 10.5 | x1.4 | 55 | 8.5 m | 2: trees and rocks |
 | KRYSTALLIX-9 (`diamond`), a pale blue crystal | star bits, by hand (no beam) | 11 | x0.5 (very slow) | 75 | 9 m | 3: buildings (the only ship that starts able to) |
-| BLOOPUS-7 (`jelly`), a glowing pink jellyfish trailing tentacles | beam, lightning gun | 12.5 | x0.95, widest | 45 | 7.5 m | 2: trees and rocks |
-| YESTROMO (`tug`), a hauler after the Nostromo | beam, auto turret | 9.5 | x1.1 | 110 | 10 m | 2: trees and rocks |
-| NEBULONK-B (`frigate`), after the Nebulon-B frigate | laser ray, missiles (no beam) | 13.5 | x0.85, narrow | 65 | 11 m | 2: trees and rocks |
-| ENTERBLORPRISE (`trek`), a starship of the Federation sort | beam, laser ray | 12 | x0.8 | 70 | 9.5 m | 2: trees and rocks |
+| BLOOPUS-7 (`jelly`), a glowing pink jellyfish trailing tentacles | beam | 12.5 | x0.95, widest | 45 | 7.5 m | 2: trees and rocks |
+| YESTROMO (`tug`), a hauler after the Nostromo | beam | 9.5 | x1.1 | 110 | 10 m | 2: trees and rocks |
+| NEBULONK-B (`frigate`), after the Nebulon-B frigate | heat ray (no beam) | 13.5 | x0.85, narrow | 65 | 11 m | 2: trees and rocks |
+| ENTERBLORPRISE (`trek`), a starship of the Federation sort | heat ray (no beam) | 12 | x0.8 | 70 | 9.5 m | 2: trees and rocks |
 | KRAKKATOOM (`meteor`), a meteorite of a ship: a little pale moon pocked with craters | gravity sling, by hand (no beam) | 14 | x1.15 | 60 | 9 m | 2: trees and rocks |
 | CARNIVORB (`carnival`), the Moon Market's own saucer, held in a facility only once every other ship has been found | beam (a rainbow one) | 12.5 | x1.0 | 70 | 8.5 m | 2: trees and rocks |
 
@@ -121,10 +121,10 @@ second, all let go when the beam goes off; `tests/beam_shadows.gd`).
 
 ### Weapons
 
-The abduction **beam** is a weapon like the rest: BEAM, LASER RAY, LIGHTNING GUN, AUTO TURRET, MISSILES, GRAVITY SLING,
+The abduction **beam** is a weapon like the rest: BEAM, HEAT RAY, LIGHTNING GUN, AUTO TURRET, MISSILES, GRAVITY SLING,
 STAR BIT BLASTER and EMP (`Main.WEAPONS`). A ship has **two at most** (more of one it has still stacks); each starts
-with its own (the table above, `Ufo.SHIPS` "weapons"). Picking a new one at the Moon Market with both slots full
-asks which to drop (or keep both and take nothing); the autopilot and the tests never swap theirs. Without the beam a
+with one of its own (the table above, `Ufo.SHIPS` "weapons"), and the second slot is for one found at the Moon
+Market. Weapons are never dropped: once both slots are taken, the market only offers more of those two (`can_take`). Without the beam a
 ship takes nothing up, and earns by wrecking instead: whatever a weapon wrecks (shot, burnt, blown up, zapped) scores
 its points (half for the police and army) and is listed under **WRECKED** in the results, by category.
 
@@ -133,14 +133,14 @@ flash of light, cars and oil drums blow up, buildings, trees, crops and fences t
 (`weapon_hit`, `weapon_target`, `shootable`; never the land, the power-ups, a captured ship or a rare find). The
 turret shoots at things on a reload of its own, so they never keep it from a shell coming in.
 
-- **Fired by hand** (the beam's button, aimed: see **Fire and aim**): the beam; the **LASER RAY**; the **LIGHTNING
+- **Fired by hand** (the beam's button, aimed: see **Fire and aim**): the beam; the **HEAT RAY**; the **LIGHTNING
   GUN**, a bolt from the ship to the mark every third of a second, striking what is there and leaping on to the next
   near thing and the next (two leaps, one more a stack), each hit weaker; and, on the ship made for them only, the
   **GRAVITY SLING** (the KRAKKATOOM flings a moonlet at the mark, landing harder and wider than one flung by itself, ready again in about 2.3 s, sooner a stack) and the **STAR
   BIT BLASTER** (the KRYSTALLIX-9 sprays them at the mark while held, quicker, tighter and harder-hitting than by themselves).
   A mark on the ground in the weapon's colour shows where they fall. The sling's moonlet is pulled in to just over
-  the ship and slung out and down on a curve, held on a glowing purple tether (a bezier from the ship's belly,
-  swinging, motes of light running down it) that fades as it lands (`_tether`).
+  the ship and slung out and down on a curve, held on a purple tether pulled taut (a bezier from the ship's belly that sags and trails
+  behind the moonlet the way it is going, straightening as it pulls; beads of light running up it to the ship; it flares as the moonlet is flung and snaps back thin and fades as it lets go; the moonlet stretched along the pull: `_tether`).
 - **By themselves**: the AUTO TURRET, MISSILES (a blast round where each lands), the GRAVITY SLING and STAR BIT
   BLASTER on any other ship, and the EMP, set off by a dash: it stuns and hurts the police and army in it, fries cars
   (they may go up) and anything on wires (poles, street lights, dishes, substations come down: `ELECTRIC`), and shakes
@@ -152,6 +152,25 @@ turret shoots at things on a reload of its own, so they never keep it from a she
 
 `tests/weapons_look.gd` takes pictures of each (lightning, with SIZE RAY, the sling and the star bits by hand, the
 rainbow beam, the beam's three colours, the EMP, and the drop-one choice at the market).
+
+### Fire
+
+The HEAT RAY sets on fire whatever it touches, and so does any explosion (a car or drum blown up, a missile, a moonlet from the gravity sling) to what is near it (`Main.ignite`). A thing on fire burns for 4 s (a building as long again for its size; WILDFIRE longer), flames on it (GameCommon's `godot/fire`, its flame cards bent with the world here so they stay on what is burning), smoking, taking BURN_HITS (0.35 laser hits) a second: people and animals run, burning, and are gone in a flash; cars blow up; buildings, trees, crops and fences burn down (BURNT DOWN), coming apart in their pieces. Now and then the fire leaps to something near that will burn (crops and bushes too, stood up out of the scenery as they catch); the police and army burn but do not pass it on. Rock, the land, water and the like never burn. At most 24 things burn at once.
+
+### Items for every weapon
+
+As Risk of Rain's (`Main.damage_mult`, `cooldown`, `shots_of`, `health_of`), each with its own little model and rarity:
+
+- **OVERCHARGE** (common): every weapon hits harder, a sixth more a stack.
+- **QUICK COILS** (common): every weapon fires sooner, its wait a sixth shorter a stack (never under two fifths of it).
+- **TANK BUSTER** (uncommon): two fifths harder a stack on the big ones (tanks, helicopters, Chinooks, the helicarrier, rail guns, laser trucks: `"elite"` in `Thing.KINDS`).
+- **FIRST STRIKE** (common): three quarters harder a stack on anything still above nine tenths of itself (the police and army by their hits, cars by their damage, buildings and the like by how much is burnt).
+- **SPLITTER** (rare): one more of every shot a stack: a missile more a volley (at the next nearest), a lightning bolt more from the ship (at the next thing near the mark), a star bit more a spray, a turret round more (at the next nearest), a moonlet more from the sling (landing near the first). Not the heat ray or the EMP.
+- **IGNITION TANK** (uncommon): fire burns twice as hot, and more a stack.
+- **GASOLINE** (common): whatever a weapon or a fire wrecks bursts into flame, setting fire to all round it (3 m, 1.5 m more a stack).
+- **WILDFIRE** (uncommon): fires burn half as long again a stack, and leap further and oftener.
+
+The STAR BIT BLASTER does half again the damage it did (`STAR_BIT_HIT` 0.09). SIZE RAY now widens the beam itself as you see it (its cones, its light on the ground and its mark: `Ufo.set_beam_size`), not only what it reaches.
 
 ### What the beam can take
 
@@ -250,11 +269,11 @@ it holds you. Once there is heat, the patrols lock their lights on and join in, 
 MARKET** opens: its carnival-painted trading saucer appears at once in a puff of confetti and smoke, lit (`MarketShip`; from above by a stage light and left out of the dark laid over the picture, `market_dim.gdshader`), and its beam throws the market onto the screen (`ProjectorBeam`: from above on a phone, from the side on a wide screen), with a choice
 of upgrades (sized for thumbs, biggest on an upright phone). They are items that stack, as in Risk of Rain: each pick is one more of it (up to ten), small at first and growing with the stack (the fleet up to six saucers, rates with floors). The items had show as a row of little tiles under the heat's stars, each a small 3D model of the item (built in Blender, `item_*` in tools/build_models.py) with its stack count, as in Risk of Rain 2; the level-up choices show them too:
 ENGINE (+7% speed), BEAM (the beam itself for a ship without one; past the first, it lifts faster, and every second one a tier stronger), SHIELD (+15), DASH (one more
-dash charge, refilling a little sooner, two more afterimages), MAGNET (small things drift to the beam), SIZE RAY (everything fired bigger: see **Weapons**), SWIVEL MOUNT (the beam and every weapon's mark lean a third further out from under the ship), GRAVITY SLING (rare: every 16 s or so, sooner with more, a little moon, glowing hot and trailing fire, slung down onto the thickest crowd near, the police and army counting three times over, smashing what it lands among; by hand on the KRAKKATOOM), STAR BIT BLASTER (uncommon: sprays Mario Galaxy-style star bits by itself at shells, then the police, then anything near, many times as fast but wild and very weak, about sixteen hits adding up to a laser hit; each one knocks what it hits back away from the ship, and they are faceted jewels running through every colour of the rainbow),
+dash charge, refilling a little sooner, two more afterimages), MAGNET (small things are pulled to the beam, and it shows: red and blue rings closing in on the beam's foot again and again, red and blue sparks streaming in from what it pulls), SIZE RAY (everything fired bigger: see **Weapons**), SWIVEL MOUNT (the beam and every weapon's mark lean a third further out from under the ship), GRAVITY SLING (rare: every 16 s or so, sooner with more, a little moon, glowing hot and trailing fire, slung down onto the thickest crowd near, the police and army counting three times over, smashing what it lands among; by hand on the KRAKKATOOM), STAR BIT BLASTER (uncommon: sprays Mario Galaxy-style star bits by itself at shells, then the police, then anything near, many times as fast but wild and very weak, about sixteen hits adding up to a laser hit; each one knocks what it hits back away from the ship, and they are faceted jewels running through every colour of the rainbow),
 SCANNER (the radar sees further), JAMMER (they stop looking sooner), COOLANT (the heat cools quicker), NANOBOTS
 (the shield mends itself), GOLD (everything taken worth a tenth more), EMP (a weapon: a dash sets off a crackling electric blast that stuns and hurts the police and army caught in it, fries cars and wires and shakes what stands; bigger with each, and from the second it paralyses people and animals too), LUCKY CHARM (power-ups turn up more often, and more of them), ARMOR (an eighth less damage a stack), SECOND WIND (each stack shrugs off one fatal hit, the shield back to two fifths), CLOAK, MISSILES, LIGHTNING GUN (rare), and:
 
-- **LASER RAY**: a ray of your own. With the beam too, switch over to it (L, Tab or C; gamepad Y; or the round button over the beam's mark on a touch screen) and the beam's button fires it, at the mark, leaving a trail of glowing burns on the ground that cool to soot and fade. The police and army there are hit (a few hits blow them up), cars and oil drums blow up, and **anything else burns down** (people, animals, trees, houses...: hits up to its size squared, a LASER's worth a cut each), up to a size the laser's level allows (`laser_burns`: a house wants a second LASER, a church a third); the land itself never burns.
+- **HEAT RAY** (the old laser ray; still `laser` inside): a ray of your own, orange-hot. With the beam too, switch over to it (L, Tab or C; gamepad Y; or the round button over the beam's mark on a touch screen) and the beam's button fires it, at the mark, leaving a trail of glowing burns on the ground that cool to soot and fade. **Everything it touches catches fire** (see **Fire**); the police and army there are hit (a few hits blow them up), cars and oil drums are hit and blow up, and anything else burns down (people, animals, trees, houses...: hits up to its size squared, a HEAT RAY's worth a cut each), up to a size the ray's level allows (`laser_burns`: a house wants a second HEAT RAY, a church a third), though the fire it starts burns bigger things down in its own time; the land itself never burns. It burns HEAT_BURN (1.3 m) round its mark, wider and its ray thicker with SIZE RAY, and its mark on the ground is just that size.
 - **AUTO TURRET**: a little gun mount under the hull (a ball on a yoke, twin barrels, amber muzzles) that swivels to its target and fires by itself, a quick burst of glowing amber tracer rounds with a muzzle flash, little pops and sparks where they land and a rapid chatter (`_rattle`: nothing like the laser ray's red beam and zap), every 4.0 s (0.6 s sooner a level,
   down to 2.2 s) out to 9.5 m (2.5 m further a level). It shoots down shells and missiles coming at the ship
   first, then jets, then the nearest police or army, and then anything else near: a hit stuns one (it holds its fire
@@ -293,7 +312,7 @@ Tower somewhere else (the tests keep the first one). A run always starts over a 
 
 ### Multiplayer
 
-On the title the arrows turn the big button between **PLAY** (alone), **HOST** and **JOIN**, and **SAUCERS** shows every ship as a
+On the title the arrows turn the big button between **PLAY** (alone), **HOST**, **JOIN** and **ARENA** (see The arena, below), and **SAUCERS** shows every ship as a
 hologram to pick from (those not yet found greyed out). HOST makes a room at once
 (a four-letter code to give friends); JOIN asks for a friend's code. Up to four saucers. The one who made the
 room presses START, and everyone lifts off for the same country: the leader's start carries the world's seed
@@ -309,6 +328,46 @@ The level-ups go by everyone's score together (each picks their own upgrade), an
 points it at another server.
 
 **Rescues**: a saucer shot down in co-op waits on the ground for 20 s while anyone else is still flying ("DOWN! A FRIEND CAN BEAM YOU UP"). A friend holding their beam over the wreck for 1.5 s (`Coop.RESCUE_HOLD`) beams it back up, flying again with half a shield. Nobody comes, or nobody is left, and the crash plays out as usual. `tests/coop_test.gd` shoots the guest down and has the host beam it back up.
+
+### The arena
+
+**ARENA** is the fourth turn of the title's big button (after PLAY, HOST and JOIN): a drop-in battle for the top
+spot, as in agar.io, on a carnival the aliens have set up on the moon. Pressing it says JOINING THE ARENA... and drops
+the saucer in at the rim of a round crater 80 m across, ringed with a padded red and white bumper rail, with the
+carnival round it (an entrance arch, a Ferris wheel, striped tents, a rocket tower, string lights) and Earth hanging in
+the black. Up to twelve saucers share an arena; anyone pressing ARENA lands in the fullest one with a seat, and can come
+and go at any time. Nobody hosts.
+
+- **Beam things up**: astronauts and tourists in bubble helmets (they run from the beam), flags, moon rocks big and
+  small, glowing moon gems, solar panels, snack carts, moon buggies, radio dishes, and the big ones: carnival booths,
+  lunar landers and moon bases, which come apart where they stand. Each is worth what such things are on Earth.
+  A gold **POWER GEM** gives a weapon not had (while there is a free slot) or another of one had. What is taken
+  comes back where it was a while later (sooner for the small things). Weapons wreck them too, for their points.
+- **Grow**: the higher the score, the bigger the saucer and its beam (up to two and a half times, most of it by
+  40,000), the heavier the things its beam can lift (tier 2 at half as big again, tier 3 at twice), and the slower it
+  steers. The leader wears a gold crown. The board at the top right shows the top five (eight on a wide screen) and
+  where you stand.
+- **Fight**: saucers that meet bounce off each other like bumper cars, the smaller the harder; a dash into another
+  hurts it. Every weapon hurts the other saucers (the turret, missiles, sling and star bits go for them first). A saucer
+  half as big again as another can hold its beam on it for a moment and beam it up whole. The rail bounces a saucer
+  back in.
+- **Shot down**: two fifths of the score is dropped round where it fell as **LOST LOOT** (gold gems, anyone's to take,
+  the one who fell too), whoever brought it down gets a bonus, and three seconds later the saucer is back at the rim,
+  small again, with only its own weapons, and untouchable for three seconds (its shield flickering). No police, no heat,
+  no level-ups, and nothing sent to the arcade's scoreboard. LEAVE ARENA in the pause goes back to the title.
+
+How it is shared (`scripts/arena.gd`, `scripts/arena_net.gd`): the Scareathon server's arenas (`/close-encounters/arena/ws`,
+`server/closeEncounters/arena.js` in scareathon-v3) seat the players and pass their packets on. What lies about is laid
+out alike on every device from the arena's seed, each place with its own clock: what lies at place `p` is numbered
+`p * 1024 + generation`, the generation counting how many times its time has come round since the arena was born (by the
+server's clock). Whoever's claim on a number reaches the server first has it, and the server tells everyone; the others'
+copies vanish ("SNATCHED" if it was up their beam). Lost loot is numbered from 2^30 up by who dropped it. Each device
+flies its own saucer and sends it 15 times a second (place, heading, speed, beam, score, size, shield, ship: `K_STATE`); the
+others are drawn as `RemoteSaucer`s, each with an unseen stand-in under it (an "arena_foe" Thing) for the weapons to aim
+at: a weapon's hit on one goes to its owner (`K_HIT`), who takes the damage (`Arena.PVP_HIT` of shield a laser hit's worth).
+Shot down, a saucer says who did it (`K_DOWN`) and drops its loot (`K_LOOT`); beamed up whole, it is told (`K_EAT`). Scores go
+to the server once a second and it sends the standings back. The map and its things are built by `tools/build_arena.py`
+(`models/arena_*.glb`).
 
 ## The world
 
@@ -371,7 +430,7 @@ two **news vans** from rival stations pull up by the meteorite (KBLP 7 ACTION NE
   `KINDS` holds points, weight, heat, tier, how it moves, its gun, its searchlight), `shop.gd` (a trader),
   `drone.gd` (one of the mini fleet), `shot.gd`, `world.gd`, `sfx.gd` (synthesised sounds), `ps1.gd` (materials, and the Blender models in them),
   `moon.gd` (the title's moon, and the lift-off blast), `dust.gd` (dust in space and wind lines), `clouds.gd`, `tornado.gd` (the
-  whirl up the beam), `puffs.gd` (smoke and sparks), `broadcast.gd` (a phone booth's aerial: radio waves, or sparks with the lines cut).
+  whirl up the beam), `arena.gd` and `arena_net.gd` (the ARENA and its connection), `puffs.gd` (smoke and sparks), `broadcast.gd` (a phone booth's aerial: radio waves, or sparks with the lines cut).
 - `shaders/`: `bend.gdshaderinc` (the bend and PS1 snap), `ps1` (with the see-through), `ps1_flat`, `glass`,
   `beam` (the tractor beam's two cones), `searchlight` (searchlights and beacons: a strip of light turned to the camera), `reticle` (where the beam will fall), `cloud`, `ground`
   (each region, the roads), `sky`, `screen`.
@@ -421,6 +480,8 @@ loads; the Godot logo tinted green as a hologram (glowing, scanlines, a flicker)
     godot --path . --resolution 640x360 --max-fps 60 -s res://tests/hitches.gd  # the worst frames through the lift-off and descent
     godot --path . --resolution 640x360 --max-fps 60 -s res://tests/beam_hitch.gd  # the worst frames round the first press of the beam
     sh tools/coop_test.sh <scareathon-v3/server, with node_modules>   # multiplayer: a local relay of the site's rooms, a host and a guest
+    sh tools/arena_test.sh <scareathon-v3/server, with node_modules> [shots dir]   # the arena: a local relay, two saucers: a claim, a shooting down, loot, the standings
+    godot --path . --resolution <390x844|1280x720> -s res://tests/arena_look.gd -- <out dir> --server=http://127.0.0.1:3112   # the arena's menu, a grown saucer, a moon base up its beam (with a relay running)
 
 Performance: each model is merged into one surface at load (colours on its corners, see `Ps1._merged`), so a
 thing is one draw call; nothing is drawn past 115 m (`Ps1.DRAW_TO`); far still things are not ticked and far

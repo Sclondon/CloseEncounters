@@ -403,6 +403,35 @@ func pull(p: Vector3, reach: float, tier: int) -> Array:
 	return []
 
 
+## The scenery standing within `reach` of `p` (crops, bushes, rocks, benches, the scattered trees...:
+## whatever is drawn in the chunks' MultiMeshes rather than standing as a Thing), up to `most` of it,
+## the nearest first, taken out of the ground for a weapon to hit (see main.gd wake_scenery): each
+## [kind, where it stood, its tints, its chunk]
+func wake(p: Vector3, reach: float, most: int) -> Array:
+	var found := []
+	var c := chunk_of(p)
+	for x in range(-1, 2):
+		for z in range(-1, 2):
+			var cc := c + Vector2i(x, z)
+			for entry: Array in loose.get(cc, []):
+				var xf: Transform3D = entry[3]
+				var d := Vector2(xf.origin.x - p.x, xf.origin.z - p.z).length()
+				if d <= reach:
+					found.append([d, cc, entry])
+	found.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	var out := []
+	for f: Array in found.slice(0, most):
+		var entry: Array = f[2]
+		var xf: Transform3D = entry[3]
+		(entry[1] as MultiMesh).set_instance_transform(entry[2], Transform3D(Basis.from_scale(Vector3.ONE * 0.0001), xf.origin))
+		(loose[f[1]] as Array).erase(entry)
+		_rattled.erase(entry)
+		var name: String = entry[0]
+		var kind: String = RECOLOURED[name][0] if RECOLOURED.has(name) else name
+		out.append([kind, xf, RECOLOURED[name][1] if RECOLOURED.has(name) else {}, f[1]])
+	return out
+
+
 ## Shakes the scenery under the beam that is too much for it (`reach` 0 settles it all again)
 func rattle(p: Vector3, reach: float, tier: int) -> void:
 	for entry: Array in _rattled:

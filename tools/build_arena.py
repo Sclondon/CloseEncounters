@@ -65,7 +65,8 @@ def arena_floor():
             q = [(i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1)]
             if all(k in index for k in q):
                 faces.append(tuple(index[k] for k in q))
-                mats.append(0 if (i * 7 + j * 3) % 5 else 1)
+                # (all one regolith: the game's moon shader patches it, and darker cells read as a checkerboard)
+                mats.append(0)
     mesh = bpy.data.meshes.new("arena_floor")
     mesh.from_pydata(verts, [], faces)
     o = bpy.data.objects.new("arena_floor", mesh)

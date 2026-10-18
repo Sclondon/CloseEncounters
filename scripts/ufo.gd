@@ -27,37 +27,37 @@ const SHIPS := {
 	"orb": {"title": "GLORBULON", "model": "orb", "weapons": ["beam"], "speed": 12.5, "lift": 1.6, "hull": 80.0, "tier": 2, "altitude": 7.0,
 		"radius": 2.2, "beam_foot": 3.2, "alien_y": 1.2, "alien_size": 0.72, "spin": true,
 		"about": "Slow and low, but tough. The strongest pull.", "ghost": Color(1.0, 0.7, 0.3)},
-	"triangle": {"title": "XELETRON-22", "model": "triangle", "weapons": ["beam", "missiles"], "speed": 15.0, "lift": 1.05, "hull": 35.0, "tier": 1, "altitude": 10.5,
+	"triangle": {"title": "XELETRON-22", "model": "triangle", "weapons": ["laser"], "speed": 15.0, "lift": 1.05, "hull": 35.0, "tier": 1, "altitude": 10.5,
 		"radius": 2.3, "beam_foot": 2.3, "alien_y": 0.18, "alien_size": 0.46, "spin": false, "scale": 0.7,
 		"about": "High and fast. Thin shield; a slow beam for small things.", "ghost": Color(0.6, 0.8, 1.0)},
 	"foo": {"title": "FIZZWIGGLER", "model": "foo", "weapons": ["lightning"], "speed": 16.0, "lift": 1.3, "hull": 25.0, "tier": 1, "altitude": 6.5,
 		"radius": 1.2, "beam_foot": 1.8, "alien_y": 0.66, "alien_size": 0.42, "spin": true,
 		"about": "Tiny, quick, hard to hit. Hardly any shield; small things.", "ghost": Color(1.0, 0.55, 0.25)},
-	"cigar": {"title": "BLORPMOTHER", "model": "cigar", "weapons": ["beam", "turret"], "speed": 8.5, "lift": 0.8, "hull": 120.0, "tier": 2, "altitude": 11.0,
+	"cigar": {"title": "BLORPMOTHER", "model": "cigar", "weapons": ["beam"], "speed": 8.5, "lift": 0.8, "hull": 120.0, "tier": 2, "altitude": 11.0,
 		"radius": 3.2, "beam_foot": 4.2, "alien_y": 0.64, "alien_size": 0.66, "spin": false,
 		"about": "Huge and slow. The toughest shield and the widest beam.", "ghost": Color(0.85, 0.9, 1.0)},
 	"bell": {"title": "DINGDONGULUS", "model": "bell", "weapons": ["beam"], "speed": 11.0, "lift": 1.35, "hull": 40.0, "tier": 2, "altitude": 9.0,
 		"radius": 2.7, "beam_foot": 2.6, "alien_y": 1.12, "alien_size": 0.72, "spin": true,
 		"about": "Rings out over the country. A good pull, a thin shield.", "ghost": Color(1.0, 0.85, 0.5)},
-	"tictac": {"title": "TIKTAKKORAX", "model": "tictac", "weapons": ["laser", "emp"], "speed": 18.0, "lift": 0.75, "hull": 30.0, "tier": 1, "altitude": 7.0,
+	"tictac": {"title": "TIKTAKKORAX", "model": "tictac", "weapons": ["laser"], "speed": 18.0, "lift": 0.75, "hull": 30.0, "tier": 1, "altitude": 7.0,
 		"radius": 2.3, "beam_foot": 2.0, "alien_y": 0.45, "alien_size": 0.38, "spin": false,
 		"about": "The fastest of all. A small, weak beam; a thin shield.", "ghost": Color(0.95, 0.97, 1.0)},
-	"saturn": {"title": "STARZOID", "model": "saturn", "weapons": ["beam", "starbits"], "speed": 10.5, "lift": 1.4, "hull": 55.0, "tier": 2, "altitude": 8.5,
+	"saturn": {"title": "STARZOID", "model": "saturn", "weapons": ["beam"], "speed": 10.5, "lift": 1.4, "hull": 55.0, "tier": 2, "altitude": 8.5,
 		"radius": 2.9, "beam_foot": 2.8, "alien_y": 1.1, "alien_size": 0.55, "spin": true,
 		"about": "A ball in a ring. The strongest pull of any beam.", "ghost": Color(0.5, 0.75, 1.0)},
 	"diamond": {"title": "KRYSTALLIX-9", "model": "diamond", "weapons": ["starbits"], "special": "starbits", "speed": 11.0, "lift": 0.5, "hull": 75.0, "tier": 3, "altitude": 9.0,
 		"radius": 2.2, "beam_foot": 3.0, "alien_y": 1.2, "alien_size": 0.5, "spin": true,
 		"about": "A crystal of light. Takes buildings, but its beam is painfully slow.", "ghost": Color(0.55, 0.85, 1.0)},
-	"jelly": {"title": "BLOOPUS-7", "model": "jelly", "weapons": ["beam", "lightning"], "speed": 12.5, "lift": 0.95, "hull": 45.0, "tier": 2, "altitude": 7.5,
+	"jelly": {"title": "BLOOPUS-7", "model": "jelly", "weapons": ["beam"], "speed": 12.5, "lift": 0.95, "hull": 45.0, "tier": 2, "altitude": 7.5,
 		"radius": 2.5, "beam_foot": 3.5, "alien_y": 1.4, "alien_size": 0.5, "spin": true,
 		"about": "A jellyfish of a ship. The widest, gentlest beam.", "ghost": Color(1.0, 0.5, 0.8)},
-	"tug": {"title": "YESTROMO", "model": "tug", "weapons": ["beam", "turret"], "speed": 9.5, "lift": 1.1, "hull": 110.0, "tier": 2, "altitude": 10.0,
+	"tug": {"title": "YESTROMO", "model": "tug", "weapons": ["beam"], "speed": 9.5, "lift": 1.1, "hull": 110.0, "tier": 2, "altitude": 10.0,
 		"radius": 2.7, "beam_foot": 3.6, "alien_y": 0.34, "alien_size": 0.5, "spin": false,
 		"about": "A hauler, after the Nostromo. Very tough, a strong pull.", "ghost": Color(1.0, 0.75, 0.4)},
-	"frigate": {"title": "NEBULONK-B", "model": "frigate", "weapons": ["laser", "missiles"], "speed": 13.5, "lift": 0.85, "hull": 65.0, "tier": 2, "altitude": 11.0,
+	"frigate": {"title": "NEBULONK-B", "model": "frigate", "weapons": ["laser"], "speed": 13.5, "lift": 0.85, "hull": 65.0, "tier": 2, "altitude": 11.0,
 		"radius": 2.9, "beam_foot": 2.6, "alien_y": -0.05, "alien_size": 0.45, "spin": false,
 		"about": "A frigate, after the Nebulon-B. Long, lean and quick.", "ghost": Color(0.7, 0.85, 1.0)},
-	"trek": {"title": "ENTERBLORPRISE", "model": "trek", "weapons": ["beam", "laser"], "speed": 12.0, "lift": 0.8, "hull": 70.0, "tier": 2, "altitude": 9.5,
+	"trek": {"title": "ENTERBLORPRISE", "model": "trek", "weapons": ["laser"], "speed": 12.0, "lift": 0.8, "hull": 70.0, "tier": 2, "altitude": 9.5,
 		"radius": 2.5, "beam_foot": 3.0, "alien_y": 0.51, "alien_size": 0.5, "spin": false,
 		"about": "To boldly go. Quick and sturdy; a middling beam.", "ghost": Color(0.6, 0.8, 1.0)},
 	"meteor": {"title": "KRAKKATOOM", "model": "meteor", "weapons": ["sling"], "special": "sling", "speed": 14.0, "lift": 1.15, "hull": 60.0, "tier": 2, "altitude": 9.0,
@@ -230,6 +230,18 @@ var glow: OmniLight3D
 var _power := 0.0
 var _t := 0.0
 var _fall_v := 0.0
+
+
+## The beam's foot made `foot` across (SIZE RAY, see Main._apply_upgrades): its cones, its light and
+## the mark under it all grow with it, not only the reach of what it takes
+func set_beam_size(foot: float) -> void:
+	beam_foot = foot
+	if beam == null:
+		return
+	(beam.mesh as CylinderMesh).bottom_radius = foot
+	(beam_core.mesh as CylinderMesh).bottom_radius = foot * 0.8
+	spot.spot_angle = rad_to_deg(atan(foot * 1.3 / altitude)) * 1.25
+	(reticle.mesh as PlaneMesh).size = Vector2.ONE * foot * 1.6
 
 
 func _ready() -> void:

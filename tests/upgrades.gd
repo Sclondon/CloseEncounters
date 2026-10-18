@@ -134,7 +134,7 @@ func _process(_delta: float) -> bool:
 				_check((not is_instance_valid(shell) or shell.done) and main.ufo.since_hit > 0.15, "the laser shoots a shell down before it hits")
 				for i in 3:
 					main.buy("turret")
-				_check(main.upgrades["turret"] >= 4 and is_equal_approx(main.laser_reload(), maxf(4.6 - 0.6 * main.upgrades["turret"], 0.9)),
+				_check(main.upgrades["turret"] >= 4 and is_equal_approx(main.laser_reload(), maxf(4.6 - 0.6 * main.upgrades["turret"], 0.9) * main.cooldown()),
 					"the turret stacks, firing quicker each (every %.1f s)" % main.laser_reload())
 				for t in main.things.duplicate():
 					if t.is_enemy():
@@ -176,6 +176,9 @@ func _process(_delta: float) -> bool:
 				for t in main.things.duplicate():
 					if t.is_enemy():
 						main._remove(t)
+				# (weapons are never dropped, so the laser is taken off by hand to make room)
+				main.upgrades["laser"] = 0
+				main._got.erase("laser")
 				main.buy("missiles")
 				main._missile_wait = 0.0
 				police = main.spawn("police_car", main.ufo.ground() + Vector3(18, 0, 10))

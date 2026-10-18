@@ -117,7 +117,7 @@ var _circle_time := 0.0
 var _circle_done := false
 ## The traders parked about the country, and what has been bought from them this run
 var shops: Array[Shop] = []
-var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "starbits": 0, "sling": 0, "lightning": 0, "fleet": 0}
+var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "starbits": 0, "sling": 0, "lightning": 0, "fleet": 0, "damage": 0, "cooldown": 0, "elite": 0, "crowbar": 0, "splitter": 0, "ignition": 0, "gasoline": 0, "wildfire": 0}
 var _hot_wait := 0.0
 ## The level reached this run (see `_levels`), levels still to pick for, and the picker
 var level := 0
@@ -135,19 +135,19 @@ const SPAWN_A_FRAME := 6
 ## What traders sell, one pod each: three of these are set out in front of each trader
 ## The beam's colours as BEAM items stack: green, blue, purple
 const BEAM_COLOURS := [Color(0.55, 1.0, 0.65), Color(0.18, 0.38, 1.0), Color(0.78, 0.45, 1.0)]
-const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "starbits", "sling", "lightning", "fleet"]
+const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "starbits", "sling", "lightning", "fleet", "damage", "cooldown", "elite", "crowbar", "splitter", "ignition", "gasoline", "wildfire"]
 const UPGRADES := {
 	"engine": {"title": "ENGINE", "about": "faster", "price": 300, "colour": Color(1.0, 0.55, 0.15)},
 	"beam": {"title": "BEAM", "about": "the abduction beam: take things up into the ship; more lifts faster, then heavier things", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
 	"shield": {"title": "SHIELD", "about": "more shield", "price": 300, "colour": Color(0.3, 0.6, 1.0)},
 	"patch": {"title": "PATCH", "about": "shield refilled", "price": 0, "colour": Color(0.4, 1.0, 1.0)},
 	"dash": {"title": "DASH", "about": "an extra dash charge", "price": 250, "colour": Color(0.75, 0.4, 1.0)},
-	"laser": {"title": "LASER RAY", "about": "aim it and hold: a ray that burns things down", "price": 500, "colour": Color(1.0, 0.3, 0.45)},
+	"laser": {"title": "HEAT RAY", "about": "aim it and hold: a ray that sets things on fire and burns them down", "price": 500, "colour": Color(1.0, 0.42, 0.18)},
 	"turret": {"title": "AUTO TURRET", "about": "shoots by itself at anything near, the police first", "price": 500, "colour": Color(1.0, 0.5, 0.3)},
 	"missiles": {"title": "MISSILES", "about": "homing missiles at anything near, the police first; from the fleet too", "price": 600, "colour": Color(1.0, 0.75, 0.25)},
 	"cloak": {"title": "CLOAK", "about": "vanish for a few seconds", "price": 550, "colour": Color(0.6, 0.6, 1.0)},
-	"magnet": {"title": "MAGNET", "about": "small things drift to the beam", "price": 400, "colour": Color(0.9, 0.3, 0.3)},
-	"wide": {"title": "SIZE RAY", "about": "everything fired is bigger: the beam, the laser, every blast, bolt and star bit", "price": 450, "colour": Color(0.5, 1.0, 0.8)},
+	"magnet": {"title": "MAGNET", "about": "small things are pulled to the beam", "price": 400, "colour": Color(0.9, 0.3, 0.3)},
+	"wide": {"title": "SIZE RAY", "about": "everything fired is bigger: the beam, the heat ray, every blast, bolt and star bit", "price": 450, "colour": Color(0.5, 1.0, 0.8)},
 	"scanner": {"title": "SCANNER", "about": "the radar sees further", "price": 300, "colour": Color(0.3, 0.9, 0.6)},
 	"jammer": {"title": "JAMMER", "about": "they stop looking sooner", "price": 450, "colour": Color(0.9, 0.85, 0.3)},
 	"coolant": {"title": "COOLANT", "about": "the heat cools quicker", "price": 450, "colour": Color(0.6, 1.0, 0.98)},
@@ -162,6 +162,15 @@ const UPGRADES := {
 	"lightning": {"title": "LIGHTNING GUN", "about": "aim it and hold: lightning that leaps from thing to thing", "price": 650, "colour": Color(0.6, 0.8, 1.0)},
 	"second_wind": {"title": "SECOND WIND", "about": "shrug off one fatal hit", "price": 600, "colour": Color(1.0, 0.55, 0.25)},
 	"fleet": {"title": "FLEET", "about": "a little helper saucer", "price": 450, "colour": Color(1.0, 0.9, 0.3)},
+	# Items for every weapon, as Risk of Rain's (see `damage_mult`, `cooldown`, `shots`, and the fire)
+	"damage": {"title": "OVERCHARGE", "about": "every weapon hits harder", "price": 400, "colour": Color(1.0, 0.35, 0.25)},
+	"cooldown": {"title": "QUICK COILS", "about": "every weapon fires sooner", "price": 400, "colour": Color(0.45, 0.85, 1.0)},
+	"elite": {"title": "TANK BUSTER", "about": "much harder on the big ones: tanks, helicopters, rail guns", "price": 450, "colour": Color(0.95, 0.6, 0.2)},
+	"crowbar": {"title": "FIRST STRIKE", "about": "much harder on anything still nearly unhurt", "price": 350, "colour": Color(0.9, 0.2, 0.2)},
+	"splitter": {"title": "SPLITTER", "about": "one more of every shot: missiles, bolts, star bits, moonlets", "price": 700, "colour": Color(0.75, 0.55, 1.0)},
+	"ignition": {"title": "IGNITION TANK", "about": "fire burns much hotter", "price": 450, "colour": Color(1.0, 0.45, 0.1)},
+	"gasoline": {"title": "GASOLINE", "about": "whatever a weapon wrecks bursts into flame, setting fire round it", "price": 350, "colour": Color(0.95, 0.75, 0.2)},
+	"wildfire": {"title": "WILDFIRE", "about": "fires burn longer and spread further", "price": 400, "colour": Color(1.0, 0.6, 0.15)},
 }
 ## Upgrades are items that stack, as in Risk of Rain: each pick one more of it, up to this many
 const MAX_UPGRADE := 10
@@ -234,6 +243,11 @@ var holograms: Holograms
 ## Multiplayer: the room (Net), the other saucers (Coop), and the seed of the world shared in it
 var net: Net
 var coop: Coop
+## The ARENA (scripts/arena.gd): drop-in battles on the moon; whether a run is one, and how much bigger
+## the ship is for its score there
+var arena: Arena
+var arena_on := false
+var arena_grow := 1.0
 var coop_seed := 0
 ## Level-ups come with the score (off for the preview film)
 var levels_on := true
@@ -350,6 +364,7 @@ var beam_button: Control
 var _pause_button: Button
 var _pause_box: VBoxContainer
 var _resume_button: Button
+var _moon_button: Button
 var stick_ring: Control
 var touched := false
 var _touch_screen := DisplayServer.is_touchscreen_available()
@@ -422,6 +437,9 @@ func _ready() -> void:
 	net.started.connect(_coop_started)
 	net.failed.connect(func(why: String) -> void: _lobby_say(why))
 	net.closed.connect(_coop_closed)
+	arena = Arena.new()
+	arena.main = self
+	view.add_child(arena)
 	holograms = Holograms.new()
 	for what: String in UPGRADES:
 		holograms.item_colours[what] = (UPGRADES[what]["colour"] as Color).lerp(Color.WHITE, 0.2)
@@ -592,7 +610,7 @@ func start(from_launch := false) -> void:
 	_clear_wreck()
 	if not from_launch:
 		alien_seed = randi()
-	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "starbits": 0, "sling": 0, "lightning": 0, "fleet": 0}
+	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "starbits": 0, "sling": 0, "lightning": 0, "fleet": 0, "damage": 0, "cooldown": 0, "elite": 0, "crowbar": 0, "splitter": 0, "ignition": 0, "gasoline": 0, "wildfire": 0}
 	level = 0
 	_levels_due = 0
 	_rescue_wait = -1.0
@@ -651,6 +669,78 @@ func start(from_launch := false) -> void:
 		_saved_run = {}
 		_save_best()
 		_heat_note("RUN CONTINUED", 2.5)
+
+
+## Into the ARENA (arena.gd `begin`): a run of its own on the moon, no country under it (none made, nothing
+## standing in the way), no heat, no level-ups
+func start_arena() -> void:
+	arena_on = true
+	arena_grow = 1.0
+	start()
+	intro = 0.0
+	ufo.descent = 0.0
+	ufo.bubble_fade = 1.0
+	levels_on = false
+	# (the camera straight to the ship, not swinging down from the title's moon)
+	camera.position = Vector3.ZERO
+	world.reseed(world.world_seed)
+	world.lakes.clear()
+	world.visible = false
+	for t in things.duplicate():
+		_remove(t)
+	_to_spawn.clear()
+	heat = 0.0
+
+
+## Out of the arena (arena.gd `leave`), back to the title on the moon, the country made again
+func end_arena() -> void:
+	arena_on = false
+	arena_grow = 1.0
+	levels_on = true
+	world.visible = true
+	get_tree().paused = false
+	_pause_box.visible = false
+	_forget_fingers()
+	for t in things.duplicate():
+		_remove(t)
+	for s in shots:
+		s.queue_free()
+	shots.clear()
+	_clear_fleet()
+	heat = 0.0
+	score = 0
+	intro = 0.0
+	_show_title()
+
+
+## Something of the arena's ours (arena.gd `taken`, once the server says so): scored as anything taken is
+func arena_scored(kind: String, points: int) -> void:
+	if mode != "play":
+		return
+	_score_pop = 1.0
+	(_sparks as ScoreSparks).burst(score_label.position + Vector2(score_label.size.x - 40.0, score_label.size.y * 0.5), 10)
+	if Thing.KINDS.has(kind):
+		ufo.hull = minf(ufo.hull + 1.0 + float(Thing.KINDS[kind]["weight"]) * 0.5, ufo.hull_max)
+	score += points
+	taken += 1
+	ufo.alien.feel("cheer", 0.9)
+	log_line(Thing.alien_name(kind) if Thing.KINDS.has(kind) and kind != "arena_foe" else "A SAUCER", points, kind)
+	if Thing.KINDS.has(kind) and kind != "arena_foe":
+		_log_taken[kind] = int(_log_taken.get(kind, 0)) + 1
+		var group := Thing.category(kind)
+		var had: Array = _run_taken.get(group, [0, 0])
+		_run_taken[group] = [int(had[0]) + 1, int(had[1]) + points]
+
+
+## Back in the arena after being shot down: a new ship of the same kind, with only its own weapons
+func arena_respawn() -> void:
+	ufo.queue_free()
+	_make_ufo(Vector3.ZERO)
+	for w: String in upgrades:
+		upgrades[w] = 0
+	_arm_ship()
+	ufo.position.y = ufo.altitude
+	_forget_fingers()
 
 
 ## A run flown home from (TO THE MOON from the pause), kept to carry on with from the title: its ship,
@@ -773,7 +863,9 @@ func _process(delta: float) -> void:
 	if is_instance_valid(_stand_in):
 		# (the ship parked on the moon while the camera comes down onto it after a crash)
 		_stand_in.tick(delta, Vector2.ZERO, false)
-	if not ufo.dead:
+	if arena_on:
+		heat = 0.0
+	if not ufo.dead and not arena_on:
 		var held := ufo.position
 		ufo.position = world.push_out(ufo.position, 2.6, ufo.altitude - 1.0)
 		ufo.position.y = held.y
@@ -810,7 +902,7 @@ func _process(delta: float) -> void:
 					continue
 				t.tick(delta * 4.0, ufo)
 				continue
-		if not t.hiding and t.kind != "rival" and ufo.in_beam(t.position, t.reach):
+		if not t.hiding and t.kind != "rival" and t.kind != "arena_foe" and ufo.in_beam(t.position, t.reach):
 			if t.kind == "pod" and t.state == "walk" and why_not(t) != "":
 				t.tick(delta, ufo)
 				t.rattle()
@@ -839,6 +931,8 @@ func _process(delta: float) -> void:
 				if t.state == "walk":
 					_witnessed(t)
 					coop.tell("take", t.position, t.kind)
+					if arena_on:
+						arena.grabbed(t)
 				t.state = "lifted"
 				# (a building keeps how much of it is already gone: see Thing._dismantle)
 				if not t.piecemeal():
@@ -848,24 +942,27 @@ func _process(delta: float) -> void:
 	things = things.filter(func(t: Thing) -> bool: return t.state != "gone")
 	_pull_scenery(delta)
 	_beam_shadows(delta)
-	_shops(delta)
-	_rivals(delta)
-	_rival_hunt(delta)
-	_rival_bumps()
-	_nuking(delta)
-	_surface_fx(delta)
+	# (none of the country's goings-on in the arena: no traders, rivals, police, trains...)
+	if not arena_on:
+		_shops(delta)
+		_rivals(delta)
+		_rival_hunt(delta)
+		_rival_bumps()
+		_nuking(delta)
+		_surface_fx(delta)
+		_boosts(delta)
+		_geysering(delta)
+		_rocket_launches(delta)
+		_trains(delta)
+		_airliners(delta)
+		_watchers(delta)
+		_crop_circles(delta)
 	_launch_missiles(delta)
 	_magnet(delta)
-	_boosts(delta)
-	_geysering(delta)
+	_fires(delta)
 	_whirl(delta)
 	_star_bits(delta)
 	_sling(delta)
-	_rocket_launches(delta)
-	_trains(delta)
-	_airliners(delta)
-	_watchers(delta)
-	_crop_circles(delta)
 	for s in shots:
 		s.tick(delta, ufo, self)
 	_laser(delta)
@@ -875,23 +972,28 @@ func _process(delta: float) -> void:
 		if s.done:
 			s.queue_free()
 	shots = shots.filter(func(s: Shot) -> bool: return not s.done)
-	_jets(delta)
+	if not arena_on:
+		_jets(delta)
 	if mode == "play" and intro <= 0.0 and test_room:
 		_test_room(delta)
-	elif mode == "play" and intro <= 0.0:
+	elif mode == "play" and intro <= 0.0 and not arena_on:
 		_levels()
 		time_alive += delta
 		_heat(delta)
 		_forces(delta)
-	if intro <= 0.0:
+	if intro <= 0.0 and not arena_on:
 		_patrols(delta)
 	# (on the moon and on the way off it, the world stays ready round where the run starts,
-	# rather than loading chunks under a ship flying off across the sky)
-	world.update(World.START if mode in ["title", "launch", "landing"] else ufo.position, delta)
-	_spawn_some()
+	# rather than loading chunks under a ship flying off across the sky; none of it in the arena)
+	if not arena_on:
+		world.update(World.START if mode in ["title", "launch", "landing"] else ufo.position, delta)
+		_spawn_some()
 	if mode == "play" and not autopilot and not get_tree().paused:
 		_pending_fingers()
-	_cull(delta)
+	if arena_on:
+		arena.step(delta)
+	else:
+		_cull(delta)
 	_sounds()
 	if mode != "launch" and mode != "landing" and intro <= 0.0:
 		dust.fade = 0.0
@@ -899,7 +1001,7 @@ func _process(delta: float) -> void:
 	# (motes of dust in the air round the ship, coming in as it nears the ground)
 	motes.fade = 1.0 - smoothstep(0.0, 0.5, intro / INTRO) if mode == "play" or mode == "over" else 0.0
 	motes.follow(ufo.position, camera.position, delta)
-	clouds.fade = 0.0 if mode in ["title", "launch", "landing"] else 1.0 - smoothstep(0.0, 0.4, intro / INTRO)
+	clouds.fade = 0.0 if mode in ["title", "launch", "landing"] or arena_on else 1.0 - smoothstep(0.0, 0.4, intro / INTRO)
 	clouds.follow(ufo.position, camera.position, delta)
 	_camera(delta)
 	_hud(delta)
@@ -1397,7 +1499,7 @@ func spawn_shop(at: Vector3, c: Vector2i) -> void:
 	s.setup(self, at, c, randi())
 	shops.append(s)
 	# (one thing to be had: two levels of an upgrade at once, beamed up for nothing)
-	var stock: Array = GOODS.filter(func(g: String) -> bool: return g != "patch")
+	var stock: Array = GOODS.filter(func(g: String) -> bool: return g != "patch" and can_take(g))
 	stock.shuffle()
 	var what: String = stock[0]
 	var pod := spawn("pod", world.off_road(at + Vector3(0, 0, 6.5), 1.0), {"chunk": c, "turn": 0.0, "tints": {"pod_glow": UPGRADES[what]["colour"]}})
@@ -1483,10 +1585,11 @@ func _apply_upgrades() -> void:
 	ufo.colour_beam(BEAM_COLOURS[mini(beam_extra() / 2, BEAM_COLOURS.size() - 1)])
 	# (SIZE RAY: everything fired bigger, the beam a fifth broader a stack, its light with it)
 	var wide: float = weapon_size()
-	ufo.beam_foot = float(spec["beam_foot"]) * wide
+	if arena_on:
+		wide *= arena_grow
+	ufo.set_beam_size(float(spec["beam_foot"]) * wide)
 	# (SWIVEL MOUNT: the beam leans a third further out from under the ship a stack)
 	ufo.beam_reach = Ufo.BEAM_REACH * (1.0 + 0.35 * upgrades["swivel"])
-	ufo.beam.scale = Vector3(wide, 1.0, wide)
 	if upgrades["turret"] > 0:
 		ufo.arm_laser()
 	else:
@@ -1502,6 +1605,10 @@ func _ship_stats() -> void:
 	ufo.speed = float(spec["speed"]) * (1.0 + 0.07 * upgrades["engine"]) * (1.5 if boosts.has("overdrive") else 1.0)
 	ufo.lift_rate = float(spec["lift"]) * (1.0 + 0.12 * beam_extra()) * (1.8 if boosts.has("super") else 1.0)
 	ufo.tier = mini(int(spec["tier"]) + beam_extra() / 2 + (1 if boosts.has("super") else 0), 4)
+	if arena_on:
+		# (in the arena, bigger is slower and stronger: a tier more for each half again as big)
+		ufo.speed /= pow(arena_grow, 0.35)
+		ufo.tier = clampi(maxi(ufo.tier, 1 + int((arena_grow - 1.0) * 2.0)), 1, 3)
 
 
 ## BEAMs past the first (the first is the beam itself)
@@ -1512,6 +1619,46 @@ func beam_extra() -> int:
 ## SIZE RAY: how much bigger everything fired is (a fifth a stack)
 func weapon_size() -> float:
 	return 1.0 + 0.2 * upgrades["wide"]
+
+
+## OVERCHARGE, TANK BUSTER and FIRST STRIKE: how much harder a weapon hits `t` (OVERCHARGE a sixth a
+## stack; TANK BUSTER two fifths a stack on the big ones, ELITES; FIRST STRIKE three quarters a stack
+## on anything still above nine tenths of itself, see `health_of`)
+func damage_mult(t: Thing) -> float:
+	var m: float = 1.0 + 0.16 * upgrades["damage"]
+	if is_instance_valid(t):
+		if upgrades["elite"] > 0 and t.info.get("elite", false):
+			m *= 1.0 + 0.4 * upgrades["elite"]
+		if upgrades["crowbar"] > 0 and health_of(t) >= 0.9:
+			m *= 1.0 + 0.75 * upgrades["crowbar"]
+	return m
+
+
+## How much of `t` is left, 1 whole to 0 gone: the police and army by their LASER_HITS, cars and drums
+## by the damage they have taken (one hit's worth blows them up), what stands about (buildings, trees,
+## crops...) by how much is burnt (its size squared brings it down), people and animals by half a hit
+func health_of(t: Thing) -> float:
+	if not is_instance_valid(t):
+		return 0.0
+	var dmg := float(t.get_meta("dmg", 0.0))
+	if t.is_enemy():
+		return clampf(1.0 - (float(t.get_meta("zapped", 0)) + dmg) / float(LASER_HITS.get(t.kind, 2)), 0.0, 1.0)
+	if t.kind in VEHICLES or t.info.get("explosive", false):
+		return clampf(1.0 - dmg, 0.0, 1.0)
+	if t.info["move"] == "still":
+		return clampf(1.0 - float(t.get_meta("burnt", 0.0)) / ceilf(t.size() * t.size()), 0.0, 1.0)
+	return clampf(1.0 - dmg / 0.5, 0.0, 1.0)
+
+
+## QUICK COILS: every weapon's wait between shots, as a share of what it was (a seventh shorter a
+## stack, never less than two fifths)
+func cooldown() -> float:
+	return maxf(1.0 / (1.0 + 0.16 * upgrades["cooldown"]), 0.4)
+
+
+## SPLITTER: how many of each shot (one, and one more a stack)
+func shots_of() -> int:
+	return 1 + int(upgrades["splitter"])
 
 
 ## How far out from under the ship the aimed weapons reach (more with SWIVEL MOUNT, as the beam leans)
@@ -1575,27 +1722,6 @@ func _arm_ship() -> void:
 	ufo.second_winds = upgrades["second_wind"]
 
 
-## A weapon given up for another (its stack gone with it)
-func drop_weapon(w: String) -> void:
-	if not has_weapon(w):
-		return
-	upgrades[w] = 0
-	_got.erase(w)
-	if aimed == w or not aimed in manual_weapons():
-		aimed = _first_manual()
-	_apply_upgrades()
-	_heat_note("%s DROPPED" % UPGRADES[w]["title"], 2.0)
-
-
-## The weapon to drop when a new one comes and none was chosen: the oldest that is not the beam
-func _auto_drop() -> String:
-	var had := weapons_had()
-	for w in had:
-		if w != "beam":
-			return w
-	return had[0]
-
-
 ## The beam's button over to the next weapon fired by hand (the laser's switch, L / Tab / C, Y)
 func toggle_weapon() -> void:
 	var hand := manual_weapons()
@@ -1645,7 +1771,8 @@ func _aim_mark_at(_delta: float, on: bool) -> void:
 		return
 	var at := target_point()
 	_aim_mark.global_position = Vector3(at.x, 0.07, at.z)
-	_aim_mark.scale = Vector3.ONE * weapon_size()
+	# (the heat ray's mark just what it burns, HEAT_BURN round; the pad is 4 m across)
+	_aim_mark.scale = Vector3.ONE * weapon_size() * (HEAT_BURN / 2.0 * 1.1 if aimed == "laser" else 1.0)
 	var c: Color = UPGRADES[aimed]["colour"]
 	# (dim while the sling is still winding up for the next)
 	var ready := not (aimed == "sling" and _sling_wait > 0.0)
@@ -1677,16 +1804,45 @@ func weapon_target(from: Vector3, reach: float, skip: Array = []) -> Thing:
 		if not t.is_enemy() and shootable(t) and not t in skip and t.ground().distance_to(foot) < near:
 			near = t.ground().distance_to(foot)
 			best = t
+	# (nothing standing as a Thing: the nearest crop, bush, rock or bench, stood up to be hit)
+	if best == null and not autopilot:
+		for t in wake_scenery(foot, reach, 1):
+			if shootable(t) and not t in skip:
+				best = t
 	return best
+
+
+## The scenery round `at` (within `reach`, `most` of it, the nearest first) stood up as Things where
+## it stood, for a weapon to hit: crops, bushes, rocks, benches and the rest are drawn many to a
+## MultiMesh and are not Things until something takes hold of them (see World.wake)
+func wake_scenery(at: Vector3, reach: float, most := 6) -> Array[Thing]:
+	var woke: Array[Thing] = []
+	if mode != "play" and mode != "test":
+		return woke
+	for f: Array in world.wake(at, reach, most):
+		var xf: Transform3D = f[1]
+		if not Thing.KINDS.has(f[0]):
+			continue
+		var t := spawn(f[0], xf.origin, {"turn": xf.basis.get_euler().y, "size": xf.basis.get_scale().x, "tints": f[2], "chunk": f[3]})
+		if t != null:
+			woke.append(t)
+	return woke
 
 
 ## A weapon's hit on `t`, `power` laser hits' worth (fractions add up): the police and army are hit
 ## (LASER_HITS blow them up), cars and oil drums blow up, people and animals are zapped away, and
 ## anything standing (buildings, trees, crops, fences...) takes damage until it comes apart
 func weapon_hit(t: Thing, at: Vector3, power: float) -> void:
+	power *= damage_mult(t)
+	if is_instance_valid(t) and t.kind == "arena_foe":
+		arena.hit_foe(t, power, at)
+		return
 	if is_instance_valid(t) and t.has_meta("dummy"):
 		_dummy_hit(t, power)
 		return
+	if is_instance_valid(t):
+		# (wrecked now, it was a weapon's doing: GASOLINE goes up from it, see `_remove`)
+		t.set_meta("weapon_hit", true)
 	if not shootable(t) and not (is_instance_valid(t) and t.state == "walk" and t.is_enemy()):
 		return
 	var due := float(t.get_meta("dmg", 0.0)) + power
@@ -1773,7 +1929,7 @@ func _lightning(delta: float, firing: bool) -> void:
 	if not firing or ufo.dead or mode != "play" or _bolt_wait > 0.0:
 		return
 	var level: int = maxi(upgrades["lightning"], 1)
-	_bolt_wait = maxf(LIGHTNING_EVERY - 0.03 * (level - 1), 0.15)
+	_bolt_wait = maxf(LIGHTNING_EVERY - 0.03 * (level - 1), 0.15) * cooldown()
 	var big := weapon_size()
 	var at := target_point()
 	var from := ufo.global_position + Vector3(0, -0.6, 0)
@@ -1801,6 +1957,15 @@ func _lightning(delta: float, firing: bool) -> void:
 		struck.append(next)
 		chain.append([next, to])
 		last = to
+	# (SPLITTER: another bolt from the ship a stack, at the next nearest to the mark)
+	for n in shots_of() - 1:
+		var more := weapon_target(at, (4.0 + 0.5 * level) * big, struck)
+		if more == null:
+			break
+		var to_more := more.global_position + Vector3(0, minf(more.size() * 0.5, 2.0), 0)
+		_bolt(from, to_more, 0.14 * big)
+		struck.append(more)
+		chain.append([more, to_more])
 	# (hit after the bolts are drawn: a hit may take what it struck away)
 	for i in chain.size():
 		weapon_hit(chain[i][0], chain[i][1], power * pow(0.75, i))
@@ -1808,46 +1973,84 @@ func _lightning(delta: float, firing: bool) -> void:
 	_shake = maxf(_shake, 0.06)
 
 
-## A bolt of lightning from `a` to `b`, `thick` across: a jagged run of glowing pieces, gone in a moment
+## A bolt of lightning from `a` to `b` (`thick` sets its scale): a fine white-hot thread in a faint blue
+## glow, jagged all along (split and split again, each split thrown aside), with arcs forking off it
+## that fork again, thinning and fading toward their tips. Each run is one seamless ribbon turned to
+## face the eye (no joins between its pieces), the whole bolt one mesh, gone in a moment
 func _bolt(a: Vector3, b: Vector3, thick: float) -> void:
-	var holder := Node3D.new()
+	var holder := MeshInstance3D.new()
 	holder.top_level = true
+	holder.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	view.add_child(holder)
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	m.albedo_color = Color(0.85, 0.93, 1.0, 1.0)
+	m.vertex_color_use_as_albedo = true
+	m.albedo_color = Color(1, 1, 1, 1)
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var rod := CylinderMesh.new()
-	rod.top_radius = 1.0
-	rod.bottom_radius = 1.0
-	rod.height = 1.0
-	rod.radial_segments = 4
-	rod.rings = 1
-	var steps := maxi(int(a.distance_to(b) / 1.2), 3)
-	var side := (b - a).cross(Vector3.UP).normalized() if absf((b - a).normalized().y) < 0.95 else Vector3.RIGHT
-	var other := (b - a).cross(side).normalized()
-	var prev := a
-	for k in steps:
-		var s := float(k + 1) / steps
-		var point := a.lerp(b, s)
-		if k < steps - 1:
-			point += (side * randf_range(-1, 1) + other * randf_range(-1, 1)) * 0.45 * a.distance_to(b) / steps
-		var along := point - prev
-		if along.length() > 0.01:
-			for pass_ in 2:
-				var piece := MeshInstance3D.new()
-				piece.mesh = rod
-				piece.material_override = m
-				piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-				var w := thick * (3.2 if pass_ == 0 else 1.0)
-				holder.add_child(piece)
-				piece.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, along.normalized())) * Basis.from_scale(Vector3(w, along.length(), w)), (prev + point) * 0.5)
-				if pass_ == 0:
-					piece.transparency = 0.45
-		prev = point
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_bolt_run(st, a, b, thick, camera.global_position, 0)
+	holder.mesh = st.commit()
+	holder.material_override = m
 	_bolts.append([holder, m, 0.0])
+
+
+## One run of a bolt from `a` to `b`, and the arcs off it (`depth` how many forks out it is)
+func _bolt_run(st: SurfaceTool, a: Vector3, b: Vector3, thick: float, eye: Vector3, depth: int) -> void:
+	var long := a.distance_to(b)
+	if long < 0.05:
+		return
+	var way := (b - a) / long
+	var side := way.cross(Vector3.UP).normalized() if absf(way.y) < 0.95 else Vector3.RIGHT
+	var other := way.cross(side).normalized()
+	# (split and split again, each new point thrown aside a little less than the last)
+	var pts: Array[Vector3] = [a, b]
+	var throw := long * 0.2
+	for round_ in 5 - depth:
+		var finer: Array[Vector3] = [pts[0]]
+		for i in pts.size() - 1:
+			var mid: Vector3 = (pts[i] + pts[i + 1]) * 0.5
+			mid += (side * randf_range(-1, 1) + other * randf_range(-1, 1)) * throw
+			finer.append(mid)
+			finer.append(pts[i + 1])
+		pts = finer
+		throw *= 0.52
+	var fade := 0.0 if depth == 0 else 1.0
+	# (a faint blue glow round a thin white-hot thread)
+	# (never thinner than the low-res picture's pixels can show: see Ps1.LINES)
+	_bolt_ribbon(st, pts, maxf(thick * 1.5, 0.1), Color(0.4, 0.55, 1.0, 0.3), eye, fade)
+	_bolt_ribbon(st, pts, maxf(thick * 0.5, 0.035), Color(0.95, 0.97, 1.0, 1.0), eye, fade)
+	if depth >= 2:
+		return
+	# Arcs forking off it, thrown out to the side and down, and forking again
+	for n in randi_range(3, 5) - depth * 2:
+		var i := randi_range(1, pts.size() - 2)
+		var from: Vector3 = pts[i]
+		var on := (pts[i + 1] - pts[i - 1]).normalized()
+		var off := (side * randf_range(-1, 1) + other * randf_range(-1, 1)).normalized()
+		var dir := (on * 0.6 + off + Vector3.DOWN * 0.25).normalized()
+		_bolt_run(st, from, from + dir * long * randf_range(0.15, 0.35), thick * 0.6, eye, depth + 1)
+
+
+## A run of points as one strip turned to face `eye`, `wide` across, its corners shared from one piece
+## to the next; `fade` 1 thins and fades it out to its end (an arc's tip)
+func _bolt_ribbon(st: SurfaceTool, pts: Array[Vector3], wide: float, c: Color, eye: Vector3, fade: float) -> void:
+	var count := pts.size()
+	var edges: Array = []
+	for i in count:
+		var t := float(i) / (count - 1)
+		var ahead: Vector3 = pts[mini(i + 1, count - 1)] - pts[maxi(i - 1, 0)]
+		var across := ahead.cross(eye - pts[i]).normalized() * wide * (1.0 - 0.75 * fade * t)
+		var shade := Color(c.r, c.g, c.b, c.a * (1.0 - fade * t * t))
+		edges.append([pts[i] - across, pts[i] + across, shade])
+	for i in count - 1:
+		var e0: Array = edges[i]
+		var e1: Array = edges[i + 1]
+		for v: Array in [[e0[0], e0[2]], [e0[1], e0[2]], [e1[0], e1[2]], [e0[1], e0[2]], [e1[1], e1[2]], [e1[0], e1[2]]]:
+			st.set_color(v[1])
+			st.add_vertex(v[0])
 
 
 ## A quick flash of light at `at`
@@ -1977,8 +2180,8 @@ func _levels() -> void:
 const RARITY_COLOURS: Array[Color] = [Color(0.4, 1.0, 0.5), Color(0.35, 0.65, 1.0), Color(1.0, 0.3, 0.3)]
 const RARITY_NAMES: Array[String] = ["COMMON", "UNCOMMON", "RARE"]
 const RARITY_ODDS: Array[float] = [6.0, 2.5, 0.8]
-const UNCOMMON: Array[String] = ["laser", "turret", "starbits", "cloak", "nanobots", "gold", "armor", "beam"]
-const RARE: Array[String] = ["missiles", "emp", "fleet", "second_wind", "sling", "lightning"]
+const UNCOMMON: Array[String] = ["laser", "turret", "starbits", "cloak", "nanobots", "gold", "armor", "beam", "elite", "ignition", "wildfire"]
+const RARE: Array[String] = ["missiles", "emp", "fleet", "second_wind", "sling", "lightning", "splitter"]
 
 
 func rarity(what: String) -> int:
@@ -1986,7 +2189,7 @@ func rarity(what: String) -> int:
 
 
 func _level_up() -> void:
-	var offers: Array = GOODS.filter(func(g: String) -> bool: return g != "patch" and upgrades[g] < MAX_UPGRADE)
+	var offers: Array = GOODS.filter(func(g: String) -> bool: return g != "patch" and upgrades[g] < MAX_UPGRADE and can_take(g))
 	# (three different ones, the rarer the less often: see RARITY)
 	var picked: Array = []
 	while picked.size() < 3 and not offers.is_empty():
@@ -2063,18 +2266,15 @@ func _level_up() -> void:
 
 
 func _pick(what: String) -> void:
-	if what in WEAPONS and not has_weapon(what) and weapons_had().size() >= WEAPON_SLOTS and not (autopilot or testing):
-		_ask_drop(what)
-		return
 	_picked(what)
 
 
 ## The pick made: the market packs up and the game goes on
-func _picked(what: String, drop := "") -> void:
+func _picked(what: String) -> void:
 	if what == "patch":
 		repair()
 	elif what != "":
-		buy(what, drop)
+		buy(what)
 	if is_instance_valid(_market):
 		_market.leave()
 	_picker.visible = false
@@ -2082,44 +2282,18 @@ func _picked(what: String, drop := "") -> void:
 		_picker_dim.visible = false
 	get_tree().paused = false
 
-## A new weapon with both slots full, picked at the Moon Market: which to drop for it (or keep both,
-## and take nothing)
-func _ask_drop(what: String) -> void:
-	for b in _picks.get_children():
-		b.queue_free()
-	var big := _upright()
-	_picker_title.text = "TWO WEAPONS AT MOST"
-	_pick_one.text = "DROP ONE FOR THE %s?" % UPGRADES[what]["title"]
-	_pick_one.visible = true
-	_pick_one.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	var choices: Array = []
-	for w in weapons_had():
-		choices.append([w, "DROP %s  x%d" % [UPGRADES[w]["title"], upgrades[w]], func() -> void: _picked(what, w)])
-	choices.append(["", "KEEP MY WEAPONS", func() -> void: _picked("")])
-	for c: Array in choices:
-		var b := _button(c[1], c[2])
-		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		b.custom_minimum_size = Vector2(1180, 200) if big else Vector2(600, 96)
-		b.add_theme_font_size_override("font_size", 70 if big else 34)
-		if c[0] != "":
-			b.add_theme_color_override("font_color", (UPGRADES[c[0]]["colour"] as Color).lerp(Color.WHITE, 0.35))
-			b.icon = holograms.turning("item:" + str(c[0]))
-			b.expand_icon = true
-			b.add_theme_constant_override("icon_max_width", 180 if big else 80)
-			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			b.add_theme_constant_override("h_separation", 30 if big else 18)
-		_picks.add_child(b)
-	sfx.play("click", 1.0, -4.0)
+## Whether `what` can be had now: anything but a new weapon with both weapon slots full (weapons are
+## never dropped: once both are taken, only more of them is offered)
+func can_take(what: String) -> bool:
+	return not (what in WEAPONS and not has_weapon(what) and weapons_had().size() >= WEAPON_SLOTS)
 
 
-## An upgrade: one more level of it (up to MAX_UPGRADE), for nothing (see `_level_up`). A new weapon
-## with both weapon slots full drops `drop` for it (or else the oldest that is not the beam)
-func buy(what: String, drop := "") -> bool:
-	if upgrades[what] >= MAX_UPGRADE:
+## An upgrade: one more level of it (up to MAX_UPGRADE), for nothing (see `_level_up`); a new weapon
+## only while a weapon slot is free (see `can_take`)
+func buy(what: String, _drop := "") -> bool:
+	if upgrades[what] >= MAX_UPGRADE or not can_take(what):
 		return false
 	if what in WEAPONS and not has_weapon(what):
-		if weapons_had().size() >= WEAPON_SLOTS:
-			drop_weapon(drop if has_weapon(drop) else _auto_drop())
 		_got.append(what)
 		if aimed == "" and manual(what):
 			aimed = what
@@ -2211,10 +2385,21 @@ func _laser(delta: float) -> void:
 		var splash := 1.6 * (weapon_size() - 1.0)
 		if splash > 0.1:
 			boom(at, 0.8 + splash)
+			wake_scenery(at, splash, 4)
 			for o in things.duplicate():
 				if o != target and shootable(o) and o.ground().distance_to(Vector3(at.x, 0, at.z)) < splash:
 					weapon_hit(o, o.position + Vector3(0, 0.8, 0), 0.5)
 		weapon_hit(target, at, 1.0)
+		# (SPLITTER: a round more a stack, each at the next nearest)
+		var hit_too: Array = [target]
+		for i in shots_of() - 1:
+			var more := weapon_target(ufo.ground(), 14.0 + 3.0 * level, hit_too)
+			if more == null:
+				break
+			hit_too.append(more)
+			var at_more := more.global_position + Vector3(0, 1.0, 0)
+			_rattle(ufo.aim_laser(at_more), at_more)
+			weapon_hit(more, at_more, 1.0)
 	else:
 		# A jet, out of the sky
 		jets.erase(target)
@@ -2233,6 +2418,9 @@ func _laser(delta: float) -> void:
 ## One of the police or army hit by a laser (the turret's or the ship's): LASER_HITS of them blow it
 ## up, scored and heating things up as a crush does; fewer only stun it a while, red and sparking
 func _laser_hit(t: Thing, at: Vector3) -> void:
+	if t.kind == "arena_foe":
+		arena.hit_foe(t, 1.0, at)
+		return
 	var hits := int(t.get_meta("zapped", 0)) + 1
 	if hits >= int(LASER_HITS.get(t.kind, 2)):
 		var points := t.points() / 2 * multiplier()
@@ -2268,10 +2456,18 @@ func radar_range() -> float:
 	return Radar.RANGE * (1.0 + 0.33 * upgrades["scanner"])
 
 
-## MAGNET: while beaming, small things near the beam's foot drift into it (wider and quicker a stack)
+## MAGNET: while beaming, small things near the beam's foot are pulled into it (wider and quicker a
+## stack), and it shows: two rings, red and blue, closing in on the beam's foot over and over, a
+## red-and-blue spark streaming in from each thing it pulls, and the thing itself flushed blue
+var _magnet_rings: Array[MeshInstance3D] = []
+var _magnet_t := 0.0
+
+
 func _magnet(delta: float) -> void:
 	var n: int = upgrades["magnet"]
-	if n <= 0 or not ufo.beaming or ufo.dead:
+	var on := n > 0 and ufo.beaming and not ufo.dead and mode == "play"
+	_magnet_look(delta, on, ufo.beam_foot + 3.0 + 2.0 * n)
+	if not on:
 		return
 	var foot := ufo.beam_axis(0.0)
 	var reach := ufo.beam_foot + 3.0 + 2.0 * n
@@ -2282,6 +2478,50 @@ func _magnet(delta: float) -> void:
 		var d := off.length()
 		if d < reach and d > ufo.beam_foot * 0.5:
 			t.position += off / d * minf((1.0 + 0.8 * n) * delta, d)
+			if randf() < delta * 7.0:
+				var up := t.position + Vector3(0, 0.4 + t.size() * 0.3, 0)
+				var c := Color(1.0, 0.25, 0.25) if randf() < 0.5 else Color(0.3, 0.55, 1.0)
+				ufo.puffs.spark(up, (Vector3(foot.x, up.y + 1.0, foot.z) - up).normalized() * minf(d * 2.0, 9.0) + Vector3(0, 1.0, 0), c)
+			if randf() < delta * 3.0:
+				Ps1.flash(t.model, Color(0.15, 0.3, 0.9))
+				_unflash(t, 0.1)
+
+
+func _magnet_look(delta: float, on: bool, reach: float) -> void:
+	if _magnet_rings.is_empty():
+		for i in 2:
+			var ring := MeshInstance3D.new()
+			var torus := TorusMesh.new()
+			torus.inner_radius = 0.93
+			torus.outer_radius = 1.0
+			torus.rings = 24
+			torus.ring_segments = 4
+			ring.mesh = torus
+			var m := StandardMaterial3D.new()
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			m.albedo_color = Color(1.0, 0.3, 0.3) if i == 0 else Color(0.35, 0.6, 1.0)
+			ring.material_override = m
+			ring.top_level = true
+			ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			view.add_child(ring)
+			_magnet_rings.append(ring)
+	_magnet_t += delta
+	var foot := ufo.beam_axis(0.0) if ufo != null else Vector3.ZERO
+	for i in 2:
+		var ring := _magnet_rings[i]
+		ring.visible = on
+		if not on:
+			continue
+		# (closing in on the beam from as far as it pulls, again and again, the two half a beat apart)
+		var k := fposmod(_magnet_t * 0.9 + i * 0.5, 1.0)
+		var r := lerpf(reach, ufo.beam_foot * 0.7, k * k)
+		ring.global_position = Vector3(foot.x, 0.25, foot.z)
+		ring.scale = Vector3(r, 1.0 + 1.5 * (1.0 - k), r)
+		var c := (ring.material_override as StandardMaterial3D).albedo_color
+		c.a = sin(k * PI) * 0.8
+		(ring.material_override as StandardMaterial3D).albedo_color = c
 
 
 ## EMP: a dash stuns the police and army near (further a stack)
@@ -2294,6 +2534,7 @@ func _emp() -> void:
 	_emp_blast(reach)
 	sfx.play("static", 0.6, 2.0)
 	_shake = maxf(_shake, 0.2 + 0.05 * n)
+	wake_scenery(ufo.ground(), reach * 0.6, 10)
 	# (what is caught, worked out first: the damage done may take things away)
 	var caught: Array[Thing] = []
 	for t in things:
@@ -2392,7 +2633,7 @@ var _missiles: Array = []
 
 
 func missile_reload() -> float:
-	return maxf(7.0 - 1.0 * upgrades["missiles"], 2.0)
+	return maxf(7.0 - 1.0 * upgrades["missiles"], 2.0) * cooldown()
 
 
 func _launch_missiles(delta: float) -> void:
@@ -2408,6 +2649,13 @@ func _launch_missiles(delta: float) -> void:
 		return
 	_missile_wait = missile_reload()
 	_fire_missile(ufo.global_position + Vector3(0, -0.7, 0), target)
+	# (SPLITTER: one more a stack, each after the next nearest)
+	var aimed_at: Array = [target]
+	for i in shots_of() - 1:
+		var more := weapon_target(ufo.ground(), MISSILE_REACH, aimed_at)
+		var at_it: Thing = more if more != null else target
+		aimed_at.append(at_it)
+		_fire_missile(ufo.global_position + Vector3(randf_range(-1, 1), -0.7, randf_range(-1, 1)), at_it)
 	for d: Drone in fleet:
 		if d.is_up():
 			var t := _missile_target(d.global_position)
@@ -2455,9 +2703,13 @@ func _fly_missile(m: Array, delta: float) -> void:
 			if target.is_enemy():
 				target.set_meta("zapped", 99)
 			weapon_hit(target, goal, 4.0)
+		wake_scenery(at, splash, 8)
 		for o in things.duplicate():
 			if o != target and shootable(o) and o.ground().distance_to(Vector3(at.x, 0, at.z)) < splash:
 				weapon_hit(o, o.position + Vector3(0, 0.8, 0), 1.2)
+				ignite(o)
+		if hit and is_instance_valid(target):
+			ignite(target)
 		node.queue_free()
 		_missiles.erase(m)
 # ------------------------------------------------------------------ the ship's own laser
@@ -2502,7 +2754,7 @@ func _cut(delta: float, firing: bool) -> void:
 		_cut_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		_cut_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		_cut_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-		_cut_mat.albedo_color = Color(1.0, 0.3, 0.45, 0.9)
+		_cut_mat.albedo_color = Color(1.0, 0.48, 0.12, 0.9)
 		_cut_ray.material_override = _cut_mat
 		_cut_ray.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_cut_ray.top_level = true
@@ -2515,7 +2767,8 @@ func _cut(delta: float, firing: bool) -> void:
 	# (aimed over a much wider spread than the beam's lean: the thumb sweeps it well out from under the ship)
 	var foot := target_point()
 	var along := foot - from
-	var wide := (0.12 + 0.05 * sin(Time.get_ticks_msec() * 0.05)) * weapon_size()
+	# (thicker with SIZE RAY, as what it burns is wider: see HEAT_BURN and the mark, `_aim_mark_at`)
+	var wide := (0.16 + 0.05 * sin(Time.get_ticks_msec() * 0.05)) * weapon_size()
 	_cut_ray.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, along.normalized())) * Basis.from_scale(Vector3(wide, along.length(), wide)), (from + foot) * 0.5)
 	# (a trail of burns along the ground where it has been)
 	if _last_scorch == Vector3.INF or Vector2(foot.x - _last_scorch.x, foot.z - _last_scorch.z).length() > 0.4:
@@ -2528,22 +2781,27 @@ func _cut(delta: float, firing: bool) -> void:
 	_cut_wait -= delta
 	if _cut_wait > 0.0:
 		return
-	_cut_wait = maxf(0.4 - 0.05 * upgrades["laser"], 0.12)
+	_cut_wait = maxf(0.4 - 0.05 * upgrades["laser"], 0.12) * cooldown()
 	sfx.play("zap", randf_range(0.9, 1.1), -10.0)
+	var burn_r := HEAT_BURN * weapon_size()
+	wake_scenery(foot, burn_r, 3)
 	for t in things.duplicate():
-		if t.state != "walk" or t.hiding:
+		if not is_instance_valid(t) or t.state != "walk" or t.hiding:
 			continue
-		if Vector2(t.position.x - foot.x, t.position.z - foot.z).length() > 1.8 * weapon_size() + t.size() * 0.3:
+		if Vector2(t.position.x - foot.x, t.position.z - foot.z).length() > burn_r + t.size() * 0.3:
 			continue
-		if t.has_meta("dummy"):
-			_dummy_hit(t, 1.0)
-		elif t.is_enemy():
-			_laser_hit(t, t.global_position + Vector3(0, 1.0, 0))
+		# (everything it touches catches fire, and is hit: a hit's worth on the police and army)
+		ignite(t)
+		if t.has_meta("dummy") or t.is_enemy():
+			weapon_hit(t, t.global_position + Vector3(0, 1.0, 0), 1.0)
 		elif t.info.get("explosive", false) or t.kind in VEHICLES:
-			explode(t)
+			weapon_hit(t, t.global_position + Vector3(0, 1.0, 0), 0.5)
 		else:
 			_burn(t)
 
+
+## How far round its mark the heat ray burns (SIZE RAY wider)
+const HEAT_BURN := 1.3
 
 ## What the laser cannot burn: the land itself
 const FIREPROOF := ["hill", "butte", "mesa", "peak", "crag", "devils_tower", "runway", "pod", "canister", "rival"]
@@ -2581,9 +2839,12 @@ func _blast(t: Thing, hurt: float) -> void:
 		return
 	var taken: float = float(t.get_meta("burnt", 0.0)) + hurt
 	if taken >= ceilf(t.size() * t.size()):
-		_vaporise(t, "BLOWN APART")
+		_vaporise(t, "BURNT DOWN" if _burn_tick else "BLOWN APART")
 		return
 	t.set_meta("burnt", taken)
+	# (a fire's own damage shows as the fire: see `_fires`)
+	if _burn_tick:
+		return
 	Ps1.flash(t.model, Color(1.0, 0.45, 0.1))
 	for i in 2 + int(t.size()):
 		ufo.puffs.puff(t.position + Vector3(randf_range(-1, 1), 0.3, randf_range(-1, 1)) * t.size() * 0.4 + Vector3(0, t.size() * 0.4, 0),
@@ -2593,6 +2854,135 @@ func _blast(t: Thing, hurt: float) -> void:
 		var still: Thing = held.get_ref()
 		if still != null:
 			Ps1.flash(still.model, Color.BLACK)).set_delay(0.18)
+
+
+# ------------------------------------------------------------------ fire
+
+## Set on fire (the heat ray, an explosion, GASOLINE, or a fire beside it): it burns for BURN_TIME
+## seconds (WILDFIRE longer; a building as long again for its size), flames on it (GameCommon's Fire,
+## bent with the world), taking BURN_HITS laser hits a second (IGNITION TANK hotter, OVERCHARGE and the
+## rest as any weapon) until it is gone: people and animals run burning and are gone in a flash,
+## cars blow up, buildings, trees and crops burn down. Now and then a fire leaps to something that
+## will burn beside it (further with WILDFIRE), crops and bushes too (see `wake_scenery`).
+const BURN_TIME := 4.0
+const BURN_HITS := 0.35
+## The most things alight at once (on a phone each fire is a few cards and a little work)
+const MOST_FIRES := 24
+var _burning: Array[Thing] = []
+## While a burn's damage is being done (what it brings down is BURNT DOWN, and it lights nothing new)
+var _burn_tick := false
+
+
+func flammable(t: Thing) -> bool:
+	if not shootable(t) and not (is_instance_valid(t) and t.has_meta("dummy")):
+		return false
+	if t.kind in FIREPROOF or t.kind == "arena_foe" or t.info["move"] == "swim":
+		return false
+	for stone: String in ["rock", "boulder", "meteorite", "moonlet", "crash", "hydrant", "track"]:
+		if stone in t.kind:
+			return false
+	return true
+
+
+## Sets `t` on fire (or keeps it burning longer)
+func ignite(t: Thing) -> void:
+	if _burn_tick or not is_instance_valid(t) or not flammable(t):
+		return
+	var big: bool = t.info["move"] == "still" and t.size() > 1.6
+	var lasts: float = BURN_TIME * (1.0 + 0.5 * upgrades["wildfire"]) * ((1.0 + t.size() * 0.5) if big else 1.0)
+	t.set_meta("burn", maxf(float(t.get_meta("burn", 0.0)), lasts))
+	if t in _burning:
+		return
+	if _burning.size() >= MOST_FIRES:
+		return
+	_burning.append(t)
+	t.set_meta("burn_tick", randf() * 0.5)
+	t.set_meta("spread_tick", 0.6 + randf() * 0.6)
+	var flame := Fire.new()
+	flame.size = clampf(t.size() * (0.55 if big else 0.45), 0.35, 2.4)
+	flame.light = false
+	flame.embers = false
+	flame.smoke = false
+	flame.position = Vector3(0, minf(t.size() * 0.15, 0.6), 0)
+	t.add_child(flame)
+	t.set_meta("flame", flame)
+	if t.info["move"] in ["flee", "graze", "peck", "walk", "guard", "believer"]:
+		t.panic = maxf(t.panic, 6.0)
+
+
+func _fires(delta: float) -> void:
+	for t: Thing in _burning.duplicate():
+		if not is_instance_valid(t) or t.state != "walk":
+			_burning.erase(t)
+			continue
+		var left := float(t.get_meta("burn", 0.0)) - delta
+		t.set_meta("burn", left)
+		if left <= 0.0:
+			_put_out(t)
+			continue
+		if t.info["move"] != "still":
+			t.panic = maxf(t.panic, 1.0)
+		if randf() < delta * (2.0 + t.size()):
+			ufo.puffs.puff(t.position + Vector3(randf_range(-0.3, 0.3), t.size() * 0.7 + 0.4, randf_range(-0.3, 0.3)), Color(0.16, 0.14, 0.13, 0.55), 0.3 + t.size() * 0.2, Vector3(0, 1.6, 0), 1.4)
+		# The burn's damage, twice a second
+		var tick := float(t.get_meta("burn_tick", 0.0)) - delta
+		if tick <= 0.0:
+			tick += 0.5
+			_burn_tick = true
+			weapon_hit(t, t.position + Vector3(0, 0.8, 0), BURN_HITS * 0.5 * (1.0 + 1.0 * upgrades["ignition"]))
+			_burn_tick = false
+			if is_instance_valid(t) and t.state == "walk":
+				# (a dull glow, not a flash: it is burning, not being hit)
+				Ps1.flash(t.model, Color(0.35, 0.12, 0.02))
+				_unflash(t, 0.2)
+		if not is_instance_valid(t) or t.state != "walk":
+			_burning.erase(t)
+			continue
+		t.set_meta("burn_tick", tick)
+		# Now and then, the fire leaps to something near that will burn
+		var spread := float(t.get_meta("spread_tick", 1.0)) - delta
+		if spread <= 0.0:
+			spread += 1.0
+			var reach: float = (1.6 + t.size() * 0.5) * (1.0 + 0.5 * upgrades["wildfire"])
+			if randf() < 0.45 + 0.1 * upgrades["wildfire"]:
+				wake_scenery(t.ground(), reach, 1)
+				var near: Array[Thing] = []
+				for o in things:
+					if o != t and not o in _burning and o.ground().distance_to(t.ground()) < reach + o.size() * 0.3 and flammable(o) and not o.is_enemy():
+						near.append(o)
+				if not near.is_empty():
+					ignite(near.pick_random())
+		t.set_meta("spread_tick", spread)
+
+
+## Gone out: the flames die down
+func _put_out(t: Thing) -> void:
+	_burning.erase(t)
+	t.remove_meta("burn")
+	var flame = t.get_meta("flame", null)
+	if flame != null and is_instance_valid(flame):
+		var tw := (flame as Node3D).create_tween()
+		tw.tween_property(flame, "scale", Vector3.ONE * 0.05, 0.6)
+		tw.tween_callback((flame as Node).queue_free)
+	t.remove_meta("flame")
+
+
+## GASOLINE: something a weapon (or a fire) wrecked bursts into flame, setting fire to all round it and
+## scorching it a little (wider and harder a stack)
+func _gasoline(at: Vector3, big: float) -> void:
+	var n: int = upgrades["gasoline"]
+	if n <= 0 or mode != "play":
+		return
+	var reach: float = (3.0 + 1.5 * n + big * 0.3) * weapon_size()
+	boom(at + Vector3(0, 0.5, 0), 1.0 + 0.3 * n)
+	_scorch(at, reach * 0.8)
+	for i in 8:
+		var a := randf() * TAU
+		ufo.puffs.puff(at + Vector3(cos(a), 0.3, sin(a)) * reach * 0.5, Color(1.0, randf_range(0.35, 0.65), 0.1, 0.9), 0.7, Vector3(cos(a), 1.5, sin(a)), 0.5)
+	wake_scenery(at, reach, 6)
+	for o in things.duplicate():
+		if is_instance_valid(o) and shootable(o) and o.ground().distance_to(Vector3(at.x, 0, at.z)) < reach:
+			ignite(o)
 
 
 ## The biggest thing the laser can burn down, at its level
@@ -2717,7 +3107,7 @@ func _cool_scorches(delta: float) -> void:
 
 ## Seconds between the laser's shots, at its level
 func laser_reload() -> float:
-	return maxf(4.6 - 0.6 * upgrades["turret"], 0.9)
+	return maxf(4.6 - 0.6 * upgrades["turret"], 0.9) * cooldown()
 
 
 ## A bolt of the laser from `from` to `to`: a white-hot core in a pink glow, there and gone, and a
@@ -3536,6 +3926,13 @@ func spawn_car(kind: String, at: Vector3, axis: String, dir: float) -> Thing:
 	return t
 
 func _remove(t: Thing) -> void:
+	if upgrades["gasoline"] > 0 and mode == "play" and t.state == "walk" and (t.has_meta("weapon_hit") or t.has_meta("burn")) and t.kind != "arena_foe":
+		call_deferred("_gasoline", t.ground(), t.size())
+	# (another saucer's stand-in goes only with it; the arena's things wrecked are claimed)
+	if t.kind == "arena_foe" and not t.has_meta("arena_free"):
+		return
+	if arena_on and t.has_meta("arena_id") and not t.has_meta("arena_gone"):
+		arena.wrecked(t)
 	# (a hydrant knocked off: water bursting up out of the main where it stood)
 	if t.kind == "hydrant" and t.state != "walk":
 		geysers.append(t.home)
@@ -3553,6 +3950,9 @@ func _remove(t: Thing) -> void:
 
 ## Something reached the saucer
 func abducted(t: Thing) -> void:
+	if arena_on and t.has_meta("arena_id"):
+		arena.taken(t)
+		return
 	if t.kind == "prison":
 		_prison_break(t.home)
 	if t.kind == "canister":
@@ -3670,12 +4070,17 @@ func explode(t: Thing) -> void:
 	calm = 0.0
 	_remove(t)
 	var middle := Vector3(at.x, 0, at.z)
+	wake_scenery(middle, BLAST_REACH, 12)
 	for other: Thing in things.duplicate():
 		if other.state != "walk" or not is_instance_valid(other):
 			continue
 		var d := other.ground().distance_to(middle)
 		# (from its near side: a big building is hit though its middle is well off)
 		var edge := maxf(d - other.size() * 0.5, 0.0)
+		if other.kind == "arena_foe":
+			if d < BLAST_REACH and not other.hiding:
+				arena.hit_foe(other, 1.5, at)
+			continue
 		if d < BLAST_REACH and other.is_enemy() and not other.fixed():
 			var got := other.points() / 2 * multiplier()
 			score += got
@@ -3695,7 +4100,11 @@ func explode(t: Thing) -> void:
 			continue
 		if edge < BLAST_REACH and other.info["move"] == "still" and not other.kind in FIREPROOF:
 			_blast(other, BLAST_DAMAGE * (1.0 - edge / BLAST_REACH))
+			if edge < BLAST_REACH * 0.7:
+				ignite(other)
 			continue
+		if d < BLAST_REACH * 0.6:
+			ignite(other)
 		if d < BLAST_REACH * 1.6:
 			other.panic = 6.0
 			var away := other.ground() - middle
@@ -3770,6 +4179,9 @@ func shot_hit(s: Shot) -> void:
 
 
 func _crash(delta: float) -> void:
+	if arena_on:
+		arena.ship_down(delta)
+		return
 	if not ufo.crashed:
 		if randf() < delta * 12.0:
 			puff(ufo.position, Color(0.3, 0.3, 0.32), 1.0)
@@ -5291,9 +5703,9 @@ func close_log() -> void:
 # ------------------------------------------------------------------ modes and the saucers
 
 ## How the next run is played: alone, or with others (see Net); picked with the arrows by PLAY
-const MODES := ["single", "host", "join"]
+const MODES := ["single", "host", "join", "arena"]
 ## (what the big button says for each: PLAY alone, or HOST or JOIN a multiplayer room)
-const MODE_TITLES := {"single": "PLAY", "host": "HOST", "join": "JOIN"}
+const MODE_TITLES := {"single": "PLAY", "host": "HOST", "join": "JOIN", "arena": "ARENA"}
 var play_mode := "single"
 
 
@@ -5391,6 +5803,8 @@ func _play_pressed() -> void:
 			net.create(ship)
 		"join":
 			open_lobby()
+		"arena":
+			arena.join()
 		_:
 			begin_launch()
 
@@ -5650,7 +6064,9 @@ func _camera_offset() -> Vector3:
 	# (on a wide screen, lower and further back, looking out more than down, for the curve of the
 	# world and the night sky over it to show at the top of the picture)
 	var from := camera_offset if _upright() or camera_offset != CAMERA_OFFSET else WIDE_OFFSET
-	return from + Vector3(0, 1.3, 0.5) * (ufo.altitude - 8.0)
+	var off := from + Vector3(0, 1.3, 0.5) * (ufo.altitude - 8.0)
+	# (in the arena, further back the bigger the ship has grown, so it never fills the picture)
+	return off * (1.0 + (arena_grow - 1.0) * 0.5) if arena_on else off
 
 
 func _camera(delta: float) -> void:
@@ -5675,6 +6091,12 @@ func _camera(delta: float) -> void:
 	_turn_sky()
 	_place_moon(delta)
 	camera.environment.fog_density = 0.006
+	if arena_on:
+		# (the arena is on the moon: black space, Earth in it, and no moon in the sky)
+		_sky_mat.set_shader_parameter("space", 1.0)
+		if _moon_ball != null:
+			_moon_ball.visible = false
+		camera.environment.fog_density = 0.0
 	camera.fov = _fov()
 	var goal := focus + _camera_offset()
 	if mode == "title":
@@ -5989,7 +6411,8 @@ func _build_hud() -> void:
 	_resume_button = _button("RESUME", func() -> void: set_paused(false))
 	_pause_box.add_child(_resume_button)
 	_pause_box.add_child(_button("OPTIONS", open_options))
-	_pause_box.add_child(_button("TO THE MOON", quit_to_menu))
+	_moon_button = _button("TO THE MOON", quit_to_menu)
+	_pause_box.add_child(_moon_button)
 	# (and QUIT, as on the title: inside the arcade, or off the web)
 	if _in_arcade() or not OS.has_feature("web"):
 		_pause_box.add_child(_button("QUIT", quit_game))
@@ -6198,6 +6621,9 @@ func _launch(delta: float) -> void:
 ## the stars (the descent backwards, see `_going_home`), then down onto the moon (the flight off it
 ## backwards), and the pilot back in the chair on the title
 func quit_to_menu() -> void:
+	if arena_on:
+		arena.leave()
+		return
 	# (flown home alive, alone: the run kept, to carry on with from the title, see `_saved_run`)
 	if test_room:
 		_leave_test_room()
@@ -6629,6 +7055,8 @@ func _fit_pause() -> void:
 func set_paused(on: bool) -> void:
 	if mode != "play" or (_picker != null and _picker.visible):
 		return
+	if _moon_button != null:
+		_moon_button.text = "LEAVE ARENA" if arena_on else "TO THE MOON"
 	get_tree().paused = on
 	_pause_box.visible = on
 	if on:
@@ -6723,6 +7151,10 @@ func _hud(delta: float) -> void:
 	if _test_open != null:
 		_test_open.visible = test_room and playing and not autopilot
 	heat_note.visible = playing
+	if arena_on:
+		stars.visible = false
+		mult_label.visible = false
+		coin.visible = false
 	if heat_note_time > 0.0:
 		heat_note_time -= delta
 		heat_note.modulate.a = clampf(heat_note_time * 2.0, 0.0, 1.0)
@@ -7727,7 +8159,7 @@ class CloakButton extends Control:
 ## how many are stacked in its corner (from the second on)
 class ItemBar extends Control:
 	## The items, in the order they show
-	const ORDER := ["engine", "beam", "shield", "dash", "laser", "lightning", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "starbits", "sling", "fleet"]
+	const ORDER := ["engine", "beam", "shield", "dash", "laser", "lightning", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "starbits", "sling", "fleet", "damage", "cooldown", "elite", "crowbar", "splitter", "ignition", "gasoline", "wildfire"]
 	const TILE := 40.0
 	## How many rows of items there are (the heat's news goes under them)
 	var rows := 0
@@ -7955,7 +8387,7 @@ func _title_flicker(delta: float) -> void:
 ## each running through them as it flies.
 const STAR_BIT_EVERY := 0.11
 const STAR_BIT_SPEED := 30.0
-const STAR_BIT_HIT := 0.06
+const STAR_BIT_HIT := 0.09
 ## How hard a star bit knocks what it hits away (m/s, added up and dying away; at most STAR_BIT_SHOVE_MAX)
 const STAR_BIT_SHOVE := 3.2
 const STAR_BIT_SHOVE_MAX := 9.0
@@ -7991,10 +8423,18 @@ func _star_bits(delta: float) -> void:
 		if target == null:
 			return
 		at = target.global_position + (Vector3(0, 0.8, 0) if target is Thing else Vector3.ZERO)
-	_star_bit_wait = STAR_BIT_EVERY / (1.0 + 0.2 * (level - 1)) * (0.4 if manual("starbits") else 1.0)
+	_star_bit_wait = STAR_BIT_EVERY / (1.0 + 0.2 * (level - 1)) * (0.4 if manual("starbits") else 1.0) * cooldown()
 	var from := ufo.position + Vector3(0, -0.4, 0)
 	# (wild: thrown well off where it is aimed; less so by hand)
 	var wild := 0.15 if manual("starbits") else 1.0
+	for n in shots_of():
+		_spray_bit(from, at, wild)
+	if randf() < 0.3:
+		sfx.play("ding", randf_range(2.2, 2.8), -18.0)
+
+
+## One star bit thrown from `from` at `at`, `wild` how far off it may go
+func _spray_bit(from: Vector3, at: Vector3, wild: float) -> void:
 	var way := (at - from).normalized().rotated(Vector3.UP, randf_range(-0.3, 0.3) * wild)
 	way = way.rotated(way.cross(Vector3.UP).normalized() if absf(way.y) < 0.98 else Vector3.RIGHT, randf_range(-0.2, 0.2) * wild)
 	var bit := MeshInstance3D.new()
@@ -8007,8 +8447,6 @@ func _star_bits(delta: float) -> void:
 	bit.scale = Vector3.ONE * weapon_size()
 	view.add_child(bit)
 	_star_bits_out.append({"node": bit, "velocity": way * STAR_BIT_SPEED, "life": 1.2, "hue": hue, "spin": Vector3(randf_range(-12, 12), randf_range(-12, 12), 0)})
-	if randf() < 0.3:
-		sfx.play("ding", randf_range(2.2, 2.8), -18.0)
 
 
 func _fly_star_bits(delta: float) -> void:
@@ -8223,11 +8661,20 @@ func _sling(delta: float) -> void:
 		f["age"] += delta
 		var k: float = minf(f["age"] / SLING_FALL, 1.0)
 		var node: Node3D = f["node"]
+		if float(f["age"]) < 0.0:
+			continue
+		node.visible = true
 		# (whirled out from over the ship on its tether and down onto the mark, along a curve)
 		var top: Vector3 = f["over"]
 		var e := k * k
+		f["was"] = node.position
 		node.position = (f["from"] as Vector3).lerp(top, e).lerp(top.lerp(f["to"], e), e)
-		node.rotation += Vector3(4.0, 3.0, 0.0) * delta
+		(f["rock"] as Node3D).rotation += Vector3(4.0, 3.0, 0.0) * delta
+		# (stretched a little along the tether's pull, most as it is whirled hardest)
+		var pull := (ufo.global_position - node.position)
+		if pull.length() > 0.1:
+			var stretch := 1.0 + 0.3 * sin(PI * k)
+			node.basis = Basis.looking_at(pull.normalized(), Vector3.UP if absf(pull.normalized().y) < 0.98 else Vector3.RIGHT).scaled(Vector3(1.0 / sqrt(stretch), 1.0 / sqrt(stretch), stretch))
 		if randf() < delta * 40.0:
 			ufo.puffs.puff(node.position, Color(1.0, randf_range(0.35, 0.75), 0.15, 0.9), randf_range(0.6, 1.0), Vector3.UP * 0.5, 0.5)
 		_tether(f, k)
@@ -8239,6 +8686,10 @@ func _sling(delta: float) -> void:
 	for g: Array in _loose_tethers.duplicate():
 		g[1] = float(g[1]) - delta * 3.0
 		(g[2] as StandardMaterial3D).albedo_color.a = maxf(float(g[1]), 0.0)
+		# (snapping back toward the ship as it goes)
+		var held_at: Node3D = g[0]
+		held_at.scale = Vector3.ONE * maxf(float(g[1]), 0.05)
+		held_at.global_position = ufo.global_position * (1.0 - maxf(float(g[1]), 0.05))
 		if float(g[1]) <= 0.0:
 			(g[0] as Node).queue_free()
 			_loose_tethers.erase(g)
@@ -8271,77 +8722,78 @@ func sling_crowd(from: Vector3, reach: float) -> Thing:
 	return best
 
 
-## The gravity sling's tether: a glowing purple ray from the ship's belly to the moonlet it is flinging,
-## bending along a curve (a quadratic bezier through a point pulled up and out between them, swinging as
-## it goes) with motes of light running down it; let go, it fades (`_loose_tethers`)
-const TETHER_PIECES := 14
+## The gravity sling's tether: a purple ray from the ship's belly to the moonlet it is flinging, pulled
+## taut: a curve (a quadratic bezier) that bows back behind the moonlet the way it is going, as a rope
+## dragged through the air, and straightens as it pulls; beads of light running up it to the ship; it
+## swells and flares as the moonlet is flung, and snaps back thin and fades as it lets go
+## (`_loose_tethers`). One seamless ribbon turned to the eye, rebuilt each frame
+const TETHER_POINTS := 22
 var _loose_tethers: Array = []
 
 
 func _tether(f: Dictionary, k: float) -> void:
 	if not f.has("tether"):
-		var holder := Node3D.new()
+		var holder := MeshInstance3D.new()
 		holder.top_level = true
+		holder.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		view.add_child(holder)
 		var m := StandardMaterial3D.new()
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-		m.albedo_color = Color(0.78, 0.35, 1.0, 1.0)
+		m.vertex_color_use_as_albedo = true
+		m.albedo_color = Color(1, 1, 1, 1)
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
-		var rod := CylinderMesh.new()
-		rod.top_radius = 1.0
-		rod.bottom_radius = 1.0
-		rod.height = 1.0
-		rod.radial_segments = 5
-		rod.rings = 1
-		var pieces: Array = []
-		for i in TETHER_PIECES:
-			var piece := MeshInstance3D.new()
-			piece.mesh = rod
-			piece.material_override = m
-			piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			holder.add_child(piece)
-			pieces.append(piece)
+		holder.material_override = m
 		var motes: Array = []
 		var mote_mesh := SphereMesh.new()
-		mote_mesh.radius = 0.16
-		mote_mesh.height = 0.32
+		mote_mesh.radius = 0.17
+		mote_mesh.height = 0.34
 		mote_mesh.radial_segments = 6
 		mote_mesh.rings = 3
-		var mote_mat := m.duplicate() as StandardMaterial3D
-		mote_mat.albedo_color = Color(1.0, 0.8, 1.0, 1.0)
-		for i in 5:
+		var mote_mat := StandardMaterial3D.new()
+		mote_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mote_mat.albedo_color = Color(0.92, 0.75, 1.0)
+		for i in 6:
 			var mote := MeshInstance3D.new()
 			mote.mesh = mote_mesh
 			mote.material_override = mote_mat
+			mote.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			holder.add_child(mote)
 			motes.append(mote)
-		f["tether"] = [holder, m, pieces, motes]
+		f["tether"] = [holder, m, motes]
 	var t: Array = f["tether"]
 	var a := ufo.global_position + Vector3(0, -0.6, 0)
 	var b: Vector3 = (f["node"] as Node3D).global_position
-	var side := (b - a).cross(Vector3.UP).normalized() if Vector2(b.x - a.x, b.z - a.z).length() > 0.1 else Vector3.RIGHT
-	var bend := (a + b) * 0.5 + Vector3.UP * a.distance_to(b) * 0.25 + side * sin(float(f["age"]) * 6.0) * 2.0
-	var prev := a
-	var width := 0.12 * weapon_size()
-	for i in TETHER_PIECES:
-		var u := float(i + 1) / TETHER_PIECES
-		var point := a.lerp(bend, u).lerp(bend.lerp(b, u), u)
-		var along := point - prev
-		var piece: MeshInstance3D = t[2][i]
-		if along.length() > 0.01:
-			piece.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, along.normalized())) * Basis.from_scale(Vector3(width, along.length(), width)), (prev + point) * 0.5)
-		prev = point
-	for i in (t[3] as Array).size():
-		var u := fposmod(float(f["age"]) * 1.4 + i / 5.0, 1.0)
-		(t[3][i] as Node3D).global_position = a.lerp(bend, u).lerp(bend.lerp(b, u), u)
-	(t[1] as StandardMaterial3D).albedo_color.a = 0.65 + 0.35 * sin(float(f["age"]) * 20.0)
+	var long := a.distance_to(b)
+	# (dragged: the middle of the rope trails behind the way the moonlet is going, less as it pulls taut)
+	var going: Vector3 = b - (f.get("was", b) as Vector3)
+	var trail := going.normalized() * minf(going.length() * 18.0, long * 0.45) * (1.0 - 0.6 * k) if going.length() > 0.001 else Vector3.ZERO
+	# (and sagging under its own weight, less as it is pulled taut)
+	var bend := (a + b) * 0.5 - trail + Vector3.DOWN * long * 0.22 * (1.0 - 0.7 * k)
+	var pts: Array[Vector3] = []
+	for i in TETHER_POINTS:
+		var u := float(i) / (TETHER_POINTS - 1)
+		pts.append(a.lerp(bend, u).lerp(bend.lerp(b, u), u))
+	# (swollen and bright as it is flung, then the steady pull)
+	var flare := maxf(1.0 - float(f["age"]) / 0.35, 0.0)
+	var wide := 0.07 * weapon_size() * (1.0 + 2.0 * flare)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var eye := camera.global_position
+	_bolt_ribbon(st, pts, wide * 3.2, Color(0.42, 0.08, 0.85, 0.55 + 0.3 * flare), eye, 0.0)
+	_bolt_ribbon(st, pts, wide, Color(0.8 + 0.2 * flare, 0.55 + 0.4 * flare, 1.0, 1.0), eye, 0.0)
+	(t[0] as MeshInstance3D).mesh = st.commit()
+	# (beads running up it to the ship: the pull)
+	for i in (t[2] as Array).size():
+		var u := 1.0 - fposmod(float(f["age"]) * 1.8 + i / 6.0, 1.0)
+		var bead: Node3D = t[2][i]
+		bead.global_position = a.lerp(bend, u).lerp(bend.lerp(b, u), u)
+		bead.scale = Vector3.ONE * (0.6 + 0.8 * u) * weapon_size()
 	if k >= 1.0:
-		# (let go as it lands: the tether fades)
+		# (let go as it lands: snapped back thin, fading)
 		_loose_tethers.append([t[0], 1.0, t[1]])
-		for mote: Node3D in t[3]:
-			mote.visible = false
+		for bead: Node3D in t[2]:
+			bead.visible = false
 		f.erase("tether")
 
 
@@ -8351,7 +8803,16 @@ func _fling(to: Vector3) -> void:
 	if level == 0 or ufo.dead or mode != "play" or _sling_wait > 0.0:
 		return
 	# (by hand, on the KRAKKATOOM, it winds up quicker)
-	_sling_wait = maxf(2.6 - 0.3 * level, 1.2) if manual("sling") else maxf(16.0 - 3.0 * level, 6.0)
+	_sling_wait = (maxf(2.6 - 0.3 * level, 1.2) if manual("sling") else maxf(16.0 - 3.0 * level, 6.0)) * cooldown()
+	for i in shots_of():
+		var spot := to if i == 0 else to + Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized() * randf_range(3.5, 6.0) * weapon_size()
+		_sling_rock(spot, i * 0.18, level)
+	sfx.play("whoosh", 0.5, 0.0)
+	_heat_note("GRAVITY SLING!", 1.2)
+
+
+## One moonlet slung at `to`, `late` seconds after the first, on its tether
+func _sling_rock(to: Vector3, late: float, level: int) -> void:
 	# (a little moon, glowing hot from its fall, fire streaming off it: see `_slinging`)
 	var rock := Ps1.model("moonlet", {}, true)
 	rock.scale = Vector3.ONE * (1.2 + 0.2 * level)
@@ -8361,14 +8822,16 @@ func _fling(to: Vector3) -> void:
 	glow.light_energy = 3.0
 	glow.omni_range = 9.0
 	rock.add_child(glow)
-	view.add_child(rock)
+	# (on a pivot that stretches it along the tether's pull)
+	var pivot := Node3D.new()
+	pivot.add_child(rock)
+	view.add_child(pivot)
 	# (pulled in out of the sky to just over the ship, then slung out and down onto the mark)
 	var from := ufo.global_position + Vector3(randf_range(-3, 3), 7.0, randf_range(-5, -2))
 	var over := (from + to) * 0.5 + Vector3(0, 9.0, 0)
-	rock.position = from
-	_slung.append({"node": rock, "from": from, "over": over, "to": to, "age": 0.0})
-	sfx.play("whoosh", 0.5, 0.0)
-	_heat_note("GRAVITY SLING!", 1.2)
+	pivot.position = from
+	pivot.visible = late <= 0.0
+	_slung.append({"node": pivot, "rock": rock, "from": from, "over": over, "to": to, "age": -late})
 
 
 func _sling_impact(at: Vector3) -> void:
@@ -8380,12 +8843,14 @@ func _sling_impact(at: Vector3) -> void:
 	sfx.play("boom", 0.6, 4.0)
 	_shake = maxf(_shake, 0.5)
 	_scorch(at, splash * 1.4)
+	wake_scenery(at, splash, 14)
 	for t in things.duplicate():
 		if not is_instance_valid(t):
 			continue
 		if shootable(t) and t.ground().distance_to(at) < splash:
 			# (everything in it smashed: two laser hits' worth on the police and army, and on the rest)
 			weapon_hit(t, t.position + Vector3(0, 1.0, 0), 3.0 if own else 2.0)
+			ignite(t)
 		elif t.state == "walk" and t.ground().distance_to(at) < splash * 2.0 and t.info["move"] in ["flee", "graze", "peck"]:
 			# (anything else near it runs for it)
 			t.panic = maxf(t.panic, 6.0)
@@ -8694,7 +9159,12 @@ func _test_stack(what: String, step: int) -> void:
 		buy(what)
 	elif upgrades[what] > 0:
 		if what in WEAPONS and upgrades[what] == 1:
-			drop_weapon(what)
+			# (only here, in the test room, is a weapon ever given up)
+			upgrades[what] = 0
+			_got.erase(what)
+			if aimed == what or not aimed in manual_weapons():
+				aimed = _first_manual()
+			_apply_upgrades()
 		else:
 			upgrades[what] -= 1
 			_apply_upgrades()
