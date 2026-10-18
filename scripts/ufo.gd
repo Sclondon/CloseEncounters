@@ -96,6 +96,8 @@ const SHIP_LAYER := 4
 ## KRYSTALLIX-9); the CARNIVORB's beam is every colour of the rainbow ("rainbow")
 ## Which of SHIPS this is (set before it is added)
 var ship := "saucer"
+## Colours put on its hull's materials (a bot in the arena is a rival saucer: Thing.KINDS["rival"])
+var tints := {}
 ## Which alien is at the controls (see Alien.look_seed)
 var alien_seed := 1
 var speed := 12.0
@@ -259,7 +261,7 @@ func _ready() -> void:
 	position = Vector3(position.x, altitude, position.z)
 	body = Node3D.new()
 	add_child(body)
-	hull_model = Ps1.model(spec["model"], {}, true)
+	hull_model = Ps1.model(spec["model"], tints, true)
 	hull_model.scale = Vector3.ONE * float(spec.get("scale", 1.0))
 	_hull_scale = hull_model.scale
 	body.add_child(hull_model)

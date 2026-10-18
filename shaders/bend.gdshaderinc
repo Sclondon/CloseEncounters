@@ -15,6 +15,9 @@ varying vec3 local;
 varying float pattern;
 // How much it sways in the wind (a grown tree's leaves: ps1.gd GROWN), and so whether it is leaves
 varying float sway;
+// A crowd drawn many to a MultiMesh (the arena's audience): how excited they are (0 still), each
+// bobbing and swaying to its own beat (its INSTANCE_CUSTOM: r its phase, g its pace)
+uniform float cheer = 0.0;
 
 vec3 bent(vec3 w) {
 	float d = w.z - bend_focus.z;
@@ -29,6 +32,13 @@ void vertex() {
 	local = VERTEX;
 	pattern = UV2.x;
 	sway = UV2.y;
+	if (cheer > 0.0) {
+		float phase = INSTANCE_CUSTOM.r * 6.2832;
+		float pace = (2.2 + INSTANCE_CUSTOM.g * 1.6) * (0.7 + 0.3 * cheer);
+		float hop = abs(sin(TIME * pace + phase));
+		world.y += hop * 0.06 * cheer;
+		world.x += sin(TIME * 1.7 + phase) * 0.035 * cheer * VERTEX.y;
+	}
 	if (sway > 0.0) {
 		// (leaves moving in the wind: a slow lean, gusting through, and a quick flutter)
 		float t = TIME + world.x * 0.21 + world.z * 0.13;

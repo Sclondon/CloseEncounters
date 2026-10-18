@@ -1,13 +1,14 @@
 class_name Arena
 extends Node3D
 ## THE ARENA (ARENA on the title, by PLAY, HOST and JOIN): drop in to a room of up to twelve saucers on a
-## carnival the aliens have set up on the moon, a round crater ringed with a padded bumper rail, and
-## beam up what lies about (astronauts, tourists in bubble helmets, buggies, landers, moon bases, dishes,
-## solar panels, flags, moon rocks and glowing gems) for the top spot, as in agar.io. The more taken, the
-## bigger the saucer and its beam, and the stronger (a bigger saucer lifts heavier things), but the slower.
-## The saucers knock each other about like bumper cars, a dash into one hurts it, the weapons hurt them,
-## and a saucer half as big again as another can beam it up whole. Shot down, a saucer drops a share of
-## its score as LOST LOOT for anyone to take, and comes back small at the rim a few seconds later.
+## carnival the aliens have set up on the moon, a round crater ringed with a padded bumper rail and stands
+## full of aliens watching, and beam up what lies about (astronauts, tourists in bubble helmets, buggies,
+## landers, moon bases, dishes, solar panels, flags, moon rocks and glowing gems) for the top spot. It
+## plays as a run on Earth does (each ship its own, level-ups and the Moon Market's picks, shields and
+## dodges), with no police or army: the other saucers are the danger. They knock each other about like
+## bumper cars, a dash into one hurts it, the weapons hurt them. Shot down, a saucer loses everything (its
+## score dropped as LOST LOOT for anyone to take, its level and items gone) and comes back at the rim a
+## few seconds later, as it started. With few players in, rival saucers fly too (ArenaBots).
 ##
 ## Everything lying about is laid out alike on every device from the arena's seed (ArenaNet), and comes
 ## back on a clock (`_refresh`); what matters is who took it first, and the server says that (`claimed`).
@@ -16,15 +17,23 @@ extends Node3D
 ## (main.gd `weapon_hit` sends the hit to its owner, K_HIT, who takes the damage).
 
 ## The padded rail round the floor (the floor rises to it), and where the saucers come in
-const R := 40.0
-const SPAWN_R := 31.0
+const R := 62.0
+const SPAWN_R := 50.0
 ## Packets: a saucer's state, a hit on another, shot down, its lost loot, beamed up by a bigger one
 const K_STATE := 1
 const K_HIT := 2
 const K_DOWN := 3
 const K_LOOT := 4
-const K_EAT := 5
+## (5 was a bigger saucer beaming up a smaller one, before the saucers stopped growing)
+## The bots: their states (from the device flying them), a hit on one (to that device), one's shot at
+## a player (to them), one shot down (to all)
+const K_BOTS := 6
+const K_HIT_BOT := 7
+const K_BOT_SHOT := 8
+const K_BOT_DOWN := 9
 const SEND_EVERY := 1.0 / 15.0
+## Bots go by ids from here up (the seats are below it)
+const BOT_BASE := 100
 ## Shield taken from a saucer by a laser hit's worth of anything
 const PVP_HIT := 9.0
 ## A dash into another saucer: this many laser hits' worth
@@ -32,22 +41,16 @@ const RAM_HIT := 1.6
 const RESPAWN := 3.0
 ## Untouchable this long after coming back
 const SAFE := 3.0
-## The share of its score a saucer drops as loot when shot down (and how much of that is a gem's worth)
-const LOOT_SHARE := 0.4
+## The share of its score a saucer drops as loot when shot down: all of it (and how many gems at most)
+const LOOT_SHARE := 1.0
 const LOOT_MOST := 8
 ## Ids from here up are lost loot (DROP_BASE + seat * 2^20 + count), below are the arena's own things
 const DROP_BASE := 1 << 30
-## The growth: up to GROW_MOST bigger again, most of it by GROW_SCORE
-const GROW_SCORE := 40000.0
-const GROW_MOST := 1.6
-## A saucer this many times bigger than another beams it up whole, held under the beam this long
-const EAT_RATIO := 1.45
-const EAT_HOLD := 1.4
 ## What lies about: [kind, how many, seconds before one taken comes back]
-const LAYOUT := [["arena_rock_small", 12, 22.0], ["arena_flag", 4, 30.0], ["arena_gem_pink", 3, 30.0], ["arena_gem_blue", 3, 30.0],
-	["arena_gem_green", 3, 30.0], ["arena_gem_gold", 2, 45.0], ["arena_astronaut", 7, 25.0], ["arena_tourist", 8, 25.0],
-	["arena_solar", 4, 40.0], ["arena_rock_big", 4, 40.0], ["arena_snack_cart", 3, 40.0], ["arena_rover", 4, 40.0],
-	["arena_dish", 3, 45.0], ["arena_booth", 2, 60.0], ["arena_lander", 2, 70.0], ["arena_habitat", 2, 80.0]]
+const LAYOUT := [["arena_rock_small", 24, 22.0], ["arena_flag", 8, 30.0], ["arena_gem_pink", 6, 30.0], ["arena_gem_blue", 6, 30.0],
+	["arena_gem_green", 6, 30.0], ["arena_gem_gold", 4, 45.0], ["arena_astronaut", 14, 25.0], ["arena_tourist", 16, 25.0],
+	["arena_solar", 8, 40.0], ["arena_rock_big", 8, 40.0], ["arena_snack_cart", 6, 40.0], ["arena_rover", 8, 40.0],
+	["arena_dish", 6, 45.0], ["arena_booth", 4, 60.0], ["arena_lander", 4, 70.0], ["arena_habitat", 4, 80.0]]
 ## Names the pilots go by on the board
 const NAME_BITS := ["ZORP", "BLIX", "GLOR", "VEX", "QUIB", "SNORK", "FLUM", "KRIX", "MOOP", "ZAZ", "PLUX", "NIBB"]
 
@@ -66,11 +69,9 @@ var claimed := {}
 var _pending := {}
 var _by_id := {}
 var _refresh_wait := 0.0
-## The others: slot -> {saucer, proxy, score, grow, down, safe, heard, hero}
+## The others (seats, and bots from BOT_BASE): id -> {saucer, proxy, score, down, safe, heard, hero, hull}
 var remotes := {}
-## How much bigger our saucer is for its score, and when that was last put on the ship
-var grow := 1.0
-var _grow_set := 1.0
+var bots: ArenaBots
 var _send_wait := 0.0
 var _score_wait := 0.0
 var _reported := -1
@@ -79,7 +80,6 @@ var down_for := -1.0
 var safe := 0.0
 var _last_hit_by := -1
 var _drops := 0
-var _eat_hold := {}
 var _bump_wait := 0.0
 var _rail_wait := 0.0
 ## The standings: [{slot, name, score}], the leader's seat (-1 none)
@@ -94,8 +94,13 @@ var _panel_text: Label
 
 
 func _ready() -> void:
+	# (on while a level-up's pick holds the game: the others, and the bots, go on meanwhile)
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	net = ArenaNet.new()
 	add_child(net)
+	bots = ArenaBots.new()
+	bots.arena = self
+	add_child(bots)
 	net.joined_arena.connect(_on_joined)
 	net.claimed.connect(_on_claimed)
 	net.standings.connect(_on_top)
@@ -145,8 +150,6 @@ func _on_closed(reason: String) -> void:
 func begin() -> void:
 	main.start_arena()
 	on = true
-	grow = 1.0
-	_grow_set = 0.0
 	down_for = -1.0
 	safe = SAFE
 	_reported = -1
@@ -164,8 +167,9 @@ func leave() -> void:
 	on = false
 	_joining = false
 	net.leave()
+	bots.clear()
 	for s in remotes.keys():
-		_drop_remote(s)
+		drop_remote(s)
 	for t in _here:
 		if t != null and is_instance_valid(t):
 			t.set_meta("arena_gone", true)
@@ -199,6 +203,8 @@ func _build_map() -> void:
 		_map.queue_free()
 	_map = Node3D.new()
 	add_child(_map)
+	_islands.clear()
+	_parked.clear()
 	var regolith := ShaderMaterial.new()
 	regolith.shader = load("res://shaders/moon.gdshader")
 	for name: String in ["arena_floor", "arena_rim"]:
@@ -207,36 +213,52 @@ func _build_map() -> void:
 		if name == "arena_floor":
 			for mi: MeshInstance3D in m.find_children("*", "MeshInstance3D", true, false):
 				mi.material_override = regolith
-	# (the moon out beyond the rim, rolling away over the bend)
-	var plain := PlaneMesh.new()
-	plain.size = Vector2(520, 520)
-	plain.subdivide_width = 64
-	plain.subdivide_depth = 64
-	var outside := Ps1.part(_map, plain, regolith, Vector3(0, -0.05, 0))
+	# (the moon round about, from under the bank out to the horizon: a ring, cut finer near the rim,
+	# for it to bend with the world as the floor does; none of it under the floor)
+	var outside := MeshInstance3D.new()
+	outside.mesh = _moon_ring()
+	outside.material_override = regolith
 	outside.extra_cull_margin = 200.0
-	# The carnival round the rim: the arch facing the way the camera looks in, the Ferris wheel and the
-	# rocket tower behind, tents, string lights all round, bumper posts on the rail
-	var dress := [["arena_arch", -PI * 0.5, 49.0], ["arena_ferris", -PI * 0.5 - 0.75, 50.0], ["arena_rocket_tower", -PI * 0.5 + 0.8, 48.0],
-		["arena_tent", -PI * 0.5 + 1.6, 47.0], ["arena_tent", -PI * 0.5 - 1.6, 47.0], ["arena_tent", PI * 0.5 + 0.9, 47.0],
-		["arena_tent", PI * 0.5 - 0.9, 47.0], ["arena_booth", PI * 0.5, 46.0]]
-	for d: Array in dress:
-		var a: float = d[1]
-		var at := Vector3(cos(a), 0, sin(a)) * float(d[2])
-		var n := Ps1.model(d[0])
-		n.position = at
-		n.rotation.y = atan2(-at.x, -at.z)
-		_map.add_child(n)
+	outside.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_map.add_child(outside)
+	# The carnival's gate, the way the camera looks in from, and a rocket tower beside it
+	for d: Array in [["arena_arch", GATE, R + 9.0], ["arena_rocket_tower", GATE + 0.32, R + 12.0]]:
+		_stand_up(Ps1.model(d[0]), float(d[1]), float(d[2]))
+	# The crowd: stands all round the bank, full of aliens watching, and in the gaps, aliens
+	# tailgating by their parked saucers
+	var stands: Array = []
+	var camps: Array = []
+	for i in STANDS:
+		var a := GATE + (i + 1) * TAU / (STANDS + 1)
+		if i in CAMPS:
+			camps.append(a)
+		else:
+			stands.append(a)
+	var stand_at: Array = []
+	for a: float in stands:
+		stand_at.append(_flat_at(a, R + 5.5))
+	_multi("arena_stands", stand_at)
+	_crowd(stand_at)
+	for a: float in camps:
+		_camp(a)
+	# Lamps strung with bulbs all round the rail, and its padded posts
 	var poles: Array = []
-	for i in 12:
-		var a := i * TAU / 12.0 + 0.13
-		var at := Vector3(cos(a), 0, sin(a)) * (R + 3.2)
-		poles.append(Transform3D(Basis(Vector3.UP, atan2(-at.x, -at.z)), at))
-	_multi("arena_lights", poles)
+	for i in 24:
+		poles.append(_flat_at(i * TAU / 24.0 + 0.13, R + 3.2))
 	var posts: Array = []
-	for i in 16:
-		var a := i * TAU / 16.0
-		var at := Vector3(cos(a), 0, sin(a)) * (R - 0.6)
-		posts.append(Transform3D(Basis(Vector3.UP, atan2(-at.x, -at.z)), at + Vector3(0, 1.3, 0)))
+	for i in 32:
+		var t := _flat_at(i * TAU / 32.0, R - 0.6)
+		posts.append(t.translated(Vector3(0, 1.3, 0)))
+	# Islands out on the floor to bump round: a ring of padded posts round a lamp
+	for i in ISLANDS:
+		var a := i * TAU / ISLANDS + 0.4
+		var at := Vector3(cos(a), 0, sin(a)) * R * (0.42 if i % 2 else 0.66)
+		_islands.append([at, 3.3])
+		poles.append(Transform3D(Basis(Vector3.UP, a), at))
+		for k in 7:
+			var b := k * TAU / 7.0
+			posts.append(Transform3D(Basis(Vector3.UP, b), at + Vector3(cos(b), 0, sin(b)) * 2.6 + Vector3(0, 1.3, 0)))
+	_multi("arena_lights", poles)
 	_multi("arena_bumper_post", posts)
 	# Earth hanging in the black (kept far off along one way as the camera moves: see `_place_earth`)
 	_earth = MeshInstance3D.new()
@@ -271,6 +293,155 @@ func _build_map() -> void:
 		Ps1.part(_crown, spike, gold, Vector3(cos(a) * 0.8, 0.5, sin(a) * 0.8))
 	_crown.visible = false
 	_map.add_child(_crown)
+
+
+## The rim's bank round the floor, as tools/build_arena.py makes it: [metres out from the rail, height]
+const BANK := [[0.4, 0.3], [2.0, 1.6], [5.0, 3.4], [9.0, 3.8], [15.0, 2.4], [21.0, 0.7], [24.0, -0.8]]
+## Which way the gate stands (the camera looks in from beyond it), how many places round the bank (stands,
+## but for the camps), which of them are camps, and the islands out on the floor
+const GATE := -PI * 0.5
+const STANDS := 15
+const CAMPS := [1, 6, 11]
+const ISLANDS := 6
+## Round obstacles on the floor that saucers bounce off: [where, radius]
+var _islands: Array = []
+## The parked saucers by the camps (ticked, for their lights and their pilots: see `step`)
+var _parked: Array[Ufo] = []
+## The crowd's material, and how excited they are (up when something big happens: see `excite`)
+var _crowd_mat: ShaderMaterial
+var _cheer := 1.0
+
+
+## How high the bank stands `r` metres from the middle (0 on the floor)
+static func bank_y(r: float) -> float:
+	var d := r - R
+	if d <= float(BANK[0][0]):
+		return 0.0
+	for i in BANK.size() - 1:
+		var a: Array = BANK[i]
+		var b: Array = BANK[i + 1]
+		if d <= float(b[0]):
+			return lerpf(float(a[1]), float(b[1]), (d - float(a[0])) / (float(b[0]) - float(a[0])))
+	return float(BANK[-1][1])
+
+
+## A place on the bank `r` out along `a`, on its ground, facing in
+func _flat_at(a: float, r: float) -> Transform3D:
+	var at := Vector3(cos(a) * r, bank_y(r), sin(a) * r)
+	return Transform3D(Basis(Vector3.UP, atan2(-at.x, -at.z)), at)
+
+
+func _stand_up(n: Node3D, a: float, r: float) -> void:
+	n.transform = _flat_at(a, r)
+	_map.add_child(n)
+
+
+## The moon beyond the bank, a ring out to the horizon
+func _moon_ring() -> ArrayMesh:
+	var radii: Array[float] = []
+	var r := R + 20.0
+	while r < 330.0:
+		radii.append(r)
+		r += 4.0 if r < R + 70.0 else (10.0 if r < 170.0 else 25.0)
+	var sides := 96
+	var c := Color(0.58, 0.57, 0.55).srgb_to_linear()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in radii.size() - 1:
+		for k in sides:
+			var a0 := k * TAU / sides
+			var a1 := (k + 1) * TAU / sides
+			var p00 := Vector3(cos(a0) * radii[i], 0, sin(a0) * radii[i])
+			var p01 := Vector3(cos(a1) * radii[i], 0, sin(a1) * radii[i])
+			var p10 := Vector3(cos(a0) * radii[i + 1], 0, sin(a0) * radii[i + 1])
+			var p11 := Vector3(cos(a1) * radii[i + 1], 0, sin(a1) * radii[i + 1])
+			for v: Vector3 in [p00, p10, p01, p01, p10, p11]:
+				st.set_normal(Vector3.UP)
+				st.set_color(c)
+				st.add_vertex(v)
+	return st.commit()
+
+
+## The audience: aliens sitting along each stand's three tiers, each its own colour, bobbing and
+## swaying to their own beat (bend.gdshaderinc `cheer`), all in one MultiMesh
+func _crowd(stands: Array) -> void:
+	var places: Array = []
+	for t: Transform3D in stands:
+		for tier in 3:
+			for k in 9:
+				var x := -6.2 + k * 1.55 + randf_range(-0.25, 0.25)
+				var local := Vector3(x, 0.5 + tier * 0.75, -(tier * 1.5 + 0.55))
+				places.append(t * Transform3D(Basis(Vector3.UP, randf_range(-0.35, 0.35)).scaled(Vector3.ONE * randf_range(0.85, 1.15)), local))
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.use_custom_data = true
+	mm.mesh = Ps1.model_mesh("arena_fan")
+	mm.instance_count = places.size()
+	for i in places.size():
+		mm.set_instance_transform(i, places[i])
+		var coat: Color = Alien.COATS[randi() % Alien.COATS.size()].lightened(randf_range(0.0, 0.3))
+		mm.set_instance_color(i, coat)
+		mm.set_instance_custom_data(i, Color(randf(), randf(), 0.0, 1.0))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.extra_cull_margin = Ps1.CULL_MARGIN
+	_crowd_mat = Ps1.own(Color.WHITE, 0.0, 0.3)
+	_crowd_mat.set_shader_parameter("cheer", 1.0)
+	mmi.material_override = _crowd_mat
+	_map.add_child(mmi)
+
+
+## Something big happened (a saucer shot down, one beamed up whole, a new leader): the crowd goes wild
+## for a moment
+func excite(how := 1.0) -> void:
+	_cheer = maxf(_cheer, 1.0 + 2.5 * how)
+
+
+## A camp in a gap between the stands: a saucer parked on its legs with its canopy open and its pilot
+## lounging on top with a drink, a cooler and a radio, two more aliens in deck chairs with theirs, and
+## one up cheering
+func _camp(a: float) -> void:
+	var r := R + 9.0
+	var home := _flat_at(a, r)
+	var ufo := Ufo.new()
+	var picks := ["saucer", "orb", "bell", "saturn", "carnival", "jelly", "diamond", "foo"]
+	ufo.ship = picks[randi() % picks.size()]
+	ufo.alien_seed = randi() % 9999
+	ufo.parked = true
+	_map.add_child(ufo)
+	ufo.position = home.origin + home.basis * Vector3(0, 1.58, 2.5)
+	ufo.rotation.y = randf() * TAU
+	ufo.lounge(true)
+	ufo.spot.visible = false
+	ufo.glow.visible = false
+	ufo.beam_light.visible = false
+	_parked.append(ufo)
+	for prop: Array in [["cooler", Vector3(-1.8, 0, -1.0), 0.6], ["boombox", Vector3(1.7, 0, -1.4), -0.4]]:
+		var n := Ps1.model(prop[0])
+		n.transform = home * Transform3D(Basis(Vector3.UP, float(prop[2])), prop[1])
+		_map.add_child(n)
+	for k in 3:
+		var al := Alien.new()
+		al.look_seed = randi() % 99999
+		var spot: Vector3 = [Vector3(-3.0, 0, -2.6), Vector3(-0.6, 0, -3.4), Vector3(2.8, 0, -2.4)][k]
+		if k < 2:
+			var chair := Ps1.model("lounge_chair")
+			chair.transform = home * Transform3D(Basis(Vector3.UP, randf_range(-0.4, 0.4)), spot)
+			_map.add_child(chair)
+			chair.add_child(al)
+			al.position = Ufo.CHAIR_SEAT
+			al.feel("lounge")
+			var drink := Ps1.model("beer_can" if k == 0 else "beer")
+			drink.scale = Vector3.ONE * 1.6
+			al.arms[1].add_child(drink)
+			drink.position = Vector3(0.02, -0.36, 0.03)
+			drink.rotation = Vector3(PI, 0, 0)
+		else:
+			al.transform = home * Transform3D(Basis(Vector3.UP, PI), spot + Vector3(0, 0.05, 0))
+			_map.add_child(al)
+			al.feel("cheer")
 
 
 func _multi(name: String, where: Array) -> void:
@@ -370,6 +541,8 @@ func _on_claimed(id: int, slot: int) -> void:
 	claimed[id] = slot
 	if claimed.size() > 30000:
 		claimed.clear()
+	if bots.claimed(id, slot == net.slot):
+		return
 	if slot == net.slot:
 		if _pending.has(id):
 			var got: Array = _pending[id]
@@ -433,20 +606,14 @@ func _scored(kind: String, worth: int) -> void:
 
 ## A POWER GEM: a weapon not had (while there is a free slot for it), or else another of one had
 func _power_gem() -> void:
-	var had: Array[String] = main.weapons_had()
-	var w := ""
-	if had.size() < 2:
-		var free: Array[String] = []
-		for k: String in main.WEAPONS:
-			if not k in had:
-				free.append(k)
-		w = free[randi() % free.size()]
-		main._got.append(w)
-	else:
-		w = had[randi() % had.size()]
-	main.upgrades[w] = int(main.upgrades[w]) + 1
-	main._apply_upgrades()
-	_apply_grow(true)
+	var can: Array[String] = []
+	for k: String in main.WEAPONS:
+		if main.can_take(k) and int(main.upgrades[k]) < main.MAX_UPGRADE:
+			can.append(k)
+	if can.is_empty():
+		return
+	var w: String = can[randi() % can.size()]
+	main.buy(w)
 	main._heat_note("POWER GEM: %s x%d" % [main.UPGRADES[w]["title"], main.upgrades[w]], 2.5)
 	main.sfx.play("fanfare", 1.4, -4.0)
 
@@ -462,20 +629,10 @@ func step(delta: float) -> void:
 		_refresh_wait = 0.25
 		_refresh(net.arena_time())
 	safe = maxf(safe - delta, 0.0)
-	_grow_to(delta)
 	_keep_in(ufo, delta)
 	_keep_things_in()
-	for s in remotes.keys():
-		_glide_remote(s, delta)
 	_bumper_cars(ufo, delta)
-	_eat(ufo, delta)
 	_place_earth()
-	_crown_on_leader()
-	# Ours, to everyone
-	_send_wait -= delta
-	if _send_wait <= 0.0:
-		_send_wait = SEND_EVERY
-		_send_state(ufo)
 	_score_wait -= delta
 	if _score_wait <= 0.0:
 		_score_wait = 1.0
@@ -488,44 +645,53 @@ func step(delta: float) -> void:
 		ufo.bubble.visible = fmod(safe, 0.25) < 0.17
 
 
-func _grow_to(delta: float) -> void:
-	var want := 1.0 + GROW_MOST * pow(clampf(float(main.score) / GROW_SCORE, 0.0, 1.0), 0.6)
-	grow = lerpf(grow, want, minf(delta * 2.0, 1.0))
-	if absf(grow - _grow_set) > 0.03:
-		_apply_grow(false)
-
-
-## The ship as big as its score (`grow`): the hull and the shield, the beam and its reach on the ground,
-## heavier things it can lift, slower to steer
-func _apply_grow(force: bool) -> void:
-	if not force and absf(grow - _grow_set) < 0.03:
+## What goes on whether or not a level-up's pick holds the game: our saucer told to the rest, the
+## others and the bots flown and drawn, the crowd, the parked saucers by the camps
+func _process(delta: float) -> void:
+	if not on:
 		return
-	_grow_set = grow
-	main.arena_grow = grow
-	main._apply_upgrades()
-	size_ship(main.ufo, grow)
+	bots.tick(delta)
+	for s in remotes.keys():
+		if remotes.has(s):
+			_glide_remote(s, delta)
+	_crown_on_leader(delta)
+	_send_wait -= delta
+	if _send_wait <= 0.0:
+		_send_wait = SEND_EVERY
+		_send_state(main.ufo)
+	for u in _parked:
+		if is_instance_valid(u):
+			u.tick(delta, Vector2.ZERO, false)
+	if _crowd_mat != null:
+		_cheer = lerpf(_cheer, 1.0, minf(delta * 0.6, 1.0))
+		_crowd_mat.set_shader_parameter("cheer", _cheer)
+	if main.mode == "play" and get_tree().paused:
+		_show_board()
 
 
-## A ship (ours or another's) drawn `g` times its size
-static func size_ship(u: Ufo, g: float) -> void:
-	if u == null or u.body == null:
-		return
-	var spec: Dictionary = Ufo.SHIPS[u.ship]
-	u.body.scale = Vector3.ONE * g
-	u.radius = float(spec["radius"]) * g
-	u.bubble.scale = Vector3(u.radius + 0.7, u.radius * 0.55 + 0.6, u.radius + 0.7)
+## Whether our saucer is picking at a level-up (the game held still for it): it cannot be hit meanwhile
+func picking() -> bool:
+	return main._picker != null and main._picker.visible
 
 
-## The padded rail: a saucer flying into it bounces back off it, as off a bumper car's
+## The padded rail: a saucer flying into it bounces back off it, as off a bumper car's; and the islands
+## of posts out on the floor, the same
 func _keep_in(ufo: Ufo, delta: float) -> void:
 	_rail_wait -= delta
 	var flat := Vector3(ufo.position.x, 0, ufo.position.z)
 	var most := R - 1.0 - ufo.radius * 0.5
-	if flat.length() <= most:
-		return
-	var out := flat.normalized()
-	ufo.position.x = out.x * most
-	ufo.position.z = out.z * most
+	if flat.length() > most:
+		_bounce(ufo, flat.normalized(), flat.normalized() * most)
+	for isl: Array in _islands:
+		var off: Vector3 = flat - (isl[0] as Vector3)
+		var reach := float(isl[1]) + ufo.radius * 0.5
+		if off.length() < reach and off.length() > 0.01:
+			_bounce(ufo, -off.normalized(), (isl[0] as Vector3) + off.normalized() * reach)
+
+
+func _bounce(ufo: Ufo, out: Vector3, to: Vector3) -> void:
+	ufo.position.x = to.x
+	ufo.position.z = to.z
 	var into := ufo.velocity.dot(out)
 	if into > 0.0:
 		ufo.velocity -= out * into * 1.9
@@ -549,7 +715,7 @@ func _keep_things_in() -> void:
 			thing.position.z = p.z
 
 
-## Saucers that meet bounce apart, the smaller the harder; a dash into one hurts it
+## Saucers that meet bounce apart; a dash into one hurts it
 func _bumper_cars(ufo: Ufo, delta: float) -> void:
 	_bump_wait -= delta
 	if ufo.dead:
@@ -565,10 +731,9 @@ func _bumper_cars(ufo: Ufo, delta: float) -> void:
 		if d >= reach:
 			continue
 		var out := off / d if d > 0.01 else Vector3.RIGHT
-		var theirs := float(r["grow"]) / (grow + float(r["grow"]))
-		ufo.position += out * (reach - d) * (0.4 + theirs)
-		ufo.velocity += out * (5.0 + 12.0 * theirs)
-		ufo.knock = out * (6.0 + 10.0 * theirs)
+		ufo.position += out * (reach - d) * 0.9
+		ufo.velocity += out * 11.0
+		ufo.knock = out * 14.0
 		if _bump_wait <= 0.0:
 			_bump_wait = 0.35
 			main.sfx.play("thud", 0.8 + randf() * 0.2, 0.0)
@@ -577,30 +742,7 @@ func _bumper_cars(ufo: Ufo, delta: float) -> void:
 			main.puff((ufo.position + other.position) * 0.5, Color(1.0, 0.9, 0.6, 0.7), 0.7)
 			if ufo.dodging() and not r["safe"]:
 				_hit(int(s), RAM_HIT, (ufo.position + other.position) * 0.5)
-				main._heat_note("RAMMED %s" % net.name_of(int(s)), 1.2)
-
-
-## A saucer much smaller than ours, held under our beam a moment: beamed up whole
-func _eat(ufo: Ufo, delta: float) -> void:
-	for s in remotes:
-		var r: Dictionary = remotes[s]
-		var other: Ufo = (r["saucer"] as RemoteSaucer).ufo
-		var under: bool = ufo.beaming and not ufo.dead and not r["down"] and not r["safe"] and grow >= float(r["grow"]) * EAT_RATIO \
-			and ufo.in_beam(Vector3(other.position.x, 0.3, other.position.z))
-		if not under:
-			_eat_hold.erase(s)
-			continue
-		var held := float(_eat_hold.get(s, 0.0)) + delta
-		_eat_hold[s] = held
-		if randf() < delta * 8.0:
-			main.puff(other.position, Color(0.6, 1.0, 0.7, 0.6), 0.6)
-		if held >= EAT_HOLD:
-			_eat_hold.erase(s)
-			net.send(int(s), K_EAT, PackedByteArray())
-			var worth := int(clampf(float(r["score"]) * 0.5, 200.0 * Thing.WORTH, 20000.0))
-			_scored("arena_foe", worth)
-			main._heat_note("YOU BEAMED UP %s!" % net.name_of(int(s)), 2.5)
-			main.sfx.play("fanfare", 1.2, -2.0)
+				main._heat_note("RAMMED %s" % name_of(int(s)), 1.2)
 
 
 # ------------------------------------------------------------------ the others
@@ -616,10 +758,11 @@ func _send_state(ufo: Ufo) -> void:
 	var lean := ufo.beam_aim * Ufo.BEAM_REACH
 	b.put_float(lean.x)
 	b.put_float(lean.y)
-	var flags := (1 if ufo.beaming else 0) | (2 if ufo.dead else 0) | (4 if ufo.dodging() else 0) | (8 if safe > 0.0 else 0)
+	var flags := (1 if ufo.beaming else 0) | (2 if ufo.dead else 0) | (4 if ufo.dodging() else 0) | (8 if safe > 0.0 or picking() else 0)
 	b.put_u8(flags)
 	b.put_u32(maxi(main.score, 0))
-	b.put_float(grow)
+	# (where the saucers' growth was, before they stopped growing: kept, for the packet's shape)
+	b.put_float(1.0)
 	b.put_u8(clampi(int(ufo.hull / maxf(ufo.hull_max, 1.0) * 255.0), 0, 255))
 	b.put_u8(maxi(Ufo.ORDER.find(main.ship), 0))
 	net.send(ArenaNet.BROADCAST, K_STATE, b.data_array)
@@ -642,21 +785,17 @@ func _on_packet(from: int, kind: int, data: PackedByteArray) -> void:
 			var az := b.get_float()
 			var flags := b.get_u8()
 			var score := b.get_u32()
-			var g := b.get_float()
+			b.get_float()
 			var hull := b.get_u8() / 255.0
 			var hero: String = Ufo.ORDER[clampi(b.get_u8(), 0, Ufo.ORDER.size() - 1)]
-			_heard(from, at, turn, Vector3(vx, 0, vz), Vector2(ax, az), flags, score, g, hull, hero)
+			_heard(from, at, turn, Vector3(vx, 0, vz), Vector2(ax, az), flags, score, hull, hero)
 		K_HIT:
 			var power := b.get_float()
 			var where := Vector3(b.get_float(), b.get_float(), b.get_float())
-			_struck(from, power, where)
+			struck(from, power, where)
 		K_DOWN:
 			var killer := b.get_8()
-			if killer == net.slot:
-				var bonus := int(150 * Thing.WORTH)
-				_scored("arena_foe", bonus)
-				main._heat_note("YOU SHOT DOWN %s!" % net.name_of(from), 2.5)
-				main.sfx.play("fanfare", 1.0, -2.0)
+			_killed_by(killer, from)
 			if remotes.has(from):
 				remotes[from]["down"] = true
 		K_LOOT:
@@ -667,45 +806,96 @@ func _on_packet(from: int, kind: int, data: PackedByteArray) -> void:
 				var z := b.get_float()
 				var worth := b.get_u32()
 				_drop_loot(id, Vector3(x, 0, z), worth)
-		K_EAT:
-			if not main.ufo.dead and safe <= 0.0:
-				_last_hit_by = from
-				main._heat_note("BEAMED UP BY %s!" % net.name_of(from), 2.5)
-				main.ufo.hull = 0.0
-				main.ufo.second_winds = 0
-				main.ufo.hurt(9999.0)
+		K_BOTS:
+			if bots.simulating():
+				return
+			var count := b.get_u8()
+			if data.size() < 1 + count * 27:
+				return
+			var sent := {}
+			for i in count:
+				var id := b.get_u8()
+				sent[id] = true
+				var x := b.get_float()
+				var z := b.get_float()
+				var turn := b.get_float()
+				var vx := b.get_float()
+				var vz := b.get_float()
+				var flags := b.get_u8()
+				var score := b.get_u32()
+				var hull := b.get_u8() / 255.0
+				heard_bot(id, Vector3(x, 0, z), turn, Vector3(vx, 0, vz), flags, score, hull, "saucer")
+			# (a bot no longer flown, as players came in: gone)
+			for s in remotes.keys():
+				if int(s) >= BOT_BASE and not sent.has(int(s)):
+					drop_remote(int(s))
+		K_HIT_BOT:
+			var id := b.get_u8()
+			var power := b.get_float()
+			bots.hurt(id, power, from)
+		K_BOT_SHOT:
+			var id := b.get_u8()
+			var power := b.get_float()
+			var where := Vector3(b.get_float(), b.get_float(), b.get_float())
+			struck(id, power, where)
+		K_BOT_DOWN:
+			var id := b.get_u8()
+			var killer := b.get_8()
+			_killed_by(killer, id)
 
 
-func _heard(s: int, at: Vector3, turn: float, vel: Vector3, aim: Vector2, flags: int, score: int, g: float, hull: float, hero: String) -> void:
+## Someone (`who`: a seat or a bot) shot down by `killer`: a bonus to whoever it was, here (ours, or a
+## bot's if this device flies the bots), and the crowd goes wild
+func _killed_by(killer: int, who: int) -> void:
+	excite(1.0)
+	if killer == net.slot:
+		var bonus := int(150 * Thing.WORTH)
+		_scored("arena_foe", bonus)
+		main._heat_note("YOU SHOT DOWN %s!" % name_of(who), 2.5)
+		main.sfx.play("fanfare", 1.0, -2.0)
+	elif killer >= BOT_BASE and bots.simulating():
+		bots.credit_kill(killer)
+
+
+func _heard(s: int, at: Vector3, turn: float, vel: Vector3, aim: Vector2, flags: int, score: int, hull: float, hero: String) -> void:
 	if remotes.has(s) and str(remotes[s]["hero"]) != hero:
-		_drop_remote(s)
+		drop_remote(s)
 	if not remotes.has(s):
 		var saucer := RemoteSaucer.new()
 		saucer.slot = s
 		saucer.ship = hero
+		if s >= BOT_BASE:
+			# (a bot: a rival saucer, purple with a pink beam)
+			saucer.tints = Thing.KINDS["rival"]["tints"]
 		add_child(saucer)
+		if s >= BOT_BASE:
+			saucer.ufo.colour_beam(Color(1.0, 0.4, 0.85))
 		var proxy: Thing = main.spawn("arena_foe", at)
 		proxy.model.visible = false
 		proxy.set_meta("slot", s)
-		remotes[s] = {"saucer": saucer, "proxy": proxy, "score": 0, "grow": 1.0, "down": false, "safe": false, "heard": 0.0, "hero": hero, "hull": 1.0}
+		remotes[s] = {"saucer": saucer, "proxy": proxy, "score": 0, "down": false, "safe": false, "heard": 0.0, "hero": hero, "hull": 1.0}
 	var r: Dictionary = remotes[s]
 	var down := flags & 2 != 0
 	var saucer: RemoteSaucer = r["saucer"]
 	saucer.hear([s, at.x, at.y, at.z, turn, flags & 1 != 0, aim.x, aim.y, hero, score, down, vel.x, vel.z])
 	r["score"] = score
-	r["grow"] = g
 	r["down"] = down
 	r["safe"] = flags & 8 != 0
 	r["hull"] = hull
 	r["heard"] = Time.get_ticks_msec() / 1000.0
-	size_ship(saucer.ufo, g)
-	saucer._tag.text = "%s  $%d" % [net.name_of(s), score]
+	saucer._tag.text = "%s  $%d" % [name_of(s), score]
+
+
+## A bot's state, from the device flying it (or this one): drawn like any other saucer
+func heard_bot(id: int, at: Vector3, turn: float, vel: Vector3, flags: int, score: int, hull: float, hero: String) -> void:
+	var y: float = Ufo.SHIPS[hero]["altitude"]
+	_heard(id, Vector3(at.x, y, at.z), turn, vel, Vector2.ZERO, flags, score, hull, hero)
 
 
 func _glide_remote(s: int, delta: float) -> void:
 	var r: Dictionary = remotes[s]
 	if Time.get_ticks_msec() / 1000.0 - float(r["heard"]) > 6.0:
-		_drop_remote(s)
+		drop_remote(s)
 		return
 	var saucer: RemoteSaucer = r["saucer"]
 	saucer.glide(delta)
@@ -716,9 +906,12 @@ func _glide_remote(s: int, delta: float) -> void:
 		proxy.position = saucer.ufo.position
 		proxy.hiding = r["down"] or r["safe"]
 	saucer._tag.position = saucer.ufo.position + Vector3(0, 2.0 + saucer.ufo.radius * 0.4, 0)
+	# (a tag is not bent with the world: far off it would hang in the sky over where the saucer has gone down
+	# behind the curve)
+	saucer._tag.visible = not r["down"] and saucer.ufo.position.distance_to(main.ufo.position) < 38.0
 
 
-func _drop_remote(s: int) -> void:
+func drop_remote(s: int) -> void:
 	if not remotes.has(s):
 		return
 	var r: Dictionary = remotes[s]
@@ -731,11 +924,16 @@ func _drop_remote(s: int) -> void:
 
 
 func _on_left(s: int) -> void:
-	_drop_remote(s)
+	drop_remote(s)
 
 
-## One of our weapons on another saucer's stand-in (main.gd `weapon_hit`): the hit sent to its owner,
-## who takes it; a flash on it here
+## What a saucer (a seat or a bot) goes by
+func name_of(s: int) -> String:
+	return bots.name_of(s) if s >= BOT_BASE else net.name_of(s)
+
+
+## One of our weapons on another saucer's stand-in (main.gd `weapon_hit`): the hit sent to its owner
+## (for a bot, the device flying it), who takes it; a flash on it here
 func hit_foe(t: Thing, power: float, at: Vector3) -> void:
 	if not t.has_meta("slot"):
 		return
@@ -746,12 +944,21 @@ func hit_foe(t: Thing, power: float, at: Vector3) -> void:
 
 
 func _hit(s: int, power: float, at: Vector3) -> void:
-	var b := StreamPeerBuffer.new()
-	b.put_float(power)
-	b.put_float(at.x)
-	b.put_float(at.y)
-	b.put_float(at.z)
-	net.send(s, K_HIT, b.data_array)
+	if s >= BOT_BASE:
+		if bots.simulating():
+			bots.hurt(s, power, net.slot)
+		else:
+			var hb := StreamPeerBuffer.new()
+			hb.put_u8(s)
+			hb.put_float(power)
+			net.send(_bots_seat(), K_HIT_BOT, hb.data_array)
+	else:
+		var b := StreamPeerBuffer.new()
+		b.put_float(power)
+		b.put_float(at.x)
+		b.put_float(at.y)
+		b.put_float(at.z)
+		net.send(s, K_HIT, b.data_array)
 	var other: Ufo = (remotes[s]["saucer"] as RemoteSaucer).ufo
 	Ps1.flash(other.hull_model, Color(1.2, 0.2, 0.15))
 	var held: WeakRef = weakref(other)
@@ -763,23 +970,86 @@ func _hit(s: int, power: float, at: Vector3) -> void:
 		other.puffs.spark(at, Vector3(randf_range(-3, 3), randf_range(1, 4), randf_range(-3, 3)), Color(1.0, 0.7, 0.3))
 
 
-## Hit by another saucer's weapon (or its dash): the shield takes it, a streak from them to us
-func _struck(from: int, power: float, at: Vector3) -> void:
+## The seat flying the bots (the lowest still in)
+func _bots_seat() -> int:
+	var lowest := 9999
+	for p: Dictionary in net.players:
+		if not bool(p.get("away", false)):
+			lowest = mini(lowest, int(p["slot"]))
+	return lowest
+
+
+## Hit by another saucer's weapon, its dash, or a bot's shot (`from`: a seat or a bot): the shield takes
+## it, a streak from them to us
+func struck(from: int, power: float, at: Vector3) -> void:
 	var ufo: Ufo = main.ufo
-	if ufo.dead or safe > 0.0 or ufo.dodging():
+	if ufo.dead or safe > 0.0 or ufo.dodging() or picking():
 		return
 	_last_hit_by = from
 	ufo.hurt(power * PVP_HIT, at)
 	main._hurt = maxf(main._hurt, 0.5)
 	main.sfx.play("boom", 1.7, -6.0)
-	if remotes.has(from):
+	if remotes.has(from) and from < BOT_BASE:
 		main._zap((remotes[from]["saucer"] as RemoteSaucer).ufo.position, at)
+
+
+## A bot of ours (this device flies them) shot a player on another device: the hit sent to them
+func bot_shot(seat: int, id: int, power: float, at: Vector3) -> void:
+	var b := StreamPeerBuffer.new()
+	b.put_u8(id)
+	b.put_float(power)
+	b.put_float(at.x)
+	b.put_float(at.y)
+	b.put_float(at.z)
+	net.send(seat, K_BOT_SHOT, b.data_array)
+
+
+## A bot of ours beamed something up: up its beam it goes (gone here; gone elsewhere when the server
+## says whose it was)
+func bot_took(t: Thing, at: Vector3) -> void:
+	var id := int(t.get_meta("arena_id", -1))
+	_by_id.erase(id)
+	t.set_meta("arena_gone", true)
+	var rise := t.create_tween()
+	rise.tween_property(t, "position", Vector3(at.x, 7.0, at.z), 0.5).set_ease(Tween.EASE_IN)
+	rise.parallel().tween_property(t.model, "scale", Vector3.ONE * 0.05, 0.5)
+	rise.tween_callback(func() -> void:
+		if is_instance_valid(t) and t.state != "gone":
+			main._remove(t))
+
+
+## A bot of ours shot down: told to all, its loot scattered, the crowd cheering
+func bot_down(id: int, killer: int, at: Vector3, lost: int) -> void:
+	var b := StreamPeerBuffer.new()
+	b.put_u8(id)
+	b.put_8(killer)
+	net.send(ArenaNet.BROADCAST, K_BOT_DOWN, b.data_array)
+	_killed_by(killer, id)
+	main.boom(Vector3(at.x, 7.0, at.z), 3.0)
+	_scatter_loot(lost, at, 32 + id - BOT_BASE, bots.next_drop())
+
+
+## A place at the rim to come in at, away from everyone if it can be
+func rim_spot() -> Vector3:
+	var best := Vector3.ZERO
+	var far := -1.0
+	for i in 12:
+		var a := randf() * TAU
+		var p := Vector3(cos(a), 0, sin(a)) * SPAWN_R
+		var near := 999.0
+		near = minf(near, p.distance_to(main.ufo.position * Vector3(1, 0, 1)))
+		for s in remotes:
+			near = minf(near, p.distance_to((remotes[s]["saucer"] as RemoteSaucer).ufo.position * Vector3(1, 0, 1)))
+		if near > far:
+			far = near
+			best = p
+	return best
 
 
 # ------------------------------------------------------------------ down, and back
 
-## Our saucer down (main.gd `_crash`, each frame it lies there): its loot dropped and its fall told, then
-## back at the rim, small, a few seconds later
+## Our saucer down (main.gd `_crash`, each frame it lies there): everything it had lost (its score dropped
+## as loot, its fall told), then back at the rim, as it started, a few seconds later
 func ship_down(delta: float) -> void:
 	if down_for < 0.0:
 		down_for = 0.0
@@ -787,7 +1057,11 @@ func ship_down(delta: float) -> void:
 		var b := StreamPeerBuffer.new()
 		b.put_8(_last_hit_by)
 		net.send(ArenaNet.BROADCAST, K_DOWN, b.data_array)
-		_drop_ours(lost)
+		if _last_hit_by >= BOT_BASE and bots.simulating():
+			bots.credit_kill(_last_hit_by)
+		excite(1.0)
+		_drops += 1
+		_scatter_loot(lost, main.ufo.ground(), net.slot, _drops)
 		main.score -= lost
 		main._heat_note("SHOT DOWN! BACK IN %d" % int(RESPAWN), RESPAWN)
 		main.sfx.play("boom", 0.7, 2.0)
@@ -798,23 +1072,20 @@ func ship_down(delta: float) -> void:
 		down_for = -1.0
 		main.arena_respawn()
 		safe = SAFE
-		_grow_set = 0.0
-		_apply_grow(true)
 		_put_at_rim()
 
 
-## What we lost, scattered as gems round where we fell, for anyone (us too) to take
-func _drop_ours(lost: int) -> void:
+## What a saucer lost, scattered as gems round where it fell, for anyone to take (`code` the seat, or
+## 32 and up for a bot, and `n` a count, for the gems' ids)
+func _scatter_loot(lost: int, at: Vector3, code: int, n: int) -> void:
 	if lost <= 0:
 		return
 	var count := clampi(1 + lost / int(400 * Thing.WORTH), 1, LOOT_MOST)
 	var each := lost / count
-	var at: Vector3 = main.ufo.ground()
 	var b := StreamPeerBuffer.new()
 	b.put_u8(count)
 	for i in count:
-		_drops += 1
-		var id := DROP_BASE + (net.slot << 20) + (_drops % (1 << 20))
+		var id := DROP_BASE + (code << 20) + ((n * LOOT_MOST + i) % (1 << 20))
 		var a := randf() * TAU
 		var p := at + Vector3(cos(a), 0, sin(a)) * randf_range(1.5, 5.0)
 		var flat := Vector3(p.x, 0, p.z)
@@ -843,18 +1114,8 @@ func _drop_loot(id: int, at: Vector3, worth: int) -> void:
 
 ## Our saucer put in at the rim, on a side away from the others if it can be
 func _put_at_rim() -> void:
-	var best := Vector3.ZERO
-	var far := -1.0
-	for i in 12:
-		var a := randf() * TAU
-		var p := Vector3(cos(a), 0, sin(a)) * SPAWN_R
-		var near := 999.0
-		for s in remotes:
-			near = minf(near, p.distance_to((remotes[s]["saucer"] as RemoteSaucer).ufo.position * Vector3(1, 0, 1)))
-		if near > far:
-			far = near
-			best = p
-	main.ufo.position = Vector3(best.x, main.ufo.altitude, best.z)
+	var p := rim_spot()
+	main.ufo.position = Vector3(p.x, main.ufo.altitude, p.z)
 	main.ufo.velocity = Vector3.ZERO
 
 
@@ -862,21 +1123,43 @@ func _put_at_rim() -> void:
 
 func _on_top(list: Array) -> void:
 	top = list
-	leader = int(list[0]["slot"]) if not list.is_empty() else -1
 
 
-func _crown_on_leader() -> void:
+## Everyone on the board: the players as the server ranks them (ours as it is now), and the bots
+func standings() -> Array:
+	var rows: Array = []
+	for row: Dictionary in top:
+		var s := int(row["slot"])
+		rows.append({"slot": s, "name": str(row["name"]), "score": main.score if s == net.slot else int(row["score"]), "bot": false})
+	var me_in := false
+	for row: Dictionary in rows:
+		me_in = me_in or int(row["slot"]) == net.slot
+	if not me_in:
+		rows.append({"slot": net.slot, "name": "YOU", "score": main.score, "bot": false})
+	for s in remotes:
+		if int(s) >= BOT_BASE:
+			rows.append({"slot": int(s), "name": name_of(int(s)), "score": int(remotes[s]["score"]), "bot": true})
+	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["score"]) > int(b["score"]))
+	return rows
+
+
+func _crown_on_leader(delta: float) -> void:
 	if _crown == null:
 		return
+	var rows := standings()
+	var was := leader
+	leader = int(rows[0]["slot"]) if not rows.is_empty() and int(rows[0]["score"]) > 0 else -1
+	if leader != was and leader != -1 and was != -1:
+		excite(0.6)
 	var who: Ufo = null
 	if leader == net.slot:
 		who = main.ufo
 	elif remotes.has(leader):
 		who = (remotes[leader]["saucer"] as RemoteSaucer).ufo
-	_crown.visible = who != null and not who.dead and top.size() > 1
+	_crown.visible = who != null and not who.dead and rows.size() > 1
 	if _crown.visible:
 		_crown.global_position = who.global_position + Vector3(0, 1.8 + who.radius * 0.35, 0)
-		_crown.rotation.y += get_process_delta_time() * 1.5
+		_crown.rotation.y += delta * 1.5
 		_crown.scale = Vector3.ONE * clampf(who.radius / 2.8, 0.8, 2.0)
 
 
@@ -892,24 +1175,34 @@ func _show_board() -> void:
 		return
 	var big: bool = main._upright()
 	var shown := 5 if big else 8
+	var rows := standings()
 	var lines: Array[String] = ["ARENA  %d/%d" % [net.players.size(), 12]]
 	var me_in := false
-	for i in mini(top.size(), shown):
-		var row: Dictionary = top[i]
+	for i in mini(rows.size(), shown):
+		var row: Dictionary = rows[i]
 		var mine := int(row["slot"]) == net.slot
 		me_in = me_in or mine
-		lines.append("%s%d %s  %s" % ["> " if mine else "", i + 1, str(row["name"]), _money(int(row["score"]))])
+		lines.append("%s%d %s%s  %s" % ["> " if mine else "", i + 1, str(row["name"]), " BOT" if row["bot"] else "", _money(int(row["score"]))])
 	if not me_in:
-		var rank := top.size() + 1
-		for i in top.size():
-			if int(top[i]["slot"]) == net.slot:
+		var rank := rows.size()
+		for i in rows.size():
+			if int(rows[i]["slot"]) == net.slot:
 				rank = i + 1
 		lines.append("> %d YOU  %s" % [rank, _money(main.score)])
 	_board.text = "\n".join(lines)
 	_board.add_theme_font_size_override("font_size", 46 if big else 26)
 	var view: Vector2 = main.get_viewport().get_visible_rect().size / main.hud.scale.x
-	_board.size = Vector2(view.x * (0.62 if big else 0.32), 0)
-	_board.position = Vector2(view.x - _board.size.x - 24.0, (main.heat_note.position.y + 50.0) if big else 150.0)
+	# (clear of the side log, top right, where what is taken is typed out: on an upright phone down the
+	# left under the round buttons; on a wide screen at the right, under the log's lines)
+	if big:
+		_board.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		_board.size = Vector2(view.x * 0.62, 0)
+		_board.position = Vector2(24.0, view.y * 0.2)
+	else:
+		_board.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		_board.size = Vector2(view.x * 0.32, 0)
+		var under: float = main.log_box.position.y + main.log_box.size.y + 12.0 if main.log_box.get_child_count() > 0 else 150.0
+		_board.position = Vector2(view.x - _board.size.x - 24.0, maxf(under, 150.0))
 
 
 static func _money(n: int) -> String:

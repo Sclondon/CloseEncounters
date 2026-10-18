@@ -243,11 +243,9 @@ var holograms: Holograms
 ## Multiplayer: the room (Net), the other saucers (Coop), and the seed of the world shared in it
 var net: Net
 var coop: Coop
-## The ARENA (scripts/arena.gd): drop-in battles on the moon; whether a run is one, and how much bigger
-## the ship is for its score there
+## The ARENA (scripts/arena.gd): drop-in battles on the moon; whether a run is one
 var arena: Arena
 var arena_on := false
-var arena_grow := 1.0
 var coop_seed := 0
 ## Level-ups come with the score (off for the preview film)
 var levels_on := true
@@ -672,15 +670,14 @@ func start(from_launch := false) -> void:
 
 
 ## Into the ARENA (arena.gd `begin`): a run of its own on the moon, no country under it (none made, nothing
-## standing in the way), no heat, no level-ups
+## standing in the way), no heat; level-ups and the Moon Market as in any run
 func start_arena() -> void:
 	arena_on = true
-	arena_grow = 1.0
 	start()
 	intro = 0.0
 	ufo.descent = 0.0
 	ufo.bubble_fade = 1.0
-	levels_on = false
+	levels_on = true
 	# (the camera straight to the ship, not swinging down from the title's moon)
 	camera.position = Vector3.ZERO
 	world.reseed(world.world_seed)
@@ -695,7 +692,6 @@ func start_arena() -> void:
 ## Out of the arena (arena.gd `leave`), back to the title on the moon, the country made again
 func end_arena() -> void:
 	arena_on = false
-	arena_grow = 1.0
 	levels_on = true
 	world.visible = true
 	get_tree().paused = false
@@ -732,12 +728,16 @@ func arena_scored(kind: String, points: int) -> void:
 		_run_taken[group] = [int(had[0]) + 1, int(had[1]) + points]
 
 
-## Back in the arena after being shot down: a new ship of the same kind, with only its own weapons
+## Back in the arena after being shot down, with nothing: everything lost (its score dropped as loot, see
+## arena.gd `ship_down`), a new ship of the same kind as it started, its own weapon only, level one
 func arena_respawn() -> void:
 	ufo.queue_free()
 	_make_ufo(Vector3.ZERO)
 	for w: String in upgrades:
 		upgrades[w] = 0
+	score = 0
+	level = 0
+	_levels_due = 0
 	_arm_ship()
 	ufo.position.y = ufo.altitude
 	_forget_fingers()
@@ -976,6 +976,11 @@ func _process(delta: float) -> void:
 		_jets(delta)
 	if mode == "play" and intro <= 0.0 and test_room:
 		_test_room(delta)
+	elif mode == "play" and intro <= 0.0 and arena_on:
+		# (the arena plays as a run on Earth does, level-ups and the Moon Market's picks and all, with
+		# no police or army: the other saucers are the danger)
+		_levels()
+		time_alive += delta
 	elif mode == "play" and intro <= 0.0 and not arena_on:
 		_levels()
 		time_alive += delta
@@ -1585,8 +1590,6 @@ func _apply_upgrades() -> void:
 	ufo.colour_beam(BEAM_COLOURS[mini(beam_extra() / 2, BEAM_COLOURS.size() - 1)])
 	# (SIZE RAY: everything fired bigger, the beam a fifth broader a stack, its light with it)
 	var wide: float = weapon_size()
-	if arena_on:
-		wide *= arena_grow
 	ufo.set_beam_size(float(spec["beam_foot"]) * wide)
 	# (SWIVEL MOUNT: the beam leans a third further out from under the ship a stack)
 	ufo.beam_reach = Ufo.BEAM_REACH * (1.0 + 0.35 * upgrades["swivel"])
@@ -1605,10 +1608,6 @@ func _ship_stats() -> void:
 	ufo.speed = float(spec["speed"]) * (1.0 + 0.07 * upgrades["engine"]) * (1.5 if boosts.has("overdrive") else 1.0)
 	ufo.lift_rate = float(spec["lift"]) * (1.0 + 0.12 * beam_extra()) * (1.8 if boosts.has("super") else 1.0)
 	ufo.tier = mini(int(spec["tier"]) + beam_extra() / 2 + (1 if boosts.has("super") else 0), 4)
-	if arena_on:
-		# (in the arena, bigger is slower and stronger: a tier more for each half again as big)
-		ufo.speed /= pow(arena_grow, 0.35)
-		ufo.tier = clampi(maxi(ufo.tier, 1 + int((arena_grow - 1.0) * 2.0)), 1, 3)
 
 
 ## BEAMs past the first (the first is the beam itself)
@@ -3829,6 +3828,23 @@ func _warm_effects() -> void:
 	var puffs := Puffs.new()
 	_warm.add_child(puffs)
 	puffs.puff(at, Color(0.2, 0.2, 0.2, 0.8), 1.0)
+	# (the plain glowing materials the effects make as they go: the sling's tether and its motes,
+	# the lightning, the turret's tracers, sparks... each kind of them drawn once here, so its shader is
+	# made now rather than the first time it shows, which stalled the web game as a sling came in)
+	var dot := QuadMesh.new()
+	dot.size = Vector2(0.05, 0.05)
+	for k in 16:
+		var w := StandardMaterial3D.new()
+		w.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		w.vertex_color_use_as_albedo = k & 1 != 0
+		w.cull_mode = BaseMaterial3D.CULL_DISABLED if k & 2 != 0 else BaseMaterial3D.CULL_BACK
+		w.blend_mode = BaseMaterial3D.BLEND_MODE_ADD if k & 4 != 0 else BaseMaterial3D.BLEND_MODE_MIX
+		w.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA if k & 8 != 0 else BaseMaterial3D.TRANSPARENCY_DISABLED
+		var shown := MeshInstance3D.new()
+		shown.mesh = dot
+		shown.material_override = w
+		shown.position = at + Vector3(0.01 * k, 0, 0)
+		_warm.add_child(shown)
 	# (the gravity sling's moonlet, loaded and drawn once, hot as it flies)
 	var moonlet := Ps1.model("moonlet", {}, true)
 	Ps1.flash(moonlet, Color(0.75, 0.3, 0.05))
@@ -4031,7 +4047,7 @@ func landed(t: Thing, height: float, thrown := 0.0) -> void:
 			add_heat(0.25)
 			calm = 0.0
 			boom(other.position + Vector3(0, 1, 0), 2.0)
-			log_line("%s CRUSHED" % other.kind.replace("_", " ").to_upper(), points)
+			log_line("%s CRUSHED" % Thing.alien_name(other.kind), points)
 			_count_kill(other.kind)
 			_remove(other)
 			break
@@ -4067,7 +4083,7 @@ func explode(t: Thing) -> void:
 	_shake = 0.35
 	var points := t.points() * multiplier()
 	score += points
-	log_line("%s BLOWN UP" % t.kind.replace("_", " ").to_upper(), points)
+	log_line("%s BLOWN UP" % Thing.alien_name(t.kind), points)
 	if t.is_enemy():
 		_count_kill(t.kind)
 	else:
@@ -4091,7 +4107,7 @@ func explode(t: Thing) -> void:
 			var got := other.points() / 2 * multiplier()
 			score += got
 			boom(other.position + Vector3(0, 1, 0), 2.5)
-			log_line("%s CAUGHT IN THE BLAST" % other.kind.replace("_", " ").to_upper(), got)
+			log_line("%s CAUGHT IN THE BLAST" % Thing.alien_name(other.kind), got)
 			_count_kill(other.kind)
 			_remove(other)
 			continue
@@ -6072,7 +6088,7 @@ func _camera_offset() -> Vector3:
 	var from := camera_offset if _upright() or camera_offset != CAMERA_OFFSET else WIDE_OFFSET
 	var off := from + Vector3(0, 1.3, 0.5) * (ufo.altitude - 8.0)
 	# (in the arena, further back the bigger the ship has grown, so it never fills the picture)
-	return off * (1.0 + (arena_grow - 1.0) * 0.5) if arena_on else off
+	return off
 
 
 func _camera(delta: float) -> void:

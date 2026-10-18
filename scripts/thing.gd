@@ -1958,6 +1958,13 @@ const ALIEN_NAMES := {
 
 ## More of what the pilot calls things (the newer ones), in the same spirit as ALIEN_NAMES
 const MORE_NAMES := {
+	# (the arena's, on the moon)
+	"arena_astronaut": "PUFFY SKY WALKER", "arena_tourist": "BUBBLE-HEADED GAWKER", "arena_flag": "CLAIM CLOTH",
+	"arena_rock_small": "MOON CRUMB", "arena_rock_big": "BIG MOON CRUMB", "arena_gem_pink": "PINK SPARKLE ROCK",
+	"arena_gem_blue": "BLUE SPARKLE ROCK", "arena_gem_green": "GREEN SPARKLE ROCK", "arena_gem_gold": "POWER SPARKLE ROCK",
+	"arena_solar": "SUN DRINKER", "arena_snack_cart": "SNACK WAGON", "arena_rover": "MOON ZOOMER", "arena_dish": "SKY EAR",
+	"arena_booth": "PRIZE HUT", "arena_lander": "TIN MOON HOPPER", "arena_habitat": "MOON BUBBLE HOUSE",
+	"arena_drop": "LOST LOOT", "arena_foe": "A SAUCER",
 	"sunflower": "SUN-STARING STALK", "cabbage": "LEAF BRAIN", "melon": "STRIPED WATER EGG", "pepper": "FIRE POD BUSH",
 	"locomotive": "SMOKE-PUFFING IRON WORM", "boxcar": "IRON WORM SEGMENT", "caboose": "IRON WORM TAIL", "track": "IRON WORM PATH",
 	"rider": "TWO-HEADED HOOF BEAST", "balloon": "HOT SKY BUBBLE", "tube_man": "FLAILING WIND PRIEST",
@@ -1987,7 +1994,10 @@ static func alien_name(of: String) -> String:
 	# (a captured ship: by its own goofy name)
 	if of.begins_with("captured_") and Ufo.SHIPS.has(of.trim_prefix("captured_")):
 		return Ufo.SHIPS[of.trim_prefix("captured_")]["title"]
-	return of.replace("_", " ").to_upper()
+	# (never "ARENA ..." for one of the arena's: its title, or its name without that)
+	if KINDS.has(of) and KINDS[of].has("title"):
+		return str(KINDS[of]["title"])
+	return of.trim_prefix("arena_").replace("_", " ").to_upper()
 
 
 # ------------------------------------------------------------------ coming apart in the beam

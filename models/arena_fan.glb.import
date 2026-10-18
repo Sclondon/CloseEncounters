@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://btj0mr3juqki0"
-path="res://.godot/imported/arena_ferris.glb-b5e64ef18546539dff51e1d463484d12.scn"
+uid="uid://d1kje6q0md8wq"
+path="res://.godot/imported/arena_fan.glb-c183603c8a6de9a140e6193ed698ee2b.scn"
 
 [deps]
 
-source_file="res://models/arena_ferris.glb"
-dest_files=["res://.godot/imported/arena_ferris.glb-b5e64ef18546539dff51e1d463484d12.scn"]
+source_file="res://models/arena_fan.glb"
+dest_files=["res://.godot/imported/arena_fan.glb-c183603c8a6de9a140e6193ed698ee2b.scn"]
 
 [params]
 

@@ -6,6 +6,8 @@ extends Node3D
 
 var slot := 0
 var ship := "saucer"
+## Colours for its hull (see Ufo.tints)
+var tints := {}
 var score := 0
 var ufo: Ufo
 var _to := Vector3.ZERO
@@ -24,6 +26,7 @@ var lift := 0.0
 func _ready() -> void:
 	ufo = Ufo.new()
 	ufo.ship = ship if Ufo.SHIPS.has(ship) else "saucer"
+	ufo.tints = tints
 	ufo.alien_seed = slot * 7919 + 13
 	add_child(ufo)
 	_tag = Label3D.new()

@@ -51,8 +51,11 @@ float craters(vec2 p, float size) {
 void fragment() {
 	vec2 p = world.xz;
 	float patches = mix(0.78, 1.12, smoothstep(0.35, 0.65, fbm(p * 0.05)));
-	float grit = (hash(floor(p * 10.0)) - 0.5) * 0.08 + (fbm(p * 1.3) - 0.5) * 0.18;
-	float pits = craters(p, 4.0) + craters(p + 31.0, 1.6) * 0.7;
+	// (fine detail fades out where a pixel covers more ground than it: far off it only sparkles as the
+	// camera moves, which read as flicker)
+	float px = length(fwidth(p));
+	float grit = (hash(floor(p * 10.0)) - 0.5) * 0.08 * (1.0 - smoothstep(0.04, 0.12, px)) + (fbm(p * 1.3) - 0.5) * 0.18 * (1.0 - smoothstep(0.3, 1.0, px));
+	float pits = craters(p, 4.0) * (1.0 - smoothstep(0.6, 1.8, px)) + craters(p + 31.0, 1.6) * 0.7 * (1.0 - smoothstep(0.25, 0.7, px));
 	ALBEDO = COLOR.rgb * clamp(patches + grit + pits, 0.35, 1.4);
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.05;

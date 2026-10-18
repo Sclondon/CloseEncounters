@@ -1,7 +1,7 @@
 # Builds the models for Close Encounters' ARENA: a carnival the aliens have set up on the moon, where the
 # saucers fight it out like bumper cars (after Banjo-Kazooie's Witchyworld). The round crater floor and
-# its padded bumper rim, the carnival round it (an entrance arch, a Ferris wheel, striped tents, bumper
-# posts, lamp poles strung with bulbs, a rocket tower), and the things lying about to be beamed up:
+# its padded bumper rim, the carnival round it (an entrance arch, stands for an audience of aliens and
+# the aliens in them, bumper posts, lamp poles strung with bulbs, a rocket tower), and the things lying about to be beamed up:
 # astronauts, tourists in bubble helmets, a moon buggy, a lander, a habitat, radio dishes, solar
 # panels, a flag, moon rocks, glowing gems, a snack cart and a little booth.
 #
@@ -32,7 +32,7 @@ GLOWS.update({
     "gem_gold": ((1.0, 0.8, 0.25), 1.4), "lime_glow": ((0.55, 1.0, 0.3), 2.5), "sign_glow": ((1.0, 0.45, 0.9), 2.5),
 })
 
-RIM = 40.0  # the floor's radius to the bumper rail, metres
+RIM = 62.0  # the floor's radius to the bumper rail, metres
 
 
 # ---------------------------------------------------------------- the arena itself
@@ -82,7 +82,7 @@ def arena_floor():
     bm.free()
     p = [o]
     rnd = random.Random(5)
-    for k in range(9):
+    for k in range(18):
         a = k * 2.39996 + rnd.uniform(-0.3, 0.3)
         r = rnd.uniform(8.0, RIM * 0.55)
         size = rnd.uniform(1.6, 3.4)
@@ -91,6 +91,17 @@ def arena_floor():
         p.append(drum(size, 0.16, (at[0], at[1], 0.0), "regolith_dark", 14))
         p.append(_ring(size + 0.1, 0.22, (at[0], at[1], 0.06), "regolith", 16, 5))
     return join("arena_floor", p)
+
+
+def _flipped(o):
+    """Its faces turned the other way (a lathe's face out from its axis; the bank's must face up and in)"""
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
+    bm.to_mesh(o.data)
+    bm.free()
+    return o
 
 
 def _uncapped(o):
@@ -107,9 +118,12 @@ def _uncapped(o):
 def arena_rim():
     """The crater's rim all round the floor: a regolith bank, and on its foot the bumper rail, padded and
     striped red and white like a dodgem track's, with lights along its top"""
-    p = [_uncapped(lathe("arena_bank", [(RIM + 0.6, 0.0), (RIM + 2.0, 1.2), (RIM + 5.0, 3.2), (RIM + 9.0, 3.6), (RIM + 14.0, 2.0)],
-               ["regolith", "regolith", "regolith_dark", "regolith"], sides=48, wobble=0.25, seed=3))]
-    count = 64
+    # (from under the floor's edge, up over a crest and down again until it goes into the ground beyond,
+    # under the moon laid out round the arena: no edge left open against the sky)
+    p = [_flipped(_uncapped(lathe("arena_bank", [(RIM + 0.4, 0.3), (RIM + 2.0, 1.6), (RIM + 5.0, 3.4), (RIM + 9.0, 3.8), (RIM + 15.0, 2.4),
+                                        (RIM + 21.0, 0.7), (RIM + 24.0, -0.8)],
+               ["regolith", "regolith", "regolith_dark", "regolith", "regolith", "regolith"], sides=72, wobble=0.25, seed=3)))]
+    count = 96
     for k in range(count):
         a0, a1 = k / count * math.tau, (k + 1) / count * math.tau
         r = RIM + 0.2
@@ -119,7 +133,7 @@ def arena_rim():
         if k % 4 == 0:
             p.append(ball((0.34, 0.34, 0.3), (r * math.cos(a0), r * math.sin(a0), 2.42), "light_amber" if k % 8 else "light_red", 6, 3))
     # (the rail's lower edge: a dark kerb it stands on)
-    p.append(_ring(RIM + 0.25, 0.5, (0, 0, 0.6), "metal_dark", 64, 6))
+    p.append(_ring(RIM + 0.25, 0.5, (0, 0, 0.6), "metal_dark", 96, 6))
     return join("arena_rim", p)
 
 
@@ -144,39 +158,6 @@ def arena_arch():
     p += [box((6.0, 0.3, 1.6), (0, -0.3, 7.2), "black"), box((5.4, 0.12, 1.1), (0, -0.48, 7.2), "sign_glow"),
           rod(0.05, (-2.4, -0.3, 8.0), (-2.4, -0.3, 8.9), "metal", 4), rod(0.05, (2.4, -0.3, 8.0), (2.4, -0.3, 8.9), "metal", 4)]
     return join("arena_arch", p)
-
-
-def arena_ferris():
-    """A Ferris wheel the aliens brought: a ring of glowing spokes on two legs, little saucer-shaped
-    cars hung round it"""
-    hub = (0, 0, 9.0)
-    p = [drum(0.7, 1.8, hub, "metal_dark", 10, (math.pi / 2, 0, 0))]
-    for s in (-1, 1):
-        p.append(rod(0.25, (-3.2, 0.7 * s, 0), (0, 0.7 * s, 9.0), "metal", 6))
-        p.append(rod(0.25, (3.2, 0.7 * s, 0), (0, 0.7 * s, 9.0), "metal", 6))
-        p.append(_ring(7.0, 0.18, (0, 0.6 * s, 9.0), "tent_teal", 32, 5, (math.pi / 2, 0, 0)))
-    cars = 10
-    for k in range(cars):
-        a = k / cars * math.tau
-        x, z = 7.0 * math.cos(a), 9.0 + 7.0 * math.sin(a)
-        p.append(rod(0.09, (0, 0, 9.0), (x, 0, z), "neon_pink" if k % 2 else "neon_blue", 4))
-        p.append(rod(0.05, (x, 0, z), (x, 0, z - 0.9), "metal", 4))
-        p.append(ball((1.3, 1.3, 0.5), (x, 0, z - 1.15), ["bumper_red", "yellow", "tent_purple", "tent_teal"][k % 4], 8, 4))
-        p.append(ball((0.6, 0.6, 0.5), (x, 0, z - 0.95), "glass", 8, 4))
-    return join("arena_ferris", p)
-
-
-def arena_tent():
-    """A striped carnival tent, purple and teal, with a glowing sign over its door"""
-    p = [drum(3.0, 2.4, (0, 0, 1.2), "tent_purple", 12), cone(3.4, 2.6, (0, 0, 3.7), "tent_teal", 12),
-         drum(0.05, 1.2, (0, 0, 5.5), "metal", 4), box((0.7, 0.04, 0.45), (0.35, 0, 5.9), "neon_pink")]
-    for k in range(12):
-        a = k / 12 * math.tau
-        if k % 2:
-            p.append(box((0.5, 0.08, 2.4), (3.0 * math.cos(a), 3.0 * math.sin(a), 1.2), "yellow", (0, 0, a + math.pi / 2)))
-    p += [box((1.6, 0.5, 1.9), (0, -2.9, 0.95), "black"), box((2.4, 0.2, 0.6), (0, -3.1, 2.7), "black"),
-          box((2.1, 0.06, 0.4), (0, -3.22, 2.7), "sign_glow")]
-    return join("arena_tent", p)
 
 
 def arena_bumper_post():
@@ -411,7 +392,38 @@ def arena_booth():
     return join("arena_booth", p)
 
 
-ARENA_BUILDERS = [arena_floor, arena_rim, arena_arch, arena_ferris, arena_tent, arena_bumper_post, arena_lights, arena_rocket_tower,
+def arena_stands():
+    """A stand for the crowd, on the crater's bank looking in: three tiers of benches, striped in the
+    carnival's colours, a skirt down into the slope under it, bunting along its back (the audience is
+    put on it by the game, many to a MultiMesh: see arena_fan)"""
+    w = 14.0
+    p = [box((w, 6.0, 3.0), (0, 2.6, -1.4), "metal_dark")]
+    colours = ["tent_purple", "tent_teal", "yellow"]
+    for i in range(3):
+        top = 0.5 + i * 0.75
+        p.append(box((w, 1.5, top + 1.0), (0, 0.75 + i * 1.5, top - (top + 1.0) / 2.0), colours[i]))
+        p.append(box((w + 0.1, 0.12, 0.08), (0, i * 1.5 + 0.06, top - 0.04), "pad"))
+    p += [box((w, 0.3, 2.6), (0, 4.65, 2.9), "tent_purple"), box((0.3, 0.3, 4.6), (-w / 2, 4.65, 1.9), "metal"),
+          box((0.3, 0.3, 4.6), (w / 2, 4.65, 1.9), "metal")]
+    for k in range(12):
+        x = -w / 2 + 0.6 + k * (w - 1.2) / 11
+        p.append(cone(0.32, 0.5, (x, 4.45, 3.95), ["bumper_red", "yellow", "tent_teal"][k % 3], 3, (math.pi, 0, 0)))
+    return join("arena_stands", p)
+
+
+def arena_fan():
+    """One of the audience: a little alien sitting and watching, a round body under a big round head,
+    two great black eyes and a pair of feelers with glowing tips (its coat white: the game colours each
+    one, many to a MultiMesh)"""
+    p = [ball((0.62, 0.5, 0.62), (0, 0, 0.3), "white", 8, 5), ball((0.66, 0.6, 0.6), (0, 0, 0.82), "white", 8, 5),
+         ball((0.2, 0.08, 0.26), (-0.14, -0.27, 0.86), "black", 6, 3), ball((0.2, 0.08, 0.26), (0.14, -0.27, 0.86), "black", 6, 3),
+         rod(0.025, (-0.12, 0, 1.08), (-0.22, 0.02, 1.35), "white", 4), rod(0.025, (0.12, 0, 1.08), (0.22, 0.02, 1.35), "white", 4),
+         ball((0.09, 0.09, 0.09), (-0.22, 0.02, 1.36), "lime_glow", 5, 3), ball((0.09, 0.09, 0.09), (0.22, 0.02, 1.36), "lime_glow", 5, 3),
+         box((0.12, 0.16, 0.34), (-0.3, -0.05, 0.42), "white"), box((0.12, 0.16, 0.34), (0.3, -0.05, 0.42), "white")]
+    return join("arena_fan", p)
+
+
+ARENA_BUILDERS = [arena_floor, arena_rim, arena_arch, arena_stands, arena_fan, arena_bumper_post, arena_lights, arena_rocket_tower,
                   arena_astronaut, arena_tourist, arena_rover, arena_lander, arena_habitat, arena_dish, arena_solar, arena_flag,
                   arena_rock_small, arena_rock_big, arena_gem_pink, arena_gem_blue, arena_gem_green, arena_gem_gold, arena_snack_cart, arena_booth]
 

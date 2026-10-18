@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bpl0vhyxrhu2y"
-path="res://.godot/imported/arena_tent.glb-79ba4216a6ba383da3d268542a96b2d3.scn"
+uid="uid://dprr5lruc3t"
+path="res://.godot/imported/arena_stands.glb-e2d5ceff8c79ccd4a4900532d41aa09e.scn"
 
 [deps]
 
-source_file="res://models/arena_tent.glb"
-dest_files=["res://.godot/imported/arena_tent.glb-79ba4216a6ba383da3d268542a96b2d3.scn"]
+source_file="res://models/arena_stands.glb"
+dest_files=["res://.godot/imported/arena_stands.glb-e2d5ceff8c79ccd4a4900532d41aa09e.scn"]
 
 [params]
 

@@ -332,42 +332,67 @@ points it at another server.
 ### The arena
 
 **ARENA** is the fourth turn of the title's big button (after PLAY, HOST and JOIN): a drop-in battle for the top
-spot, as in agar.io, on a carnival the aliens have set up on the moon. Pressing it says JOINING THE ARENA... and drops
-the saucer in at the rim of a round crater 80 m across, ringed with a padded red and white bumper rail, with the
-carnival round it (an entrance arch, a Ferris wheel, striped tents, a rocket tower, string lights) and Earth hanging in
-the black. Up to twelve saucers share an arena; anyone pressing ARENA lands in the fullest one with a seat, and can come
-and go at any time. Nobody hosts.
+spot on a carnival the aliens have set up on the moon. Pressing it says JOINING THE ARENA... and drops the saucer in at
+the rim of a round crater about 125 m across (`Arena.R` 62 m to the rail), ringed with a padded red and white bumper
+rail; out on the floor, islands of padded posts round a lamp to bump round. On the bank all round, **stands full of
+aliens watching**, each its own colour, bobbing and swaying, and going wild when a saucer is shot down or the lead
+changes (`Arena.excite`; one MultiMesh, the bob in `bend.gdshaderinc` `cheer`); in three gaps between them, **camps**:
+a saucer parked on its legs with its canopy open and its pilot lounging on top with a drink, a cooler and a radio, two
+aliens in deck chairs with theirs, one up cheering. The gate (an arch and a rocket tower) is where the camera looks in,
+and Earth hangs in the black. Up to twelve players share an arena; anyone pressing ARENA lands in the fullest one with a
+seat, and can come and go at any time. Nobody hosts.
+
+It plays as a run on Earth does, against the other saucers: each ship its own speed, shield and weapon, score for what is
+taken or wrecked, **level-ups and the Moon Market's picks** (the same items, the same two weapon slots), shields that mend,
+dodges. No police, no army, no heat: the other saucers are the danger.
 
 - **Beam things up**: astronauts and tourists in bubble helmets (they run from the beam), flags, moon rocks big and
   small, glowing moon gems, solar panels, snack carts, moon buggies, radio dishes, and the big ones: carnival booths,
-  lunar landers and moon bases, which come apart where they stand. Each is worth what such things are on Earth.
-  A gold **POWER GEM** gives a weapon not had (while there is a free slot) or another of one had. What is taken
-  comes back where it was a while later (sooner for the small things). Weapons wreck them too, for their points.
-- **Grow**: the higher the score, the bigger the saucer and its beam (up to two and a half times, most of it by
-  40,000), the heavier the things its beam can lift (tier 2 at half as big again, tier 3 at twice), and the slower it
-  steers. The leader wears a gold crown. The board at the top right shows the top five (eight on a wide screen) and
-  where you stand.
-- **Fight**: saucers that meet bounce off each other like bumper cars, the smaller the harder; a dash into another
-  hurts it. Every weapon hurts the other saucers (the turret, missiles, sling and star bits go for them first). A saucer
-  half as big again as another can hold its beam on it for a moment and beam it up whole. The rail bounces a saucer
-  back in.
-- **Shot down**: two fifths of the score is dropped round where it fell as **LOST LOOT** (gold gems, anyone's to take,
-  the one who fell too), whoever brought it down gets a bonus, and three seconds later the saucer is back at the rim,
-  small again, with only its own weapons, and untouchable for three seconds (its shield flickering). No police, no heat,
-  no level-ups, and nothing sent to the arcade's scoreboard. LEAVE ARENA in the pause goes back to the title.
+  lunar landers and moon bases, which come apart where they stand. Each has its own name in the log (PUFFY SKY WALKER,
+  MOON CRUMB, TIN MOON HOPPER...: `Thing.MORE_NAMES`). A gold **POWER GEM** gives a weapon (one there is a slot for) or
+  another of one had. What is taken comes back where it was a while later (sooner for the small things). Weapons wreck
+  them too, for their points.
+- **Fight**: saucers that meet bounce off each other like bumper cars; a dash into another hurts it. Every weapon hurts
+  the other saucers (the turret, missiles, sling and star bits go for them first). The rail and the islands bounce a
+  saucer back. While a level-up's pick is up, the saucer picking cannot be hit (and the game goes on round it).
+- **Shot down**: you **lose everything**. Your whole score is dropped round where you fell as **LOST LOOT** (gold
+  gems, anyone's to take), whoever brought you down gets a bonus, and three seconds later you are back at the rim as you
+  started: level one, no items, only your ship's own weapon, a full shield, untouchable for three seconds (the shield
+  flickering). The leader wears a gold crown; the board (top left on an upright phone, under the log on a wide screen)
+  shows the top five (eight on a wide screen), bots marked BOT, and where you stand. Nothing is sent to the arcade's
+  scoreboard. LEAVE ARENA in the pause goes back to the title.
+- **Bots**: while there are few players in, **rival saucers** (purple, a pink beam, as the rivals on Earth) fly too,
+  enough to make six saucers in all (`ArenaBots`, `scripts/arena_bots.gd`): one bot fewer for each player who comes in.
+  They roam, beam up what lies about (claimed from the server like anyone's), go for any saucer near them (the keener
+  ones from further off), circle it and shoot (a zap: half a heat ray's hit), dash into it now and then, run when their
+  shields are low, turn on whoever hits them, are shot down like anyone (dropping their loot) and come back. Each has a
+  goofy name, alike on every device (from the arena's seed).
 
 How it is shared (`scripts/arena.gd`, `scripts/arena_net.gd`): the Scareathon server's arenas (`/close-encounters/arena/ws`,
 `server/closeEncounters/arena.js` in scareathon-v3) seat the players and pass their packets on. What lies about is laid
 out alike on every device from the arena's seed, each place with its own clock: what lies at place `p` is numbered
 `p * 1024 + generation`, the generation counting how many times its time has come round since the arena was born (by the
 server's clock). Whoever's claim on a number reaches the server first has it, and the server tells everyone; the others'
-copies vanish ("SNATCHED" if it was up their beam). Lost loot is numbered from 2^30 up by who dropped it. Each device
-flies its own saucer and sends it 15 times a second (place, heading, speed, beam, score, size, shield, ship: `K_STATE`); the
-others are drawn as `RemoteSaucer`s, each with an unseen stand-in under it (an "arena_foe" Thing) for the weapons to aim
-at: a weapon's hit on one goes to its owner (`K_HIT`), who takes the damage (`Arena.PVP_HIT` of shield a laser hit's worth).
-Shot down, a saucer says who did it (`K_DOWN`) and drops its loot (`K_LOOT`); beamed up whole, it is told (`K_EAT`). Scores go
-to the server once a second and it sends the standings back. The map and its things are built by `tools/build_arena.py`
-(`models/arena_*.glb`).
+copies vanish ("SNATCHED" if it was up their beam). Lost loot is numbered from 2^30 up by who dropped it (a seat, or 32
+and up for a bot). Each device flies its own saucer and sends it 15 times a second (place, heading, speed, beam, score,
+shield, ship: `K_STATE`); the others are drawn as `RemoteSaucer`s, each with an unseen stand-in under it (an "arena_foe"
+Thing) for the weapons to aim at: a weapon's hit on one goes to its owner (`K_HIT`), who takes the damage (`Arena.PVP_HIT`
+of shield a laser hit's worth). Shot down, a saucer says who did it (`K_DOWN`) and drops its loot (`K_LOOT`).
+
+The bots are flown by one device, the one in the lowest seat still in the arena (`ArenaBots.simulating`; when it leaves,
+the next takes them over as last seen). It sends them all 15 times a second (`K_BOTS`, ids from `Arena.BOT_BASE` = 100),
+and every device, that one too, draws them as `RemoteSaucer`s in the rival's colours. A hit on a bot goes to that device
+(`K_HIT_BOT`); a bot's shot at a player goes to them (`K_BOT_SHOT`); a bot shot down is told to all (`K_BOT_DOWN`). What a
+bot beams up is claimed from the server in that device's seat and counted to the bot there. Players' scores go to the
+server once a second and it sends the standings back; the bots' scores come with their states, and each device puts them
+on its board with the players'. The map and its things are built by `tools/build_arena.py` (`models/arena_*.glb`; the
+stands `arena_stands`, the audience `arena_fan`).
+
+Looking at it: `sh tools/arena_test.sh <scareathon-v3/server>` (two copies of the game through a local relay: they see
+each other and the same bots, flown by the lower seat; a gem taken by one is gone for the other; one is shot down, drops
+its loot and comes back with nothing; the other shoots a bot down; the board has everyone), and
+`tests/arena_look.gd` (pictures: in among the bots, the crowd, a camp, the log, the horizon, a level-up, a moon base
+coming apart).
 
 ## The world
 
@@ -481,7 +506,7 @@ loads; the Godot logo tinted green as a hologram (glowing, scanlines, a flicker)
     godot --path . --resolution 640x360 --max-fps 60 -s res://tests/beam_hitch.gd  # the worst frames round the first press of the beam
     sh tools/coop_test.sh <scareathon-v3/server, with node_modules>   # multiplayer: a local relay of the site's rooms, a host and a guest
     sh tools/arena_test.sh <scareathon-v3/server, with node_modules> [shots dir]   # the arena: a local relay, two saucers: a claim, a shooting down, loot, the standings
-    godot --path . --resolution <390x844|1280x720> -s res://tests/arena_look.gd -- <out dir> --server=http://127.0.0.1:3112   # the arena's menu, a grown saucer, a moon base up its beam (with a relay running)
+    godot --path . --resolution <390x844|1280x720> -s res://tests/arena_look.gd -- <out dir> --server=http://127.0.0.1:3112   # the arena: bots, the crowd, a camp, the log, the horizon, a level-up (with a relay running)
 
 Performance: each model is merged into one surface at load (colours on its corners, see `Ps1._merged`), so a
 thing is one draw call; nothing is drawn past 115 m (`Ps1.DRAW_TO`); far still things are not ticked and far
