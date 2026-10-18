@@ -476,8 +476,11 @@ func _input_map() -> void:
 	trigger.axis = JOY_AXIS_TRIGGER_RIGHT
 	trigger.axis_value = 1.0
 	InputMap.action_add_event("beam", trigger)
-	for pair: Array in [["left", JOY_AXIS_LEFT_X, -1.0], ["right", JOY_AXIS_LEFT_X, 1.0], ["up", JOY_AXIS_LEFT_Y, -1.0], ["down", JOY_AXIS_LEFT_Y, 1.0],
-			["aim_left", JOY_AXIS_RIGHT_X, -1.0], ["aim_right", JOY_AXIS_RIGHT_X, 1.0], ["aim_up", JOY_AXIS_RIGHT_Y, -1.0], ["aim_down", JOY_AXIS_RIGHT_Y, 1.0]]:
+	# (the sticks are actions of their own, heard only once a gamepad is in use: see `pad_in_use`)
+	for pair: Array in [["pad_left", JOY_AXIS_LEFT_X, -1.0], ["pad_right", JOY_AXIS_LEFT_X, 1.0], ["pad_up", JOY_AXIS_LEFT_Y, -1.0], ["pad_down", JOY_AXIS_LEFT_Y, 1.0],
+			["pad_aim_left", JOY_AXIS_RIGHT_X, -1.0], ["pad_aim_right", JOY_AXIS_RIGHT_X, 1.0], ["pad_aim_up", JOY_AXIS_RIGHT_Y, -1.0], ["pad_aim_down", JOY_AXIS_RIGHT_Y, 1.0]]:
+		if not InputMap.has_action(pair[0]):
+			InputMap.add_action(pair[0], 0.2)
 		var m := InputEventJoypadMotion.new()
 		m.axis = pair[1]
 		m.axis_value = pair[2]
@@ -1020,9 +1023,9 @@ func _process(delta: float) -> void:
 		quit_to_menu()
 	if mode == "title" and Input.is_action_just_pressed("start"):
 		_play_pressed()
-	elif mode == "title" and Input.is_action_just_pressed("left"):
+	elif mode == "title" and (Input.is_action_just_pressed("left") or pad_in_use and Input.is_action_just_pressed("pad_left")):
 		_pick_mode(-1)
-	elif mode == "title" and Input.is_action_just_pressed("right"):
+	elif mode == "title" and (Input.is_action_just_pressed("right") or pad_in_use and Input.is_action_just_pressed("pad_right")):
 		_pick_mode(1)
 	if _over_wait > 0.0:
 		_over_wait -= delta
@@ -1044,8 +1047,23 @@ func _dodge(way: Vector2) -> void:
 			ufo.puffs.spark(ufo.global_position + Vector3(0, -0.2, 0), Vector3(randf_range(-1, 1), randf_range(0.3, 1.2), randf_range(-1, 1)) * randf_range(3.0, 5.0))
 
 
+## Whether a gamepad is what is being played with: one of its buttons pressed since the keys, the mouse or
+## a finger were last used. Until then its sticks are not heard: a gamepad lying about, or one that some
+## other program works (a virtual one moved by the mouse), steered the ship and leant the beam by itself
+var pad_in_use := false
+
+
+## The gamepad's left stick (steering), or its right (aiming), if it is in use
+func _pad_vector(aim: bool) -> Vector2:
+	if not pad_in_use:
+		return Vector2.ZERO
+	if aim:
+		return Input.get_vector("pad_aim_left", "pad_aim_right", "pad_aim_up", "pad_aim_down")
+	return Input.get_vector("pad_left", "pad_right", "pad_up", "pad_down")
+
+
 func _read_steer() -> Vector2:
-	var v := Input.get_vector("left", "right", "up", "down")
+	var v := Input.get_vector("left", "right", "up", "down") + _pad_vector(false)
 	if stick_finger != NO_FINGER:
 		v = stick
 	return v.limit_length(1.0)
@@ -2189,7 +2207,8 @@ func rarity(what: String) -> int:
 
 
 func _level_up() -> void:
-	var offers: Array = GOODS.filter(func(g: String) -> bool: return g != "patch" and upgrades[g] < MAX_UPGRADE and can_take(g))
+	# (in the arena, nothing that is only for the heat, the police or the country: there are none)
+	var offers: Array = GOODS.filter(func(g: String) -> bool: return g != "patch" and upgrades[g] < MAX_UPGRADE and can_take(g) and not (arena_on and g in ARENA_NO))
 	# (three different ones, the rarer the less often: see RARITY)
 	var picked: Array = []
 	while picked.size() < 3 and not offers.is_empty():
@@ -2281,6 +2300,10 @@ func _picked(what: String) -> void:
 	if _picker_dim != null:
 		_picker_dim.visible = false
 	get_tree().paused = false
+
+## What the Moon Market never offers in the arena: no heat to cool, no police to jam, no country to scan
+const ARENA_NO := ["coolant", "jammer", "scanner"]
+
 
 ## Whether `what` can be had now: anything but a new weapon with both weapon slots full (weapons are
 ## never dropped: once both are taken, only more of them is offered)
@@ -7265,7 +7288,7 @@ func _beam_aim() -> Vector2:
 	if beam_finger == NO_FINGER or _beam_at == Vector2.INF:
 		_beam_from = Vector2.INF
 		# (no finger on it: the aiming keys, or the right stick)
-		return Input.get_vector("aim_left", "aim_right", "aim_up", "aim_down")
+		return (Input.get_vector("aim_left", "aim_right", "aim_up", "aim_down") + _pad_vector(true)).limit_length(1.0)
 	if _beam_from == Vector2.INF:
 		_beam_from = _beam_at
 	var size := get_viewport().get_visible_rect().size
@@ -7291,6 +7314,11 @@ func _layout_touch() -> void:
 ## Touches are read here, before the interface sees them (as Liquid Metal does), so nothing on the
 ## screen can swallow them; only a finger that comes down on the pause button is left to it
 func _input(event: InputEvent) -> void:
+	# (which is being played with: a gamepad's buttons, or the keys, the mouse and fingers)
+	if event is InputEventJoypadButton and event.pressed:
+		pad_in_use = true
+	elif (event is InputEventKey or event is InputEventMouseButton or event is InputEventScreenTouch) and event.is_pressed():
+		pad_in_use = false
 	# The dev room, on the title: D, E, V typed, or seven quick taps on the game's name
 	if mode == "title" and title_box.visible:
 		if event is InputEventKey and event.pressed and not event.echo:

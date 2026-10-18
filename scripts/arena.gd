@@ -640,6 +640,7 @@ func step(delta: float) -> void:
 func _process(delta: float) -> void:
 	if not on:
 		return
+	_crash_watch(delta)
 	bots.tick(delta)
 	for s in remotes.keys():
 		if remotes.has(s):
@@ -1063,6 +1064,67 @@ func ship_down(delta: float) -> void:
 		main.arena_respawn()
 		safe = SAFE
 		_put_at_rim()
+
+
+## Where saucers came down: a blast, smoke, and a crater, a dark bowl in a ring of heaped moon dirt,
+## the wreck tipped over in it till it is back up; the crater fades after CRATER_KEEP seconds. Every
+## saucer in the arena, ours, the other players' and the bots' (each told apart by its node)
+const CRATER_KEEP := 25.0
+var _down_seen := {}
+## [crater node, its age]
+var _craters: Array = []
+
+
+func _crash_watch(delta: float) -> void:
+	var all: Array = [main.ufo]
+	for s in remotes:
+		var r: Dictionary = remotes[s]
+		if r.has("saucer") and is_instance_valid(r["saucer"]):
+			all.append((r["saucer"] as RemoteSaucer).ufo)
+	for u in all:
+		if u == null or not is_instance_valid(u):
+			continue
+		var id: int = (u as Ufo).get_instance_id()
+		if (u as Ufo).crashed and not _down_seen.has(id):
+			_down_seen[id] = true
+			_crater(Vector3((u as Ufo).position.x, 0.0, (u as Ufo).position.z), (u as Ufo).radius)
+		elif not (u as Ufo).crashed and _down_seen.has(id):
+			_down_seen.erase(id)
+	for c: Array in _craters.duplicate():
+		c[1] = float(c[1]) + delta
+		var node: Node3D = c[0]
+		if not is_instance_valid(node):
+			_craters.erase(c)
+			continue
+		var gone := clampf((float(c[1]) - CRATER_KEEP) / 3.0, 0.0, 1.0)
+		node.scale = Vector3(1.0, 1.0 - gone * 0.95, 1.0)
+		if gone >= 1.0:
+			node.queue_free()
+			_craters.erase(c)
+
+
+func _crater(at: Vector3, r: float) -> void:
+	var near := at.distance_to(main.ufo.ground())
+	main.boom(at + Vector3(0, 1.0, 0), 3.5)
+	main.sfx.play("boom", 0.8, -clampf(near * 0.25, 0.0, 14.0))
+	if near < 30.0:
+		main._shake = maxf(main._shake, 0.35 * (1.0 - near / 30.0))
+	for i in 8:
+		main.puff(at + Vector3(randf_range(-1, 1), 0.6, randf_range(-1, 1)) * r, Color(0.3, 0.3, 0.32), 1.3)
+	var hole := Node3D.new()
+	_map.add_child(hole)
+	var dark := Color(0.14, 0.14, 0.15)
+	Ps1.part(hole, Ps1.ball(), Ps1.flat(dark), at + Vector3(0, -0.12, 0), Vector3(r * 2.6, 0.3, r * 2.6))
+	for i in 16:
+		var a := TAU * i / 16.0 + randf_range(-0.1, 0.1)
+		var way := Vector3(cos(a), 0, sin(a))
+		var size := Vector3(randf_range(1.1, 1.6), randf_range(0.45, 0.85), randf_range(1.1, 1.6))
+		var dirt := Color(0.5, 0.5, 0.52).lerp(dark, randf() * 0.35)
+		Ps1.part(hole, Ps1.ball(), Ps1.flat(dirt), at + way * r * randf_range(0.9, 1.1), size, Vector3(0, randf() * TAU, 0))
+	for i in 10:
+		var a := randf() * TAU
+		Ps1.part(hole, Ps1.ball(), Ps1.flat(Color(0.55, 0.55, 0.57)), at + Vector3(cos(a), 0.05, sin(a)) * r * randf_range(1.5, 2.6), Vector3.ONE * randf_range(0.2, 0.45), Vector3(randf(), randf(), randf()) * TAU)
+	_craters.append([hole, 0.0])
 
 
 ## What a saucer lost, scattered as gems round where it fell, for anyone to take (`code` the seat, or

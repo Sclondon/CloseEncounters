@@ -34,7 +34,7 @@ and while on the moon the world stays loaded round where the run starts (no stut
 - **Fire and aim**: the beam's button fires whichever weapon is aimed by hand (see **Weapons**): the beam itself, the
   HEAT RAY, the LIGHTNING GUN, and the gravity sling on the KRAKKATOOM or the star bits on the KRYSTALLIX-9. Drag
   the finger holding the button (or the mouse, held) to push their mark out from under the ship; without a finger,
-  aim with T F G H (or the keypad's arrows) or the right stick. With two such weapons, L / Tab / C, gamepad Y, or
+  aim with T F G H (or the keypad's arrows) or the right stick. A gamepad's sticks are heard only once one of its buttons has been pressed, until the keys, the mouse or a finger are used again (`pad_in_use`): a pad lying about, or a virtual one some other program moves, had been steering the ship and leaning the beam by itself. With two such weapons, L / Tab / C, gamepad Y, or
   the round button over the beam's mark (it shows the weapon aimed) goes over to the other. A ship with no beam
   takes nothing up: it wrecks things instead.
 - **Dodge**: Shift (or X, K), gamepad B / left shoulder, or a quick swipe: a dash that spins the ship like a

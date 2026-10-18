@@ -575,10 +575,8 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	# Banks into the way it is going
 	# (leaning into the way it goes, never more than a little, a dash being far faster than flying;
 	# tilted back while beaming, its underside and the beam toward the camera)
-	# (beaming, it hardly banks: tipped straight back toward the camera, not off at a slant as it banked)
-	var lean := 0.2 if beaming else 1.0
-	body.rotation.x = lerpf(body.rotation.x, clampf(velocity.z / speed * 0.25, -0.3, 0.3) * lean - (BEAM_TILT if beaming else 0.0), minf(delta * 5.0, 1.0))
-	body.rotation.z = lerpf(body.rotation.z, clampf(-velocity.x / speed * 0.25, -0.3, 0.3) * lean, minf(delta * 5.0, 1.0))
+	body.rotation.x = lerpf(body.rotation.x, clampf(velocity.z / speed * 0.25, -0.3, 0.3) - (BEAM_TILT if beaming else 0.0), minf(delta * 5.0, 1.0))
+	body.rotation.z = lerpf(body.rotation.z, clampf(-velocity.x / speed * 0.25, -0.3, 0.3), minf(delta * 5.0, 1.0))
 	_steer = steer
 	if _spin > 0.0:
 		# A dodge spins the hull like a top, and leaves afterimages behind it
