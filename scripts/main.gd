@@ -853,6 +853,9 @@ func _process(delta: float) -> void:
 		ufo.beam_aim = _pilot_aim
 	if _touch_debug and Engine.get_process_frames() % 30 == 0:
 		_debug_state = "stick finger %d %s | beam finger %d | steer %s beam %s | view %s" % [stick_finger, stick.snapped(Vector2(0.01, 0.01)), beam_finger, steer.snapped(Vector2(0.01, 0.01)), beam, get_viewport().get_visible_rect().size]
+		# (and what leans the ship and its beam: the aim and where it comes from, the ship's turn and tilt)
+		_debug_state += "
+aim %s keys %s pad %s(%s) beam_at %s from %s | ship turn %.2f tilt %s hull %.2f | vel %s knock %s" % [ufo.beam_aim.snapped(Vector2(0.01, 0.01)), Input.get_vector("aim_left", "aim_right", "aim_up", "aim_down").snapped(Vector2(0.01, 0.01)), _pad_vector(true).snapped(Vector2(0.01, 0.01)), pad_in_use, _beam_at.snapped(Vector2.ONE), _beam_from.snapped(Vector2.ONE), ufo.rotation.y, ufo.body.rotation.snapped(Vector3.ONE * 0.01), ufo.hull_model.rotation.y, ufo.velocity.snapped(Vector3.ONE * 0.1), ufo.knock.snapped(Vector3.ONE * 0.1)]
 		print("[CE] " + _debug_state)
 		_debug_show()
 	if mode == "launch" or mode == "landing":
@@ -7337,6 +7340,11 @@ func _input(event: InputEvent) -> void:
 	if _touch_debug and (event is InputEventScreenTouch or event is InputEventMouseButton or (event is InputEventScreenDrag and Engine.get_process_frames() % 12 == 0)):
 		_debug_line("%s | %s%s" % [event.as_text(), mode, " PAUSED" if get_tree().paused else ""])
 	# Five quick taps on the alien coin turn the touch readout on or off (to see what a phone sends)
+	# (the readout of the controls also on F3, on a keyboard)
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F3:
+		_touch_debug = not _touch_debug
+		if _debug_label != null:
+			_debug_label.visible = _touch_debug
 	if event is InputEventScreenTouch and event.pressed and coin.visible and screen_rect(coin).grow(24).has_point(event.position):
 		var now := Time.get_ticks_msec() / 1000.0
 		_coin_taps = _coin_taps + 1 if now - _coin_tapped < 0.6 else 1
