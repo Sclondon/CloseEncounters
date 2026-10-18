@@ -7197,9 +7197,9 @@ func _hud(delta: float) -> void:
 		_test_open.visible = test_room and playing and not autopilot
 	heat_note.visible = playing
 	if arena_on:
+		# (no heat in the arena; the level orb stays, the level-ups going on there as on Earth)
 		stars.visible = false
 		mult_label.visible = false
-		coin.visible = false
 	if heat_note_time > 0.0:
 		heat_note_time -= delta
 		heat_note.modulate.a = clampf(heat_note_time * 2.0, 0.0, 1.0)
