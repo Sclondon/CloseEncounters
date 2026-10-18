@@ -2898,7 +2898,10 @@ func _blast(t: Thing, hurt: float) -> void:
 const BURN_TIME := 4.0
 const BURN_HITS := 0.35
 ## The most things alight at once (on a phone each fire is a few cards and a little work)
-const MOST_FIRES := 24
+const MOST_FIRES := 14
+## How many fires on a fire can leap (see `_fires`), and the chance a second that it does
+const FIRE_LEAPS := 1
+const FIRE_LEAP_CHANCE := 0.18
 var _burning: Array[Thing] = []
 ## While a burn's damage is being done (what it brings down is BURNT DOWN, and it lights nothing new)
 var _burn_tick := false
@@ -2942,6 +2945,9 @@ func ignite(t: Thing) -> void:
 
 
 func _fires(delta: float) -> void:
+	# (untyped, and the freed ones dropped first: a freed thing put in a typed variable is an error, and a
+	# field burning down threw one a frame for every fire, enough to stall a phone)
+	_burning = _burning.filter(func(b) -> bool: return is_instance_valid(b) and (b as Thing).state == "walk")
 	for t: Thing in _burning.duplicate():
 		if not is_instance_valid(t) or t.state != "walk":
 			_burning.erase(t)
@@ -2975,14 +2981,21 @@ func _fires(delta: float) -> void:
 		if spread <= 0.0:
 			spread += 1.0
 			var reach: float = (1.6 + t.size() * 0.5) * (1.0 + 0.5 * upgrades["wildfire"])
-			if randf() < 0.45 + 0.1 * upgrades["wildfire"]:
+			# (a fire lit by another fire is a generation on from it: the heat ray's own is the first, and a
+			# fire only leaps on FIRE_LEAPS generations, more with WILDFIRE: a chain that dies out, not a
+			# field going up)
+			var gen := int(t.get_meta("fire_gen", 0))
+			if gen < FIRE_LEAPS + upgrades["wildfire"] and randf() < FIRE_LEAP_CHANCE + 0.08 * upgrades["wildfire"]:
 				wake_scenery(t.ground(), reach, 1)
 				var near: Array[Thing] = []
 				for o in things:
 					if o != t and not o in _burning and o.ground().distance_to(t.ground()) < reach + o.size() * 0.3 and flammable(o) and not o.is_enemy():
 						near.append(o)
 				if not near.is_empty():
-					ignite(near.pick_random())
+					var caught: Thing = near.pick_random()
+					ignite(caught)
+					if is_instance_valid(caught):
+						caught.set_meta("fire_gen", gen + 1)
 		t.set_meta("spread_tick", spread)
 
 
@@ -3000,7 +3013,7 @@ func _put_out(t: Thing) -> void:
 
 ## GASOLINE: something a weapon (or a fire) wrecked bursts into flame, setting fire to all round it and
 ## scorching it a little (wider and harder a stack)
-func _gasoline(at: Vector3, big: float) -> void:
+func _gasoline(at: Vector3, big: float, gen := 1) -> void:
 	var n: int = upgrades["gasoline"]
 	if n <= 0 or mode != "play":
 		return
@@ -3014,6 +3027,8 @@ func _gasoline(at: Vector3, big: float) -> void:
 	for o in things.duplicate():
 		if is_instance_valid(o) and shootable(o) and o.ground().distance_to(Vector3(at.x, 0, at.z)) < reach:
 			ignite(o)
+			if is_instance_valid(o):
+				o.set_meta("fire_gen", maxi(int(o.get_meta("fire_gen", 0)), gen))
 
 
 ## The biggest thing the laser can burn down, at its level
@@ -3979,8 +3994,11 @@ func spawn_car(kind: String, at: Vector3, axis: String, dir: float) -> Thing:
 	return t
 
 func _remove(t: Thing) -> void:
-	if upgrades["gasoline"] > 0 and mode == "play" and t.state == "walk" and (t.has_meta("weapon_hit") or t.has_meta("burn")) and t.kind != "arena_foe":
-		call_deferred("_gasoline", t.ground(), t.size())
+	# (GASOLINE: only from what a weapon wrecked or a fire of the first generations burnt down: what its
+	# own flames bring down goes up no further, or a field went up and up without end)
+	var gen := int(t.get_meta("fire_gen", 0))
+	if upgrades["gasoline"] > 0 and mode == "play" and t.state == "walk" and (t.has_meta("weapon_hit") or t.has_meta("burn")) and t.kind != "arena_foe" 			and gen < FIRE_LEAPS + upgrades["wildfire"]:
+		call_deferred("_gasoline", t.ground(), t.size(), gen + 1)
 	# (another saucer's stand-in goes only with it; the arena's things wrecked are claimed)
 	if t.kind == "arena_foe" and not t.has_meta("arena_free"):
 		return
@@ -3993,6 +4011,7 @@ func _remove(t: Thing) -> void:
 	if t.kind == "track" and t.state != "walk":
 		torn_track.append(t.home)
 	t.state = "gone"
+	_burning.erase(t)
 	# (gone, it no longer stands in the way)
 	if t.obstacle != Vector4.ZERO:
 		world.remove_obstacle(t.chunk, t.obstacle)
