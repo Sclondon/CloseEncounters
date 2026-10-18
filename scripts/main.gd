@@ -680,6 +680,11 @@ func start_arena() -> void:
 	intro = 0.0
 	ufo.descent = 0.0
 	ufo.bubble_fade = 1.0
+	# (squared up: on Earth the way down from space turns the ship back from the title's angle
+	# (MoonSet.SHIP_TURN, parked on the moon); the arena has no way down, and a ship left turned tipped
+	# back to beam along a slant)
+	ufo.rotation = Vector3.ZERO
+	ufo.body.rotation = Vector3.ZERO
 	levels_on = true
 	# (the camera straight to the ship, not swinging down from the title's moon)
 	camera.position = Vector3.ZERO
