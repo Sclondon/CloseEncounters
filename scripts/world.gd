@@ -519,9 +519,12 @@ func surface_at(p: Vector3) -> String:
 			return "dirt"
 	return "rock"
 
-## Whether a crop circle can be pressed at `p`: anywhere in the farm country off the roads
+## Whether a crop circle can be pressed at `p`: in a field of a crop, off the roads (not pasture or
+## ploughed earth, nor the grass of the farms and towns)
 func crops_at(p: Vector3) -> bool:
 	if biome_at(p) != Biome.FARM or on_road(p, 2.0):
+		return false
+	if not field(chunk_of(p)) in [Field.WHEAT, Field.CORN, Field.PUMPKIN, Field.GREEN, Field.SUNFLOWER, Field.CABBAGE, Field.MELON, Field.PEPPER]:
 		return false
 	var lake: Vector3 = lakes.get(chunk_of(p), Vector3(0, 0, -1))
 	return Vector2(p.x - lake.x, p.z - lake.y).length() > lake.z

@@ -381,14 +381,11 @@ static func flash(n: Node, c: Color) -> void:
 
 
 ## See-through glass: a pale blue pane, mostly clear
-static func _pane() -> StandardMaterial3D:
+## (bent with the world like the model round it: see pane.gdshader)
+static func _pane() -> ShaderMaterial:
 	if _shared.has("pane"):
 		return _shared["pane"]
-	var m := StandardMaterial3D.new()
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.albedo_color = Color(0.7, 0.85, 1.0, 0.18)
-	m.roughness = 0.1
-	m.metallic_specular = 0.9
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://shaders/pane.gdshader")
 	_shared["pane"] = m
 	return m

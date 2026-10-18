@@ -53,6 +53,8 @@ vec3 farm(vec2 p, float speck, int kind, bool across) {
 	} else {
 		c = mix(vec3(0.3, 0.42, 0.18), vec3(0.36, 0.46, 0.2), speck);
 	}
+	// (crop circles and their lines only in a field of a crop: not pasture (1) or ploughed earth (5))
+	if (kind < 2 || kind == 5) return c;
 	// The lines joining crop circles, the crop laid flat along them
 	for (int i = 0; i < 16; i++) {
 		vec4 l = links[i];
@@ -65,7 +67,7 @@ vec3 farm(vec2 p, float speck, int kind, bool across) {
 			c = vec3(0.78, 0.72, 0.5) * (0.95 + 0.1 * speck);
 		}
 	}
-	// A crop circle: the crop (or the grass) laid flat in rings, pale under the moon
+	// A crop circle: the crop laid flat in rings, pale under the moon
 	{
 		for (int i = 0; i < 24; i++) {
 			vec4 cc = circles[i];

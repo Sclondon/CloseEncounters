@@ -310,8 +310,9 @@ def scarecrow():
 # ---------------------------------------------------------------- vehicles
 
 def car_body(name, paint, length=4.0, extra=()):
+    # (the windows a band of glass round the cabin, standing clear of its sides, under its roof)
     p = [box((1.7, length, 0.6), (0, 0, 0.6), paint), box((1.5, length * 0.5, 0.5), (0, 0.15, 1.15), paint),
-         box((1.52, length * 0.46, 0.36), (0, 0.15, 1.15), "glass")]
+         box((1.58, length * 0.5 + 0.08, 0.34), (0, 0.15, 1.12), "glass")]
     for s in (-1, 1):
         for y in (-length * 0.32, length * 0.32):
             p += wheel(0.36, 0.26, (0.82 * s, y, 0.36))
@@ -2062,9 +2063,28 @@ def item_laser():
     return join("item_laser", p)
 
 
+def item_lightning():
+    """LIGHTNING GUN: a stubby gun with copper coils wound round its barrel and a glowing ball at its
+    tip, a jagged bolt leaping out of it"""
+    X, z = (0, math.pi / 2, 0), 0.55
+    body = lathe("lightning_gun", [(0.05, 0.0), (0.15, 0.03), (0.2, 0.12), (0.19, 0.26), (0.13, 0.34), (0.08, 0.36)],
+                 ["metal_dark", "metal", "metal", "metal", "metal_dark", "metal_dark"], sides=14)
+    body.location, body.rotation_euler = (-0.4, 0, z), X
+    p = [body, drum(0.05, 0.4, (0.12, 0, z), "metal_dark", 8, X)]
+    for x in (-0.02, 0.06, 0.14, 0.22):
+        p.append(_ring(0.09, 0.03, (x, 0, z), "copper", 14, 6, X))
+    p += [ball((0.2, 0.2, 0.2), (0.38, 0, z), "neon_blue", 10, 6), ball((0.11, 0.11, 0.11), (0.38, 0, z), "light_white", 8, 5),
+          drum(0.06, 0.07, (-0.18, 0, z + 0.2), "metal_dark", 10), ball((0.13, 0.13, 0.13), (-0.18, 0, z + 0.28), "neon_blue", 10, 6)]
+    bolt = [(0.45, 0.04), (0.66, 0.16), (0.62, 0.05), (0.86, 0.14), (0.8, 0.0), (1.05, 0.06), (0.78, -0.06), (0.83, 0.06),
+            (0.6, -0.04), (0.64, 0.07), (0.45, -0.04)]
+    p.append(_plate(bolt, 0.04, (0, 0, z - 0.02), "spark", (math.pi / 2, 0, 0)))
+    p.append(_plate([(-0.12, 0.45), (-0.29, 0.45), (-0.4, 0.12), (-0.35, 0.04), (-0.22, 0.06)], 0.11, (0, 0, 0), "metal_dark", bevel=0.025))
+    return join("item_lightning", p)
+
+
 def item_turret():
-    """AUTO TURRET: a sentry gun, a round head on a yoke over a stepped base, its twin barrels out and
-    a red eye"""
+    """AUTO TURRET: a sentry gun, a round head on a yoke over a stepped base, its twin barrels out, a red
+    eye, and amber tracer rounds streaking out of it"""
     base = lathe("turret_base", [(0.36, 0.0), (0.36, 0.06), (0.3, 0.08), (0.3, 0.12), (0.22, 0.14), (0.2, 0.2)],
                  ["metal_dark", "metal", "metal_dark", "metal", "metal_dark", "metal_dark"], sides=16)
     p = [base, drum(0.24, 0.04, (0, 0, 0.22), "hazard", 16), box((0.14, 0.56, 0.06), (0, 0, 0.26), "metal_dark")]
@@ -2078,6 +2098,9 @@ def item_turret():
               drum(0.025, 0.02, (0.64, s * 0.08, 0.47), "light_amber", 8, (0, math.pi / 2, 0))]
     p += [drum(0.05, 0.04, (0.18, -0.06, 0.62), "light_red", 10, (0, 1.0, 0)), rod(0.012, (-0.06, 0.08, 0.66), (-0.12, 0.12, 0.88), "metal", 4),
           ball((0.04, 0.04, 0.04), (-0.12, 0.12, 0.89), "light_red", 6, 3)]
+    # (a burst of amber tracer rounds streaking out of its muzzles, as it fires in the game)
+    for k, (x, y) in enumerate(((0.82, 0.08), (1.02, -0.08), (1.2, 0.08))):
+        p.append(ball((0.2, 0.05, 0.05), (x, y, 0.47 + k * 0.01), "light_amber", 6, 3))
     return join("item_turret", p)
 
 
@@ -2135,7 +2158,8 @@ def item_magnet():
 
 
 def item_wide():
-    """WIDE BEAM: the emitter throwing a broad fan of light, arrows pushing it out both ways"""
+    """SIZE RAY: an emitter throwing out a broad fan of light, three glowing balls in it each bigger than
+    the last (everything fired grows), arrows pushing it out both ways"""
     p = _emitter((0, 0, 0.7), "chrome")
     for k in range(3):
         r = 0.22 + k * 0.2
@@ -2143,6 +2167,8 @@ def item_wide():
     for i in range(8):
         a = i / 8 * math.tau + 0.2
         p.append(rod(0.01, (0.15 * math.cos(a), 0.15 * math.sin(a), 0.68), (0.62 * math.cos(a), 0.62 * math.sin(a), 0.15), "pod_glow", 4))
+    for k, (x, r) in enumerate(((-0.42, 0.07), (-0.12, 0.12), (0.3, 0.19))):
+        p.append(ball((r * 2, r * 2, r * 2), (x, -0.25, 0.32 + r * 0.6), "neon_pink" if k == 2 else "spark", 10, 6))
     arrow = [(-0.72, 0.06), (-0.54, 0.18), (-0.54, 0.1), (0.54, 0.1), (0.54, 0.18), (0.72, 0.06), (0.54, -0.06),
              (0.54, 0.02), (-0.54, 0.02), (-0.54, -0.06)]
     p.append(_plate(_scaled(arrow, 1.0, 0, 0.06), 0.06, (0, -0.1, 0), "spark", bevel=0.015))
@@ -2263,7 +2289,7 @@ def item_sling():
 
 def item_swivel():
     """SWIVEL MOUNT: a ball joint in its collar, the beam's emitter on its arm tipped well over, its
-    beam slanting out to one side, an arrow of the swing"""
+    beam slanting out to one side to a target on the ground, an arrow of the swing"""
     base = lathe("swivel_base", [(0.28, 0.0), (0.28, 0.05), (0.22, 0.07), (0.16, 0.12), (0.14, 0.17)],
                  ["metal_dark", "metal", "metal_dark", "metal_dark", "metal_dark"], sides=16)
     head, beam = (0.3, 0, 0.62), (0.6, 0, -0.8)
@@ -2277,6 +2303,9 @@ def item_swivel():
         p.append(ball((0.04, 0.04, 0.04), _moved((0.17 * math.cos(a), 0.17 * math.sin(a), 0.0), tilt, head), "lights", 6, 3))
     swing = _arc(0.44, math.pi * 0.95, math.pi * 0.58, 10, 0, 0.3)
     p.append(_sweep(swing, 0.04, 0.04, (0, -0.05, 0), "spark"))
+    # (where it is aimed: a target on the ground, well out to the side, for every aimed weapon)
+    p.append(_ring(0.2, 0.025, (0.95, 0, 0.02), "laser_glow", 18, 4))
+    p.append(_ring(0.1, 0.02, (0.95, 0, 0.02), "laser_glow", 14, 4))
     for (x, z), (x2, z2) in ((swing[0], swing[1]), (swing[-1], swing[-2])):
         d = math.atan2(z - z2, x - x2)
         tri = [(x + 0.1 * math.cos(d), z + 0.1 * math.sin(d)), (x + 0.07 * math.cos(d + 2.2), z + 0.07 * math.sin(d + 2.2)),
@@ -3218,7 +3247,7 @@ BUILDERS = [cow, pig, sheep, chicken, lambda: figure("farmer", True), lambda: fi
             lambda: bird("crow", "crow", 1.0), lambda: bird("hawk", "hawk", 1.7, "hawk_light"), phone_pole, phone_booth, helicopter, storefront, clock_tower, wheat, corn, pumpkin, hill, control_tower, plane, runway, city_hall, church, fountain, hay_pile, chinook, telescope, barrel, sasquatch, meteorite, moonlet, news_van, satellite, crash_site, crash_dirt,
             police_station, hangar, watchtower, substation, observatory, seti_dish, pod, moon_surface, lounge_chair, cocktail, cooler, boombox, beer, bottle_cap,
             item_engine, item_beam, item_shield, item_dash, item_laser, item_turret, item_missiles, item_cloak,
-            item_magnet, item_wide, item_scanner, item_jammer, item_coolant, item_lucky, item_armor, item_swivel, item_sling, item_starbits, item_second_wind, canister, item_nanobots, item_gold, item_emp]
+            item_magnet, item_wide, item_scanner, item_jammer, item_coolant, item_lucky, item_armor, item_swivel, item_sling, item_starbits, item_second_wind, item_lightning, canister, item_nanobots, item_gold, item_emp]
 
 
 def main():

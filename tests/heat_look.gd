@@ -13,6 +13,7 @@ var _phase := "eye"
 var _t := 0.0
 var _seen_time := 0.0
 var _next_print := 5.0
+var _cop: Thing
 var _crash_at := -1
 
 
@@ -93,6 +94,14 @@ func _process(delta: float) -> bool:
 				main.ufo.hull = 0.0
 				main.ufo.hurt(1.0)
 				_crash_at = frame
+				# (the army should leave once the ship is down, the police stay: see main.gd _army_away)
+				var g: Vector3 = main.ufo.ground()
+				for k: Array in [["tank", Vector3(14, 0, 4)], ["jeep", Vector3(-12, 0, 6)], ["helicopter", Vector3(6, 9, -10)], ["police_car", Vector3(-9, 0, -8)]]:
+					var th: Thing = main.spawn(k[0], g + k[1])
+					if th != null:
+						th.set_meta("test_force", k[0])
+						if k[0] == "police_car":
+							_cop = th
 		"crash":
 			var wt: float = main._wreck_t
 			if frame % 45 == 0 and main._mib_car != null:
@@ -100,7 +109,18 @@ func _process(delta: float) -> bool:
 				_shot("mib_%02d" % int(mt))
 				print("mib t %.1f  a %s  b %s  car %s" % [mt, main._mib_a.visible, main._mib_b.visible, main._mib_car.visible])
 			# (on past the men in black to the news vans pulling up)
-			if wt > main.MIB_COME + 40.0 / main.MIB_PACE:
+			if frame % 60 == 0 and _cop != null:
+				print("cop t %.0f valid %s state %s leaving %s off %.1f" % [wt, is_instance_valid(_cop), _cop.state if is_instance_valid(_cop) else "-", _cop.leaving if is_instance_valid(_cop) else "-", (_cop.ground().distance_to(main.wreck) if is_instance_valid(_cop) else -1.0)])
+				if not is_instance_valid(_cop) or _cop.state == "gone":
+					_cop = null
+			if frame % 300 == 0:
+				var forces := []
+				for th: Thing in main.things:
+					if th.has_meta("test_force"):
+						forces.append("%s%s" % [th.get_meta("test_force"), " leaving" if th.leaving else ""])
+				print("wreck t %.0f: forces left %s, tape posts %d, markers %d" % [wt, str(forces), main._scene_done, main._scene_marks])
+			# (on past the men in black to the news vans pulling up and the police taping the scene off)
+			if wt > main.MIB_COME + 50.0 / main.MIB_PACE:
 				var ok: bool = main._mib_a != null and not main._mib_a.visible and not main._mib_b.visible and not main._mib_car.visible
 				print("MIB ALL GONE: ", ok)
 				return true

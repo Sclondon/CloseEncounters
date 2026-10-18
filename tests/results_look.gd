@@ -1,6 +1,6 @@
 extends SceneTree
 ## The RESULTS after a long run (needs a window): something taken in every category, a dozen kinds of
-## hunter destroyed, a stack of every item; saves results.png once it is all typed out, and prints
+## hunter destroyed, something wrecked in every category, a stack of every item; saves results.png once it is all typed out, and prints
 ## whether the panel is wholly on the screen. Try every shape:
 ##   godot --path . --fixed-fps 30 --resolution <1280x720|1920x1080|1280x600|390x844|844x390> -s res://tests/results_look.gd -- <out dir>
 
@@ -26,6 +26,7 @@ func _process(_delta: float) -> bool:
 	if frame == 60:
 		for group: String in Thing.CATEGORIES:
 			main._run_taken[group] = [randi_range(3, 40), randi_range(500, 20000)]
+			main._run_wrecked[group] = [randi_range(1, 30), randi_range(100, 9000)]
 		for kind: String in ["police_car", "patrol_car", "officer", "jeep", "tank", "helicopter", "chinook", "jet", "stealth", "warthog", "hunter", "motorcycle_cop", "laser_truck", "railgun"]:
 			main._run_killed[kind] = randi_range(1, 30)
 		for what: String in main.upgrades:

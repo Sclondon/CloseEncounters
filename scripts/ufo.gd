@@ -21,49 +21,49 @@ extends Node3D
 ## of buttons in front of it (see `panel`), mashing the buttons while the beam is on.
 
 const SHIPS := {
-	"saucer": {"title": "ZEEBZER", "model": "ufo", "speed": 12.0, "lift": 1.0, "hull": 50.0, "tier": 2, "altitude": 8.0,
+	"saucer": {"title": "ZEEBZER", "model": "ufo", "weapons": ["beam"], "speed": 12.0, "lift": 1.0, "hull": 50.0, "tier": 2, "altitude": 8.0,
 		"radius": 2.8, "beam_foot": 2.7, "alien_y": 0.3, "alien_size": 0.9, "spin": true,
 		"about": "The all-rounder. Its beam pulls up trees and rocks.", "ghost": Color(0.5, 1.0, 0.65)},
-	"orb": {"title": "GLORBULON", "model": "orb", "speed": 12.5, "lift": 1.6, "hull": 80.0, "tier": 2, "altitude": 7.0,
+	"orb": {"title": "GLORBULON", "model": "orb", "weapons": ["beam"], "speed": 12.5, "lift": 1.6, "hull": 80.0, "tier": 2, "altitude": 7.0,
 		"radius": 2.2, "beam_foot": 3.2, "alien_y": 1.2, "alien_size": 0.72, "spin": true,
 		"about": "Slow and low, but tough. The strongest pull.", "ghost": Color(1.0, 0.7, 0.3)},
-	"triangle": {"title": "XELETRON-22", "model": "triangle", "speed": 15.0, "lift": 1.05, "hull": 35.0, "tier": 1, "altitude": 10.5,
+	"triangle": {"title": "XELETRON-22", "model": "triangle", "weapons": ["beam", "missiles"], "speed": 15.0, "lift": 1.05, "hull": 35.0, "tier": 1, "altitude": 10.5,
 		"radius": 2.3, "beam_foot": 2.3, "alien_y": 0.18, "alien_size": 0.46, "spin": false, "scale": 0.7,
 		"about": "High and fast. Thin shield; a slow beam for small things.", "ghost": Color(0.6, 0.8, 1.0)},
-	"foo": {"title": "FIZZWIGGLER", "model": "foo", "speed": 16.0, "lift": 1.3, "hull": 25.0, "tier": 1, "altitude": 6.5,
+	"foo": {"title": "FIZZWIGGLER", "model": "foo", "weapons": ["lightning"], "speed": 16.0, "lift": 1.3, "hull": 25.0, "tier": 1, "altitude": 6.5,
 		"radius": 1.2, "beam_foot": 1.8, "alien_y": 0.66, "alien_size": 0.42, "spin": true,
 		"about": "Tiny, quick, hard to hit. Hardly any shield; small things.", "ghost": Color(1.0, 0.55, 0.25)},
-	"cigar": {"title": "BLORPMOTHER", "model": "cigar", "speed": 8.5, "lift": 0.8, "hull": 120.0, "tier": 2, "altitude": 11.0,
+	"cigar": {"title": "BLORPMOTHER", "model": "cigar", "weapons": ["beam", "turret"], "speed": 8.5, "lift": 0.8, "hull": 120.0, "tier": 2, "altitude": 11.0,
 		"radius": 3.2, "beam_foot": 4.2, "alien_y": 0.64, "alien_size": 0.66, "spin": false,
 		"about": "Huge and slow. The toughest shield and the widest beam.", "ghost": Color(0.85, 0.9, 1.0)},
-	"bell": {"title": "DINGDONGULUS", "model": "bell", "speed": 11.0, "lift": 1.35, "hull": 40.0, "tier": 2, "altitude": 9.0,
+	"bell": {"title": "DINGDONGULUS", "model": "bell", "weapons": ["beam"], "speed": 11.0, "lift": 1.35, "hull": 40.0, "tier": 2, "altitude": 9.0,
 		"radius": 2.7, "beam_foot": 2.6, "alien_y": 1.12, "alien_size": 0.72, "spin": true,
 		"about": "Rings out over the country. A good pull, a thin shield.", "ghost": Color(1.0, 0.85, 0.5)},
-	"tictac": {"title": "TIKTAKKORAX", "model": "tictac", "speed": 18.0, "lift": 0.75, "hull": 30.0, "tier": 1, "altitude": 7.0,
+	"tictac": {"title": "TIKTAKKORAX", "model": "tictac", "weapons": ["laser", "emp"], "speed": 18.0, "lift": 0.75, "hull": 30.0, "tier": 1, "altitude": 7.0,
 		"radius": 2.3, "beam_foot": 2.0, "alien_y": 0.45, "alien_size": 0.38, "spin": false,
 		"about": "The fastest of all. A small, weak beam; a thin shield.", "ghost": Color(0.95, 0.97, 1.0)},
-	"saturn": {"title": "STARZOID", "model": "saturn", "speed": 10.5, "lift": 1.4, "hull": 55.0, "tier": 2, "altitude": 8.5,
+	"saturn": {"title": "STARZOID", "model": "saturn", "weapons": ["beam", "starbits"], "speed": 10.5, "lift": 1.4, "hull": 55.0, "tier": 2, "altitude": 8.5,
 		"radius": 2.9, "beam_foot": 2.8, "alien_y": 1.1, "alien_size": 0.55, "spin": true,
 		"about": "A ball in a ring. The strongest pull of any beam.", "ghost": Color(0.5, 0.75, 1.0)},
-	"diamond": {"title": "KRYSTALLIX-9", "model": "diamond", "speed": 11.0, "lift": 0.5, "hull": 75.0, "tier": 3, "altitude": 9.0,
+	"diamond": {"title": "KRYSTALLIX-9", "model": "diamond", "weapons": ["starbits"], "special": "starbits", "speed": 11.0, "lift": 0.5, "hull": 75.0, "tier": 3, "altitude": 9.0,
 		"radius": 2.2, "beam_foot": 3.0, "alien_y": 1.2, "alien_size": 0.5, "spin": true,
 		"about": "A crystal of light. Takes buildings, but its beam is painfully slow.", "ghost": Color(0.55, 0.85, 1.0)},
-	"jelly": {"title": "BLOOPUS-7", "model": "jelly", "speed": 12.5, "lift": 0.95, "hull": 45.0, "tier": 2, "altitude": 7.5,
+	"jelly": {"title": "BLOOPUS-7", "model": "jelly", "weapons": ["beam", "lightning"], "speed": 12.5, "lift": 0.95, "hull": 45.0, "tier": 2, "altitude": 7.5,
 		"radius": 2.5, "beam_foot": 3.5, "alien_y": 1.4, "alien_size": 0.5, "spin": true,
 		"about": "A jellyfish of a ship. The widest, gentlest beam.", "ghost": Color(1.0, 0.5, 0.8)},
-	"tug": {"title": "YESTROMO", "model": "tug", "speed": 9.5, "lift": 1.1, "hull": 110.0, "tier": 2, "altitude": 10.0,
+	"tug": {"title": "YESTROMO", "model": "tug", "weapons": ["beam", "turret"], "speed": 9.5, "lift": 1.1, "hull": 110.0, "tier": 2, "altitude": 10.0,
 		"radius": 2.7, "beam_foot": 3.6, "alien_y": 0.34, "alien_size": 0.5, "spin": false,
 		"about": "A hauler, after the Nostromo. Very tough, a strong pull.", "ghost": Color(1.0, 0.75, 0.4)},
-	"frigate": {"title": "NEBULONK-B", "model": "frigate", "speed": 13.5, "lift": 0.85, "hull": 65.0, "tier": 2, "altitude": 11.0,
+	"frigate": {"title": "NEBULONK-B", "model": "frigate", "weapons": ["laser", "missiles"], "speed": 13.5, "lift": 0.85, "hull": 65.0, "tier": 2, "altitude": 11.0,
 		"radius": 2.9, "beam_foot": 2.6, "alien_y": -0.05, "alien_size": 0.45, "spin": false,
 		"about": "A frigate, after the Nebulon-B. Long, lean and quick.", "ghost": Color(0.7, 0.85, 1.0)},
-	"trek": {"title": "ENTERBLORPRISE", "model": "trek", "speed": 12.0, "lift": 0.8, "hull": 70.0, "tier": 2, "altitude": 9.5,
+	"trek": {"title": "ENTERBLORPRISE", "model": "trek", "weapons": ["beam", "laser"], "speed": 12.0, "lift": 0.8, "hull": 70.0, "tier": 2, "altitude": 9.5,
 		"radius": 2.5, "beam_foot": 3.0, "alien_y": 0.51, "alien_size": 0.5, "spin": false,
 		"about": "To boldly go. Quick and sturdy; a middling beam.", "ghost": Color(0.6, 0.8, 1.0)},
-	"meteor": {"title": "KRAKKATOOM", "model": "meteor", "speed": 14.0, "lift": 1.15, "hull": 60.0, "tier": 2, "altitude": 9.0,
+	"meteor": {"title": "KRAKKATOOM", "model": "meteor", "weapons": ["sling"], "special": "sling", "speed": 14.0, "lift": 1.15, "hull": 60.0, "tier": 2, "altitude": 9.0,
 		"radius": 2.0, "beam_foot": 2.9, "alien_y": 1.17, "alien_size": 0.5, "spin": true,
 		"about": "A little moon of its own. Quick, and hard to wear down.", "ghost": Color(0.85, 0.85, 0.8)},
-	"carnival": {"title": "CARNIVORB", "model": "carnival", "speed": 12.5, "lift": 1.0, "hull": 70.0, "tier": 2, "altitude": 8.5,
+	"carnival": {"title": "CARNIVORB", "model": "carnival", "weapons": ["beam"], "rainbow": true, "speed": 12.5, "lift": 1.0, "hull": 70.0, "tier": 2, "altitude": 8.5,
 		"radius": 2.5, "beam_foot": 3.2, "alien_y": 0.48, "alien_size": 0.6, "spin": true,
 		"about": "The Moon Market's own saucer. Good at everything.", "ghost": Color(1.0, 0.6, 0.3)},
 }
@@ -91,6 +91,9 @@ var beam_reach := BEAM_REACH
 ## The ship's own visual layer, which its glow lights alone
 const SHIP_LAYER := 4
 
+## Each ship's own weapons, at most two, from the start of a run ("weapons"; Main.WEAPONS), and the one
+## it has a hand-aimed mode for ("special": the sling on the KRAKKATOOM, the star bits on the
+## KRYSTALLIX-9); the CARNIVORB's beam is every colour of the rainbow ("rainbow")
 ## Which of SHIPS this is (set before it is added)
 var ship := "saucer"
 ## Which alien is at the controls (see Alien.look_seed)
@@ -211,6 +214,11 @@ var beam_pivot: Node3D
 var beam_aim := Vector2.ZERO
 var _aim := Vector3.ZERO
 var beam_mat: ShaderMaterial
+## Whether it has a beam at all (the BEAM is a weapon: see Main.WEAPONS); without one no beam comes on
+## and no mark shows where it would fall
+var has_beam := true
+## The CARNIVORB's beam: running through every colour of the rainbow (SHIPS "rainbow")
+var rainbow := false
 ## The beam's colour: green, blue with more BEAM items, then purple (see `colour_beam`)
 var beam_colour := Color(0.55, 1.0, 0.65)
 var spot: SpotLight3D
@@ -235,6 +243,7 @@ func _ready() -> void:
 	radius = spec["radius"]
 	beam_foot = spec["beam_foot"]
 	_spins = spec["spin"]
+	rainbow = spec.get("rainbow", false)
 	position = Vector3(position.x, altitude, position.z)
 	body = Node3D.new()
 	add_child(body)
@@ -344,7 +353,8 @@ func _ready() -> void:
 	beam_light.position.y = -0.1
 	beam_light.spot_range = altitude + 14.0
 	beam_light.spot_angle = 55.0
-	beam_light.spot_angle_attenuation = 3.0
+	# (a broad, strong pool of light round the beam's foot, for what stands in it to throw shadows)
+	beam_light.spot_angle_attenuation = 1.1
 	beam_light.light_color = Color(0.55, 1.0, 0.65)
 	beam_light.light_cull_mask = 1 << (Thing.BEAM_LAYER - 1)
 	beam_light.shadow_enabled = true
@@ -535,7 +545,7 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	dash_left -= delta
 	# (no beam while dashing: whatever was in it drops)
 	var was_beaming := beaming
-	beaming = beam_on and dash_left <= 0.0
+	beaming = beam_on and dash_left <= 0.0 and has_beam
 	if beaming and not was_beaming:
 		# (a little bounce as the beam comes on)
 		_kick = 1.0
@@ -587,14 +597,23 @@ func tick(delta: float, steer: Vector2, beam_on: bool) -> void:
 	beam.scale = Vector3(1.0 + bob, 1.0, 1.0 + bob)
 	beam_core.scale = Vector3(1.0 - bob * 1.5, 1.0, 1.0 - bob * 1.5)
 	_lean_beam(delta)
+	if rainbow:
+		# (the CARNIVORB's: its light and its swirl running through the rainbow with the beam)
+		var hue := Color.from_hsv(fposmod(_t * 0.22, 1.0), 0.7, 1.0)
+		beam_colour = hue
+		beam_light.light_color = hue
+		beam_mat.set_shader_parameter("rainbow", 1.0)
+		_core_mat.set_shader_parameter("rainbow", 1.0)
+		_reticle_mat.set_shader_parameter("tint", hue)
+		tornado.rainbow = true
 	tornado.follow(Vector3(position.x, position.y - 0.6, position.z), beam_foot, BEAM_TOP, delta, _aim, beaming)
 	# (the beam's light throws shadows of whatever is in it)
 	beam_light.visible = _power > 0.05
-	beam_light.light_energy = _power * 2.6
+	beam_light.light_energy = _power * 3.2
 	spot.light_color = Color(0.75, 0.85, 1.0).lerp(beam_colour.lerp(Color.WHITE, 0.1), _power)
 	spot.light_energy = 2.2
 	# (the reticle on the ground where the beam will fall, giving way to the beam itself)
-	reticle.visible = _power < 0.99 and descent < 2.0
+	reticle.visible = _power < 0.99 and descent < 2.0 and has_beam
 	reticle.global_position = Vector3(position.x, 0.06, position.z)
 	_reticle_mat.set_shader_parameter("power", 1.0 - _power)
 	# A shield that has not been hit for a while mends, but only once the heat is off
@@ -792,6 +811,13 @@ var laser: Node3D
 var _laser_tip: ShaderMaterial
 
 
+## The turret taken off again (the AUTO TURRET dropped for another weapon)
+func disarm_laser() -> void:
+	if laser != null:
+		laser.queue_free()
+		laser = null
+
+
 func arm_laser() -> void:
 	if laser != null:
 		return
@@ -803,13 +829,16 @@ func arm_laser() -> void:
 	laser = Node3D.new()
 	laser.position = Vector3(0, under * 0.75, radius * 0.3)
 	body.add_child(laser)
-	Ps1.part(laser, Ps1.ball(), Ps1.mat(Color(0.2, 0.21, 0.25)), Vector3.ZERO, Vector3.ONE * 0.3)
-	Ps1.part(laser, BoxMesh.new(), Ps1.mat(Color(0.3, 0.31, 0.35)), Vector3(0, 0, 0.35), Vector3(0.09, 0.09, 0.6))
-	_laser_tip = Ps1.own(Color(1.0, 0.25, 0.4), 1.5)
-	Ps1.part(laser, Ps1.ball(), _laser_tip, Vector3(0, 0, 0.68), Vector3.ONE * 0.1)
+	# (a little gun mount: a ball on a yoke with twin barrels and amber muzzles, unlike the laser's ray)
+	Ps1.part(laser, Ps1.ball(), Ps1.mat(Color(0.2, 0.21, 0.25)), Vector3.ZERO, Vector3.ONE * 0.34)
+	Ps1.part(laser, BoxMesh.new(), Ps1.mat(Color(0.95, 0.72, 0.15)), Vector3(0, 0.0, 0.12), Vector3(0.36, 0.06, 0.12))
+	_laser_tip = Ps1.own(Color(1.0, 0.7, 0.2), 1.5)
+	for side: float in [-1.0, 1.0]:
+		Ps1.part(laser, BoxMesh.new(), Ps1.mat(Color(0.3, 0.31, 0.35)), Vector3(side * 0.09, 0, 0.36), Vector3(0.07, 0.07, 0.56))
+		Ps1.part(laser, Ps1.ball(), _laser_tip, Vector3(side * 0.09, 0, 0.66), Vector3.ONE * 0.09)
 
 
-## Turns the laser on `at` and says where its beam leaves from (the tip flashes as it fires)
+## Turns the turret on `at` and says where its rounds leave from (the muzzles flash as it fires)
 func aim_laser(at: Vector3) -> Vector3:
 	var to := at - laser.global_position
 	if to.length() < 0.1:
@@ -817,7 +846,7 @@ func aim_laser(at: Vector3) -> Vector3:
 	laser.look_at(at, Vector3.UP if Vector2(to.x, to.z).length() > 0.2 else Vector3.FORWARD)
 	# (look_at points -Z at it, and the barrel is on +Z)
 	laser.rotate_object_local(Vector3.UP, PI)
-	_laser_tip.set_shader_parameter("flash", Color(1.5, 0.6, 0.8))
+	_laser_tip.set_shader_parameter("flash", Color(1.6, 1.1, 0.4))
 	create_tween().tween_callback(func() -> void: _laser_tip.set_shader_parameter("flash", Color.BLACK)).set_delay(0.12)
 	return laser.global_position + laser.global_basis.z * 0.7
 
@@ -984,5 +1013,7 @@ func _cloaking(delta: float, beam_on: bool) -> void:
 func colour_beam(c: Color) -> void:
 	beam_colour = c
 	beam_mat.set_shader_parameter("tint", c)
-	_core_mat.set_shader_parameter("tint", c.lerp(Color.WHITE, 0.45))
+	# (the inner cone paler, but not so pale a deep colour washes out: the blue stays blue)
+	_core_mat.set_shader_parameter("tint", c.lerp(Color.WHITE, 0.25 if c.b > c.g + 0.3 else 0.45))
 	beam_light.light_color = c
+	_reticle_mat.set_shader_parameter("tint", c)

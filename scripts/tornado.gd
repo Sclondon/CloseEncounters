@@ -23,6 +23,8 @@ var _v := PackedVector3Array()
 var _was_on := false
 ## The colour of what is being swirled up: dust, grass, water... (see Main._surface_fx)
 var tint := Color(0.75, 1.0, 0.8)
+## Each mote its own colour of the rainbow, running on (the CARNIVORB's beam)
+var rainbow := false
 
 
 func _ready() -> void:
@@ -100,7 +102,7 @@ func follow(top: Vector3, foot: float, neck: float, delta: float, lean := Vector
 					continue
 				var fade := smoothstep(0.0, 0.1, _h[i]) * (1.0 - smoothstep(0.85, 1.0, _h[i]))
 				multimesh.set_instance_transform(i, Transform3D(Basis.IDENTITY, _at[i]))
-				multimesh.set_instance_color(i, Color(tint, 0.75 * fade))
+				multimesh.set_instance_color(i, Color(_mote(i), 0.75 * fade))
 				any = true
 			2:
 				_wait[i] -= delta
@@ -111,7 +113,7 @@ func follow(top: Vector3, foot: float, neck: float, delta: float, lean := Vector
 					multimesh.set_instance_color(i, Color(0, 0, 0, 0))
 					continue
 				multimesh.set_instance_transform(i, Transform3D(Basis.IDENTITY, _at[i]))
-				multimesh.set_instance_color(i, Color(tint, 0.6 * minf(_wait[i], 1.0)))
+				multimesh.set_instance_color(i, Color(_mote(i), 0.6 * minf(_wait[i], 1.0)))
 				any = true
 	visible = any
 
@@ -119,3 +121,10 @@ func follow(top: Vector3, foot: float, neck: float, delta: float, lean := Vector
 func _swirl(i: int, top: Vector3, foot: float, neck: float, lean: Vector3) -> Vector3:
 	var r := lerpf(foot, neck, _h[i]) * _out[i] * 0.85
 	return Vector3(top.x + cos(_a[i]) * r, top.y * _h[i], top.z + sin(_a[i]) * r) + lean * (1.0 - _h[i])
+
+
+## A mote's colour: the swirl's, or on a rainbow beam a colour of its own, running on
+func _mote(i: int) -> Color:
+	if not rainbow:
+		return tint
+	return Color.from_hsv(fposmod(i * 0.137 + Time.get_ticks_msec() * 0.0003, 1.0), 0.75, 1.0)

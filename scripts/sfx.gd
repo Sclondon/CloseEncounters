@@ -51,6 +51,10 @@ func _ready() -> void:
 	sounds["ding"] = _voice(0.45, PackedFloat32Array([2100.0, 2100.0, 2080.0]), 0.3, 0.004, 0.0)
 	# The defence laser: a ray-gun's falling whine, as in the pictures
 	sounds["zap"] = _voice(0.22, PackedFloat32Array([2600.0, 1500.0, 700.0, 350.0]), 0.4, 0.08, 0.1)
+	# The auto turret: a rapid chatter of small shots, rattling down
+	sounds["chatter"] = _rattle()
+	# The lightning gun: a sharp crack falling to a rumble, mostly noise
+	sounds["crack"] = _voice(0.35, PackedFloat32Array([3200.0, 900.0, 260.0, 90.0]), 0.6, 0.0, 0.88)
 	make_bus(BUS)
 	for i in 10:
 		var p := AudioStreamPlayer.new()
@@ -135,6 +139,24 @@ func _voice(dur: float, freqs: PackedFloat32Array, vol: float, vibrato := 0.0, n
 		# (smoothed: a gentle low-pass, more so the noisier it is, so nothing hisses or rasps)
 		soft = lerpf(soft, s, 0.35 - noise * 0.2)
 		data.encode_s16(i * 2, int(clampf(soft * env * vol * 0.5, -1.0, 1.0) * 32767.0))
+	return _wav(data)
+
+
+## A rapid chatter of small shots: four sharp pops, each a burst of noise falling away, a little apart
+func _rattle() -> AudioStreamWAV:
+	var n := int(0.32 * RATE)
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	var soft := 0.0
+	var phase := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		var shot := fmod(t, 0.07) / 0.07
+		var env := exp(-shot * 9.0) * minf((0.32 - t) / 0.05, 1.0)
+		phase += TAU * lerpf(900.0, 220.0, shot) / RATE
+		var x := lerpf(sin(phase), randf_range(-1.0, 1.0), 0.75)
+		soft = lerpf(soft, x, 0.3)
+		data.encode_s16(i * 2, int(clampf(soft * env * 0.55, -1.0, 1.0) * 32767.0))
 	return _wav(data)
 
 

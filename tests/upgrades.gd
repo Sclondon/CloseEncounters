@@ -110,9 +110,9 @@ func _process(_delta: float) -> bool:
 				wait = 0
 		"crop":
 			if wait == 1:
-				# Over the farm country near the start, the beam held still
+				# Over the crop field nearest the start's farm country, the beam held still
 				main.ufo.tier = 1
-				_over(Vector3(-30, 0, 30))
+				_over(_crop_near(Vector3(-30, 0, 30)))
 				main.world.update(main.ufo.position, 0.0, true)
 				taken_before = main.score
 				Input.action_press("beam")
@@ -127,6 +127,8 @@ func _process(_delta: float) -> bool:
 				main.heat = 3.2
 				main.score = 50000
 				_check(main.buy("turret") and main.ufo.laser != null, "an AUTO TURRET can be bought, and a turret is slung under the ship")
+				# (ready to fire: it may have been shooting at whatever stood about, now that it shoots at anything)
+				main._laser_wait = 0.0
 				shell = main._shot("shell", main.ufo.position + Vector3(0, -6, 11), main.ufo.position)
 			elif wait == 12:
 				_check((not is_instance_valid(shell) or shell.done) and main.ufo.since_hit > 0.15, "the laser shoots a shell down before it hits")
@@ -240,3 +242,14 @@ func _process(_delta: float) -> bool:
 func _end() -> bool:
 	print("PASSED" if fails == 0 else "FAILED")
 	return true
+
+
+## The nearest point to `p` in a field of a crop, off the roads (crop circles press only there)
+func _crop_near(p: Vector3) -> Vector3:
+	for r in range(0, 120, 4):
+		for k in 16:
+			var a := k * TAU / 16.0
+			var q := p + Vector3(cos(a), 0, sin(a)) * float(r)
+			if main.world.crops_at(q) and main.world.crops_at(q + Vector3(4, 0, 4)) and main.world.crops_at(q - Vector3(4, 0, 4)):
+				return q
+	return p

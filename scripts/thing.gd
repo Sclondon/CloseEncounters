@@ -23,6 +23,9 @@ const KINDS := {
 	# An oil drum: drop it (from any height) and it blows up, taking out the police and army near it
 	"barrel": {"points": 40, "weight": 0.8, "heat": 0.1, "move": "still", "size": 0.9, "explosive": true},
 	"scarecrow": {"points": 40, "weight": 1.0, "heat": 0.06, "move": "still", "size": 0.8},
+	# The test room's DPS dummy (main.gd `open_test_room`): a scarecrow on its post that takes every hit
+	# and never goes, the beam too weak for it, worth nothing
+	"dummy": {"title": "DPS DUMMY", "model": "scarecrow", "points": 0, "weight": 99.0, "heat": 0.0, "move": "still", "size": 1.4, "tier": 9},
 	"outhouse": {"points": 90, "weight": 2.2, "heat": 0.2, "move": "still", "size": 1.2, "voice": "scream"},
 	"farmer": {"points": 100, "weight": 1.3, "heat": 0.4, "move": "flee", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "shotgun", "caller": true},
 	"person": {"points": 100, "weight": 1.3, "heat": 0.35, "move": "flee", "speed": 3.6, "size": 0.7, "voice": "scream", "caller": true},
@@ -945,7 +948,11 @@ func _walk(delta: float, ufo: Ufo) -> void:
 			net_to = Vector3.INF
 		return
 	var here := ground()
-	var to_ufo := ufo.ground() - here
+	# (once it is down, everyone keeps to where it fell, though the wreck is carried off)
+	var mark := ufo.ground()
+	if ufo.dead and game != null and game.wreck != Vector3.INF:
+		mark = Vector3(game.wreck.x, 0.0, game.wreck.z)
+	var to_ufo := mark - here
 	var near := to_ufo.length()
 	if panic > 0.0:
 		panic -= delta
@@ -1144,7 +1151,7 @@ func _walk(delta: float, ufo: Ufo) -> void:
 			if turret != null:
 				var local: Vector3 = transform.basis.inverse() * to_ufo
 				turret.rotation.y = lerp_angle(turret.rotation.y, atan2(local.x, local.z), minf(delta * 2.0, 1.0))
-	if ufo.dead and game.wreck != Vector3.INF and info["move"] in ["police", "patrol", "chase"]:
+	if ufo.dead and game.wreck != Vector3.INF and info["move"] in ["police", "patrol", "chase"] and not leaving:
 		# (the ship down: they may circle the crash site, but never drive into the wreck itself)
 		var off: Vector3 = here - game.wreck
 		off.y = 0.0
@@ -1157,6 +1164,10 @@ func _walk(delta: float, ufo: Ufo) -> void:
 			var push := clampf((ring + 2.0 - off.length()) / 3.0, -0.6, 1.2)
 			want = (round_way + out * push).normalized()
 			pace = clampf(pace, float(info.get("speed", 0.0)) * 0.35, float(info.get("speed", 0.0)) * 0.55)
+		elif info.get("police", false) and not kind in ["agent_car"]:
+			# (the police come to the crash site and stay: the army has gone, see main.gd _army_away)
+			want = -off.normalized()
+			pace = maxf(pace, float(info.get("speed", 0.0)) * 0.8)
 	if light != null:
 		_aim_light(delta, ufo)
 	var moving := want.length() > 0.01 and pace > 0.0

@@ -117,7 +117,7 @@ var _circle_time := 0.0
 var _circle_done := false
 ## The traders parked about the country, and what has been bought from them this run
 var shops: Array[Shop] = []
-var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "starbits": 0, "sling": 0, "fleet": 0}
+var upgrades := {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "starbits": 0, "sling": 0, "lightning": 0, "fleet": 0}
 var _hot_wait := 0.0
 ## The level reached this run (see `_levels`), levels still to pick for, and the picker
 var level := 0
@@ -134,36 +134,47 @@ var _to_spawn: Array = []
 const SPAWN_A_FRAME := 6
 ## What traders sell, one pod each: three of these are set out in front of each trader
 ## The beam's colours as BEAM items stack: green, blue, purple
-const BEAM_COLOURS := [Color(0.55, 1.0, 0.65), Color(0.4, 0.7, 1.0), Color(0.78, 0.45, 1.0)]
-const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "starbits", "sling", "fleet"]
+const BEAM_COLOURS := [Color(0.55, 1.0, 0.65), Color(0.18, 0.38, 1.0), Color(0.78, 0.45, 1.0)]
+const GOODS: Array[String] = ["engine", "beam", "shield", "dash", "patch", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "starbits", "sling", "lightning", "fleet"]
 const UPGRADES := {
 	"engine": {"title": "ENGINE", "about": "faster", "price": 300, "colour": Color(1.0, 0.55, 0.15)},
-	"beam": {"title": "BEAM", "about": "lifts faster, then heavier things", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
+	"beam": {"title": "BEAM", "about": "the abduction beam: take things up into the ship; more lifts faster, then heavier things", "price": 400, "colour": Color(0.4, 1.0, 0.5)},
 	"shield": {"title": "SHIELD", "about": "more shield", "price": 300, "colour": Color(0.3, 0.6, 1.0)},
 	"patch": {"title": "PATCH", "about": "shield refilled", "price": 0, "colour": Color(0.4, 1.0, 1.0)},
 	"dash": {"title": "DASH", "about": "an extra dash charge", "price": 250, "colour": Color(0.75, 0.4, 1.0)},
-	"laser": {"title": "LASER", "about": "a ray that burns things down", "price": 500, "colour": Color(1.0, 0.3, 0.45)},
-	"turret": {"title": "AUTO TURRET", "about": "shoots by itself", "price": 500, "colour": Color(1.0, 0.5, 0.3)},
-	"missiles": {"title": "MISSILES", "about": "homing missiles, from the fleet too", "price": 600, "colour": Color(1.0, 0.75, 0.25)},
+	"laser": {"title": "LASER RAY", "about": "aim it and hold: a ray that burns things down", "price": 500, "colour": Color(1.0, 0.3, 0.45)},
+	"turret": {"title": "AUTO TURRET", "about": "shoots by itself at anything near, the police first", "price": 500, "colour": Color(1.0, 0.5, 0.3)},
+	"missiles": {"title": "MISSILES", "about": "homing missiles at anything near, the police first; from the fleet too", "price": 600, "colour": Color(1.0, 0.75, 0.25)},
 	"cloak": {"title": "CLOAK", "about": "vanish for a few seconds", "price": 550, "colour": Color(0.6, 0.6, 1.0)},
 	"magnet": {"title": "MAGNET", "about": "small things drift to the beam", "price": 400, "colour": Color(0.9, 0.3, 0.3)},
-	"wide": {"title": "WIDE BEAM", "about": "a broader beam", "price": 400, "colour": Color(0.5, 1.0, 0.8)},
+	"wide": {"title": "SIZE RAY", "about": "everything fired is bigger: the beam, the laser, every blast, bolt and star bit", "price": 450, "colour": Color(0.5, 1.0, 0.8)},
 	"scanner": {"title": "SCANNER", "about": "the radar sees further", "price": 300, "colour": Color(0.3, 0.9, 0.6)},
 	"jammer": {"title": "JAMMER", "about": "they stop looking sooner", "price": 450, "colour": Color(0.9, 0.85, 0.3)},
 	"coolant": {"title": "COOLANT", "about": "the heat cools quicker", "price": 450, "colour": Color(0.6, 1.0, 0.98)},
 	"nanobots": {"title": "NANOBOTS", "about": "the shield mends itself", "price": 450, "colour": Color(0.4, 0.75, 1.0)},
 	"gold": {"title": "GOLD", "about": "everything taken is worth more", "price": 500, "colour": Color(1.0, 0.82, 0.25)},
-	"emp": {"title": "EMP", "about": "a dash stuns the police near; bigger each, and paralyses people too from the second", "price": 450, "colour": Color(0.55, 0.85, 1.0)},
+	"emp": {"title": "EMP", "about": "a dash sends out a pulse: it stuns and hurts the police, wrecks cars and wires; bigger each", "price": 450, "colour": Color(0.55, 0.85, 1.0)},
 	"lucky": {"title": "LUCKY CHARM", "about": "power-ups turn up more often", "price": 300, "colour": Color(0.35, 0.95, 0.4)},
 	"armor": {"title": "ARMOR", "about": "the ship takes less damage", "price": 450, "colour": Color(0.7, 0.72, 0.78)},
-	"swivel": {"title": "SWIVEL MOUNT", "about": "lean the beam out further", "price": 350, "colour": Color(0.55, 0.95, 1.0)},
-	"starbits": {"title": "STAR BIT BLASTER", "about": "sprays star bits by itself: fast, wild, weak", "price": 500, "colour": Color(1.0, 0.75, 0.95)},
-	"sling": {"title": "GRAVITY SLING", "about": "now and then flings a meteor down on the police: a big splash", "price": 700, "colour": Color(1.0, 0.55, 0.2)},
+	"swivel": {"title": "SWIVEL MOUNT", "about": "aim further out: the beam and every aimed weapon", "price": 350, "colour": Color(0.55, 0.95, 1.0)},
+	"starbits": {"title": "STAR BIT BLASTER", "about": "sprays star bits at anything near: fast, wild, weak", "price": 500, "colour": Color(1.0, 0.75, 0.95)},
+	"sling": {"title": "GRAVITY SLING", "about": "now and then flings a moonlet down on a crowd: a big splash", "price": 700, "colour": Color(1.0, 0.55, 0.2)},
+	"lightning": {"title": "LIGHTNING GUN", "about": "aim it and hold: lightning that leaps from thing to thing", "price": 650, "colour": Color(0.6, 0.8, 1.0)},
 	"second_wind": {"title": "SECOND WIND", "about": "shrug off one fatal hit", "price": 600, "colour": Color(1.0, 0.55, 0.25)},
 	"fleet": {"title": "FLEET", "about": "a little helper saucer", "price": 450, "colour": Color(1.0, 0.9, 0.3)},
 }
 ## Upgrades are items that stack, as in Risk of Rain: each pick one more of it, up to this many
 const MAX_UPGRADE := 10
+## The weapons: the abduction beam is one of them. At most WEAPON_SLOTS different ones at once (more of
+## one had still stacks); a new one when the slots are full drops one (the Moon Market asks which).
+## Each ship starts with its own (Ufo.SHIPS "weapons"). A weapon is had while its stack is above 0.
+const WEAPONS: Array[String] = ["beam", "laser", "lightning", "turret", "missiles", "sling", "starbits", "emp"]
+const WEAPON_SLOTS := 2
+## The order the weapons had were got in (the oldest is the one dropped when none is chosen)
+var _got: Array[String] = []
+## Which of the weapons fired by hand the beam's button fires now: the beam, the laser ray, the lightning
+## gun, and the sling or the star bits on the ship made for them (see `manual`); "" for none
+var aimed := "beam"
 ## The most little saucers the fleet stacks to (more stacks after that make them keener, see Drone)
 const FLEET_MOST := 6
 ## The defence laser (see `_laser`): how far it reaches before upgrades (+2 m a level), and the hits
@@ -171,6 +182,8 @@ const FLEET_MOST := 6
 const LASER_REACH := 7.0
 const LASER_HITS := {"police_car": 2, "patrol_car": 2, "jeep": 3, "patrol_jeep": 3, "tank": 5, "helicopter": 4, "chinook": 6, "agent_car": 3, "moto_cop": 1, "helicarrier": 14, "railgun": 5, "laser_truck": 4}
 var _laser_wait := 0.0
+## The turret's reload for shooting at what stands about (apart from its reload for threats)
+var _prop_wait := 0.0
 ## The mini fleet: a little saucer for each level of FLEET (see Drone)
 var fleet: Array[Drone] = []
 ## Where phone lines have been cut this run (a call near one cannot get through)
@@ -297,6 +310,8 @@ var _log_taken := {}
 var _run_taken := {}
 ## The police and army destroyed this run, by kind: {kind: how many}
 var _run_killed := {}
+## The things wrecked by weapons this run (shot, burnt, blown up, zapped), by category: [how many, points]
+var _run_wrecked := {}
 var _log_met: Array[String] = []
 ## The items (upgrades) ever had, for the log
 var _log_items: Array[String] = []
@@ -427,6 +442,8 @@ func _input_map() -> void:
 	var keys := {
 		"left": [KEY_A, KEY_LEFT], "right": [KEY_D, KEY_RIGHT], "up": [KEY_W, KEY_UP], "down": [KEY_S, KEY_DOWN],
 		"beam": [KEY_SPACE, KEY_J, KEY_Z], "dodge": [KEY_SHIFT, KEY_X, KEY_K], "laser": [KEY_L, KEY_TAB, KEY_C], "cloak": [KEY_V, KEY_Q], "start": [KEY_ENTER, KEY_SPACE], "pause": [KEY_ESCAPE, KEY_P],
+		# (aiming the beam and the weapons fired by hand, without a finger: T F G H, or the keypad's arrows)
+		"aim_left": [KEY_F, KEY_KP_4], "aim_right": [KEY_H, KEY_KP_6], "aim_up": [KEY_T, KEY_KP_8], "aim_down": [KEY_G, KEY_KP_2],
 	}
 	for action: String in keys:
 		if not InputMap.has_action(action):
@@ -443,7 +460,8 @@ func _input_map() -> void:
 	trigger.axis = JOY_AXIS_TRIGGER_RIGHT
 	trigger.axis_value = 1.0
 	InputMap.action_add_event("beam", trigger)
-	for pair: Array in [["left", JOY_AXIS_LEFT_X, -1.0], ["right", JOY_AXIS_LEFT_X, 1.0], ["up", JOY_AXIS_LEFT_Y, -1.0], ["down", JOY_AXIS_LEFT_Y, 1.0]]:
+	for pair: Array in [["left", JOY_AXIS_LEFT_X, -1.0], ["right", JOY_AXIS_LEFT_X, 1.0], ["up", JOY_AXIS_LEFT_Y, -1.0], ["down", JOY_AXIS_LEFT_Y, 1.0],
+			["aim_left", JOY_AXIS_RIGHT_X, -1.0], ["aim_right", JOY_AXIS_RIGHT_X, 1.0], ["aim_up", JOY_AXIS_RIGHT_Y, -1.0], ["aim_down", JOY_AXIS_RIGHT_Y, 1.0]]:
 		var m := InputEventJoypadMotion.new()
 		m.axis = pair[1]
 		m.axis_value = pair[2]
@@ -548,7 +566,7 @@ func start(from_launch := false) -> void:
 	coop.clear()
 	_run_taken.clear()
 	_run_killed.clear()
-	laser_mode = false
+	_run_wrecked.clear()
 	_five_for = 0.0
 	_nuke_wait = 0.0
 	for n: Array in _nukes:
@@ -574,7 +592,7 @@ func start(from_launch := false) -> void:
 	_clear_wreck()
 	if not from_launch:
 		alien_seed = randi()
-	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "starbits": 0, "sling": 0, "fleet": 0}
+	upgrades = {"engine": 0, "beam": 0, "shield": 0, "dash": 0, "laser": 0, "turret": 0, "missiles": 0, "cloak": 0, "magnet": 0, "wide": 0, "scanner": 0, "jammer": 0, "coolant": 0, "nanobots": 0, "gold": 0, "emp": 0, "lucky": 0, "armor": 0, "second_wind": 0, "swivel": 0, "starbits": 0, "sling": 0, "lightning": 0, "fleet": 0}
 	level = 0
 	_levels_due = 0
 	_rescue_wait = -1.0
@@ -589,6 +607,7 @@ func start(from_launch := false) -> void:
 	_forget_fingers()
 	var heading := ufo.rotation.y + ufo.hull_model.rotation.y
 	_make_ufo(World.START)
+	_arm_ship()
 	heat = 0.0
 	calm = 0.0
 	seen = 0.0
@@ -619,8 +638,14 @@ func start(from_launch := false) -> void:
 		for what: String in (_saved_run["upgrades"] as Dictionary):
 			if upgrades.has(what):
 				upgrades[what] = int(_saved_run["upgrades"][what])
+		# (a run kept before the beam was a weapon counted its BEAMs from 0 for the ship's own beam)
+		if int(_saved_run.get("v", 1)) < 2 and "beam" in Ufo.SHIPS[ship].get("weapons", ["beam"]):
+			upgrades["beam"] += 1
+		_got.assign(WEAPONS.filter(func(w: String) -> bool: return upgrades[w] > 0))
+		aimed = _first_manual()
 		_run_taken = (_saved_run["taken"] as Dictionary).duplicate(true)
 		_run_killed = (_saved_run["killed"] as Dictionary).duplicate()
+		_run_wrecked = (_saved_run.get("wrecked", {}) as Dictionary).duplicate(true)
 		_apply_upgrades()
 		ufo.second_winds = upgrades["second_wind"]
 		_saved_run = {}
@@ -719,11 +744,11 @@ func _process(delta: float) -> void:
 	elif mode == "play" and not autopilot:
 		steer = _read_steer()
 		beam = Input.is_action_pressed("beam") or beam_finger != NO_FINGER
-		ufo.beam_aim = _beam_aim()
+		ufo.beam_aim = _beam_aim().limit_length(1.0)
 		if Input.is_action_just_pressed("cloak"):
 			use_cloak()
 		if Input.is_action_just_pressed("laser"):
-			toggle_laser()
+			toggle_weapon()
 		if Input.is_action_just_pressed("dodge"):
 			# (the way it is steered, or else the way it is going, or else away up the screen)
 			var way := steer if steer.length() > 0.2 else Vector2(ufo.velocity.x, ufo.velocity.z)
@@ -732,18 +757,18 @@ func _process(delta: float) -> void:
 		var pilot := _pilot(delta)
 		steer = pilot[0]
 		beam = pilot[1]
+		ufo.beam_aim = _pilot_aim
 	if _touch_debug and Engine.get_process_frames() % 30 == 0:
 		_debug_state = "stick finger %d %s | beam finger %d | steer %s beam %s | view %s" % [stick_finger, stick.snapped(Vector2(0.01, 0.01)), beam_finger, steer.snapped(Vector2(0.01, 0.01)), beam, get_viewport().get_visible_rect().size]
 		print("[CE] " + _debug_state)
 		_debug_show()
 	if mode == "launch" or mode == "landing":
 		_launch(delta)
-	# (switched over to the laser: the beam's button fires it instead)
-	if laser_mode and upgrades["laser"] > 0:
-		_cut(delta, beam and mode == "play")
-		beam = false
-	elif _cut_ray != null and _cut_ray.visible:
-		_cut(delta, false)
+	# (the beam's button fires whichever weapon is aimed by hand: the beam itself only if it is that
+	# one, and had)
+	_fire(delta, beam and mode == "play" and intro <= 0.0)
+	beam = beam and (mode != "play" or aimed == "beam" and has_weapon("beam"))
+	ufo.has_beam = mode != "play" or has_weapon("beam")
 	ufo.tick(delta, steer, beam)
 	if is_instance_valid(_stand_in):
 		# (the ship parked on the moon while the camera comes down onto it after a crash)
@@ -822,7 +847,7 @@ func _process(delta: float) -> void:
 		t.tick(delta, ufo)
 	things = things.filter(func(t: Thing) -> bool: return t.state != "gone")
 	_pull_scenery(delta)
-	_beam_shadows()
+	_beam_shadows(delta)
 	_shops(delta)
 	_rivals(delta)
 	_rival_hunt(delta)
@@ -851,7 +876,9 @@ func _process(delta: float) -> void:
 			s.queue_free()
 	shots = shots.filter(func(s: Shot) -> bool: return not s.done)
 	_jets(delta)
-	if mode == "play" and intro <= 0.0:
+	if mode == "play" and intro <= 0.0 and test_room:
+		_test_room(delta)
+	elif mode == "play" and intro <= 0.0:
 		_levels()
 		time_alive += delta
 		_heat(delta)
@@ -1343,8 +1370,12 @@ func _cull(delta: float) -> void:
 	if _cull_wait > 0.0:
 		return
 	_cull_wait = 0.5
+	# (once down, from the crash site: the wreck is carried off, but the scene stays where it fell)
+	var centre := Vector3(wreck.x, 0, wreck.z) if mode == "over" and wreck != Vector3.INF else ufo.ground()
 	for t in things.duplicate():
-		if t.state == "walk" and not t.fixed() and t.ground().distance_to(ufo.ground()) > CULL:
+		if t.state == "walk" and not t.fixed() and t.ground().distance_to(centre) > CULL:
+			_remove(t)
+		elif mode == "over" and t.leaving and t.ground().distance_to(centre) > 70.0:
 			_remove(t)
 
 
@@ -1448,16 +1479,19 @@ func _apply_upgrades() -> void:
 	ufo.hull_max = float(spec["hull"]) + 15.0 * upgrades["shield"]
 	ufo.dash_level = upgrades["dash"]
 	ufo.armor = upgrades["armor"]
-	# (the beam green, blue from the second BEAM, purple from the fourth)
-	ufo.colour_beam(BEAM_COLOURS[mini(upgrades["beam"] / 2, BEAM_COLOURS.size() - 1)])
-	# (WIDE BEAM: a seventh broader a stack, its light with it)
-	var wide: float = 1.0 + 0.15 * upgrades["wide"]
+	# (the beam green, blue from the second BEAM after its own, purple from the fourth)
+	ufo.colour_beam(BEAM_COLOURS[mini(beam_extra() / 2, BEAM_COLOURS.size() - 1)])
+	# (SIZE RAY: everything fired bigger, the beam a fifth broader a stack, its light with it)
+	var wide: float = weapon_size()
 	ufo.beam_foot = float(spec["beam_foot"]) * wide
 	# (SWIVEL MOUNT: the beam leans a third further out from under the ship a stack)
 	ufo.beam_reach = Ufo.BEAM_REACH * (1.0 + 0.35 * upgrades["swivel"])
 	ufo.beam.scale = Vector3(wide, 1.0, wide)
 	if upgrades["turret"] > 0:
 		ufo.arm_laser()
+	else:
+		ufo.disarm_laser()
+	ufo.has_beam = has_weapon("beam")
 	_build_fleet()
 
 
@@ -1466,8 +1500,367 @@ func _ship_stats() -> void:
 	var spec: Dictionary = Ufo.SHIPS[ship]
 	# (each a little at first: a level of anything is felt, and the fourth makes it strong)
 	ufo.speed = float(spec["speed"]) * (1.0 + 0.07 * upgrades["engine"]) * (1.5 if boosts.has("overdrive") else 1.0)
-	ufo.lift_rate = float(spec["lift"]) * (1.0 + 0.12 * upgrades["beam"]) * (1.8 if boosts.has("super") else 1.0)
-	ufo.tier = mini(int(spec["tier"]) + int(upgrades["beam"]) / 2 + (1 if boosts.has("super") else 0), 4)
+	ufo.lift_rate = float(spec["lift"]) * (1.0 + 0.12 * beam_extra()) * (1.8 if boosts.has("super") else 1.0)
+	ufo.tier = mini(int(spec["tier"]) + beam_extra() / 2 + (1 if boosts.has("super") else 0), 4)
+
+
+## BEAMs past the first (the first is the beam itself)
+func beam_extra() -> int:
+	return maxi(int(upgrades["beam"]) - 1, 0)
+
+
+## SIZE RAY: how much bigger everything fired is (a fifth a stack)
+func weapon_size() -> float:
+	return 1.0 + 0.2 * upgrades["wide"]
+
+
+## How far out from under the ship the aimed weapons reach (more with SWIVEL MOUNT, as the beam leans)
+func aim_reach() -> float:
+	return ufo.beam_reach * 3.5
+
+
+## Where the aimed weapons fall: as far out from under the ship as the beam's thumb (or the aiming
+## keys, or the right stick) is pushed
+func target_point() -> Vector3:
+	return ufo.ground() + Vector3(ufo.beam_aim.x, 0, ufo.beam_aim.y) * aim_reach()
+
+
+# ------------------------------------------------------------------ weapons
+
+func has_weapon(w: String) -> bool:
+	return int(upgrades.get(w, 0)) > 0
+
+
+## The weapons had, the oldest first
+func weapons_had() -> Array[String]:
+	var had: Array[String] = []
+	for w in _got:
+		if has_weapon(w) and not w in had:
+			had.append(w)
+	for w in WEAPONS:
+		if has_weapon(w) and not w in had:
+			had.append(w)
+	return had
+
+
+## Whether a weapon is fired by hand, with the beam's button: the beam, the laser ray and the lightning
+## gun always; the gravity sling and the star bits on the ships made for them (Ufo.SHIPS "special")
+func manual(w: String) -> bool:
+	return w in ["beam", "laser", "lightning"] or w == str(Ufo.SHIPS[ship].get("special", ""))
+
+
+func manual_weapons() -> Array[String]:
+	var out: Array[String] = []
+	for w in weapons_had():
+		if manual(w):
+			out.append(w)
+	return out
+
+
+func _first_manual() -> String:
+	var hand := manual_weapons()
+	return "beam" if "beam" in hand else (hand[0] if not hand.is_empty() else "")
+
+
+## The ship's own weapons at the start of a run (Ufo.SHIPS "weapons")
+func _arm_ship() -> void:
+	_got.clear()
+	for w: String in Ufo.SHIPS[ship].get("weapons", ["beam"]):
+		upgrades[w] = 1
+		_got.append(w)
+	aimed = _first_manual()
+	# (a sling flung by hand is ready to go; one that flings itself takes a while to wind up)
+	_sling_wait = 0.0 if manual("sling") else 8.0
+	_apply_upgrades()
+	ufo.second_winds = upgrades["second_wind"]
+
+
+## A weapon given up for another (its stack gone with it)
+func drop_weapon(w: String) -> void:
+	if not has_weapon(w):
+		return
+	upgrades[w] = 0
+	_got.erase(w)
+	if aimed == w or not aimed in manual_weapons():
+		aimed = _first_manual()
+	_apply_upgrades()
+	_heat_note("%s DROPPED" % UPGRADES[w]["title"], 2.0)
+
+
+## The weapon to drop when a new one comes and none was chosen: the oldest that is not the beam
+func _auto_drop() -> String:
+	var had := weapons_had()
+	for w in had:
+		if w != "beam":
+			return w
+	return had[0]
+
+
+## The beam's button over to the next weapon fired by hand (the laser's switch, L / Tab / C, Y)
+func toggle_weapon() -> void:
+	var hand := manual_weapons()
+	if hand.size() < 2 or mode != "play":
+		return
+	aimed = hand[(hand.find(aimed) + 1) % hand.size()]
+	sfx.play("zap" if aimed != "beam" else "bloop", 0.8 if aimed != "beam" else 1.2, -6.0)
+	_heat_note(UPGRADES[aimed]["title"], 0.8)
+
+
+## The beam's button held (`firing`) or not, for the weapon aimed: the laser ray cuts, the lightning gun
+## strikes, the sling (on the KRAKKATOOM) flings a moonlet, the star bits (on the KRYSTALLIX-9) spray;
+## the beam itself is the ship's own (see `_process`). A mark on the ground shows where they fall.
+func _fire(delta: float, firing: bool) -> void:
+	var w := aimed if has_weapon(aimed) else ""
+	_cut(delta, firing and w == "laser")
+	_lightning(delta, firing and w == "lightning")
+	_hand_fired = w if firing else ""
+	if firing and w == "sling" and manual("sling"):
+		_fling(target_point())
+	_aim_mark_at(delta, mode == "play" and intro <= 0.0 and not ufo.dead and w != "" and w != "beam")
+
+
+## Which weapon the beam's button is firing this frame ("" for none): the star bits read it
+var _hand_fired := ""
+## The mark on the ground where the aimed weapons fall (reticle.gdshader, in the weapon's colour)
+var _aim_mark: MeshInstance3D
+var _aim_mat: ShaderMaterial
+
+
+func _aim_mark_at(_delta: float, on: bool) -> void:
+	if _aim_mark == null:
+		_aim_mark = MeshInstance3D.new()
+		var pad := PlaneMesh.new()
+		pad.size = Vector2.ONE * 4.0
+		pad.subdivide_width = 4
+		pad.subdivide_depth = 4
+		_aim_mark.mesh = pad
+		_aim_mat = ShaderMaterial.new()
+		_aim_mat.shader = load("res://shaders/reticle.gdshader")
+		_aim_mark.material_override = _aim_mat
+		_aim_mark.top_level = true
+		_aim_mark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		view.add_child(_aim_mark)
+	_aim_mark.visible = on
+	if not on:
+		return
+	var at := target_point()
+	_aim_mark.global_position = Vector3(at.x, 0.07, at.z)
+	_aim_mark.scale = Vector3.ONE * weapon_size()
+	var c: Color = UPGRADES[aimed]["colour"]
+	# (dim while the sling is still winding up for the next)
+	var ready := not (aimed == "sling" and _sling_wait > 0.0)
+	_aim_mat.set_shader_parameter("tint", Color(c.r, c.g, c.b) * (3.0 if ready else 1.0))
+	_aim_mat.set_shader_parameter("power", 1.0 if ready else 0.5)
+
+
+## What a weapon may hit: whatever stands about (people, animals, cars, buildings, trees, crops...), not
+## the land, the power-ups, a captured ship or a rare find, nor what is up the beam already
+func shootable(t: Thing) -> bool:
+	return is_instance_valid(t) and t.state == "walk" and not t.hiding and not t.leaving and not t.kind in FIREPROOF \
+		and not t.kind in ["canister", "lounge_chair"] and not t.info.get("rare", false) and not t.info.has("unlock")
+
+
+## The weapons' target near `from` (on the ground), within `reach`: the nearest of the police and army,
+## or else the nearest of anything else (a little nearer in)
+func weapon_target(from: Vector3, reach: float, skip: Array = []) -> Thing:
+	var best: Thing = null
+	var near := reach
+	var foot := Vector3(from.x, 0, from.z)
+	for t in things:
+		if t.is_enemy() and shootable(t) and not t in skip and t.ground().distance_to(foot) < near:
+			near = t.ground().distance_to(foot)
+			best = t
+	if best != null:
+		return best
+	near = reach * 0.8
+	for t in things:
+		if not t.is_enemy() and shootable(t) and not t in skip and t.ground().distance_to(foot) < near:
+			near = t.ground().distance_to(foot)
+			best = t
+	return best
+
+
+## A weapon's hit on `t`, `power` laser hits' worth (fractions add up): the police and army are hit
+## (LASER_HITS blow them up), cars and oil drums blow up, people and animals are zapped away, and
+## anything standing (buildings, trees, crops, fences...) takes damage until it comes apart
+func weapon_hit(t: Thing, at: Vector3, power: float) -> void:
+	if is_instance_valid(t) and t.has_meta("dummy"):
+		_dummy_hit(t, power)
+		return
+	if not shootable(t) and not (is_instance_valid(t) and t.state == "walk" and t.is_enemy()):
+		return
+	var due := float(t.get_meta("dmg", 0.0)) + power
+	if t.is_enemy():
+		while due >= 1.0 and is_instance_valid(t) and t.state == "walk":
+			due -= 1.0
+			_laser_hit(t, at)
+		if is_instance_valid(t):
+			t.set_meta("dmg", due)
+		return
+	if t.kind in VEHICLES or t.info.get("explosive", false):
+		if due >= 1.0:
+			explode(t)
+		else:
+			t.set_meta("dmg", due)
+			Ps1.flash(t.model, Color(1.0, 0.4, 0.1))
+			_unflash(t, 0.15)
+		return
+	if t.info["move"] == "still":
+		_blast(t, power * 3.0)
+		return
+	if due >= 0.5:
+		_zap_away(t)
+	else:
+		t.set_meta("dmg", due)
+		t.panic = maxf(t.panic, 4.0)
+
+
+func _unflash(t: Thing, after: float) -> void:
+	var held: WeakRef = weakref(t)
+	create_tween().tween_callback(func() -> void:
+		var still: Thing = held.get_ref()
+		if still != null:
+			Ps1.flash(still.model, Color.BLACK)).set_delay(after)
+
+
+## Someone or some animal hit by a weapon: gone in a flash of light and a puff of sparks (no harm shown,
+## as with the beam), for a share of its points
+func _zap_away(t: Thing) -> void:
+	var at := t.position + Vector3(0, 0.6, 0)
+	ufo.puffs.puff(at, Color(0.85, 0.95, 1.0, 0.8), 1.0 + t.size() * 0.3, Vector3(0, 1.5, 0), 0.5)
+	for i in 6:
+		ufo.puffs.spark(at, Vector3(randf_range(-1, 1), randf_range(0.5, 1.5), randf_range(-1, 1)) * randf_range(2.0, 5.0), Color(0.7, 0.9, 1.0))
+	sfx.play("pop", randf_range(1.3, 1.7), _near_db(t) - 2.0)
+	var points := maxi(t.points(), 5) * multiplier()
+	score += points
+	add_heat(0.04)
+	calm = 0.0
+	log_line("%s ZAPPED" % Thing.alien_name(t.kind), points, t.kind)
+	wrecked(t.kind, points)
+	_remove(t)
+
+
+## Something wrecked by a weapon, for the results (by its category)
+func wrecked(kind: String, points: int) -> void:
+	if mode != "play":
+		return
+	var group := Thing.category(kind)
+	var had: Array = _run_wrecked.get(group, [0, 0])
+	_run_wrecked[group] = [int(had[0]) + 1, int(had[1]) + points]
+
+
+# ------------------------------------------------------------------ the lightning gun
+
+## The LIGHTNING GUN, aimed by hand: held, a bolt every LIGHTNING_EVERY seconds (sooner a stack) from
+## the ship to the aimed mark, striking what is there and leaping on from it to the next near, and the
+## next (two leaps, and one more a stack), each hit a little weaker. SIZE RAY widens where it strikes
+## and how far it leaps.
+const LIGHTNING_EVERY := 0.34
+var _bolt_wait := 0.0
+## Bolts drawn: [node, its material, its age]
+var _bolts: Array = []
+
+
+func _lightning(delta: float, firing: bool) -> void:
+	for b: Array in _bolts.duplicate():
+		b[2] = float(b[2]) + delta
+		var k := float(b[2]) / 0.3
+		(b[1] as StandardMaterial3D).albedo_color.a = maxf(1.0 - k, 0.0)
+		if k >= 1.0:
+			(b[0] as Node).queue_free()
+			_bolts.erase(b)
+	_bolt_wait -= delta
+	if not firing or ufo.dead or mode != "play" or _bolt_wait > 0.0:
+		return
+	var level: int = maxi(upgrades["lightning"], 1)
+	_bolt_wait = maxf(LIGHTNING_EVERY - 0.03 * (level - 1), 0.15)
+	var big := weapon_size()
+	var at := target_point()
+	var from := ufo.global_position + Vector3(0, -0.6, 0)
+	var power := 0.8 + 0.3 * (level - 1)
+	var struck: Array = []
+	var hit := weapon_target(at, 2.4 * big)
+	var end := at
+	if hit != null:
+		end = hit.global_position + Vector3(0, minf(hit.size() * 0.5, 2.0), 0)
+		struck.append(hit)
+	_bolt(from, end, 0.17 * big)
+	_scorch(Vector3(end.x, 0, end.z), 0.9 * big)
+	ufo.puffs.puff(Vector3(end.x, 0.3, end.z), Color(0.8, 0.9, 1.0, 0.85), 1.3 * big, Vector3(0, 1.0, 0), 0.3)
+	for i in 6:
+		ufo.puffs.spark(end, Vector3(randf_range(-1, 1), randf_range(0.5, 1.5), randf_range(-1, 1)) * randf_range(3.0, 7.0), Color(0.7, 0.85, 1.0))
+	_flash_light(end, Color(0.65, 0.8, 1.0))
+	var chain: Array = [[hit, end]] if hit != null else []
+	var last := end
+	for i in 2 + (level - 1):
+		var next := weapon_target(last, (5.0 + 0.8 * level) * big, struck)
+		if next == null:
+			break
+		var to := next.global_position + Vector3(0, minf(next.size() * 0.5, 2.0), 0)
+		_bolt(last, to, 0.12 * big)
+		struck.append(next)
+		chain.append([next, to])
+		last = to
+	# (hit after the bolts are drawn: a hit may take what it struck away)
+	for i in chain.size():
+		weapon_hit(chain[i][0], chain[i][1], power * pow(0.75, i))
+	sfx.play("crack", randf_range(0.85, 1.15), -2.0)
+	_shake = maxf(_shake, 0.06)
+
+
+## A bolt of lightning from `a` to `b`, `thick` across: a jagged run of glowing pieces, gone in a moment
+func _bolt(a: Vector3, b: Vector3, thick: float) -> void:
+	var holder := Node3D.new()
+	holder.top_level = true
+	view.add_child(holder)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.albedo_color = Color(0.85, 0.93, 1.0, 1.0)
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var rod := CylinderMesh.new()
+	rod.top_radius = 1.0
+	rod.bottom_radius = 1.0
+	rod.height = 1.0
+	rod.radial_segments = 4
+	rod.rings = 1
+	var steps := maxi(int(a.distance_to(b) / 1.2), 3)
+	var side := (b - a).cross(Vector3.UP).normalized() if absf((b - a).normalized().y) < 0.95 else Vector3.RIGHT
+	var other := (b - a).cross(side).normalized()
+	var prev := a
+	for k in steps:
+		var s := float(k + 1) / steps
+		var point := a.lerp(b, s)
+		if k < steps - 1:
+			point += (side * randf_range(-1, 1) + other * randf_range(-1, 1)) * 0.45 * a.distance_to(b) / steps
+		var along := point - prev
+		if along.length() > 0.01:
+			for pass_ in 2:
+				var piece := MeshInstance3D.new()
+				piece.mesh = rod
+				piece.material_override = m
+				piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				var w := thick * (3.2 if pass_ == 0 else 1.0)
+				holder.add_child(piece)
+				piece.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, along.normalized())) * Basis.from_scale(Vector3(w, along.length(), w)), (prev + point) * 0.5)
+				if pass_ == 0:
+					piece.transparency = 0.45
+		prev = point
+	_bolts.append([holder, m, 0.0])
+
+
+## A quick flash of light at `at`
+func _flash_light(at: Vector3, c: Color) -> void:
+	var light := OmniLight3D.new()
+	light.light_color = c
+	light.light_energy = 5.0
+	light.omni_range = 12.0
+	light.position = at + Vector3(0, 1.0, 0)
+	view.add_child(light)
+	var tw := create_tween()
+	tw.tween_property(light, "light_energy", 0.0, 0.18)
+	tw.tween_callback(light.queue_free)
 
 
 # ------------------------------------------------------------------ boosts
@@ -1584,8 +1977,8 @@ func _levels() -> void:
 const RARITY_COLOURS: Array[Color] = [Color(0.4, 1.0, 0.5), Color(0.35, 0.65, 1.0), Color(1.0, 0.3, 0.3)]
 const RARITY_NAMES: Array[String] = ["COMMON", "UNCOMMON", "RARE"]
 const RARITY_ODDS: Array[float] = [6.0, 2.5, 0.8]
-const UNCOMMON: Array[String] = ["laser", "turret", "starbits", "cloak", "nanobots", "gold", "armor"]
-const RARE: Array[String] = ["missiles", "emp", "fleet", "second_wind", "sling"]
+const UNCOMMON: Array[String] = ["laser", "turret", "starbits", "cloak", "nanobots", "gold", "armor", "beam"]
+const RARE: Array[String] = ["missiles", "emp", "fleet", "second_wind", "sling", "lightning"]
 
 
 func rarity(what: String) -> int:
@@ -1616,12 +2009,19 @@ func _level_up() -> void:
 	if offers.is_empty():
 		return
 	if autopilot or testing:
-		_pick(offers[0])
+		# (a new weapon would drop one of the ship's own: the autopilot takes something else if offered)
+		var take: String = offers[0]
+		for o: String in offers:
+			if not (o in WEAPONS and not has_weapon(o) and weapons_had().size() >= WEAPON_SLOTS):
+				take = o
+				break
+		_pick(take)
 		return
 	sfx.play("fanfare", 1.2, -2.0)
 	for b in _picks.get_children():
 		b.queue_free()
 	_picker_title.text = "MOON MARKET"
+	_pick_one.visible = false
 	# (the market's trading saucer coming down out of the sky behind it)
 	if not is_instance_valid(_market):
 		_market = MarketShip.new()
@@ -1663,10 +2063,18 @@ func _level_up() -> void:
 
 
 func _pick(what: String) -> void:
+	if what in WEAPONS and not has_weapon(what) and weapons_had().size() >= WEAPON_SLOTS and not (autopilot or testing):
+		_ask_drop(what)
+		return
+	_picked(what)
+
+
+## The pick made: the market packs up and the game goes on
+func _picked(what: String, drop := "") -> void:
 	if what == "patch":
 		repair()
-	else:
-		buy(what)
+	elif what != "":
+		buy(what, drop)
 	if is_instance_valid(_market):
 		_market.leave()
 	_picker.visible = false
@@ -1674,10 +2082,47 @@ func _pick(what: String) -> void:
 		_picker_dim.visible = false
 	get_tree().paused = false
 
-## An upgrade: one more level of it (up to MAX_UPGRADE), for nothing (see `_level_up`)
-func buy(what: String) -> bool:
+## A new weapon with both slots full, picked at the Moon Market: which to drop for it (or keep both,
+## and take nothing)
+func _ask_drop(what: String) -> void:
+	for b in _picks.get_children():
+		b.queue_free()
+	var big := _upright()
+	_picker_title.text = "TWO WEAPONS AT MOST"
+	_pick_one.text = "DROP ONE FOR THE %s?" % UPGRADES[what]["title"]
+	_pick_one.visible = true
+	_pick_one.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var choices: Array = []
+	for w in weapons_had():
+		choices.append([w, "DROP %s  x%d" % [UPGRADES[w]["title"], upgrades[w]], func() -> void: _picked(what, w)])
+	choices.append(["", "KEEP MY WEAPONS", func() -> void: _picked("")])
+	for c: Array in choices:
+		var b := _button(c[1], c[2])
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		b.custom_minimum_size = Vector2(1180, 200) if big else Vector2(600, 96)
+		b.add_theme_font_size_override("font_size", 70 if big else 34)
+		if c[0] != "":
+			b.add_theme_color_override("font_color", (UPGRADES[c[0]]["colour"] as Color).lerp(Color.WHITE, 0.35))
+			b.icon = holograms.turning("item:" + str(c[0]))
+			b.expand_icon = true
+			b.add_theme_constant_override("icon_max_width", 180 if big else 80)
+			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			b.add_theme_constant_override("h_separation", 30 if big else 18)
+		_picks.add_child(b)
+	sfx.play("click", 1.0, -4.0)
+
+
+## An upgrade: one more level of it (up to MAX_UPGRADE), for nothing (see `_level_up`). A new weapon
+## with both weapon slots full drops `drop` for it (or else the oldest that is not the beam)
+func buy(what: String, drop := "") -> bool:
 	if upgrades[what] >= MAX_UPGRADE:
 		return false
+	if what in WEAPONS and not has_weapon(what):
+		if weapons_had().size() >= WEAPON_SLOTS:
+			drop_weapon(drop if has_weapon(drop) else _auto_drop())
+		_got.append(what)
+		if aimed == "" and manual(what):
+			aimed = what
 	upgrades[what] += 1
 	if not what in _log_items:
 		_log_items.append(what)
@@ -1689,8 +2134,12 @@ func buy(what: String) -> bool:
 		ufo.hull = minf(ufo.hull + 15.0, ufo.hull_max)
 	if what == "turret" and upgrades[what] == 1:
 		_banner("AUTO TURRET ARMED: IT FIRES BY ITSELF", 2.5)
-	elif what == "laser" and upgrades[what] == 1:
-		_banner("LASER: SWITCH THE BEAM OVER TO IT AND FIRE", 3.0)
+	elif manual(what) and upgrades[what] == 1:
+		if manual_weapons().size() > 1:
+			_banner("%s: SWITCH TO IT (L, OR ITS BUTTON) AND HOLD TO FIRE" % UPGRADES[what]["title"], 3.0)
+		else:
+			aimed = what
+			_banner("%s: AIM IT AND HOLD THE BEAM'S BUTTON" % UPGRADES[what]["title"], 3.0)
 	elif what == "fleet" and upgrades[what] == 1:
 		_banner("A LITTLE SAUCER JOINS YOU", 2.5)
 	sfx.play("bloop", 1.4)
@@ -1718,6 +2167,7 @@ func repair() -> void:
 ## fires sooner and reaches further.
 func _laser(delta: float) -> void:
 	_laser_wait -= delta
+	_prop_wait -= delta
 	var level: int = upgrades["turret"]
 	if level == 0 or ufo.dead or mode != "play" or intro > 0.0 or _laser_wait > 0.0:
 		return
@@ -1733,26 +2183,38 @@ func _laser(delta: float) -> void:
 			if j.position.distance_to(ufo.position) < nearest:
 				nearest = j.position.distance_to(ufo.position)
 				target = j
-	if target == null and heat_level() >= 1:
-		# (the police and army by how far off they are on the ground, not up to the ship)
-		nearest = 14.0 + 3.0 * level
-		for t in things:
-			if t.is_enemy() and t.state == "walk" and not t.leaving and t.ground().distance_to(ufo.ground()) < nearest:
-				nearest = t.ground().distance_to(ufo.ground())
-				target = t
+	if target == null:
+		# (the police and army first, by how far off they are on the ground, not up to the ship; and
+		# then anything else near, on a reload of its own: shooting at things never keeps it from a
+		# shell coming in)
+		target = weapon_target(ufo.ground(), 14.0 + 3.0 * level)
+		if target != null and not (target as Thing).is_enemy():
+			if _prop_wait > 0.0:
+				return
+			_prop_wait = laser_reload()
+		elif target != null:
+			_laser_wait = laser_reload()
+	else:
+		_laser_wait = laser_reload()
 	if target == null:
 		return
-	_laser_wait = laser_reload()
 	if ufo.laser == null:
 		ufo.arm_laser()
 	var at := target.global_position + (Vector3(0, 1.0, 0) if target is Thing else Vector3.ZERO)
-	_zap(ufo.aim_laser(at), at)
+	_rattle(ufo.aim_laser(at), at)
 	if target is Shot:
 		(target as Shot).done = true
 		boom(at, 1.0)
 		_popup("SHOT DOWN", at + Vector3(0, 1.0, 0), Color(1.0, 0.55, 0.65))
 	elif target is Thing:
-		_laser_hit(target, at)
+		# (SIZE RAY: a burst round where it hits, catching what is beside it)
+		var splash := 1.6 * (weapon_size() - 1.0)
+		if splash > 0.1:
+			boom(at, 0.8 + splash)
+			for o in things.duplicate():
+				if o != target and shootable(o) and o.ground().distance_to(Vector3(at.x, 0, at.z)) < splash:
+					weapon_hit(o, o.position + Vector3(0, 0.8, 0), 0.5)
+		weapon_hit(target, at, 1.0)
 	else:
 		# A jet, out of the sky
 		jets.erase(target)
@@ -1827,25 +2289,49 @@ func _emp() -> void:
 	var n: int = upgrades["emp"]
 	if n <= 0:
 		return
-	# (bigger and bigger with each EMP stacked)
-	var reach := 9.0 + 5.0 * n
+	# (bigger and bigger with each EMP stacked, and with SIZE RAY)
+	var reach := (9.0 + 5.0 * n) * weapon_size()
 	_emp_blast(reach)
 	sfx.play("static", 0.6, 2.0)
 	_shake = maxf(_shake, 0.2 + 0.05 * n)
+	# (what is caught, worked out first: the damage done may take things away)
+	var caught: Array[Thing] = []
 	for t in things:
-		if t.state != "walk" or t.position.distance_to(ufo.position) > reach:
+		if t.state == "walk" and t.position.distance_to(ufo.position) <= reach:
+			caught.append(t)
+	for t in caught:
+		if not is_instance_valid(t) or t.state != "walk":
 			continue
+		var hurt := false
 		if t.is_enemy():
 			t.reload = maxf(t.reload, 0.0) + 2.5 + 0.5 * n
 			t.burst = 0
 			t.stunned = maxf(t.stunned, 0.8 + 0.4 * n)
-		elif n >= 2 and t.info["move"] in ["flee", "believer", "graze", "peck", "guard"]:
+			hurt = true
+			# (and it hurts them: half a laser hit, more a stack)
+			weapon_hit(t, t.global_position + Vector3(0, 1.0, 0), 0.5 + 0.35 * n)
+		elif t.kind in VEHICLES or t.kind in ELECTRIC:
+			# (cars and wires fried: cars may go up, poles and dishes and lights come down)
+			hurt = true
+			if t.kind in VEHICLES:
+				weapon_hit(t, t.global_position + Vector3(0, 1.0, 0), 0.5 + 0.35 * n)
+			elif shootable(t):
+				_blast(t, 2.0 + 2.0 * n)
+		elif t.info["move"] in ["flee", "believer", "graze", "peck", "guard"]:
 			# (from the second EMP on, people and animals caught in it are paralysed a while too)
-			t.stunned = maxf(t.stunned, 1.0 + 0.8 * n)
-		else:
-			continue
-		for i in 3:
-			ufo.puffs.spark(t.global_position + Vector3(0, 1.0, 0), Vector3(randf_range(-2, 2), randf_range(1, 3), randf_range(-2, 2)), Color(0.55, 0.85, 1.0))
+			if n >= 2:
+				t.stunned = maxf(t.stunned, 1.0 + 0.8 * n)
+				hurt = true
+		elif t.info["move"] == "still" and shootable(t):
+			# (anything else standing shaken: a little damage)
+			_blast(t, 0.5 * n)
+		if hurt and is_instance_valid(t):
+			for i in 3:
+				ufo.puffs.spark(t.global_position + Vector3(0, 1.0, 0), Vector3(randf_range(-2, 2), randf_range(1, 3), randf_range(-2, 2)), Color(0.55, 0.85, 1.0))
+
+
+## What an EMP fries besides cars: anything on wires or full of electronics
+const ELECTRIC := ["phone_pole", "substation", "seti_dish", "street_light", "lamp_post", "phone_booth", "satellite", "floodlight", "highway_sign", "screen", "speaker_post", "pumpjack", "control_tower", "mission_control", "observatory", "telescope", "railgun", "laser_truck", "irrigation", "booth"]
 
 
 ## The EMP's blast: a shell of crackling electricity swelling out to `reach` and fading (emp.gdshader)
@@ -1929,15 +2415,9 @@ func _launch_missiles(delta: float) -> void:
 				_fire_missile(d.global_position, t)
 
 
-## The nearest of the police and army within reach of `from`, or null
+## The nearest of the police and army within reach of `from`, or else of anything else, or null
 func _missile_target(from: Vector3) -> Thing:
-	var best: Thing = null
-	var near := MISSILE_REACH
-	for t in things:
-		if t.is_enemy() and t.state == "walk" and not t.leaving and t.position.distance_to(from) < near:
-			near = t.position.distance_to(from)
-			best = t
-	return best
+	return weapon_target(from, MISSILE_REACH)
 
 
 func _fire_missile(from: Vector3, target: Thing) -> void:
@@ -1953,7 +2433,7 @@ func _fire_missile(from: Vector3, target: Thing) -> void:
 
 func _fly_missile(m: Array, delta: float) -> void:
 	var node: Node3D = m[0]
-	var target: Thing = m[1] if is_instance_valid(m[1]) and (m[1] as Thing).state == "walk" else null
+	var target: Thing = m[1] if is_instance_valid(m[1]) and (m[1] as Thing).state == "walk" and (m[1] as Thing).position.y < 40.0 else null
 	var v: Vector3 = m[2]
 	var goal := target.global_position + Vector3(0, 0.8, 0) if target != null else node.global_position + v
 	# (turning toward its target, quicker the nearer it is)
@@ -1966,19 +2446,32 @@ func _fly_missile(m: Array, delta: float) -> void:
 		ufo.puffs.puff(node.global_position, Color(0.75, 0.75, 0.78, 0.6), 0.25, Vector3(0, 0.6, 0), 0.6)
 	var hit := target != null and node.global_position.distance_to(goal) < 1.0
 	if hit or node.global_position.y < 0.0 or target == null and node.global_position.distance_to(ufo.position) > MISSILE_REACH * 2.0:
+		var at := goal if hit else node.global_position
+		# (a blast, bigger with SIZE RAY, catching whatever is round it)
+		var splash := 2.6 * weapon_size()
+		boom(at, 1.5 * weapon_size())
 		if hit:
-			# (blown up outright)
-			target.set_meta("zapped", 99)
-			_laser_hit(target, goal)
-		else:
-			boom(node.global_position, 1.5)
+			# (what it was after blown up outright)
+			if target.is_enemy():
+				target.set_meta("zapped", 99)
+			weapon_hit(target, goal, 4.0)
+		for o in things.duplicate():
+			if o != target and shootable(o) and o.ground().distance_to(Vector3(at.x, 0, at.z)) < splash:
+				weapon_hit(o, o.position + Vector3(0, 0.8, 0), 1.2)
 		node.queue_free()
 		_missiles.erase(m)
 # ------------------------------------------------------------------ the ship's own laser
 
-## Switched over to the laser (see `toggle_laser`): the beam's button fires it instead, where the
-## beam would fall
-var laser_mode := false
+## Switched over to the laser (see `toggle_weapon`): the beam's button fires it instead, where the
+## beam would fall (the laser aimed: see `aimed`)
+var laser_mode: bool:
+	get:
+		return aimed == "laser"
+	set(value):
+		if value and has_weapon("laser"):
+			aimed = "laser"
+		elif not value and aimed == "laser":
+			aimed = "beam" if has_weapon("beam") else _first_manual()
 var _cut_wait := 0.0
 var _cut_ray: MeshInstance3D
 var _cut_mat: StandardMaterial3D
@@ -1987,14 +2480,9 @@ var laser_button: Control
 var cloak_button: Control
 
 
-## The beam switched over to the laser, or back (only once a LASER is had)
+## The beam switched over to the laser, or back (see `toggle_weapon`, which goes through all of them)
 func toggle_laser() -> void:
-	if upgrades["laser"] <= 0 or mode != "play":
-		laser_mode = false
-		return
-	laser_mode = not laser_mode
-	sfx.play("zap" if laser_mode else "bloop", 0.8 if laser_mode else 1.2, -6.0)
-	_heat_note("LASER" if laser_mode else "BEAM", 0.8)
+	toggle_weapon()
 
 
 ## Holding the beam's button with the laser switched over: a red-hot ray from under the ship to where
@@ -2023,12 +2511,11 @@ func _cut(delta: float, firing: bool) -> void:
 	if not _cut_ray.visible:
 		_last_scorch = Vector3.INF
 		return
-	var aim := _beam_aim()
 	var from := ufo.global_position + Vector3(0, -0.6, 0)
 	# (aimed over a much wider spread than the beam's lean: the thumb sweeps it well out from under the ship)
-	var foot := ufo.ground() + Vector3(aim.x, 0, aim.y) * ufo.beam_reach * 3.5
+	var foot := target_point()
 	var along := foot - from
-	var wide := 0.12 + 0.05 * sin(Time.get_ticks_msec() * 0.05)
+	var wide := (0.12 + 0.05 * sin(Time.get_ticks_msec() * 0.05)) * weapon_size()
 	_cut_ray.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, along.normalized())) * Basis.from_scale(Vector3(wide, along.length(), wide)), (from + foot) * 0.5)
 	# (a trail of burns along the ground where it has been)
 	if _last_scorch == Vector3.INF or Vector2(foot.x - _last_scorch.x, foot.z - _last_scorch.z).length() > 0.4:
@@ -2041,14 +2528,16 @@ func _cut(delta: float, firing: bool) -> void:
 	_cut_wait -= delta
 	if _cut_wait > 0.0:
 		return
-	_cut_wait = maxf(0.55 - 0.07 * upgrades["laser"], 0.15)
+	_cut_wait = maxf(0.4 - 0.05 * upgrades["laser"], 0.12)
 	sfx.play("zap", randf_range(0.9, 1.1), -10.0)
 	for t in things.duplicate():
 		if t.state != "walk" or t.hiding:
 			continue
-		if Vector2(t.position.x - foot.x, t.position.z - foot.z).length() > 1.8 + t.size() * 0.3:
+		if Vector2(t.position.x - foot.x, t.position.z - foot.z).length() > 1.8 * weapon_size() + t.size() * 0.3:
 			continue
-		if t.is_enemy():
+		if t.has_meta("dummy"):
+			_dummy_hit(t, 1.0)
+		elif t.is_enemy():
 			_laser_hit(t, t.global_position + Vector3(0, 1.0, 0))
 		elif t.info.get("explosive", false) or t.kind in VEHICLES:
 			explode(t)
@@ -2071,7 +2560,7 @@ func _burn(t: Thing) -> void:
 		t.panic = 2.5
 	if t.size() > laser_burns():
 		return
-	var burnt: float = float(t.get_meta("burnt", 0.0)) + level
+	var burnt: float = float(t.get_meta("burnt", 0.0)) + level + 1
 	if burnt < ceilf(t.size() * t.size()):
 		t.set_meta("burnt", burnt)
 		Ps1.flash(t.model, Color(1.0, 0.35, 0.1))
@@ -2087,6 +2576,9 @@ func _burn(t: Thing) -> void:
 ## Caught in an explosion: `hurt` of damage on what it has taken (as the laser's, see `_burn`),
 ## shaken and lit up, and brought down once that reaches its size squared
 func _blast(t: Thing, hurt: float) -> void:
+	if t.has_meta("dummy"):
+		_dummy_hit(t, hurt / 3.0)
+		return
 	var taken: float = float(t.get_meta("burnt", 0.0)) + hurt
 	if taken >= ceilf(t.size() * t.size()):
 		_vaporise(t, "BLOWN APART")
@@ -2165,11 +2657,12 @@ func _vaporise(t: Thing, how := "BURNT DOWN") -> void:
 	_scorch(at, 0.8 + big * 0.8)
 	sfx.play("boom", clampf(1.8 - big * 0.25, 0.7, 1.6), _near_db(t) - 2.0)
 	_shake = maxf(_shake, 0.08 * big)
-	var points := maxi(t.points() / 2, 5) * multiplier()
+	var points := maxi(t.points(), 5) * multiplier()
 	score += points
 	add_heat(0.05 + 0.04 * big)
 	calm = 0.0
 	log_line("%s %s" % [Thing.alien_name(t.kind), how], points, t.kind)
+	wrecked(t.kind, points)
 	if t.kind == "prison":
 		_prison_break(at)
 	# (a building comes apart in the very parts it was made of, thrown out and falling back)
@@ -2258,6 +2751,44 @@ func _zap(from: Vector3, to: Vector3) -> void:
 	sfx.play("zap", 1.0, -2.0)
 
 
+## The AUTO TURRET firing: a quick burst of glowing amber tracer rounds from its twin muzzles to `to`,
+## a flash at the muzzle and little pops and sparks where they land, with a rapid chatter (unlike the
+## laser ray's red beam and zap)
+func _rattle(from: Vector3, to: Vector3) -> void:
+	var way := to - from
+	var long := way.length()
+	if long < 0.1:
+		return
+	_blob(from, Color(1.0, 0.8, 0.35), 0.5, 0.12)
+	sfx.play("chatter", randf_range(0.95, 1.1), -3.0)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.albedo_color = Color(1.0, 0.82, 0.4)
+	var streak := BoxMesh.new()
+	streak.size = Vector3(0.09, 0.09, 0.9)
+	var side := way.cross(Vector3.UP).normalized() if Vector2(way.x, way.z).length() > 0.1 else Vector3.RIGHT
+	for i in 4:
+		var round_ := MeshInstance3D.new()
+		round_.mesh = streak
+		round_.material_override = m
+		round_.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		view.add_child(round_)
+		var off := side * (0.09 if i % 2 == 0 else -0.09)
+		var land := to + Vector3(randf_range(-0.4, 0.4), randf_range(-0.2, 0.3), randf_range(-0.4, 0.4))
+		round_.look_at_from_position(from + off, land, Vector3.UP if Vector2(way.x, way.z).length() > 0.1 else Vector3.FORWARD)
+		round_.visible = false
+		var fly := long / 70.0
+		var tw := create_tween()
+		tw.tween_interval(i * 0.06)
+		tw.tween_callback(func() -> void: round_.visible = true)
+		tw.tween_property(round_, "global_position", land, fly)
+		tw.tween_callback(func() -> void:
+			ufo.puffs.spark(land, Vector3(randf_range(-2, 2), randf_range(1.5, 3.5), randf_range(-2, 2)), Color(1.0, 0.75, 0.3))
+			_blob(land, Color(1.0, 0.7, 0.3), 0.45, 0.12)
+			round_.queue_free())
+
+
 ## The mini fleet: each moved, and any shot that meets one stopped there
 func _fleet(delta: float) -> void:
 	for d in fleet:
@@ -2330,19 +2861,61 @@ func captive(held: String, c: Vector2i) -> String:
 ## Whatever stands under the beam throws a shadow in its light while it is on (not only what it has
 ## hold of); what it leaves behind stops
 var _shadowed: Array[Thing] = []
-func _beam_shadows() -> void:
+## The beam is a strong light: while it is on, everything standing in the pool of light round its foot
+## (people, animals, cars, buildings, fences, crops, and the scenery's trees and rocks, a chunk's
+## MultiMesh at a time) casts shadows from it onto the ground and each other, not only what is up the
+## beam. Looked over BEAM_SHADE_EVERY seconds apart (on at once when the beam comes on), and all of it
+## let go when the beam goes off, so it costs nothing then.
+const BEAM_SHADE_EVERY := 0.2
+var _shade_wait := 0.0
+var _shaded_scenery: Array[GeometryInstance3D] = []
+
+
+func _beam_shadows(delta: float) -> void:
+	_shade_wait -= delta
+	var on := ufo.beaming and not ufo.dead
+	if on and _shade_wait > 0.0 and not (_shadowed.is_empty() and _shaded_scenery.is_empty()):
+		return
+	if not on and _shadowed.is_empty() and _shaded_scenery.is_empty():
+		return
+	_shade_wait = BEAM_SHADE_EVERY
 	var now: Array[Thing] = []
-	if ufo.beaming and not ufo.dead:
+	var scenery: Array[GeometryInstance3D] = []
+	if on:
 		var foot := ufo.beam_axis(0.0)
+		foot.y = 0.0
+		# (the pool of light: the beam's foot and a good way past it, where the light still falls strongly)
+		var reach := ufo.beam_foot + 6.0
 		for t in things:
-			if t.state == "walk" and t.ground().distance_to(foot) < ufo.beam_foot + 3.0:
+			if t.state == "walk" and not t.hiding and t.ground().distance_to(foot) < reach + t.size() * 0.5:
 				now.append(t)
+		var here := World.chunk_of(foot)
+		for x in range(-1, 2):
+			for z in range(-1, 2):
+				var node: Node = world.chunks.get(here + Vector2i(x, z))
+				if node == null or not is_instance_valid(node):
+					continue
+				for c in node.get_children():
+					if c is MultiMeshInstance3D:
+						var mmi := c as MultiMeshInstance3D
+						var box := mmi.global_transform * mmi.get_aabb()
+						var near := Vector3(clampf(foot.x, box.position.x, box.end.x), 0.0, clampf(foot.z, box.position.z, box.end.z))
+						if near.distance_to(foot) < reach:
+							scenery.append(mmi)
 	for t in _shadowed:
 		if is_instance_valid(t) and t.state == "walk" and not t in now:
 			t.shade(false)
 	for t in now:
 		t.shade(true)
 	_shadowed = now
+	for g in _shaded_scenery:
+		if is_instance_valid(g) and not g in scenery:
+			g.set_layer_mask_value(Thing.BEAM_LAYER, false)
+			g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for g in scenery:
+		g.set_layer_mask_value(Thing.BEAM_LAYER, true)
+		g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_shaded_scenery = scenery
 ## The beam pulls up the scenery under it that it is strong enough for, a piece at a time
 func _pull_scenery(delta: float) -> void:
 	_pull_wait -= delta
@@ -3091,6 +3664,8 @@ func explode(t: Thing) -> void:
 	log_line("%s BLOWN UP" % t.kind.replace("_", " ").to_upper(), points)
 	if t.is_enemy():
 		_count_kill(t.kind)
+	else:
+		wrecked(t.kind, points)
 	add_heat(0.3)
 	calm = 0.0
 	_remove(t)
@@ -3264,6 +3839,13 @@ func _results(is_best: bool) -> String:
 			lines.append("   %s x%d  %d" % [group, int(_run_taken[group][0]), int(_run_taken[group][1])])
 	if lines.size() == 3:
 		lines.append("   NOTHING")
+	# (what the weapons wrecked, category by category)
+	if not _run_wrecked.is_empty():
+		lines.append("")
+		lines.append("WRECKED")
+		for group: String in Thing.CATEGORIES:
+			if _run_wrecked.has(group):
+				lines.append("   %s x%d  %d" % [group, int(_run_wrecked[group][0]), int(_run_wrecked[group][1])])
 	# (the hunters destroyed, kind by kind)
 	if not _run_killed.is_empty():
 		lines.append("")
@@ -3466,6 +4048,7 @@ var _mib_out := false
 
 
 func _men_in_black() -> void:
+	_army_away()
 	# (drawn out: their time runs at MIB_PACE of the clock's)
 	var t := (_wreck_t - MIB_COME) * MIB_PACE
 	if t < 0.0 or not is_instance_valid(_wreck_pilot):
@@ -3554,7 +4137,154 @@ func _men_in_black() -> void:
 		_place(_mib_car, _mib_stop.lerp(away, k), away - _mib_stop)
 	elif t >= off + 3.6:
 		_mib_car.visible = false
+	_crime_scene(t - off - 2.0)
 	_news(t - off - 5.0)
+
+
+# Once the ship is down the army's done: its jeeps, tanks and trucks drive off and every helicopter and
+# jet flies away, leaving the police (ARMY_AWAY seconds after the crash)
+const ARMY_AWAY := 3.0
+var _army_gone := false
+
+
+func _army_away() -> void:
+	if _army_gone or _wreck_t < ARMY_AWAY or mode != "over":
+		return
+	_army_gone = true
+	for th: Thing in things:
+		if not th.is_enemy() or th.state != "walk" or th.leaving:
+			continue
+		var police: bool = th.info.get("police", false) or th.kind in ["officer", "moto_cop"]
+		var flying: bool = th.info["move"] in ["hover", "fly", "jet"]
+		if flying or (not police and not th.kind in ["agent", "agent_car"]):
+			th.leaving = true
+
+
+# The crime scene, once the men in black have gone: a police car pulls up, and two officers get out;
+# one walks round the crater setting posts and stringing police tape between them, the other sets
+# numbered evidence markers about it, then they stand guard
+const TAPE_POSTS := 10
+var _scene_car: Node3D
+var _scene_cops: Array[Node3D] = []
+var _scene_posts: Array[Vector3] = []
+var _scene_done := 0
+var _scene_marks := 0
+var _scene_from := Vector3.ZERO
+var _scene_stop := Vector3.ZERO
+
+
+func _crime_scene(t: float) -> void:
+	if t < 0.0 or wreck == Vector3.INF:
+		return
+	var round_r: float = ufo.radius * 2.6 + 2.5
+	if _scene_car == null:
+		var side := Vector3(_pilot_way.z, 0, -_pilot_way.x) if _pilot_way != Vector3.ZERO else Vector3.LEFT
+		_scene_stop = Vector3(wreck.x, 0, wreck.z) + side * (round_r + 3.0)
+		_scene_from = _scene_stop + side * 60.0 + Vector3(0, 0, 25)
+		_scene_car = Ps1.model("police_car", Thing.KINDS["police_car"].get("tints", {}))
+		view.add_child(_scene_car)
+		_wreck_bits.append(_scene_car)
+		for i in 2:
+			var cop := Ps1.model("person", Thing.KINDS["officer"]["tints"])
+			cop.visible = false
+			view.add_child(cop)
+			_wreck_bits.append(cop)
+			_scene_cops.append(cop)
+		_scene_posts.clear()
+		var start := randf() * TAU
+		for i in TAPE_POSTS:
+			var a := start + i * TAU / TAPE_POSTS
+			_scene_posts.append(Vector3(wreck.x, 0, wreck.z) + Vector3(cos(a), 0, sin(a)) * round_r * randf_range(0.95, 1.05))
+		sfx.play("whoosh", 0.7, -6.0)
+	# In, slowing to a stop, its lights going
+	if t < 3.0:
+		var k := 1.0 - pow(1.0 - t / 3.0, 3.0)
+		_place(_scene_car, _scene_from.lerp(_scene_stop, k), _scene_stop - _scene_from)
+		return
+	var door := _scene_stop + (wreck - _scene_stop).normalized() * 1.6
+	if t >= 3.3 and not _scene_cops[0].visible:
+		for cop in _scene_cops:
+			cop.visible = true
+			cop.position = door
+		sfx.play("thud", 1.4, -8.0)
+	# The first: post to post round the crater, the tape strung behind
+	var each := 1.6
+	var walk_t := t - 3.4
+	if walk_t >= 0.0:
+		var leg := mini(int(walk_t / each), TAPE_POSTS)
+		var from: Vector3 = door if leg == 0 else _scene_posts[leg - 1]
+		if leg < TAPE_POSTS:
+			_walk_to(_scene_cops[0], from, _scene_posts[leg], fmod(walk_t, each) / (each * 0.85), t)
+		else:
+			_walk_to(_scene_cops[0], _scene_posts[TAPE_POSTS - 1], _scene_posts[TAPE_POSTS - 1].lerp(door, 0.6), clampf((walk_t - TAPE_POSTS * each) / 1.5, 0.0, 1.0), t)
+		while _scene_done < leg:
+			_tape_post(_scene_posts[_scene_done])
+			if _scene_done > 0:
+				_tape(_scene_posts[_scene_done - 1], _scene_posts[_scene_done])
+			_scene_done += 1
+			if _scene_done == TAPE_POSTS:
+				_tape(_scene_posts[TAPE_POSTS - 1], _scene_posts[0])
+	# The second: evidence markers about the crater, numbered
+	var mark_t := t - 3.6
+	if mark_t >= 0.0:
+		var marks := 6
+		var at_mark := mini(int(mark_t / 1.4), marks)
+		var spot := func(i: int) -> Vector3:
+			var a := i * 2.39996 + 0.7
+			return Vector3(wreck.x, 0, wreck.z) + Vector3(cos(a), 0, sin(a)) * round_r * (0.45 + 0.08 * (i % 3))
+		var prev: Vector3 = door if at_mark == 0 else spot.call(at_mark - 1)
+		if at_mark < marks:
+			_walk_to(_scene_cops[1], prev, spot.call(at_mark), fmod(mark_t, 1.4) / 1.1, t)
+		else:
+			_scene_cops[1].rotation.y = atan2(wreck.x - _scene_cops[1].position.x, wreck.z - _scene_cops[1].position.z)
+		while _scene_marks < at_mark:
+			_evidence(spot.call(_scene_marks), _scene_marks + 1)
+			_scene_marks += 1
+
+
+## A post for the tape: a striped stake
+func _tape_post(at: Vector3) -> void:
+	_wreck_bits.append(Ps1.part(view, CylinderMesh.new(), Ps1.flat(Color(0.95, 0.8, 0.1)), at + Vector3(0, 0.5, 0), Vector3(0.07, 0.5, 0.07)))
+	_wreck_bits.append(Ps1.part(view, CylinderMesh.new(), Ps1.flat(Color(0.08, 0.08, 0.08)), at + Vector3(0, 0.75, 0), Vector3(0.075, 0.08, 0.075)))
+	sfx.play("thud", 2.2, -14.0)
+
+
+## Police tape from one post to the next, sagging a little, with POLICE LINE on it
+func _tape(a: Vector3, b: Vector3) -> void:
+	var mid := (a + b) * 0.5 + Vector3(0, 0.88, 0)
+	var long := a.distance_to(b)
+	var tape := Ps1.part(view, BoxMesh.new(), Ps1.flat(Color(1.0, 0.85, 0.1)), mid, Vector3(long, 0.14, 0.02), Vector3(0, atan2(-(b - a).z, (b - a).x), 0))
+	_wreck_bits.append(tape)
+	for side: float in [-1.0, 1.0]:
+		var words := Label3D.new()
+		words.text = "POLICE LINE  DO NOT CROSS"
+		words.font = font
+		words.font_size = 32
+		words.pixel_size = 0.0045
+		words.modulate = Color(0.06, 0.06, 0.06)
+		words.double_sided = false
+		words.shaded = false
+		words.position = Vector3(0, 0, 0.6 * side)
+		words.rotation.y = 0.0 if side > 0.0 else PI
+		words.scale = Vector3(1.0 / maxf(long, 0.1), 1.0 / 0.14, 1.0)
+		tape.add_child(words)
+
+
+## A numbered evidence marker: a little yellow tent on the ground
+func _evidence(at: Vector3, number: int) -> void:
+	var mark := Ps1.part(view, PrismMesh.new(), Ps1.flat(Color(1.0, 0.82, 0.1)), at + Vector3(0, 0.12, 0), Vector3(0.3, 0.24, 0.2), Vector3(0, randf() * TAU, 0))
+	_wreck_bits.append(mark)
+	var n := Label3D.new()
+	n.text = str(number)
+	n.font = font
+	n.font_size = 48
+	n.pixel_size = 0.004
+	n.modulate = Color(0.05, 0.05, 0.05)
+	n.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	n.no_depth_test = false
+	n.position = Vector3(0, 0.9, 0)
+	n.scale = Vector3(1.0 / 0.3, 1.0 / 0.24, 1.0 / 0.2) * 0.6
+	mark.add_child(n)
 
 
 # The news, once the men in black have gone: two vans pull up by the meteorite, a reporter and a
@@ -3852,6 +4582,12 @@ func _clear_wreck() -> void:
 	_news_vans.clear()
 	_news_crew.clear()
 	_news_light = null
+	_army_gone = false
+	_scene_car = null
+	_scene_cops.clear()
+	_scene_posts.clear()
+	_scene_done = 0
+	_scene_marks = 0
 	_mib_heli = null
 	_mib_cable = null
 	_mib_meteor = null
@@ -4059,7 +4795,19 @@ func _report(points: int) -> void:
 
 ## Flies the saucer behind the title, and for the tests: to the nearest thing worth taking, beam
 ## on over it until it is in, away from anything shooting when the shield is low
+## Where the autopilot aims the weapons fired by hand (see `_pilot_gunner`)
+var _pilot_aim := Vector2.ZERO
+
+
 func _pilot(delta: float) -> Array:
+	# (an EMP had: a dash now and then among the police and army, which sets it off)
+	if mode == "play" and has_weapon("emp") and ufo.charge >= 1.0 and randf() < delta * 0.8:
+		var near := weapon_target(ufo.ground(), 9.0)
+		if near != null and near.is_enemy():
+			_dodge(Vector2(randf_range(-1, 1), randf_range(-1, 1)))
+	if mode == "play" and (aimed != "beam" or not has_weapon("beam")):
+		return _pilot_gunner(delta)
+	_pilot_aim = Vector2.ZERO
 	if _pilot_target != null and (not is_instance_valid(_pilot_target) or _pilot_target.state == "gone"):
 		_pilot_target = null
 	# (after the same one too long without it coming up: it cannot be got, so on to another)
@@ -4095,6 +4843,42 @@ func _pilot(delta: float) -> Array:
 	var over := flat.length() < 1.2 or _pilot_target.state == "lifted"
 	var steer := flat.normalized() * clampf(flat.length() / 2.0, 0.0, 1.0)
 	return [steer, over or flat.length() < 2.4]
+
+
+## The autopilot with a weapon fired by hand aimed (or no beam at all): after the nearest thing to
+## shoot (the police and army first), flying over toward it, aiming at it and holding the button down
+## once it is in reach; with nothing to shoot near, roaming on to find some
+func _pilot_gunner(delta: float) -> Array:
+	if _pilot_target != null and (not is_instance_valid(_pilot_target) or not shootable(_pilot_target)):
+		_pilot_target = null
+	_pilot_for += delta
+	if _pilot_target != null and _pilot_for > 10.0:
+		_pilot_target.set_meta("pilot_skip", true)
+		_pilot_target = null
+	if _pilot_target == null and aimed == "sling":
+		_pilot_for = 0.0
+		_pilot_target = sling_crowd(ufo.ground(), 40.0)
+	if _pilot_target == null:
+		_pilot_for = 0.0
+		# (not what the aimed weapon cannot hurt: a building too big for the laser to burn, or a bird up
+		# in the air for anything but the lightning)
+		var skip: Array = things.filter(func(t: Thing) -> bool: return t.has_meta("pilot_skip") 			or aimed == "laser" and t.info["move"] == "still" and not t.is_enemy() and not t.kind in VEHICLES and t.size() > laser_burns() 			or aimed != "lightning" and t.position.y > 2.5)
+		_pilot_target = weapon_target(ufo.ground(), 50.0, skip)
+	if _pilot_target == null:
+		_pilot_aim = Vector2.ZERO
+		_pilot_roam_for -= delta
+		if _pilot_roam_for <= 0.0:
+			_pilot_roam_for = randf_range(6.0, 12.0)
+			_pilot_roam = _pilot_roam.rotated(randf_range(-1.2, 1.2))
+		return [_pilot_roam, false]
+	var to := _pilot_target.ground() - ufo.ground()
+	var flat := Vector2(to.x, to.z)
+	var reach := aim_reach()
+	_pilot_aim = (flat / maxf(reach, 0.1)).limit_length(1.0)
+	# (in to about half the weapon's reach, and holding there)
+	var steer := flat.normalized() * clampf((flat.length() - reach * 0.45) / 3.0, -0.5, 1.0) if flat.length() > 0.01 else Vector2.ZERO
+	var hand := aimed != "" and has_weapon(aimed)
+	return [steer, hand and flat.length() < reach * 0.95]
 
 
 # ------------------------------------------------------------------ effects
@@ -5124,6 +5908,12 @@ func _build_hud() -> void:
 	if _in_arcade():
 		_title_row.add_child(_button("SCORES", open_scores))
 	title_box.add_child(_title_row)
+	# (the dev room's TEST ROOM, under them: see `open_test_room`)
+	_test_row = HBoxContainer.new()
+	_test_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_test_row.add_child(_button("TEST ROOM", open_test_room))
+	_test_row.visible = dev
+	title_box.add_child(_test_row)
 	# (QUIT on a row of its own under the others)
 	_quit_row = HBoxContainer.new()
 	_quit_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -5409,9 +6199,11 @@ func _launch(delta: float) -> void:
 ## backwards), and the pilot back in the chair on the title
 func quit_to_menu() -> void:
 	# (flown home alive, alone: the run kept, to carry on with from the title, see `_saved_run`)
-	if mode == "play" and not ufo.dead and not coop.active() and not testing:
-		_saved_run = {"ship": ship, "score": score, "level": level, "upgrades": upgrades.duplicate(),
-			"taken": _run_taken.duplicate(true), "killed": _run_killed.duplicate(), "threat": _threat}
+	if test_room:
+		_leave_test_room()
+	elif mode == "play" and not ufo.dead and not coop.active() and not testing:
+		_saved_run = {"ship": ship, "score": score, "level": level, "upgrades": upgrades.duplicate(), "v": 2,
+			"taken": _run_taken.duplicate(true), "killed": _run_killed.duplicate(), "wrecked": _run_wrecked.duplicate(true), "threat": _threat}
 		_save_best()
 	# (out of any multiplayer room: the others fly on without us)
 	if net != null and net.active():
@@ -5915,7 +6707,7 @@ func _hud(delta: float) -> void:
 	stick_ring.visible = playing and stick_finger != NO_FINGER
 	beam_button.queue_redraw()
 	# (the laser's switch, once there is a laser: up over the beam's resting mark)
-	laser_button.visible = beam_button.visible and upgrades["laser"] > 0
+	laser_button.visible = beam_button.visible and manual_weapons().size() > 1
 	if laser_button.visible:
 		var r := minf(get_viewport().get_visible_rect().size.x, get_viewport().get_visible_rect().size.y) * 0.13
 		laser_button.size = Vector2.ONE * r * 0.95 / hud.scale.x
@@ -5928,6 +6720,8 @@ func _hud(delta: float) -> void:
 		cloak_button.position = (_beam_home() + Vector2(-rc * 1.85, -rc * 0.35)) / hud.scale.x - cloak_button.size * 0.5
 		cloak_button.queue_redraw()
 	_pause_button.visible = playing and not autopilot
+	if _test_open != null:
+		_test_open.visible = test_room and playing and not autopilot
 	heat_note.visible = playing
 	if heat_note_time > 0.0:
 		heat_note_time -= delta
@@ -6016,7 +6810,8 @@ func _debug_show() -> void:
 func _beam_aim() -> Vector2:
 	if beam_finger == NO_FINGER or _beam_at == Vector2.INF:
 		_beam_from = Vector2.INF
-		return Vector2.ZERO
+		# (no finger on it: the aiming keys, or the right stick)
+		return Input.get_vector("aim_left", "aim_right", "aim_up", "aim_down")
 	if _beam_from == Vector2.INF:
 		_beam_from = _beam_at
 	var size := get_viewport().get_visible_rect().size
@@ -6101,6 +6896,9 @@ func _input(event: InputEvent) -> void:
 			and screen_rect(laser_button).grow(10).has_point(event.position):
 		# (a tap on the laser's switch: the beam over to the laser, or back)
 		toggle_laser()
+		return
+	if event is InputEventScreenTouch and event.pressed and _test_open != null and _test_open.visible \
+			and screen_rect(_test_open).grow(8).has_point(event.position):
 		return
 	if event is InputEventScreenTouch and event.pressed and _pause_button.visible \
 			and screen_rect(_pause_button).grow(8).has_point(event.position):
@@ -6891,12 +7689,14 @@ class LaserButton extends Control:
 	func _draw() -> void:
 		var r := size.x * 0.5
 		var c := Vector2(r, r)
-		var on: bool = main.laser_mode
-		draw_circle(c, r, Color(1.0, 0.3, 0.4, 0.35 if on else 0.12))
-		draw_arc(c, r - 2.0, 0, TAU, 32, Color(1.0, 0.55, 0.6, 0.95 if on else 0.5), 3.0)
-		var bolt := PackedVector2Array([c + Vector2(-r * 0.15, -r * 0.55), c + Vector2(r * 0.25, -r * 0.55), c + Vector2(0, -r * 0.05),
-			c + Vector2(r * 0.3, -r * 0.05), c + Vector2(-r * 0.2, r * 0.6), c + Vector2(0, r * 0.1), c + Vector2(-r * 0.3, r * 0.1)])
-		draw_colored_polygon(bolt, Color(1.0, 0.4, 0.5) if on else Color(1.0, 0.6, 0.65, 0.6))
+		# (the weapon the beam's button fires now: its colour and its picture; a tap goes on to the next)
+		var w: String = main.aimed if main.aimed != "" else "beam"
+		var tint: Color = main.UPGRADES[w]["colour"]
+		draw_circle(c, r, Color(tint, 0.3))
+		draw_arc(c, r - 2.0, 0, TAU, 32, Color(tint.lightened(0.3), 0.95), 3.0)
+		var icon: Texture2D = main.holograms.item(w)
+		if icon != null:
+			draw_texture_rect(icon, Rect2(c - Vector2(r, r) * 0.8, Vector2(r, r) * 1.6), false)
 
 
 ## The cloak's button, by the laser's on a touch screen: an eye, lit while cloaked, dim while it
@@ -6927,16 +7727,17 @@ class CloakButton extends Control:
 ## how many are stacked in its corner (from the second on)
 class ItemBar extends Control:
 	## The items, in the order they show
-	const ORDER := ["engine", "beam", "shield", "dash", "laser", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "starbits", "sling", "fleet"]
+	const ORDER := ["engine", "beam", "shield", "dash", "laser", "lightning", "turret", "missiles", "cloak", "magnet", "wide", "scanner", "jammer", "coolant", "nanobots", "gold", "emp", "lucky", "armor", "second_wind", "swivel", "starbits", "sling", "fleet"]
 	const TILE := 40.0
 	## How many rows of items there are (the heat's news goes under them)
 	var rows := 0
 	var main: Node
 
 	func _draw() -> void:
-		var had: Array[String] = []
+		# (the weapons first, then the rest)
+		var had: Array[String] = main.weapons_had()
 		for what: String in ORDER:
-			if int(main.upgrades.get(what, 0)) > 0:
+			if int(main.upgrades.get(what, 0)) > 0 and not what in had:
 				had.append(what)
 		# (as many to a row as fit the width, rows centred, wrapping onto the next)
 		var step := TILE + 6.0
@@ -6955,8 +7756,10 @@ class ItemBar extends Control:
 			var rare: Color = main.RARITY_COLOURS[main.rarity(what)]
 			draw_rect(box.grow(-2.0), Color(rare.r * 0.35, rare.g * 0.35, rare.b * 0.35, 0.75))
 			draw_rect(box.grow(-3.0), colour * Color(1, 1, 1, 0.1))
-			# (its frame the colour of its rarity)
+			# (its frame the colour of its rarity; a weapon's white, and brighter for the one aimed)
 			draw_rect(box, main.RARITY_COLOURS[main.rarity(what)], false, 2.5)
+			if what in main.WEAPONS:
+				draw_rect(box.grow(2.0), Color(1, 1, 1, 0.95 if what == main.aimed else 0.45), false, 2.0)
 			# (the item itself, a little 3D model of it, as Risk of Rain 2 shows its items)
 			draw_texture_rect(main.holograms.item(what), box.grow(-1.0), false)
 			var n: int = main.upgrades[what]
@@ -7167,27 +7970,33 @@ func _star_bits(delta: float) -> void:
 	_star_bit_wait -= delta
 	if level == 0 or ufo.dead or mode != "play" or intro > 0.0 or _star_bit_wait > 0.0:
 		return
-	# (on the ground round about, not as the crow flies from up where the ship is)
-	var reach := 20.0 + 3.0 * level
-	var target: Node3D
-	var nearest := reach
-	for s in shots:
-		if s.kind in ["shell", "missile"] and not s.done and s.position.distance_to(ufo.position) < nearest:
-			nearest = s.position.distance_to(ufo.position)
-			target = s
-	if target == null:
-		for t in things:
-			if t.is_enemy() and t.state == "walk" and not t.leaving and t.ground().distance_to(ufo.ground()) < nearest:
-				nearest = t.ground().distance_to(ufo.ground())
-				target = t
-	if target == null:
-		return
-	_star_bit_wait = STAR_BIT_EVERY / (1.0 + 0.2 * (level - 1))
+	var at := Vector3.INF
+	if manual("starbits"):
+		# (on the KRYSTALLIX-9 they are sprayed by hand, while held, where they are aimed)
+		if _hand_fired != "starbits":
+			return
+		at = target_point() + Vector3(0, 0.5, 0)
+	else:
+		# (on the ground round about, not as the crow flies from up where the ship is: shells and
+		# missiles first, then the police and army, then anything else)
+		var reach := 20.0 + 3.0 * level
+		var target: Node3D
+		var nearest := reach
+		for s in shots:
+			if s.kind in ["shell", "missile"] and not s.done and s.position.distance_to(ufo.position) < nearest:
+				nearest = s.position.distance_to(ufo.position)
+				target = s
+		if target == null:
+			target = weapon_target(ufo.ground(), reach)
+		if target == null:
+			return
+		at = target.global_position + (Vector3(0, 0.8, 0) if target is Thing else Vector3.ZERO)
+	_star_bit_wait = STAR_BIT_EVERY / (1.0 + 0.2 * (level - 1)) * (0.4 if manual("starbits") else 1.0)
 	var from := ufo.position + Vector3(0, -0.4, 0)
-	var at := target.global_position + (Vector3(0, 0.8, 0) if target is Thing else Vector3.ZERO)
-	# (wild: thrown well off where it is aimed)
-	var way := (at - from).normalized().rotated(Vector3.UP, randf_range(-0.3, 0.3))
-	way = way.rotated(way.cross(Vector3.UP).normalized() if absf(way.y) < 0.98 else Vector3.RIGHT, randf_range(-0.2, 0.2))
+	# (wild: thrown well off where it is aimed; less so by hand)
+	var wild := 0.15 if manual("starbits") else 1.0
+	var way := (at - from).normalized().rotated(Vector3.UP, randf_range(-0.3, 0.3) * wild)
+	way = way.rotated(way.cross(Vector3.UP).normalized() if absf(way.y) < 0.98 else Vector3.RIGHT, randf_range(-0.2, 0.2) * wild)
 	var bit := MeshInstance3D.new()
 	bit.mesh = _star_bit()
 	var hue := randf()
@@ -7195,6 +8004,7 @@ func _star_bits(delta: float) -> void:
 	bit.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	bit.position = from
 	bit.rotation = Vector3(randf() * TAU, randf() * TAU, 0)
+	bit.scale = Vector3.ONE * weapon_size()
 	view.add_child(bit)
 	_star_bits_out.append({"node": bit, "velocity": way * STAR_BIT_SPEED, "life": 1.2, "hue": hue, "spin": Vector3(randf_range(-12, 12), randf_range(-12, 12), 0)})
 	if randf() < 0.3:
@@ -7202,7 +8012,8 @@ func _star_bits(delta: float) -> void:
 
 
 func _fly_star_bits(delta: float) -> void:
-	var hit_power: float = STAR_BIT_HIT * (1.0 + 0.15 * (int(upgrades["starbits"]) - 1))
+	# (by hand, on the KRYSTALLIX-9, each bit hits harder)
+	var hit_power: float = STAR_BIT_HIT * (1.0 + 0.15 * (int(upgrades["starbits"]) - 1)) * (12.0 if manual("starbits") else 1.0)
 	for b: Dictionary in _star_bits_out.duplicate():
 		var node: MeshInstance3D = b["node"]
 		b["life"] -= delta
@@ -7220,20 +8031,18 @@ func _fly_star_bits(delta: float) -> void:
 						boom(s.position, 0.8)
 					break
 		if not done:
+			# (anything it meets: SIZE RAY makes the bits, and what they hit, bigger)
+			var reach := 0.5 * weapon_size()
 			for t in things:
-				if t.is_enemy() and t.state == "walk" and t.ground().distance_to(Vector3(node.position.x, 0, node.position.z)) < t.size() * 0.6 + 0.5 and node.position.y < 3.0:
+				if shootable(t) and t.ground().distance_to(Vector3(node.position.x, 0, node.position.z)) < t.size() * 0.6 + reach and node.position.y < maxf(3.0, t.size() * 1.2):
 					done = true
 					ufo.puffs.spark(node.position, Vector3(randf_range(-2, 2), 3.0, randf_range(-2, 2)), (node.material_override as ShaderMaterial).get_shader_parameter("tint"))
-					var away := t.ground() - ufo.ground()
-					away.y = 0.0
-					if away.length() > 0.01:
-						t.shove = (t.shove + away.normalized() * STAR_BIT_SHOVE).limit_length(STAR_BIT_SHOVE_MAX)
-					var dealt: float = float(t.get_meta("star_bits", 0.0)) + hit_power
-					if dealt >= 1.0:
-						dealt -= 1.0
-						_laser_hit(t, node.position)
-					if is_instance_valid(t):
-						t.set_meta("star_bits", dealt)
+					if t.info["move"] != "still":
+						var away := t.ground() - ufo.ground()
+						away.y = 0.0
+						if away.length() > 0.01:
+							t.shove = (t.shove + away.normalized() * STAR_BIT_SHOVE).limit_length(STAR_BIT_SHOVE_MAX)
+					weapon_hit(t, node.position, hit_power)
 					break
 		if done:
 			node.queue_free()
@@ -7414,35 +8223,135 @@ func _sling(delta: float) -> void:
 		f["age"] += delta
 		var k: float = minf(f["age"] / SLING_FALL, 1.0)
 		var node: Node3D = f["node"]
-		node.position = (f["from"] as Vector3).lerp(f["to"], k * k)
+		# (whirled out from over the ship on its tether and down onto the mark, along a curve)
+		var top: Vector3 = f["over"]
+		var e := k * k
+		node.position = (f["from"] as Vector3).lerp(top, e).lerp(top.lerp(f["to"], e), e)
 		node.rotation += Vector3(4.0, 3.0, 0.0) * delta
 		if randf() < delta * 40.0:
 			ufo.puffs.puff(node.position, Color(1.0, randf_range(0.35, 0.75), 0.15, 0.9), randf_range(0.6, 1.0), Vector3.UP * 0.5, 0.5)
+		_tether(f, k)
 		if k >= 1.0:
 			_sling_impact(f["to"])
 			node.queue_free()
 			_slung.erase(f)
+	# (tethers let go, fading)
+	for g: Array in _loose_tethers.duplicate():
+		g[1] = float(g[1]) - delta * 3.0
+		(g[2] as StandardMaterial3D).albedo_color.a = maxf(float(g[1]), 0.0)
+		if float(g[1]) <= 0.0:
+			(g[0] as Node).queue_free()
+			_loose_tethers.erase(g)
 	var level: int = upgrades["sling"]
 	_sling_wait -= delta
-	if level == 0 or ufo.dead or mode != "play" or intro > 0.0 or _sling_wait > 0.0:
+	# (on the KRAKKATOOM it is flung by hand, where it is aimed: see `_fire`)
+	if level == 0 or ufo.dead or mode != "play" or intro > 0.0 or _sling_wait > 0.0 or manual("sling"):
 		return
-	# (the one of theirs with the most of them round it, near enough)
+	var best := sling_crowd(ufo.ground(), 45.0)
+	if best == null:
+		return
+	_fling(best.ground())
+
+
+## The thickest crowd within `reach` of `from` for the sling: the police and army count three times
+## over anything else (the autopilot aims the KRAKKATOOM's by hand at it too)
+func sling_crowd(from: Vector3, reach: float) -> Thing:
 	var best: Thing = null
 	var most := 0
 	for t in things:
-		if not t.is_enemy() or t.state != "walk" or t.ground().distance_to(ufo.ground()) > 45.0:
+		if not shootable(t) or t.ground().distance_to(from) > reach:
 			continue
 		var round_it := 0
 		for o in things:
-			if o.is_enemy() and o.state == "walk" and o.ground().distance_to(t.ground()) < SLING_SPLASH:
-				round_it += 1
+			if shootable(o) and o.ground().distance_to(t.ground()) < SLING_SPLASH:
+				round_it += 3 if o.is_enemy() else 1
 		if round_it > most:
 			most = round_it
 			best = t
-	if best == null:
+	return best
+
+
+## The gravity sling's tether: a glowing purple ray from the ship's belly to the moonlet it is flinging,
+## bending along a curve (a quadratic bezier through a point pulled up and out between them, swinging as
+## it goes) with motes of light running down it; let go, it fades (`_loose_tethers`)
+const TETHER_PIECES := 14
+var _loose_tethers: Array = []
+
+
+func _tether(f: Dictionary, k: float) -> void:
+	if not f.has("tether"):
+		var holder := Node3D.new()
+		holder.top_level = true
+		view.add_child(holder)
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		m.albedo_color = Color(0.78, 0.35, 1.0, 1.0)
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		var rod := CylinderMesh.new()
+		rod.top_radius = 1.0
+		rod.bottom_radius = 1.0
+		rod.height = 1.0
+		rod.radial_segments = 5
+		rod.rings = 1
+		var pieces: Array = []
+		for i in TETHER_PIECES:
+			var piece := MeshInstance3D.new()
+			piece.mesh = rod
+			piece.material_override = m
+			piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			holder.add_child(piece)
+			pieces.append(piece)
+		var motes: Array = []
+		var mote_mesh := SphereMesh.new()
+		mote_mesh.radius = 0.16
+		mote_mesh.height = 0.32
+		mote_mesh.radial_segments = 6
+		mote_mesh.rings = 3
+		var mote_mat := m.duplicate() as StandardMaterial3D
+		mote_mat.albedo_color = Color(1.0, 0.8, 1.0, 1.0)
+		for i in 5:
+			var mote := MeshInstance3D.new()
+			mote.mesh = mote_mesh
+			mote.material_override = mote_mat
+			holder.add_child(mote)
+			motes.append(mote)
+		f["tether"] = [holder, m, pieces, motes]
+	var t: Array = f["tether"]
+	var a := ufo.global_position + Vector3(0, -0.6, 0)
+	var b: Vector3 = (f["node"] as Node3D).global_position
+	var side := (b - a).cross(Vector3.UP).normalized() if Vector2(b.x - a.x, b.z - a.z).length() > 0.1 else Vector3.RIGHT
+	var bend := (a + b) * 0.5 + Vector3.UP * a.distance_to(b) * 0.25 + side * sin(float(f["age"]) * 6.0) * 2.0
+	var prev := a
+	var width := 0.12 * weapon_size()
+	for i in TETHER_PIECES:
+		var u := float(i + 1) / TETHER_PIECES
+		var point := a.lerp(bend, u).lerp(bend.lerp(b, u), u)
+		var along := point - prev
+		var piece: MeshInstance3D = t[2][i]
+		if along.length() > 0.01:
+			piece.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, along.normalized())) * Basis.from_scale(Vector3(width, along.length(), width)), (prev + point) * 0.5)
+		prev = point
+	for i in (t[3] as Array).size():
+		var u := fposmod(float(f["age"]) * 1.4 + i / 5.0, 1.0)
+		(t[3][i] as Node3D).global_position = a.lerp(bend, u).lerp(bend.lerp(b, u), u)
+	(t[1] as StandardMaterial3D).albedo_color.a = 0.65 + 0.35 * sin(float(f["age"]) * 20.0)
+	if k >= 1.0:
+		# (let go as it lands: the tether fades)
+		_loose_tethers.append([t[0], 1.0, t[1]])
+		for mote: Node3D in t[3]:
+			mote.visible = false
+		f.erase("tether")
+
+
+## A moonlet flung down at `to`, once the sling is ready (the next is a while winding up)
+func _fling(to: Vector3) -> void:
+	var level: int = upgrades["sling"]
+	if level == 0 or ufo.dead or mode != "play" or _sling_wait > 0.0:
 		return
-	_sling_wait = maxf(16.0 - 3.0 * level, 6.0)
-	var to := best.ground()
+	# (by hand, on the KRAKKATOOM, it winds up quicker)
+	_sling_wait = maxf(2.6 - 0.3 * level, 1.2) if manual("sling") else maxf(16.0 - 3.0 * level, 6.0)
 	# (a little moon, glowing hot from its fall, fire streaming off it: see `_slinging`)
 	var rock := Ps1.model("moonlet", {}, true)
 	rock.scale = Vector3.ONE * (1.2 + 0.2 * level)
@@ -7453,25 +8362,30 @@ func _sling(delta: float) -> void:
 	glow.omni_range = 9.0
 	rock.add_child(glow)
 	view.add_child(rock)
-	var from := to + Vector3(randf_range(-25, 25), 70.0, randf_range(-25, 25))
+	# (pulled in out of the sky to just over the ship, then slung out and down onto the mark)
+	var from := ufo.global_position + Vector3(randf_range(-3, 3), 7.0, randf_range(-5, -2))
+	var over := (from + to) * 0.5 + Vector3(0, 9.0, 0)
 	rock.position = from
-	_slung.append({"node": rock, "from": from, "to": to, "age": 0.0})
+	_slung.append({"node": rock, "from": from, "over": over, "to": to, "age": 0.0})
 	sfx.play("whoosh", 0.5, 0.0)
 	_heat_note("GRAVITY SLING!", 1.2)
 
 
 func _sling_impact(at: Vector3) -> void:
 	var level: int = maxi(upgrades["sling"], 1)
-	var splash := SLING_SPLASH + 1.5 * (level - 1)
+	# (the KRAKKATOOM's own, flung by hand, lands harder and wider)
+	var own := manual("sling")
+	var splash := (SLING_SPLASH + 1.5 * (level - 1)) * weapon_size() * (1.4 if own else 1.0)
 	boom(at + Vector3(0, 1.0, 0), 4.0 + level)
 	sfx.play("boom", 0.6, 4.0)
 	_shake = maxf(_shake, 0.5)
 	_scorch(at, splash * 1.4)
 	for t in things.duplicate():
-		if t.is_enemy() and t.state == "walk" and t.ground().distance_to(at) < splash:
-			_laser_hit(t, t.position + Vector3(0, 1.0, 0))
-			if is_instance_valid(t) and t.state == "walk":
-				_laser_hit(t, t.position + Vector3(0, 1.0, 0))
+		if not is_instance_valid(t):
+			continue
+		if shootable(t) and t.ground().distance_to(at) < splash:
+			# (everything in it smashed: two laser hits' worth on the police and army, and on the rest)
+			weapon_hit(t, t.position + Vector3(0, 1.0, 0), 3.0 if own else 2.0)
 		elif t.state == "walk" and t.ground().distance_to(at) < splash * 2.0 and t.info["move"] in ["flee", "graze", "peck"]:
 			# (anything else near it runs for it)
 			t.panic = maxf(t.panic, 6.0)
@@ -7532,6 +8446,282 @@ func _rocket_launches(delta: float) -> void:
 
 ## The dev room on or off (D-E-V typed on the title, or seven taps on its name): every ship to try
 ## while it is on, the ships really found kept aside; nothing from it saved or sent to the scoreboard
+# ------------------------------------------------------------------ the test room (dev)
+
+## The TEST ROOM, from the dev room's title (TEST ROOM, under the row of buttons): a cleared, safe patch of
+## the country (no heat, no police and nothing sent after the ship unless spawned with its buttons, the
+## shield always full, nothing kept or scored for real) to try the ships and every weapon and item at any
+## stack: a DPS DUMMY on its post that takes every hit and never goes, showing damage a second, the total
+## and the last hit in laser hits (and each hit as a number rising off it), and rows of things of every
+## tier standing about, each put back a couple of seconds after it is gone. The TEST button opens its
+## panel: the ship (< >), each item's stack (- +), police / tank / helicopter to fight, RESET and EXIT.
+var test_room := false
+var _test_row: HBoxContainer
+var _test_open: Button
+var _test_box: PanelContainer
+var _test_list: VBoxContainer
+## The things standing about: [kind, where, the thing, seconds gone]
+var _test_slots: Array = []
+var _dummy: Thing
+var _dummy_label: Label3D
+## Its hits: [when, how much], and the total and the last
+var _dummy_hits: Array = []
+var _dummy_total := 0.0
+var _dummy_last := 0.0
+const TEST_ROWS := [["person", "farmer", "cow", "sheep", "chicken"], ["car", "pickup", "hay_bale", "fence", "scarecrow"],
+	["tree", "pine", "rock", "wheat", "corn"], ["house", "barn", "silo"]]
+
+
+func open_test_room() -> void:
+	if mode != "title" or not dev:
+		return
+	test_room = true
+	start()
+	_test_setup()
+
+
+func _leave_test_room() -> void:
+	test_room = false
+	if _test_box != null:
+		_test_box.visible = false
+	if _test_open != null:
+		_test_open.visible = false
+	_test_slots.clear()
+	_dummy = null
+
+
+func _test_setup() -> void:
+	levels_on = false
+	heat = 0.0
+	var at := ufo.ground()
+	for t in things.duplicate():
+		if t.ground().distance_to(at) < 48.0 or t.is_enemy() or t.kind == "rival":
+			_remove(t)
+	_dummy = spawn("dummy", at + Vector3(0, 0, -11))
+	_dummy.set_meta("dummy", true)
+	_dummy_label = Label3D.new()
+	_dummy_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_dummy_label.font = font
+	_dummy_label.font_size = 64
+	_dummy_label.pixel_size = 0.012
+	_dummy_label.outline_size = 14
+	_dummy_label.modulate = Color(1.0, 0.92, 0.5)
+	_dummy_label.no_depth_test = true
+	_dummy_label.position = Vector3(0, 4.2, 0)
+	_dummy.add_child(_dummy_label)
+	_dummy_hits.clear()
+	_dummy_total = 0.0
+	_dummy_last = 0.0
+	_test_slots.clear()
+	for r in TEST_ROWS.size():
+		var row: Array = TEST_ROWS[r]
+		var gap := 7.5 if r == 3 else 4.0
+		for i in row.size():
+			var p := at + Vector3((i - (row.size() - 1) * 0.5) * gap, 0, -19.0 - r * 7.0)
+			_test_slots.append([row[i], p, spawn(row[i], p), 0.0])
+	_build_test_ui()
+	_test_open.visible = true
+
+
+## Each frame in the test room: the shield full, the heat only while something to fight is about, the
+## things gone put back, and the dummy's numbers
+func _test_room(delta: float) -> void:
+	ufo.hull = ufo.hull_max
+	var foes := false
+	for t in things:
+		if t.is_enemy() and t.state == "walk" and t.ground().distance_to(ufo.ground()) < 70.0:
+			foes = true
+	heat = maxf(heat, 2.5) if foes else 0.0
+	for s: Array in _test_slots:
+		var t = s[2]
+		if t == null or not is_instance_valid(t) or (t as Thing).state == "gone":
+			s[3] = float(s[3]) + delta
+			if float(s[3]) > 2.0:
+				s[2] = spawn(s[0], s[1])
+				s[3] = 0.0
+	if _dummy == null or not is_instance_valid(_dummy):
+		return
+	var now := Time.get_ticks_msec() / 1000.0
+	while not _dummy_hits.is_empty() and now - float(_dummy_hits[0][0]) > 3.0:
+		_dummy_hits.pop_front()
+	var recent := 0.0
+	for h: Array in _dummy_hits:
+		recent += float(h[1])
+	_dummy_label.text = "DPS %.2f\nTOTAL %.1f\nLAST %.2f" % [recent / 3.0, _dummy_total, _dummy_last]
+
+
+## A hit on the DPS dummy (in laser hits): counted, flashed, and its number rising off it
+func _dummy_hit(t: Thing, amount: float) -> void:
+	_dummy_hits.append([Time.get_ticks_msec() / 1000.0, amount])
+	_dummy_total += amount
+	_dummy_last = amount
+	_popup("%.2f" % amount, t.position + Vector3(randf_range(-0.8, 0.8), 2.4, 0), Color(1.0, 0.85, 0.35))
+	Ps1.flash(t.model, Color(1.0, 0.5, 0.2))
+	_unflash(t, 0.1)
+
+
+func _build_test_ui() -> void:
+	var big := _upright()
+	if _test_open == null:
+		_test_open = _button("TEST", _toggle_test_panel)
+		_test_open.focus_mode = Control.FOCUS_NONE
+		_hud_root.add_child(_test_open)
+		_test_box = PanelContainer.new()
+		var back := StyleBoxFlat.new()
+		back.bg_color = Color(0.02, 0.08, 0.05, 0.9)
+		back.border_color = Color(0.55, 1.0, 0.65)
+		back.set_border_width_all(3)
+		back.set_corner_radius_all(20)
+		back.content_margin_left = 20
+		back.content_margin_right = 20
+		back.content_margin_top = 16
+		back.content_margin_bottom = 16
+		_test_box.add_theme_stylebox_override("panel", back)
+		_test_box.visible = false
+		_hud_root.add_child(_test_box)
+		var scroll := ScrollContainer.new()
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		_test_box.add_child(scroll)
+		_test_list = VBoxContainer.new()
+		_test_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_test_list.add_theme_constant_override("separation", 10)
+		scroll.add_child(_test_list)
+	_test_open.add_theme_font_size_override("font_size", 60 if big else 26)
+	_test_open.custom_minimum_size = Vector2(260, 110) if big else Vector2(120, 48)
+	var view_size := get_viewport().get_visible_rect().size / hud.scale.x
+	_test_open.position = Vector2((view_size.x - _test_open.custom_minimum_size.x) * 0.5, 210 if big else 96)
+	_test_box.set_anchors_preset(Control.PRESET_CENTER)
+	_test_box.custom_minimum_size = Vector2(minf(view_size.x - 40, 1200), view_size.y * (0.8 if big else 0.86))
+	_test_box.position = (view_size - _test_box.custom_minimum_size) * 0.5
+	(_test_box.get_child(0) as ScrollContainer).custom_minimum_size = _test_box.custom_minimum_size - Vector2(40, 32)
+	_fill_test_panel()
+
+
+func _toggle_test_panel() -> void:
+	if mode != "play" or not test_room:
+		return
+	_build_test_ui()
+	_test_box.visible = not _test_box.visible
+	get_tree().paused = _test_box.visible
+	_forget_fingers()
+
+
+## The panel: the ship, every item's stack, things to fight, RESET, CLOSE and EXIT
+func _fill_test_panel() -> void:
+	for c in _test_list.get_children():
+		c.queue_free()
+	var big := _upright()
+	var size := 64 if big else 24
+	var small := Vector2(150, 130) if big else Vector2(56, 50)
+	var head := _label(80 if big else 30, Color(0.6, 1.0, 0.65))
+	head.text = "TEST ROOM"
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_test_list.add_child(head)
+	var ships := HBoxContainer.new()
+	ships.alignment = BoxContainer.ALIGNMENT_CENTER
+	ships.add_theme_constant_override("separation", 14)
+	for step: int in [-1, 1]:
+		var b := _button("<" if step < 0 else ">", func() -> void: _test_ship(step))
+		b.custom_minimum_size = small
+		b.add_theme_font_size_override("font_size", size)
+		ships.add_child(b)
+		if step < 0:
+			var name := _label(size, Color(1.0, 0.92, 0.6))
+			name.text = Ufo.SHIPS[ship]["title"]
+			name.custom_minimum_size = Vector2(620 if big else 260, 0)
+			name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			ships.add_child(name)
+	_test_list.add_child(ships)
+	var grid := GridContainer.new()
+	grid.columns = 1 if big else 3
+	grid.add_theme_constant_override("h_separation", 18)
+	grid.add_theme_constant_override("v_separation", 8)
+	for what: String in ItemBar.ORDER:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var minus := _button("-", func() -> void: _test_stack(what, -1))
+		var plus := _button("+", func() -> void: _test_stack(what, 1))
+		for b: Button in [minus, plus]:
+			b.custom_minimum_size = small
+			b.add_theme_font_size_override("font_size", size)
+		var name := _label(size - 4 if big else 18, (UPGRADES[what]["colour"] as Color).lerp(Color.WHITE, 0.35))
+		name.text = "%s%s x%d" % [UPGRADES[what]["title"], " *" if what in WEAPONS else "", upgrades[what]]
+		name.custom_minimum_size = Vector2(760 if big else 230, 0)
+		name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.add_child(minus)
+		row.add_child(name)
+		row.add_child(plus)
+		grid.add_child(row)
+	_test_list.add_child(grid)
+	var note := _label(size - 12 if big else 16, Color(0.6, 0.85, 0.65))
+	note.text = "* A WEAPON (TWO AT MOST: A THIRD DROPS THE OLDEST)"
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_test_list.add_child(note)
+	for set: Array in [[["POLICE", func() -> void: _test_foe("police_car")], ["TANK", func() -> void: _test_foe("tank")], ["HELICOPTER", func() -> void: _test_foe("helicopter")]],
+			[["RESET", _test_reset], ["CLOSE", _toggle_test_panel], ["EXIT", func() -> void:
+				get_tree().paused = false
+				quit_to_menu()]]]:
+		var line := HBoxContainer.new()
+		line.alignment = BoxContainer.ALIGNMENT_CENTER
+		line.add_theme_constant_override("separation", 12)
+		for pair: Array in set:
+			var b := _button(pair[0], pair[1])
+			b.add_theme_font_size_override("font_size", size - 4)
+			b.custom_minimum_size = Vector2(340, 130) if big else Vector2(150, 52)
+			line.add_child(b)
+		_test_list.add_child(line)
+
+
+func _test_ship(step: int) -> void:
+	var i := Ufo.ORDER.find(ship)
+	ship = Ufo.ORDER[posmod(i + step, Ufo.ORDER.size())]
+	var keep := upgrades.duplicate()
+	get_tree().paused = false
+	start()
+	_test_setup()
+	# (the items kept, but the weapons the new ship's own)
+	for what: String in keep:
+		if not what in WEAPONS:
+			upgrades[what] = int(keep[what])
+	_apply_upgrades()
+	_test_box.visible = true
+	get_tree().paused = true
+	_fill_test_panel()
+
+
+func _test_stack(what: String, step: int) -> void:
+	if step > 0:
+		buy(what)
+	elif upgrades[what] > 0:
+		if what in WEAPONS and upgrades[what] == 1:
+			drop_weapon(what)
+		else:
+			upgrades[what] -= 1
+			_apply_upgrades()
+	_fill_test_panel()
+
+
+func _test_foe(kind: String) -> void:
+	var a := randf() * TAU
+	spawn(kind, ufo.ground() + Vector3(cos(a), 0, sin(a)) * 18.0)
+	_toggle_test_panel()
+
+
+func _test_reset() -> void:
+	for t in things.duplicate():
+		if t.is_enemy():
+			_remove(t)
+	for s: Array in _test_slots:
+		if s[2] != null and is_instance_valid(s[2]):
+			_remove(s[2])
+		s[2] = spawn(s[0], s[1])
+		s[3] = 0.0
+	_dummy_hits.clear()
+	_dummy_total = 0.0
+	_dummy_last = 0.0
+	heat = 0.0
+
+
 func toggle_dev() -> void:
 	dev = not dev
 	if dev:
@@ -7542,6 +8732,8 @@ func toggle_dev() -> void:
 		if not ship in unlocked:
 			ship = "saucer"
 	_show_ship()
+	if _test_row != null:
+		_test_row.visible = dev
 	sfx.play("ding", 0.8 if dev else 0.5, 0.0)
 	# (said over the ship parked on the moon, where it shows on the title)
 	_popup("DEV ROOM: EVERY SHIP" if dev else "DEV ROOM OFF", ufo.position + Vector3(0, 3.0, 0), Color(1.0, 0.85, 0.4))
