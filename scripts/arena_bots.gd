@@ -82,9 +82,14 @@ func tick(delta: float) -> void:
 	var think := _think_wait <= 0.0
 	if think:
 		_think_wait = 0.25
-	for id in bots:
-		_fly(bots[id], delta, think)
-	_bump_each_other()
+	# (still, their beams off, while a round's standings are up)
+	if arena.round_over:
+		for id in bots:
+			bots[id]["beam"] = false
+	else:
+		for id in bots:
+			_fly(bots[id], delta, think)
+		_bump_each_other()
 	_send_wait -= delta
 	if _send_wait <= 0.0:
 		_send_wait = Arena.SEND_EVERY
@@ -265,7 +270,7 @@ func _choose(b: Dictionary) -> void:
 		b["goal"] = null
 		b["beam_t"] = 0.0
 		var far := 40.0
-		for t in arena._here:
+		for t in arena._here + arena.wreck_things:
 			if t == null or not is_instance_valid(t):
 				continue
 			var thing: Thing = t
@@ -321,7 +326,7 @@ func hurt(id: int, power: float, by: int) -> void:
 	if not bots.has(id):
 		return
 	var b: Dictionary = bots[id]
-	if float(b["down"]) >= 0.0 or float(b["safe"]) > 0.0:
+	if float(b["down"]) >= 0.0 or float(b["safe"]) > 0.0 or arena.round_over:
 		return
 	b["hull"] = float(b["hull"]) - power * Arena.PVP_HIT
 	b["last_hit_by"] = by
@@ -341,6 +346,25 @@ func _down(b: Dictionary) -> void:
 	arena.bot_down(int(b["id"]), killer, b["pos"], lost)
 	if bots.has(killer):
 		bots[killer]["score"] = int(bots[killer]["score"]) + int(150 * Thing.WORTH)
+
+
+## A new round (Arena `_start_round`): every bot back at the rim with nothing, as at the start
+func new_round() -> void:
+	for id in bots:
+		var b: Dictionary = bots[id]
+		b["score"] = 0
+		b["hull"] = HULL
+		b["down"] = -1.0
+		b["safe"] = Arena.SAFE
+		b["pos"] = arena.rim_spot()
+		b["vel"] = Vector3.ZERO
+		b["goal"] = null
+		b["foe"] = -1
+		b["beam"] = false
+		b["beam_t"] = 0.0
+		b["dash"] = 0.0
+		b["last_hit_by"] = -1
+	_claims.clear()
 
 
 ## A bot shot down by a player whose device told us (the bonus is theirs; ours if it was a bot of ours)

@@ -395,7 +395,7 @@ def arena_booth():
 def arena_stands():
     """A stand for the crowd, on the crater's bank looking in: three tiers of benches, striped in the
     carnival's colours, a skirt down into the slope under it, bunting along its back (the audience is
-    put on it by the game, many to a MultiMesh: see arena_fan)"""
+    put on it by the game, many to a MultiMesh: baked from the game's own aliens, see arena.gd _baked_alien)"""
     w = 14.0
     p = [box((w, 6.0, 3.0), (0, 2.6, -1.4), "metal_dark")]
     colours = ["tent_purple", "tent_teal", "yellow"]
@@ -411,19 +411,7 @@ def arena_stands():
     return join("arena_stands", p)
 
 
-def arena_fan():
-    """One of the audience: a little alien sitting and watching, a round body under a big round head,
-    two great black eyes and a pair of feelers with glowing tips (its coat white: the game colours each
-    one, many to a MultiMesh)"""
-    p = [ball((0.62, 0.5, 0.62), (0, 0, 0.3), "white", 8, 5), ball((0.66, 0.6, 0.6), (0, 0, 0.82), "white", 8, 5),
-         ball((0.2, 0.08, 0.26), (-0.14, -0.27, 0.86), "black", 6, 3), ball((0.2, 0.08, 0.26), (0.14, -0.27, 0.86), "black", 6, 3),
-         rod(0.025, (-0.12, 0, 1.08), (-0.22, 0.02, 1.35), "white", 4), rod(0.025, (0.12, 0, 1.08), (0.22, 0.02, 1.35), "white", 4),
-         ball((0.09, 0.09, 0.09), (-0.22, 0.02, 1.36), "lime_glow", 5, 3), ball((0.09, 0.09, 0.09), (0.22, 0.02, 1.36), "lime_glow", 5, 3),
-         box((0.12, 0.16, 0.34), (-0.3, -0.05, 0.42), "white"), box((0.12, 0.16, 0.34), (0.3, -0.05, 0.42), "white")]
-    return join("arena_fan", p)
-
-
-ARENA_BUILDERS = [arena_floor, arena_rim, arena_arch, arena_stands, arena_fan, arena_bumper_post, arena_lights, arena_rocket_tower,
+ARENA_BUILDERS = [arena_floor, arena_rim, arena_arch, arena_stands, arena_bumper_post, arena_lights, arena_rocket_tower,
                   arena_astronaut, arena_tourist, arena_rover, arena_lander, arena_habitat, arena_dish, arena_solar, arena_flag,
                   arena_rock_small, arena_rock_big, arena_gem_pink, arena_gem_blue, arena_gem_green, arena_gem_gold, arena_snack_cart, arena_booth]
 

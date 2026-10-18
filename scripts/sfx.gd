@@ -55,6 +55,9 @@ func _ready() -> void:
 	sounds["chatter"] = _rattle()
 	# The lightning gun: a sharp crack falling to a rumble, mostly noise
 	sounds["crack"] = _voice(0.35, PackedFloat32Array([3200.0, 900.0, 260.0, 90.0]), 0.6, 0.0, 0.88)
+	# The arena's round clock: a beep a second for the last ten, and the buzzer at the end
+	sounds["beep"] = _voice(0.13, PackedFloat32Array([988.0, 988.0, 980.0]), 0.42, 0.0, 0.0)
+	sounds["buzzer"] = _voice(1.0, PackedFloat32Array([196.0, 200.0, 190.0, 180.0]), 0.55, 0.03, 0.25)
 	make_bus(BUS)
 	for i in 10:
 		var p := AudioStreamPlayer.new()

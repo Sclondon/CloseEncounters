@@ -8,7 +8,8 @@ extends Node3D
 ##
 ## Each one is its own (`look_seed`, a new one every run): its coat and the light in its eyes are from
 ## the alien's colours in Cryptlins, drifted a little, and its build, the size of its head and eyes,
-## and the odd extra (a tuft, a tooth, one eye smaller, eyes of two colours) are its own.
+## and the odd extra (a tuft, a tooth, one eye smaller, eyes of two colours, an antenna or two with lit
+## tips) are its own.
 
 const REST_ARM := Vector3(0.0, 0.0, 0.35)
 const UP_ARM := Vector3(-0.3, 0.0, 2.5)
@@ -22,6 +23,8 @@ var look_seed := 1
 var coat := COATS[1]
 var eye_size := 1.0
 var extras: Array[String] = []
+## Antennae on its head: -1 as its seed has it (none, one or two), or else that many
+var antennae := -1
 
 var fur: ShaderMaterial
 var pale: ShaderMaterial
@@ -66,7 +69,15 @@ func _ready() -> void:
 	if "split" in extras:
 		_other_eye = Ps1.mat(Color.from_hsv(fposmod(light.h + 0.38, 1.0), maxf(light.s, 0.5), light.v), 0.85)
 	eye_size = rng.randf_range(0.8, 1.3)
-	_build(rng.randf_range(0.9, 1.18), rng.randf_range(0.85, 1.25))
+	var chub := rng.randf_range(0.9, 1.18)
+	var crest := rng.randf_range(0.85, 1.25)
+	# (an antenna or two, lit at the tip in its eyes' light, on some: rolled last, so the rest of a seed's
+	# look is as it always was)
+	var feelers := (0 if rng.randf() > 0.3 else (1 if rng.randf() < 0.4 else 2)) if antennae < 0 else antennae
+	if feelers > 0:
+		extras.append("antenna")
+	_build(chub, crest)
+	_antennae(feelers, crest)
 
 
 ## As cryptlin.gd builds it, part for part
@@ -117,6 +128,18 @@ func _build(chub: float, crest: float) -> void:
 	if "tooth" in extras:
 		var fang := Ps1.part(mouth_node, CylinderMesh.new(), Ps1.mat(Color(0.92, 0.89, 0.78)), Vector3(0.018, -0.02, 0.012), Vector3(0.01, 0.03, 0.01), Vector3(PI, 0, 0))
 		(fang.mesh as CylinderMesh).top_radius = 0.0
+
+
+## Its antennae: thin stalks up off the top of its head, leaning out, each with a glowing ball at its tip
+func _antennae(count: int, crest: float) -> void:
+	var top := 0.2 + 0.31 * crest
+	for i in count:
+		var side := 0.0 if count == 1 else (-1.0 if i == 0 else 1.0)
+		var base := _pivot(neck, Vector3(0.07 * side, top, -0.01))
+		base.rotation = Vector3(-0.15, 0.0, -0.4 * side)
+		# (thick enough to show at the low-res picture's size, a pilot's or a fan's)
+		_part(base, CylinderMesh.new(), dark, Vector3(0, 0.12, 0), Vector3(0.05, 0.12, 0.05))
+		_part(base, Ps1.ball(), eye_mat, Vector3(0, 0.25, 0), Vector3.ONE * 0.05)
 
 
 func feel(how: String, seconds := 0.0) -> void:

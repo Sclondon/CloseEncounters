@@ -49,6 +49,8 @@ const KINDS := {
 	"arena_habitat": {"title": "MOON BASE", "points": 700, "weight": 5.0, "heat": 0.0, "move": "still", "size": 4.0, "tier": 3, "arena": "BUILDINGS"},
 	# (a score dropped by a saucer shot down in the arena, worth what it carries: anyone's to take)
 	"arena_drop": {"title": "LOST LOOT", "model": "arena_gem_gold", "points": 0, "weight": 0.6, "heat": 0.0, "move": "still", "size": 0.9, "arena": "MOON ROCKS"},
+	# (a saucer shot down in the arena, lying in its crater: anyone's to beam up, see arena.gd `_crash_watch`)
+	"arena_wreck": {"title": "SAUCER WRECK", "model": "crash_site", "points": 400, "weight": 2.8, "heat": 0.0, "move": "still", "size": 2.6, "tier": 2, "arena": "MOON GEAR"},
 	# (another player's saucer, as the weapons see it: an unseen stand-in under it, see arena.gd)
 	"arena_foe": {"title": "SAUCER", "model": "canister", "points": 0, "weight": 99.0, "heat": 0.0, "move": "still", "size": 2.6, "tier": 9, "enemy": true},
 	"farmer": {"points": 100, "weight": 1.3, "heat": 0.4, "move": "flee", "speed": 3.4, "size": 0.7, "voice": "scream", "gun": "shotgun", "caller": true},
@@ -1964,7 +1966,7 @@ const MORE_NAMES := {
 	"arena_gem_blue": "BLUE SPARKLE ROCK", "arena_gem_green": "GREEN SPARKLE ROCK", "arena_gem_gold": "POWER SPARKLE ROCK",
 	"arena_solar": "SUN DRINKER", "arena_snack_cart": "SNACK WAGON", "arena_rover": "MOON ZOOMER", "arena_dish": "SKY EAR",
 	"arena_booth": "PRIZE HUT", "arena_lander": "TIN MOON HOPPER", "arena_habitat": "MOON BUBBLE HOUSE",
-	"arena_drop": "LOST LOOT", "arena_foe": "A SAUCER",
+	"arena_drop": "LOST LOOT", "arena_foe": "A SAUCER", "arena_wreck": "A SAUCER WRECK",
 	"sunflower": "SUN-STARING STALK", "cabbage": "LEAF BRAIN", "melon": "STRIPED WATER EGG", "pepper": "FIRE POD BUSH",
 	"locomotive": "SMOKE-PUFFING IRON WORM", "boxcar": "IRON WORM SEGMENT", "caboose": "IRON WORM TAIL", "track": "IRON WORM PATH",
 	"rider": "TWO-HEADED HOOF BEAST", "balloon": "HOT SKY BUBBLE", "tube_man": "FLAILING WIND PRIEST",

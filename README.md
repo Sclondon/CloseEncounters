@@ -6,7 +6,8 @@ Godot 4.7 (GL Compatibility), exported for the web.
 
 The pilot is the alien from Cryptlins, built the same way (`scripts/alien.gd`, ported from `cryptlin.gd`
 `_build_alien`), and a different one every run: its coat and eye lights come from the Cryptlins alien's colours,
-and its build, head, eyes and the odd extra (a tuft, a tooth, one small eye, eyes of two colours) are its own.
+and its build, head, eyes and the odd extra (a tuft, a tooth, one small eye, eyes of two colours, an antenna or two with lit tips: `Alien.antennae`,
+-1 to let the seed say) are its own.
 The world is drawn with Cryptlins' PS1 look (low-res, snapped corners, dither) and curls away over the horizon
 like Animal Crossing (`shaders/bend.gdshaderinc`).
 
@@ -334,12 +335,15 @@ points it at another server.
 **ARENA** is the fourth turn of the title's big button (after PLAY, HOST and JOIN): a drop-in battle for the top
 spot on a carnival the aliens have set up on the moon. Pressing it says JOINING THE ARENA... and drops the saucer in at
 the rim of a round crater about 125 m across (`Arena.R` 62 m to the rail), ringed with a padded red and white bumper
-rail; the floor inside it open. On the bank all round, **stands full of
-aliens watching**, each its own colour, bobbing and swaying, and going wild when a saucer is shot down or the lead
-changes (`Arena.excite`; one MultiMesh, the bob in `bend.gdshaderinc` `cheer`); in three gaps between them, **camps**:
-a saucer parked on its legs with its canopy open and its pilot lounging on top with a drink, a cooler and a radio, two
-aliens in deck chairs with theirs, one up cheering. The gate (an arch and a rocket tower) is where the camera looks in,
-and Earth hangs in the black. Up to twelve players share an arena; anyone pressing ARENA lands in the fullest one with a
+rail; the floor inside it open. On the bank all round, **aliens tailgating** by their saucers: at each of eleven
+**camps** a saucer parked on its legs (one of the ships), aliens leaning back in deck chairs, a few more standing about
+in a group (one cheering), coolers, a radio, beer on the ground. Three of the camps are alive (`Arena.LIVE_CAMPS`: a
+parked `Ufo` with its canopy open and its pilot lounging on top with a drink, and animated `Alien`s); the rest are
+still (`_still_camp`). By the gate (an arch and a rocket tower, where the camera looks in), four **stands full of aliens
+watching**, bobbing and swaying, going wild when a saucer is shot down, the lead changes or a round ends
+(`Arena.excite`; the bob in `bend.gdshaderinc` `cheer`). The crowd and the still camps' folk are the game's own aliens
+(`Alien`, as the pilots are made), eight of them, baked once each per pose into one low-poly mesh with their colours
+on its corners (`Arena._baked_alien`) and drawn many at a time, a MultiMesh for each. Earth hangs in the black. Up to twelve players share an arena; anyone pressing ARENA lands in the fullest one with a
 seat, and can come and go at any time. Nobody hosts.
 
 It plays as a run on Earth does, against the other saucers: each ship its own speed, shield and weapon, score for what is
@@ -361,6 +365,21 @@ dodges. No police, no army, no heat: the other saucers are the danger.
   flickering). The leader wears a gold crown; the board (top left on an upright phone, under the log on a wide screen)
   shows the top five (eight on a wide screen), bots marked BOT, and where you stand. Nothing is sent to the arcade's
   scoreboard. LEAVE ARENA in the pause goes back to the title.
+- **Rounds**: four minutes each (`Arena.ROUND_TIME`), the round and its time left over the board, red and throbbing the
+  last 30 seconds, a beep a second the last ten, then the buzzer. The game is held still everywhere (nobody can be hit, no
+  beams) and the **ROUND OVER** board comes up: who won ("YOU WON THE ROUND!" or "YOU CAME 3RD"), the final standings, the
+  rounds each has won this session (`*2` after a name on the board), fireworks and confetti over the arena, the crowd
+  wild, and the next round counting in (`Arena.INTERMISSION`, 12 s). Then everyone, bots too, is back at the rim with
+  nothing (as if shot down, but nothing dropped), the last round's loot and wrecks gone and everything lying about fresh.
+  The rounds go by the arena's own clock (`ArenaNet.arena_time`), so every device ends one at the same moment without a
+  word; someone coming in mid-round plays the rest of it. `--round=<s>` and `--break=<s>` on the command line shorten
+  them (the tests).
+- **Wrecks**: a saucer shot down leaves its **wreck** in its crater (a crashed saucer, a bot's in the rival's purple),
+  anyone's to beam up for 400 (`arena_wreck`, A SAUCER WRECK in the log): the first to claim it has it, and it goes up
+  their beam for everyone. The bots go for wrecks too.
+- **Others' catches**: what another saucer (a player's, or a bot) beams up rises up its beam on every screen, turning and
+  shrinking away into it, as one's own do, taking as long as the lifting does (`Arena._rise_into`); and what is under
+  another's beam, not yet anyone's, lifts a little and turns there (`_remote_beams`: only a look, the claim decides).
 - **Bots**: while there are few players in, **rival saucers** (purple, a pink beam, as the rivals on Earth) fly too,
   enough to make six saucers in all (`ArenaBots`, `scripts/arena_bots.gd`): one bot fewer for each player who comes in.
   They roam, beam up what lies about (claimed from the server like anyone's), go for any saucer near them (the keener
@@ -371,10 +390,11 @@ dodges. No police, no army, no heat: the other saucers are the danger.
 How it is shared (`scripts/arena.gd`, `scripts/arena_net.gd`): the Scareathon server's arenas (`/close-encounters/arena/ws`,
 `server/closeEncounters/arena.js` in scareathon-v3) seat the players and pass their packets on. What lies about is laid
 out alike on every device from the arena's seed, each place with its own clock: what lies at place `p` is numbered
-`p * 1024 + generation`, the generation counting how many times its time has come round since the arena was born (by the
-server's clock). Whoever's claim on a number reaches the server first has it, and the server tells everyone; the others'
-copies vanish ("SNATCHED" if it was up their beam). Lost loot is numbered from 2^30 up by who dropped it (a seat, or 32
-and up for a bot). Each device flies its own saucer and sends it 15 times a second (place, heading, speed, beam, score,
+`(round * 256 + p) * 1024 + generation` (the round mod 2048), the generation counting how many times its time has come
+round since the arena was born (by the server's clock): a new round, new numbers, everything back. Whoever's claim on a number reaches the server first has it, and the server tells everyone; the others'
+copies go up the taker's beam ("SNATCHED" if it was up theirs). Lost loot is numbered from 2^30 up by who dropped it (a
+seat, or 32 and up for a bot), wrecks from `Arena.WRECK_BASE` by whose they were and how many times it has gone down,
+told with its fall (`K_DOWN`, `K_BOT_DOWN`). Each device flies its own saucer and sends it 15 times a second (place, heading, speed, beam, score,
 shield, ship: `K_STATE`); the others are drawn as `RemoteSaucer`s, each with an unseen stand-in under it (an "arena_foe"
 Thing) for the weapons to aim at: a weapon's hit on one goes to its owner (`K_HIT`), who takes the damage (`Arena.PVP_HIT`
 of shield a laser hit's worth). Shot down, a saucer says who did it (`K_DOWN`) and drops its loot (`K_LOOT`).
@@ -386,13 +406,17 @@ and every device, that one too, draws them as `RemoteSaucer`s in the rival's col
 bot beams up is claimed from the server in that device's seat and counted to the bot there. Players' scores go to the
 server once a second and it sends the standings back; the bots' scores come with their states, and each device puts them
 on its board with the players'. The map and its things are built by `tools/build_arena.py` (`models/arena_*.glb`; the
-stands `arena_stands`, the audience `arena_fan`).
+stands `arena_stands`; the audience is baked from `Alien`, see above).
 
 Looking at it: `sh tools/arena_test.sh <scareathon-v3/server>` (two copies of the game through a local relay: they see
 each other and the same bots, flown by the lower seat; a gem taken by one is gone for the other; one is shot down, drops
-its loot and comes back with nothing; the other shoots a bot down; the board has everyone), and
+its loot and comes back with nothing; the other beams up its wreck, which the first sees go up the other's beam; the
+other shoots a bot down; the board has everyone; then the same two again with short rounds: both see the round end at
+the same moment, agree who won, and come back into the next with nothing, the bots too, everything lying about fresh),
 `tests/arena_look.gd` (pictures: in among the bots, the crowd, a camp, the log, the horizon, a level-up, a moon base
-coming apart).
+coming apart), `tests/round_look.gd` (the round's clock, its last seconds, the ROUND OVER board) and
+`tests/crowd_look.gd` (a pilot with antennae, the crowd, a still camp and a live one, the bank, a bot's catch going up
+its beam).
 
 ## The world
 
@@ -505,8 +529,10 @@ loads; the Godot logo tinted green as a hologram (glowing, scanlines, a flicker)
     godot --path . --resolution 640x360 --max-fps 60 -s res://tests/hitches.gd  # the worst frames through the lift-off and descent
     godot --path . --resolution 640x360 --max-fps 60 -s res://tests/beam_hitch.gd  # the worst frames round the first press of the beam
     sh tools/coop_test.sh <scareathon-v3/server, with node_modules>   # multiplayer: a local relay of the site's rooms, a host and a guest
-    sh tools/arena_test.sh <scareathon-v3/server, with node_modules> [shots dir]   # the arena: a local relay, two saucers: a claim, a shooting down, loot, the standings
+    sh tools/arena_test.sh <scareathon-v3/server, with node_modules> [shots dir]   # the arena: a local relay, two saucers: a claim, a shooting down, loot, a wreck taken, the standings; then short rounds
     godot --path . --resolution <390x844|1280x720> -s res://tests/arena_look.gd -- <out dir> --server=http://127.0.0.1:3112   # the arena: bots, the crowd, a camp, the log, the horizon, a level-up (with a relay running)
+    godot --path . --resolution <390x844|1280x720> -s res://tests/round_look.gd -- <out dir> --server=http://127.0.0.1:3112 --round=25 --break=8   # the arena's rounds: the clock, the last seconds, ROUND OVER
+    godot --path . --resolution 390x844 -s res://tests/crowd_look.gd -- <out dir> --server=http://127.0.0.1:3112   # the arena's folk: a pilot with antennae, the crowd, the camps, a bot's catch up its beam
 
 Performance: each model is merged into one surface at load (colours on its corners, see `Ps1._merged`), so a
 thing is one draw call; nothing is drawn past 115 m (`Ps1.DRAW_TO`); far still things are not ticked and far

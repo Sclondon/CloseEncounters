@@ -7101,7 +7101,8 @@ func _fit_pause() -> void:
 
 
 func set_paused(on: bool) -> void:
-	if mode != "play" or (_picker != null and _picker.visible):
+	# (not while the arena's round is over: the game is held still for its standings, see Arena `_rounds`)
+	if mode != "play" or (_picker != null and _picker.visible) or (arena_on and arena.round_over):
 		return
 	if _moon_button != null:
 		_moon_button.text = "LEAVE ARENA" if arena_on else "TO THE MOON"
