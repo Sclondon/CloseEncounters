@@ -1909,9 +1909,9 @@ func wrecked(kind: String, points: int) -> void:
 
 ## The LIGHTNING GUN, aimed by hand: held, a bolt every LIGHTNING_EVERY seconds (sooner a stack) from
 ## the ship to the aimed mark, striking what is there and leaping on from it to the next near, and the
-## next (two leaps, and one more a stack), each hit a little weaker. SIZE RAY widens where it strikes
+## next (one leap, and one more a stack), each hit a little weaker. SIZE RAY widens where it strikes
 ## and how far it leaps.
-const LIGHTNING_EVERY := 0.34
+const LIGHTNING_EVERY := 0.45
 var _bolt_wait := 0.0
 ## Bolts drawn: [node, its material, its age]
 var _bolts: Array = []
@@ -1929,11 +1929,12 @@ func _lightning(delta: float, firing: bool) -> void:
 	if not firing or ufo.dead or mode != "play" or _bolt_wait > 0.0:
 		return
 	var level: int = maxi(upgrades["lightning"], 1)
-	_bolt_wait = maxf(LIGHTNING_EVERY - 0.03 * (level - 1), 0.15) * cooldown()
+	_bolt_wait = maxf(LIGHTNING_EVERY - 0.04 * (level - 1), 0.15) * cooldown()
 	var big := weapon_size()
 	var at := target_point()
 	var from := ufo.global_position + Vector3(0, -0.6, 0)
-	var power := 0.8 + 0.3 * (level - 1)
+	# (gentle at first: it grows with the stack)
+	var power := 0.45 + 0.3 * (level - 1)
 	var struck: Array = []
 	var hit := weapon_target(at, 2.4 * big)
 	var end := at
@@ -1948,7 +1949,7 @@ func _lightning(delta: float, firing: bool) -> void:
 	_flash_light(end, Color(0.65, 0.8, 1.0))
 	var chain: Array = [[hit, end]] if hit != null else []
 	var last := end
-	for i in 2 + (level - 1):
+	for i in 1 + (level - 1):
 		var next := weapon_target(last, (5.0 + 0.8 * level) * big, struck)
 		if next == null:
 			break
@@ -2181,7 +2182,7 @@ const RARITY_COLOURS: Array[Color] = [Color(0.4, 1.0, 0.5), Color(0.35, 0.65, 1.
 const RARITY_NAMES: Array[String] = ["COMMON", "UNCOMMON", "RARE"]
 const RARITY_ODDS: Array[float] = [6.0, 2.5, 0.8]
 const UNCOMMON: Array[String] = ["laser", "turret", "starbits", "cloak", "nanobots", "gold", "armor", "beam", "elite", "ignition", "wildfire"]
-const RARE: Array[String] = ["missiles", "emp", "fleet", "second_wind", "sling", "lightning", "splitter"]
+const RARE: Array[String] = ["missiles", "emp", "fleet", "second_wind", "sling", "lightning", "splitter", "crowbar"]
 
 
 func rarity(what: String) -> int:
@@ -3828,6 +3829,11 @@ func _warm_effects() -> void:
 	var puffs := Puffs.new()
 	_warm.add_child(puffs)
 	puffs.puff(at, Color(0.2, 0.2, 0.2, 0.8), 1.0)
+	# (the gravity sling's moonlet, loaded and drawn once, hot as it flies)
+	var moonlet := Ps1.model("moonlet", {}, true)
+	Ps1.flash(moonlet, Color(0.75, 0.3, 0.05))
+	moonlet.position = at
+	_warm.add_child(moonlet)
 	puffs.spark(at, Vector3.UP)
 	var motes := Dust.motes()
 	_warm.add_child(motes)
@@ -8474,7 +8480,7 @@ func _fly_star_bits(delta: float) -> void:
 			for t in things:
 				if shootable(t) and t.ground().distance_to(Vector3(node.position.x, 0, node.position.z)) < t.size() * 0.6 + reach and node.position.y < maxf(3.0, t.size() * 1.2):
 					done = true
-					ufo.puffs.spark(node.position, Vector3(randf_range(-2, 2), 3.0, randf_range(-2, 2)), (node.material_override as ShaderMaterial).get_shader_parameter("tint"))
+					_star_burst(node.position, (node.material_override as ShaderMaterial).get_shader_parameter("tint"))
 					if t.info["move"] != "still":
 						var away := t.ground() - ufo.ground()
 						away.y = 0.0
@@ -8485,6 +8491,32 @@ func _fly_star_bits(delta: float) -> void:
 		if done:
 			node.queue_free()
 			_star_bits_out.erase(b)
+
+
+## A star bit bursting where it hits: a spray of tiny stars of its colour flying out, spinning, and
+## winking out
+const STAR_BURST := 6
+
+
+func _star_burst(at: Vector3, c: Color) -> void:
+	var m := Ps1.own(c, 1.6, 0.6)
+	for i in STAR_BURST:
+		var bit := MeshInstance3D.new()
+		bit.mesh = _star_bit()
+		bit.material_override = m
+		bit.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		bit.position = at
+		bit.scale = Vector3.ONE * randf_range(0.55, 0.75)
+		bit.rotation = Vector3(randf() * TAU, randf() * TAU, 0)
+		view.add_child(bit)
+		var a := i * TAU / STAR_BURST + randf_range(-0.3, 0.3)
+		var out := Vector3(cos(a), randf_range(0.4, 1.1), sin(a)).normalized() * randf_range(1.6, 2.6)
+		var time := randf_range(0.28, 0.4)
+		var tw := bit.create_tween().set_parallel()
+		tw.tween_property(bit, "position", at + out, time).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+		tw.tween_property(bit, "rotation", bit.rotation + Vector3(0, 0, randf_range(-9, 9)), time)
+		tw.tween_property(bit, "scale", Vector3.ONE * 0.02, time).set_ease(Tween.EASE_IN)
+		tw.chain().tween_callback(bit.queue_free)
 
 
 ## A star bit: a little five-pointed star, puffed out front and back and cut in facets like a jewel
@@ -8655,8 +8687,13 @@ const SLING_FALL := 1.3
 var _sling_wait := 8.0
 ## Meteors on their way down: {node, from, to, age}
 var _slung: Array = []
+## A sling's hits still to land: [thing, power], nearest the impact first, a few a frame (see
+## `_ripple`): all at once, a crowded field smashed in one frame stalled a phone
+var _ripple_hits: Array = []
+const RIPPLE_PER_FRAME := 4
 
 func _sling(delta: float) -> void:
+	_ripple()
 	for f: Dictionary in _slung.duplicate():
 		f["age"] += delta
 		var k: float = minf(f["age"] / SLING_FALL, 1.0)
@@ -8816,12 +8853,9 @@ func _sling_rock(to: Vector3, late: float, level: int) -> void:
 	# (a little moon, glowing hot from its fall, fire streaming off it: see `_slinging`)
 	var rock := Ps1.model("moonlet", {}, true)
 	rock.scale = Vector3.ONE * (1.2 + 0.2 * level)
+	# (glowing by its own colour: no light of its own, which, moving over the country, had the
+	# renderer making new shaders as it went)
 	Ps1.flash(rock, Color(0.75, 0.3, 0.05))
-	var glow := OmniLight3D.new()
-	glow.light_color = Color(1.0, 0.55, 0.2)
-	glow.light_energy = 3.0
-	glow.omni_range = 9.0
-	rock.add_child(glow)
 	# (on a pivot that stretches it along the tether's pull)
 	var pivot := Node3D.new()
 	pivot.add_child(rock)
@@ -8844,16 +8878,31 @@ func _sling_impact(at: Vector3) -> void:
 	_shake = maxf(_shake, 0.5)
 	_scorch(at, splash * 1.4)
 	wake_scenery(at, splash, 14)
+	var caught: Array = []
 	for t in things.duplicate():
 		if not is_instance_valid(t):
 			continue
 		if shootable(t) and t.ground().distance_to(at) < splash:
-			# (everything in it smashed: two laser hits' worth on the police and army, and on the rest)
-			weapon_hit(t, t.position + Vector3(0, 1.0, 0), 3.0 if own else 2.0)
-			ignite(t)
+			# (everything in it smashed: two laser hits' worth on the police and army, and on the rest;
+			# out from where it landed a few a frame, a shockwave, see `_ripple`)
+			caught.append([t, 3.0 if own else 2.0, t.ground().distance_to(at)])
 		elif t.state == "walk" and t.ground().distance_to(at) < splash * 2.0 and t.info["move"] in ["flee", "graze", "peck"]:
 			# (anything else near it runs for it)
 			t.panic = maxf(t.panic, 6.0)
+	caught.sort_custom(func(a: Array, b: Array) -> bool: return float(a[2]) < float(b[2]))
+	_ripple_hits.append_array(caught)
+
+
+## Lands the sling's queued hits, RIPPLE_PER_FRAME a frame
+func _ripple() -> void:
+	for i in mini(RIPPLE_PER_FRAME, _ripple_hits.size()):
+		var hit: Array = _ripple_hits.pop_front()
+		var t: Thing = hit[0]
+		if not is_instance_valid(t) or t.state != "walk":
+			continue
+		weapon_hit(t, t.position + Vector3(0, 1.0, 0), float(hit[1]))
+		if is_instance_valid(t):
+			ignite(t)
 
 
 ## Rockets on their pads (see world.gd `_spaceport`): the ship coming within LAUNCH_NEAR sets the
