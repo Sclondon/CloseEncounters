@@ -249,15 +249,6 @@ func _build_map() -> void:
 	for i in 32:
 		var t := _flat_at(i * TAU / 32.0, R - 0.6)
 		posts.append(t.translated(Vector3(0, 1.3, 0)))
-	# Islands out on the floor to bump round: a ring of padded posts round a lamp
-	for i in ISLANDS:
-		var a := i * TAU / ISLANDS + 0.4
-		var at := Vector3(cos(a), 0, sin(a)) * R * (0.42 if i % 2 else 0.66)
-		_islands.append([at, 3.3])
-		poles.append(Transform3D(Basis(Vector3.UP, a), at))
-		for k in 7:
-			var b := k * TAU / 7.0
-			posts.append(Transform3D(Basis(Vector3.UP, b), at + Vector3(cos(b), 0, sin(b)) * 2.6 + Vector3(0, 1.3, 0)))
 	_multi("arena_lights", poles)
 	_multi("arena_bumper_post", posts)
 	# Earth hanging in the black (kept far off along one way as the camera moves: see `_place_earth`)
@@ -298,11 +289,10 @@ func _build_map() -> void:
 ## The rim's bank round the floor, as tools/build_arena.py makes it: [metres out from the rail, height]
 const BANK := [[0.4, 0.3], [2.0, 1.6], [5.0, 3.4], [9.0, 3.8], [15.0, 2.4], [21.0, 0.7], [24.0, -0.8]]
 ## Which way the gate stands (the camera looks in from beyond it), how many places round the bank (stands,
-## but for the camps), which of them are camps, and the islands out on the floor
+## but for the camps), and which of them are camps (the floor itself is open: nothing on it to fly into)
 const GATE := -PI * 0.5
 const STANDS := 15
 const CAMPS := [1, 6, 11]
-const ISLANDS := 6
 ## Round obstacles on the floor that saucers bounce off: [where, radius]
 var _islands: Array = []
 ## The parked saucers by the camps (ticked, for their lights and their pilots: see `step`)

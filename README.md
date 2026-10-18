@@ -334,7 +334,7 @@ points it at another server.
 **ARENA** is the fourth turn of the title's big button (after PLAY, HOST and JOIN): a drop-in battle for the top
 spot on a carnival the aliens have set up on the moon. Pressing it says JOINING THE ARENA... and drops the saucer in at
 the rim of a round crater about 125 m across (`Arena.R` 62 m to the rail), ringed with a padded red and white bumper
-rail; out on the floor, islands of padded posts round a lamp to bump round. On the bank all round, **stands full of
+rail; the floor inside it open. On the bank all round, **stands full of
 aliens watching**, each its own colour, bobbing and swaying, and going wild when a saucer is shot down or the lead
 changes (`Arena.excite`; one MultiMesh, the bob in `bend.gdshaderinc` `cheer`); in three gaps between them, **camps**:
 a saucer parked on its legs with its canopy open and its pilot lounging on top with a drink, a cooler and a radio, two
@@ -353,7 +353,7 @@ dodges. No police, no army, no heat: the other saucers are the danger.
   another of one had. What is taken comes back where it was a while later (sooner for the small things). Weapons wreck
   them too, for their points.
 - **Fight**: saucers that meet bounce off each other like bumper cars; a dash into another hurts it. Every weapon hurts
-  the other saucers (the turret, missiles, sling and star bits go for them first). The rail and the islands bounce a
+  the other saucers (the turret, missiles, sling and star bits go for them first). The rail bounces a
   saucer back. While a level-up's pick is up, the saucer picking cannot be hit (and the game goes on round it).
 - **Shot down**: you **lose everything**. Your whole score is dropped round where you fell as **LOST LOOT** (gold
   gems, anyone's to take), whoever brought you down gets a bonus, and three seconds later you are back at the rim as you
